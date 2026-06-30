@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VVD CPA Platform</title>
+    <script src="https://telegram.org"></script>
+    <style>
+        :root {
+            --bg-color: #050609;
+            --card-bg: rgba(20, 25, 43, 0.7);
+            --accent-purple: #8A2387;
+            --neon-cyan: #00f2fe;
+            --neon-magenta: #b827fc;
+            --text-main: #FFFFFF;
+            --text-muted: #7d8b99;
+            --crypto-green: #00FF87;
+            --border-glow: rgba(138, 35, 135, 0.3);
+        }
+        body { 
+            background-color: var(--bg-color); 
+            color: var(--text-main); 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            margin: 0; padding: 0; overflow-x: hidden;
+            background: radial-gradient(circle at top, #141026 0%, #050609 70%);
+        }
+        .header { padding: 25px 20px; display: flex; align-items: center; justify-content: space-between; }
+        .profile-info { display: flex; align-items: center; gap: 14px; }
+        .avatar-placeholder { 
+            width: 48px; height: 48px; border-radius: 50%; 
+            background: linear-gradient(135deg, var(--neon-magenta), var(--neon-cyan)); 
+            display: flex; align-items: center; justify-content: center; 
+            font-weight: bold; font-size: 18px; box-shadow: 0 0 15px rgba(0, 242, 254, 0.4);
+        }
+        .username { font-weight: bold; font-size: 17px; text-shadow: 0 0 10px rgba(255,255,255,0.1); }
+        .user-id-label { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+        .balance-container { padding: 0 20px; margin-bottom: 25px; }
+        .balance-card { 
+            background: var(--card-bg); padding: 20px; border-radius: 20px; 
+            border: 1px solid var(--border-glow); backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 0 15px rgba(138, 35, 135, 0.2);
+        }
+        .balance-row { display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 14px; }
+        .balance-val { font-size: 20px; font-weight: 800; }
+        .balance-val.available { color: var(--crypto-green); text-shadow: 0 0 10px rgba(0, 255, 135, 0.3); }
+        .balance-val.hold { color: var(--text-muted); }
+        .btn-main { 
+            width: 100%; padding: 14px; border: none; border-radius: 14px; 
+            background: linear-gradient(135deg, var(--neon-magenta), #E94057); 
+            color: white; font-weight: bold; font-size: 15px; cursor: pointer;
+            box-shadow: 0 4px 20px rgba(233, 64, 87, 0.4); transition: 0.2s;
+        }
+        .section-title { padding: 0 20px; font-size: 12px; margin: 20px 0 12px 0; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+        .grid-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 0 20px 25px 20px; }
+        .stat-box { 
+            background: var(--card-bg); padding: 18px; border-radius: 16px; text-align: center; 
+            border: 1px solid rgba(255,255,255,0.03); backdrop-filter: blur(10px);
+        }
+        .stat-box div:first-child { font-size: 12px; color: var(--text-muted); }
+        .stat-box .num { font-size: 22px; font-weight: bold; margin-top: 8px; color: #fff; }
+        .bottom-nav { 
+            position: fixed; bottom: 0; left: 0; right: 0; height: 65px; 
+            background: rgba(11, 14, 20, 0.95); display: flex; justify-content: space-around; 
+            align-items: center; border-top: 1px solid rgba(138, 35, 135, 0.2); backdrop-filter: blur(10px);
+        }
+        .nav-item { color: var(--text-muted); font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        .nav-item.active { color: var(--neon-cyan); font-weight: bold; text-shadow: 0 0 10px rgba(0, 242, 254, 0.4); }
+        .nav-item span { font-size: 18px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="profile-info">
+            <div class="avatar-placeholder" id="user-avatar">V</div>
+            <div>
+                <div class="username" id="user-name">Загрузка...</div>
+                <div class="user-id-label">ID: <span id="user-id">000000000</span></div>
+            </div>
+        </div>
+    </div>
+    <div class="balance-container">
+        <div class="balance-card">
+            <div class="balance-row">
+                <span>Доступно к выводу:</span>
+                <span class="balance-val available">$0.00</span>
+            </div>
+            <div class="balance-row">
+                <span>В холде (10 дн.):</span>
+                <span class="balance-val hold">$0.00</span>
+            </div>
+            <button class="btn-main">💰 Вывести баланс</button>
+        </div>
+    </div>
+    <div class="section-title">Статистика VVD CPA</div>
+    <div class="grid-stats">
+        <div class="stat-box"><div>Клики</div><div class="num">0</div></div>
+        <div class="stat-box"><div>Конверсии</div><div class="num" style="color:var(--neon-cyan); text-shadow: 0 0 10px rgba(0,242,254,0.3);">0</div></div>
+    </div>
+    <nav class="bottom-nav">
+        <div class="nav-item active">🏠<span>Домой</span></div>
+        <div class="nav-item">📊<span>Статистика</span></div>
+        <div class="nav-item">🧑‍💻<span>Саппорт</span></div>
+    </nav>
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            const user = tg.initDataUnsafe.user;
+            document.getElementById('user-name').innerText = user.first_name || 'Webmaster';
+            document.getElementById('user-id').innerText = user.id;
+            if (user.photo_url) {
+                document.getElementById('user-avatar').innerHTML = `<img src="${user.photo_url}" style="width:100%; height:100%; border-radius:50%;">`;
+            }
+        } else {
+            document.getElementById('user-name').innerText = 'Vitaliy (Test)';
+            document.getElementById('user-id').innerText = '123456789';
+        }
+    </script>
+</body>
+</html>
