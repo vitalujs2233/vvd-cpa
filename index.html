@@ -7,14 +7,15 @@
     <script src="https://telegram.org"></script>
     <style>
         :root {
-            --bg-color: #0B0E14;
-            --card-bg: #141923;
-            --accent-gradient: linear-gradient(135deg, #8A2387, #E94057, #F27121);
+            --bg-color: #05070F;
+            --card-bg: rgba(15, 20, 35, 0.8);
+            --accent-purple: #8A2387;
             --neon-blue: #00f2fe;
+            --neon-purple: #b827fc;
             --text-main: #FFFFFF;
-            --text-muted: #8E9AA8;
-            --crypto-green: #00E676;
-            --border-color: #222c3e;
+            --text-muted: #6C7A9C;
+            --crypto-green: #00FF87;
+            --border-glow: rgba(0, 242, 254, 0.25);
         }
 
         body {
@@ -22,63 +23,103 @@
             color: var(--text-main);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0; padding: 0; overflow-x: hidden;
+            background: radial-gradient(circle at top, #141129 0%, #05070F 80%);
+            -webkit-user-select: none;
+            user-select: none;
         }
 
         /* Управление экранами */
         .screen { display: none; padding-bottom: 90px; }
         .screen.active { display: block; }
 
-        /* Шапка */
-        .header { padding: 20px; background: linear-gradient(to bottom, #111622, var(--bg-color)); }
-        .profile-info { display: flex; align-items: center; gap: 12px; }
-        .avatar-placeholder { width: 45px; height: 45px; border-radius: 50%; background: var(--accent-gradient); display: flex; align-items: center; justify-content: center; font-weight: bold; overflow: hidden; }
-        .username { font-weight: bold; font-size: 16px; }
-        .user-id-label { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+        /* Шапка профиля */
+        .header { padding: 25px 20px 15px 20px; display: flex; align-items: center; justify-content: space-between; }
+        .profile-info { display: flex; align-items: center; gap: 14px; }
+        .avatar-placeholder { 
+            width: 48px; height: 48px; border-radius: 50%; 
+            background: linear-gradient(135deg, var(--neon-purple), var(--neon-blue)); 
+            display: flex; align-items: center; justify-content: center; 
+            font-weight: bold; font-size: 18px; 
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.4);
+            border: 1px solid rgba(255,255,255,0.1);
+            overflow: hidden;
+        }
+        .username { font-weight: bold; font-size: 18px; text-shadow: 0 0 10px rgba(0, 242, 254, 0.2); }
+        .user-id-label { font-size: 12px; color: var(--text-muted); margin-top: 3px; letter-spacing: 0.5px; }
         
-        /* Баланс */
+        /* Балансовая карточка */
         .balance-container { padding: 0 20px; margin-bottom: 20px; }
-        .balance-card { background: var(--card-bg); padding: 15px; border-radius: 16px; border: 1px solid var(--border-color); }
-        .balance-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 14px; }
-        .balance-val.available { color: var(--crypto-green); font-weight: bold; }
-        .balance-val.hold { color: var(--text-muted); font-weight: bold; }
+        .balance-card { 
+            background: var(--card-bg); padding: 20px; border-radius: 20px; 
+            border: 1px solid var(--border-glow); backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+        }
+        .balance-row { display: flex; justify-content: space-between; margin-bottom: 14px; font-size: 14px; color: var(--text-muted); }
+        .balance-val { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }
+        .balance-val.available { color: var(--crypto-green); text-shadow: 0 0 12px rgba(0, 255, 135, 0.4); }
+        .balance-val.hold { color: #A0AEC0; }
         
-        .btn-main { width: 100%; padding: 12px; border: none; border-radius: 12px; background: var(--accent-gradient); color: white; font-weight: bold; font-size: 14px; cursor: pointer; }
-        .btn-main.btn-sm { width: auto; padding: 8px 14px; font-size: 12px; border-radius: 8px; }
+        .btn-main { 
+            width: 100%; padding: 14px; border: none; border-radius: 14px; 
+            background: linear-gradient(135deg, var(--neon-purple), var(--accent-purple)); 
+            color: white; font-weight: bold; font-size: 15px; cursor: pointer; 
+            box-shadow: 0 4px 20px rgba(184, 39, 252, 0.4); border: 1px solid rgba(255,255,255,0.1);
+        }
+        .btn-main.btn-sm { 
+            width: auto; padding: 10px 20px; font-size: 13px; border-radius: 10px;
+            background: linear-gradient(135deg, #00f2fe, #4facfe);
+            box-shadow: 0 4px 15px rgba(0, 242, 254, 0.3); margin-top: 10px;
+        }
 
-        /* Статистика */
-        .section-title { padding: 0 20px; font-size: 12px; margin: 15px 0 10px 0; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-        .grid-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 20px 20px 20px; }
-        .stat-box { background: var(--card-bg); padding: 15px; border-radius: 12px; text-align: center; border: 1px solid var(--border-color); }
-        .stat-box div:first-child { font-size: 12px; color: var(--text-muted); }
-        .stat-box .num { font-size: 18px; font-weight: bold; margin-top: 6px; }
+        .section-title { padding: 0 20px; font-size: 12px; margin: 25px 0 12px 0; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+        
+        /* Сетка дашборда */
+        .grid-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 0 20px 20px 20px; }
+        .stat-box { 
+            background: var(--card-bg); padding: 16px; border-radius: 16px; text-align: center; 
+            border: 1px solid rgba(255,255,255,0.03); box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .stat-box div:first-child { font-size: 12px; color: var(--text-muted); text-transform: uppercase; }
+        .stat-box .num { font-size: 20px; font-weight: bold; margin-top: 8px; color: #fff; }
 
-        /* Смартлинка */
-        .list-container { padding: 0 20px; display: flex; flex-direction: column; gap: 12px; }
-        .item-card { background: var(--card-bg); padding: 16px; border-radius: 16px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 8px; }
+        /* Вкладка Смартлинки */
+        .list-container { padding: 0 20px; display: flex; flex-direction: column; gap: 14px; }
+        .item-card { 
+            background: var(--card-bg); padding: 20px; border-radius: 20px; 
+            border: 1px solid var(--border-glow); display: flex; flex-direction: column; gap: 12px;
+        }
         .item-header { display: flex; justify-content: space-between; align-items: center; }
-        .badge { background: rgba(0, 242, 254, 0.1); color: var(--neon-blue); padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; }
-        .payout { color: var(--crypto-green); font-weight: bold; font-size: 14px; }
-        .item-title { font-size: 16px; font-weight: bold; margin: 2px 0; }
-        .item-desc { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
-        .link-output-box { background: #0B0E14; border: 1px dashed var(--neon-blue); border-radius: 8px; padding: 10px; font-size: 12px; color: var(--neon-blue); word-break: break-all; font-family: monospace; text-align: center; margin-top: 5px; }
+        .badge { background: rgba(184, 39, 252, 0.15); color: #d946ef; padding: 5px 10px; border-radius: 8px; font-size: 12px; font-weight: bold; border: 1px solid rgba(184, 39, 252, 0.2); }
+        .payout { color: var(--crypto-green); font-weight: 800; font-size: 15px; }
+        .item-title { font-size: 18px; font-weight: bold; }
+        .item-desc { font-size: 13px; color: #94A3B8; line-height: 1.5; }
+        .link-output-box { 
+            background: #060914; border: 1px dashed var(--neon-blue); border-radius: 10px; 
+            padding: 12px; font-size: 12px; color: var(--neon-blue); word-break: break-all; 
+            font-family: monospace; text-align: center;
+        }
 
-        /* Движ (Чат) */
-        .chat-container { margin: 0 20px; background: var(--card-bg); border-radius: 16px; border: 1px solid var(--border-color); height: 300px; display: flex; flex-direction: column; overflow: hidden; }
-        .chat-messages { flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-        .msg { background: rgba(255,255,255,0.04); padding: 8px 12px; border-radius: 10px; max-width: 85%; font-size: 13px; line-height: 1.4; }
-        .msg-user { font-weight: bold; color: var(--neon-blue); font-size: 11px; margin-bottom: 2px; }
-        .chat-input-bar { padding: 8px; background: #0F121D; display: flex; gap: 8px; border-top: 1px solid var(--border-color); }
-        .chat-input { flex: 1; background: #0B0E14; border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 12px; color: white; outline: none; font-size: 13px; }
-        .btn-send { background: var(--accent-gradient); border: none; border-radius: 8px; color: white; padding: 0 14px; font-weight: bold; font-size: 12px; cursor: pointer; }
+        /* Чат Движ */
+        .chat-container { margin: 0 20px; background: var(--card-bg); border-radius: 20px; border: 1px solid var(--border-glow); height: 320px; display: flex; flex-direction: column; overflow: hidden; }
+        .chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .msg { background: rgba(255,255,255,0.03); padding: 10px 14px; border-radius: 14px; max-width: 80%; font-size: 13px; line-height: 1.4; border: 1px solid rgba(255,255,255,0.02); }
+        .msg-user { font-weight: bold; color: var(--neon-blue); font-size: 11px; margin-bottom: 3px; }
+        .chat-input-bar { padding: 10px; background: #0A0D18; display: flex; gap: 10px; border-top: 1px solid rgba(255,255,255,0.05); }
+        .chat-input { flex: 1; background: #05070F; border: 1px solid var(--border-glow); border-radius: 10px; padding: 10px 14px; color: white; outline: none; font-size: 13px; }
+        .btn-send { background: linear-gradient(135deg, var(--neon-purple), var(--accent-purple)); border: none; border-radius: 10px; color: white; padding: 0 18px; font-weight: bold; font-size: 13px; cursor: pointer; }
 
-        /* Таблица Статистики */
-        .placeholder-box { margin: 0 20px; background: var(--card-bg); padding: 20px; border-radius: 16px; border: 1px solid var(--border-color); text-align: center; color: var(--text-muted); font-size: 13px; }
+        /* Заглушка отчетов */
+        .placeholder-box { margin: 0 20px; background: var(--card-bg); padding: 25px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.03); text-align: center; color: var(--text-muted); font-size: 13px; }
 
-        /* Навигация */
-        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 60px; background: #111622; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid var(--border-color); }
-        .nav-item { color: var(--text-muted); font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; }
-        .nav-item span:first-child { font-size: 16px; }
-        .nav-item.active { color: var(--neon-blue); font-weight: bold; }
+        /* Нижнее меню */
+        .bottom-nav { 
+            position: fixed; bottom: 0; left: 0; right: 0; height: 65px; 
+            background: rgba(10, 13, 24, 0.95); display: flex; justify-content: space-around; 
+            align-items: center; border-top: 1px solid rgba(0, 242, 254, 0.2); backdrop-filter: blur(15px);
+        }
+        .nav-item { color: var(--text-muted); font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; }
+        .nav-item span:first-child { font-size: 18px; }
+        .nav-item.active { color: var(--neon-blue); font-weight: bold; text-shadow: 0 0 10px rgba(0, 242, 254, 0.4); }
     </style>
 </head>
 <body>
@@ -99,11 +140,11 @@
             <div class="balance-card">
                 <div class="balance-row">
                     <span>Доступно к выводу:</span>
-                    <span class="balance-val available">$0.00</span>
+                    <span class="balance-val available">$<span id="bal-avail">0.00</span></span>
                 </div>
                 <div class="balance-row">
-                    <span>В холде (10 дн.):</span>
-                    <span class="balance-val hold">$0.00</span>
+                    <span>В холде (10 дней):</span>
+                    <span class="balance-val hold">$<span id="bal-hold">0.00</span></span>
                 </div>
                 <button class="btn-main" onclick="openWithdrawModal()">💰 Вывести баланс</button>
             </div>
@@ -111,8 +152,8 @@
 
         <div class="section-title">Статистика VVD CPA</div>
         <div class="grid-stats">
-            <div class="stat-box"><div>Клики</div><div class="num">0</div></div>
-            <div class="stat-box"><div>Конверсии</div><div class="num" style="color:var(--neon-blue)">0</div></div>
+            <div class="stat-box"><div>Клики</div><div class="num" id="stat-clicks">0</div></div>
+            <div class="stat-box"><div>Конверсии</div><div class="num" id="stat-leads" style="color:var(--neon-blue)">0</div></div>
         </div>
     </div>
 
@@ -123,48 +164,14 @@
             <div class="item-card">
                 <div class="item-header"><span class="badge">Adult Dating WW</span><span class="payout">CPA: до $4.50</span></div>
                 <div class="item-title">Умный Ротатор Ссылок</div>
-                <div class="item-desc">Твоя личная ссылка для слива трафика. Система сама определит страну и устройство пользователя. Ссылка привязана к твоему ID:</div>
+                <div class="item-desc">Персональная ссылка для слива трафика. Алгоритм автоматически определяет страну кликнувшего человека. Ссылка привязана к твоему Telegram ID:</div>
                 <div class="link-output-box" id="user-tracking-link">Загрузка ссылки...</div>
-                <button class="btn-main btn-sm" style="margin-top: 10px;" onclick="copyMyLink()">📋 Скопировать Ссылку</button>
+                <button class="btn-main btn-sm" onclick="copyMyLink()">📋 Скопировать Ссылку</button>
             </div>
         </div>
     </div>
 
-    <!-- ЭКРАН 3: ДВИЖ -->
+    <!-- ЭКРАН 3: ДВИЖ (ЧАТ) -->
     <div id="screen-chat" class="screen">
-        <div class="section-title">Общий чат партнеров</div>
+        <div class="section-title">Общий чат партнеров сети</div>
         <div class="chat-container">
-            <div class="chat-messages" id="chat-messages">
-                <div class="msg"><div class="msg-user">Система VVD</div>Добро пожаловать в Движ! Чат запущен. Общайтесь и делитесь профитом здесь.</div>
-            </div>
-            <div class="chat-input-bar">
-                <input type="text" class="chat-input" id="chat-input" placeholder="Написать в Движ...">
-                <button class="btn-send" onclick="sendMessage()">Отправить</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ЭКРАН 4: СТАТИСТИКА -->
-    <div id="screen-stats" class="screen">
-        <div class="section-title">Детальный отчет</div>
-        <div class="placeholder-box">У вас пока нет кликов. История появится сразу после запуска трафика.</div>
-    </div>
-
-    <!-- МЕНЮ НАВИГАЦИИ -->
-    <nav class="bottom-nav">
-        <div class="nav-item active" onclick="switchScreen('home', this)"><span>🏠</span><span>Домой</span></div>
-        <div class="nav-item" onclick="switchScreen('smartlink', this)"><span>🔗</span><span>Смартлинка</span></div>
-        <div class="nav-item" onclick="switchScreen('chat', this)"><span>💬</span><span>Движ</span></div>
-        <div class="nav-item" onclick="switchScreen('stats', this)"><span>📊</span><span>Статистика</span></div>
-    </nav>
-
-    <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
-        let myId = '123456789';
-
-        // 1. Авторизация и вывод ID
-        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-            const user = tg.initDataUnsafe.user;
-            myId = user.id;
-            document.getElementById('user-name').innerText = user.first_name || 'Webmaster';
