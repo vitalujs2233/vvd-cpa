@@ -24,7 +24,9 @@
             margin: 0; padding: 0; overflow-x: hidden;
             background: radial-gradient(circle at top, #141026 0%, #050609 70%);
         }
-        .header { padding: 25px 20px; display: flex; align-items: center; justify-content: space-between; }
+        .screen { display: none; padding-bottom: 90px; }
+        .screen.active { display: block; }
+        .header { padding: 25px 20px 10px 20px; display: flex; align-items: center; justify-content: space-between; }
         .profile-info { display: flex; align-items: center; gap: 14px; }
         .avatar-placeholder { 
             width: 48px; height: 48px; border-radius: 50%; 
@@ -32,13 +34,13 @@
             display: flex; align-items: center; justify-content: center; 
             font-weight: bold; font-size: 18px; box-shadow: 0 0 15px rgba(0, 242, 254, 0.4);
         }
-        .username { font-weight: bold; font-size: 17px; text-shadow: 0 0 10px rgba(255,255,255,0.1); }
+        .username { font-weight: bold; font-size: 17px; }
         .user-id-label { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
-        .balance-container { padding: 0 20px; margin-bottom: 25px; }
+        .balance-container { padding: 0 20px; margin-bottom: 20px; }
         .balance-card { 
             background: var(--card-bg); padding: 20px; border-radius: 20px; 
             border: 1px solid var(--border-glow); backdrop-filter: blur(10px);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 0 15px rgba(138, 35, 135, 0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
         .balance-row { display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 14px; }
         .balance-val { font-size: 20px; font-weight: 800; }
@@ -46,75 +48,123 @@
         .balance-val.hold { color: var(--text-muted); }
         .btn-main { 
             width: 100%; padding: 14px; border: none; border-radius: 14px; 
-            background: linear-gradient(135deg, var(--neon-magenta), #E94057); 
+            background: linear-gradient(135deg, #b827fc, #E94057); 
             color: white; font-weight: bold; font-size: 15px; cursor: pointer;
-            box-shadow: 0 4px 20px rgba(233, 64, 87, 0.4); transition: 0.2s;
+            box-shadow: 0 4px 20px rgba(233, 64, 87, 0.4);
         }
-        .section-title { padding: 0 20px; font-size: 12px; margin: 20px 0 12px 0; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
-        .grid-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 0 20px 25px 20px; }
+        .section-title { padding: 0 20px; font-size: 12px; margin: 25px 0 12px 0; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+        .grid-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 0 20px; }
         .stat-box { 
             background: var(--card-bg); padding: 18px; border-radius: 16px; text-align: center; 
-            border: 1px solid rgba(255,255,255,0.03); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.03); 
         }
         .stat-box div:first-child { font-size: 12px; color: var(--text-muted); }
         .stat-box .num { font-size: 22px; font-weight: bold; margin-top: 8px; color: #fff; }
+        
+        /* Стили для новых разделов Офферов и Смартлинок */
+        .list-container { padding: 0 20px; display: flex; flex-direction: column; gap: 15px; }
+        .offer-item { 
+            background: var(--card-bg); padding: 20px; border-radius: 18px; 
+            border: 1px solid var(--border-glow); display: flex; flex-direction: column; gap: 10px;
+        }
+        .offer-header-row { display: flex; justify-content: space-between; align-items: center; }
+        .badge { background: rgba(0, 242, 254, 0.1); color: var(--neon-cyan); padding: 5px 10px; border-radius: 8px; font-size: 11px; font-weight: bold; }
+        .payout { color: var(--crypto-green); font-weight: bold; font-size: 15px; }
+        .offer-title { font-size: 18px; font-weight: bold; margin: 5px 0; }
+        .offer-desc { font-size: 13px; color: var(--text-muted); line-height: 1.4; }
+        .btn-link { 
+            padding: 10px 16px; border: none; border-radius: 10px; 
+            background: linear-gradient(135deg, var(--neon-cyan), #b827fc); 
+            color: white; font-weight: bold; font-size: 13px; cursor: pointer; align-self: flex-end;
+        }
+
+        /* Комната Движ (Чат) */
+        .chat-box { margin: 0 20px; background: var(--card-bg); border-radius: 18px; border: 1px solid var(--border-glow); height: 350px; display: flex; flex-direction: column; overflow: hidden; }
+        .chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .message { background: rgba(255,255,255,0.05); padding: 10px 14px; border-radius: 12px; max-width: 80%; font-size: 14px; }
+        .message-user { font-weight: bold; color: var(--neon-cyan); font-size: 12px; margin-bottom: 4px; }
+        .chat-input-area { padding: 10px; background: #0f121d; display: flex; gap: 10px; border-top: 1px solid rgba(255,255,255,0.05); }
+        .chat-input { flex: 1; background: #050609; border: 1px solid var(--border-glow); border-radius: 10px; padding: 10px; color: white; outline: none; }
+        .btn-send { background: var(--neon-magenta); border: none; border-radius: 10px; color: white; padding: 0 15px; font-weight: bold; cursor: pointer; }
+
+        /* Навигационное меню */
         .bottom-nav { 
             position: fixed; bottom: 0; left: 0; right: 0; height: 65px; 
             background: rgba(11, 14, 20, 0.95); display: flex; justify-content: space-around; 
             align-items: center; border-top: 1px solid rgba(138, 35, 135, 0.2); backdrop-filter: blur(10px);
         }
-        .nav-item { color: var(--text-muted); font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        .nav-item { color: var(--text-muted); font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; }
         .nav-item.active { color: var(--neon-cyan); font-weight: bold; text-shadow: 0 0 10px rgba(0, 242, 254, 0.4); }
         .nav-item span { font-size: 18px; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="profile-info">
-            <div class="avatar-placeholder" id="user-avatar">V</div>
-            <div>
-                <div class="username" id="user-name">Загрузка...</div>
-                <div class="user-id-label">ID: <span id="user-id">000000000</span></div>
+
+    <!-- ЭКРАН 1: ДОМОЙ -->
+    <div id="screen-home" class="screen active">
+        <div class="header">
+            <div class="profile-info">
+                <div class="avatar-placeholder" id="user-avatar">V</div>
+                <div>
+                    <div class="username" id="user-name">Авторизация...</div>
+                    <div class="user-id-label">ID: <span id="user-id">000000000</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="balance-container">
+            <div class="balance-card">
+                <div class="balance-row">
+                    <span>Доступно к выводу:</span>
+                    <span class="balance-val available">$0.00</span>
+                </div>
+                <div class="balance-row">
+                    <span>В холде (10 дн.):</span>
+                    <span class="balance-val hold">$0.00</span>
+                </div>
+                <button class="btn-main" onclick="openWithdraw()">💰 Вывести баланс</button>
+            </div>
+        </div>
+        <div class="section-title">Статистика VVD CPA</div>
+        <div class="grid-stats">
+            <div class="stat-box"><div>Клики</div><div class="num">0</div></div>
+            <div class="stat-box"><div>Конверсии</div><div class="num" style="color:var(--neon-cyan)">0</div></div>
+        </div>
+    </div>
+
+    <!-- ЭКРАН 2: СМАРТЛИНКИ -->
+    <div id="screen-smartlinks" class="screen">
+        <div class="section-title" style="margin-top:20px;">Твои Смартлинки</div>
+        <div class="list-container">
+            <div class="offer-item">
+                <div class="offer-header-row"><span class="badge">Adult Dating</span><span class="payout">CPA: до $4.50</span></div>
+                <div class="offer-title">Adult Smartlink WW Ротатор</div>
+                <div class="offer-desc">Умная ссылка. Автоматически анализирует устройство и ГЕО пользователя, подставляя самый конвертящий дейтинг-оффер на рынке. Супер-высокий CR.</div>
+                <button class="btn-link" onclick="generateLink(1)">Генерировать ссылку</button>
             </div>
         </div>
     </div>
-    <div class="balance-container">
-        <div class="balance-card">
-            <div class="balance-row">
-                <span>Доступно к выводу:</span>
-                <span class="balance-val available">$0.00</span>
+
+    <!-- ЭКРАН 3: ОФФЕРЫ -->
+    <div id="screen-offers" class="screen">
+        <div class="section-title" style="margin-top:20px;">Доступные CPA Офферы</div>
+        <div class="list-container">
+            <div class="offer-item">
+                <div class="offer-header-row"><span class="badge">Mainstream Dating</span><span class="payout">CPL: $2.10</span></div>
+                <div class="offer-title">Dating US/UK/CA (SOI)</div>
+                <div class="offer-desc">Прямой оффер знакомств под бурж трафик. Оплата за простую регистрацию без подтверждения карты. Высокий аппрув.</div>
+                <button class="btn-link" onclick="generateLink(2)">Взять ссылку</button>
             </div>
-            <div class="balance-row">
-                <span>В холде (10 дн.):</span>
-                <span class="balance-val hold">$0.00</span>
+            <div class="offer-item">
+                <div class="offer-header-row"><span class="badge">Gay Dating</span><span class="payout">CPA: $3.80</span></div>
+                <div class="offer-title">GaySmartlink Private</div>
+                <div class="offer-desc">Приватный узконишевый ротатор с высокой ставкой за лиды из Tier-1 стран. Доступен по запросу.</div>
+                <button class="btn-link" onclick="generateLink(3)">Взять ссылку</button>
             </div>
-            <button class="btn-main">💰 Вывести баланс</button>
         </div>
     </div>
-    <div class="section-title">Статистика VVD CPA</div>
-    <div class="grid-stats">
-        <div class="stat-box"><div>Клики</div><div class="num">0</div></div>
-        <div class="stat-box"><div>Конверсии</div><div class="num" style="color:var(--neon-cyan); text-shadow: 0 0 10px rgba(0,242,254,0.3);">0</div></div>
-    </div>
-    <nav class="bottom-nav">
-        <div class="nav-item active">🏠<span>Домой</span></div>
-        <div class="nav-item">📊<span>Статистика</span></div>
-        <div class="nav-item">🧑‍💻<span>Саппорт</span></div>
-    </nav>
-    <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
-        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-            const user = tg.initDataUnsafe.user;
-            document.getElementById('user-name').innerText = user.first_name || 'Webmaster';
-            document.getElementById('user-id').innerText = user.id;
-            if (user.photo_url) {
-                document.getElementById('user-avatar').innerHTML = `<img src="${user.photo_url}" style="width:100%; height:100%; border-radius:50%;">`;
-            }
-        } else {
-            document.getElementById('user-name').innerText = 'Vitaliy (Test)';
-            document.getElementById('user-id').innerText = '123456789';
-        }
-    </script>
-</body>
-</html>
+
+    <!-- ЭКРАН 4: ДВИЖ (ЧАТ) -->
+    <div id="screen-chat" class="screen">
+        <div class="section-title" style="margin-top:20px;">Общий чат вебмастеров VVD</div>
+        <div class="chat-box">
+            <div class="chat-messages" id="chat-messages">
