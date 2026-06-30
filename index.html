@@ -24,13 +24,12 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0; padding: 0; overflow-x: hidden;
             background: radial-gradient(circle at top, #141129 0%, #05070F 80%);
+            -webkit-user-select: none; user-select: none;
         }
 
-        /* Экраны */
         .screen { display: none; padding-bottom: 90px; }
         .screen.active { display: block; }
 
-        /* Профиль */
         .header { padding: 25px 20px 15px 20px; display: flex; align-items: center; justify-content: space-between; }
         .profile-info { display: flex; align-items: center; gap: 14px; }
         .avatar-placeholder { 
@@ -43,12 +42,10 @@
         .username { font-weight: bold; font-size: 18px; text-shadow: 0 0 10px rgba(0, 242, 254, 0.2); }
         .user-id-label { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
         
-        /* Баланс */
         .balance-container { padding: 0 20px; margin-bottom: 20px; }
         .balance-card { 
             background: var(--card-bg); padding: 20px; border-radius: 20px; 
-            border: 1px solid var(--border-glow); backdrop-filter: blur(12px);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            border: 1px solid var(--border-glow); backdrop-filter: blur(12px); box-shadow: 0 10px 30px rgba(0,0,0,0.6);
         }
         .balance-row { display: flex; justify-content: space-between; margin-bottom: 14px; font-size: 14px; color: var(--text-muted); }
         .balance-val { font-size: 22px; font-weight: 800; }
@@ -58,8 +55,7 @@
         .btn-main { 
             width: 100%; padding: 14px; border: none; border-radius: 14px; 
             background: linear-gradient(135deg, var(--neon-purple), var(--accent-purple)); 
-            color: white; font-weight: bold; font-size: 15px; cursor: pointer; 
-            box-shadow: 0 4px 20px rgba(184, 39, 252, 0.4); border: 1px solid rgba(255,255,255,0.1);
+            color: white; font-weight: bold; font-size: 15px; cursor: pointer; box-shadow: 0 4px 20px rgba(184, 39, 252, 0.4);
         }
         .btn-main.btn-sm { 
             width: auto; padding: 10px 20px; font-size: 13px; border-radius: 10px;
@@ -67,46 +63,30 @@
         }
 
         .section-title { padding: 0 20px; font-size: 12px; margin: 25px 0 12px 0; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
-        
-        /* Статистика */
         .grid-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 0 20px 20px 20px; }
-        .stat-box { 
-            background: var(--card-bg); padding: 16px; border-radius: 16px; text-align: center; 
-            border: 1px solid rgba(255,255,255,0.03); box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        }
-        .stat-box div:first-child { font-size: 12px; color: var(--text-muted); text-transform: uppercase; }
+        .stat-box { background: var(--card-bg); padding: 16px; border-radius: 16px; text-align: center; border: 1px solid rgba(255,255,255,0.03); }
         .stat-box .num { font-size: 20px; font-weight: bold; margin-top: 8px; color: #fff; }
 
-        /* Смартлинка */
         .list-container { padding: 0 20px; display: flex; flex-direction: column; gap: 14px; }
         .item-card { background: var(--card-bg); padding: 20px; border-radius: 20px; border: 1px solid var(--border-glow); display: flex; flex-direction: column; gap: 12px; }
-        .item-header { display: flex; justify-content: space-between; align-items: center; }
-        .badge { background: rgba(184, 39, 252, 0.15); color: #d946ef; padding: 5px 10px; border-radius: 8px; font-size: 12px; font-weight: bold; border: 1px solid rgba(184, 39, 252, 0.2); }
-        .payout { color: var(--crypto-green); font-weight: 800; font-size: 15px; }
-        .item-title { font-size: 18px; font-weight: bold; }
-        .item-desc { font-size: 13px; color: #94A3B8; line-height: 1.5; }
+        .badge { background: rgba(184, 39, 252, 0.15); color: #d946ef; padding: 5px 10px; border-radius: 8px; font-size: 12px; font-weight: bold; }
         .link-output-box { background: #060914; border: 1px dashed var(--neon-blue); border-radius: 10px; padding: 12px; font-size: 12px; color: var(--neon-blue); word-break: break-all; font-family: monospace; text-align: center; }
 
-        /* Чат */
         .chat-container { margin: 0 20px; background: var(--card-bg); border-radius: 20px; border: 1px solid var(--border-glow); height: 320px; display: flex; flex-direction: column; overflow: hidden; }
         .chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        .msg { background: rgba(255,255,255,0.03); padding: 10px 14px; border-radius: 14px; max-width: 80%; font-size: 13px; line-height: 1.4; border: 1px solid rgba(255,255,255,0.02); }
+        .msg { background: rgba(255,255,255,0.03); padding: 10px 14px; border-radius: 14px; max-width: 80%; font-size: 13px; }
         .msg-user { font-weight: bold; color: var(--neon-blue); font-size: 11px; margin-bottom: 3px; }
-        .chat-input-bar { padding: 10px; background: #0A0D18; display: flex; gap: 10px; border-top: 1px solid rgba(255,255,255,0.05); }
-        .chat-input { flex: 1; background: #05070F; border: 1px solid var(--border-glow); border-radius: 10px; padding: 10px 14px; color: white; outline: none; font-size: 13px; }
-        .btn-send { background: linear-gradient(135deg, var(--neon-purple), var(--accent-purple)); border: none; border-radius: 10px; color: white; padding: 0 18px; font-weight: bold; font-size: 13px; cursor: pointer; }
+        .chat-input-bar { padding: 10px; background: #0A0D18; display: flex; gap: 10px; }
+        .chat-input { flex: 1; background: #05070F; border: 1px solid var(--border-glow); border-radius: 10px; padding: 10px 14px; color: white; outline: none; }
+        .btn-send { background: linear-gradient(135deg, var(--neon-purple), var(--accent-purple)); border: none; border-radius: 10px; color: white; padding: 0 18px; font-weight: bold; cursor: pointer; }
 
-        .placeholder-box { margin: 0 20px; background: var(--card-bg); padding: 25px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.03); text-align: center; color: var(--text-muted); font-size: 13px; }
-
-        /* Нижнее меню */
         .bottom-nav { 
             position: fixed; bottom: 0; left: 0; right: 0; height: 65px; 
             background: rgba(10, 13, 24, 0.95); display: flex; justify-content: space-around; 
             align-items: center; border-top: 1px solid rgba(0, 242, 254, 0.2); backdrop-filter: blur(15px);
         }
         .nav-item { color: var(--text-muted); font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; }
-        .nav-item span:first-child { font-size: 18px; }
-        .nav-item.active { color: var(--neon-blue); font-weight: bold; text-shadow: 0 0 10px rgba(0, 242, 254, 0.4); }
+        .nav-item.active { color: var(--neon-blue); font-weight: bold; }
     </style>
 </head>
 <body>
@@ -122,25 +102,17 @@
                 </div>
             </div>
         </div>
-
         <div class="balance-container">
             <div class="balance-card">
-                <div class="balance-row">
-                    <span>Доступно к выводу:</span>
-                    <span class="balance-val available">$<span id="bal-avail">0.00</span></span>
-                </div>
-                <div class="balance-row">
-                    <span>В холде (10 дней):</span>
-                    <span class="balance-val hold">$<span id="bal-hold">0.00</span></span>
-                </div>
+                <div class="balance-row"><span>Доступно к выводу:</span><span class="balance-val available">$0.00</span></div>
+                <div class="balance-row"><span>В холде:</span><span class="balance-val hold">$0.00</span></div>
                 <button class="btn-main" onclick="openWithdrawModal()">💰 Вывести баланс</button>
             </div>
         </div>
-
         <div class="section-title">Статистика VVD CPA</div>
         <div class="grid-stats">
-            <div class="stat-box"><div>Клики</div><div class="num" id="stat-clicks">0</div></div>
-            <div class="stat-box"><div>Конверсии</div><div class="num" id="stat-leads" style="color:var(--neon-blue)">0</div></div>
+            <div class="stat-box"><div>Клики</div><div class="num">0</div></div>
+            <div class="stat-box"><div>Конверсии</div><div class="num" style="color:var(--neon-blue)">0</div></div>
         </div>
     </div>
 
@@ -149,20 +121,51 @@
         <div class="section-title">Твоя Персональная Смартлинка</div>
         <div class="list-container">
             <div class="item-card">
-                <div class="item-header"><span class="badge">Adult Dating WW</span><span class="payout">CPA: до $4.50</span></div>
-                <div class="item-title">Умный Ротатор Ссылок</div>
-                <div class="item-desc">Персональная ссылка для слива трафика. Алгоритм автоматически определяет страну кликнувшего человека. Ссылка привязана к твоему Telegram ID:</div>
+                <div style="display:flex; justify-content:space-between;"><span class="badge">Adult Dating WW</span><span style="color:var(--crypto-green); font-weight:bold;">до $4.50</span></div>
+                <div style="font-size:16px; font-weight:bold; margin: 5px 0;">Умный Ротатор</div>
+                <div style="font-size:13px; color:#94A3B8;">Ссылка привязана к твоему Telegram ID:</div>
                 <div class="link-output-box" id="user-tracking-link">Загрузка ссылки...</div>
-                <button class="btn-main btn-sm" onclick="copyMyLink()">📋 Скопировать Ссылку</button>
+                <button class="btn-main btn-sm" onclick="copyMyLink()">📋 Скопировать</button>
             </div>
         </div>
     </div>
 
-    <!-- ЭКРАН 3: ДВИЖ (ЧАТ) -->
+    <!-- ЭКРАН 3: ДВИЖ -->
     <div id="screen-chat" class="screen">
-        <div class="section-title">Общий чат партнеров сети</div>
+        <div class="section-title">Чат партнеров сети</div>
         <div class="chat-container">
             <div class="chat-messages" id="chat-messages">
-                <div class="msg"><div class="msg-user">Система VVD</div>Добро пожаловать в Движ! Чат полностью активен. Общайтесь и делитесь скриншотами профита.</div>
+                <div class="msg"><div class="msg-user">Система VVD</div>Добро пожаловать в Движ! Чат активен.</div>
             </div>
             <div class="chat-input-bar">
+                <input type="text" class="chat-input" id="chat-input" placeholder="Написать...">
+                <button class="btn-send" onclick="sendMessage()">Отправить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ЭКРАН 4: СТАТИСТИКА -->
+    <div id="screen-stats" class="screen">
+        <div class="section-title">Отчет по дням</div>
+        <div style="margin:0 20px; background:var(--card-bg); padding:20px; border-radius:20px; text-align:center; color:var(--text-muted);">История появится после запуска трафика.</div>
+    </div>
+
+    <!-- НАВИГАЦИЯ -->
+    <nav class="bottom-nav">
+        <div class="nav-item active" onclick="switchScreen('home', this)">🏠<div>Домой</div></div>
+        <div class="nav-item" onclick="switchScreen('smartlink', this)">🔗<div>Смартлинка</div></div>
+        <div class="nav-item" onclick="switchScreen('chat', this)">💬<div>Движ</div></div>
+        <div class="nav-item" onclick="switchScreen('stats', this)">📊<div>Статистика</div></div>
+    </nav>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        let myId = '123456789';
+
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            const user = tg.initDataUnsafe.user;
+            myId = user.id;
+            document.getElementById('user-name').innerText = user.first_name || 'Webmaster';
+            document.getElementById('user-id').innerText = user.id;
+            if (user.photo_url) {
