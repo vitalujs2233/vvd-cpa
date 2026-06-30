@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VVD CPA Platform</title>
+    <style>
+        :root {
+            --bg-color: #0B0E14;
+            --card-bg: #141923;
+            --accent-gradient: linear-gradient(135deg, #8A2387, #E94057, #F27121);
+            --neon-blue: #00f2fe;
+            --text-main: #FFFFFF;
+            --text-muted: #8E9AA8;
+            --crypto-green: #00E676;
+            --border-color: #222c3e;
+        }
+        body { background-color: var(--bg-color); color: var(--text-main); font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 0; overflow-x: hidden; }
+        .header { padding: 20px; background: linear-gradient(to bottom, #111622, var(--bg-color)); }
+        .profile-info { display: flex; align-items: center; gap: 12px; }
+        .avatar-placeholder { width: 45px; height: 45px; border-radius: 50%; background: var(--accent-gradient); display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .username { font-weight: bold; font-size: 16px; }
+        .user-id-label { font-size: 12px; color: var(--text-muted); }
+        .balance-container { padding: 0 20px; margin-bottom: 20px; }
+        .balance-card { background: var(--card-bg); padding: 15px; border-radius: 16px; border: 1px solid var(--border-color); }
+        .balance-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 14px; }
+        .balance-val.available { color: var(--crypto-green); font-weight: bold; }
+        .balance-val.hold { color: var(--text-muted); font-weight: bold; }
+        .btn-main { width: 100%; padding: 12px; border: none; border-radius: 12px; background: var(--accent-gradient); color: white; font-weight: bold; cursor: pointer; }
+        .section-title { padding: 0 20px; font-size: 12px; margin: 15px 0 10px 0; color: var(--text-muted); text-transform: uppercase; }
+        .grid-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 20px 20px 20px; }
+        .stat-box { background: var(--card-bg); padding: 15px; border-radius: 12px; text-align: center; border: 1px solid var(--border-color); }
+        .stat-box .num { font-size: 18px; font-weight: bold; margin-top: 6px; }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 60px; background: #111622; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid var(--border-color); }
+        .nav-item { color: var(--text-muted); font-size: 11px; display: flex; flex-direction: column; align-items: center; }
+        .nav-item.active { color: var(--neon-blue); font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="profile-info">
+            <div class="avatar-placeholder">V</div>
+            <div>
+                <div class="username">Vitaliy (Владелец)</div>
+                <div class="user-id-label">ID: 123456789</div>
+            </div>
+        </div>
+    </div>
+    <div class="balance-container">
+        <div class="balance-card">
+            <div class="balance-row">
+                <span>Доступно к выводу:</span>
+                <span class="balance-val available">$0.00</span>
+            </div>
+            <div class="balance-row">
+                <span>В холде (10 дн.):</span>
+                <span class="balance-val hold">$0.00</span>
+            </div>
+            <button class="btn-main">💰 Вывести баланс</button>
+        </div>
+    </div>
+    <div class="section-title">Статистика VVD CPA</div>
+    <div class="grid-stats">
+        <div class="stat-box"><div>Клики</div><div class="num">0</div></div>
+        <div class="stat-box"><div>Конверсии</div><div class="num" style="color:var(--neon-blue)">0</div></div>
+    </div>
+    <nav class="bottom-nav">
+        <div class="nav-item active">🏠<span>Домой</span></div>
+        <div class="nav-item">📊<span>Статистика</span></div>
+        <div class="nav-item">🧑‍💻<span>Саппорт</span></div>
+    </nav>
+</body>
+</html>
