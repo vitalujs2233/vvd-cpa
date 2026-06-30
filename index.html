@@ -24,18 +24,18 @@
             margin: 0; padding: 0; overflow-x: hidden;
         }
 
-        /* Экраны */
+        /* Управление экранами */
         .screen { display: none; padding-bottom: 90px; }
         .screen.active { display: block; }
 
-        /* Шапка профиля */
+        /* Шапка */
         .header { padding: 20px; background: linear-gradient(to bottom, #111622, var(--bg-color)); }
         .profile-info { display: flex; align-items: center; gap: 12px; }
         .avatar-placeholder { width: 45px; height: 45px; border-radius: 50%; background: var(--accent-gradient); display: flex; align-items: center; justify-content: center; font-weight: bold; overflow: hidden; }
         .username { font-weight: bold; font-size: 16px; }
         .user-id-label { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
         
-        /* Балансы */
+        /* Баланс */
         .balance-container { padding: 0 20px; margin-bottom: 20px; }
         .balance-card { background: var(--card-bg); padding: 15px; border-radius: 16px; border: 1px solid var(--border-color); }
         .balance-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 14px; }
@@ -45,14 +45,14 @@
         .btn-main { width: 100%; padding: 12px; border: none; border-radius: 12px; background: var(--accent-gradient); color: white; font-weight: bold; font-size: 14px; cursor: pointer; }
         .btn-main.btn-sm { width: auto; padding: 8px 14px; font-size: 12px; border-radius: 8px; }
 
-        /* Сетка статистики */
+        /* Статистика */
         .section-title { padding: 0 20px; font-size: 12px; margin: 15px 0 10px 0; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
         .grid-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 20px 20px 20px; }
         .stat-box { background: var(--card-bg); padding: 15px; border-radius: 12px; text-align: center; border: 1px solid var(--border-color); }
         .stat-box div:first-child { font-size: 12px; color: var(--text-muted); }
         .stat-box .num { font-size: 18px; font-weight: bold; margin-top: 6px; }
 
-        /* Списки Офферов и Смартлинок */
+        /* Смартлинка */
         .list-container { padding: 0 20px; display: flex; flex-direction: column; gap: 12px; }
         .item-card { background: var(--card-bg); padding: 16px; border-radius: 16px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 8px; }
         .item-header { display: flex; justify-content: space-between; align-items: center; }
@@ -60,9 +60,10 @@
         .payout { color: var(--crypto-green); font-weight: bold; font-size: 14px; }
         .item-title { font-size: 16px; font-weight: bold; margin: 2px 0; }
         .item-desc { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+        .link-output-box { background: #0B0E14; border: 1px dashed var(--neon-blue); border-radius: 8px; padding: 10px; font-size: 12px; color: var(--neon-blue); word-break: break-all; font-family: monospace; text-align: center; margin-top: 5px; }
 
-        /* Комната Движ (Чат) */
-        .chat-container { margin: 0 20px; background: var(--card-bg); border-radius: 16px; border: 1px solid var(--border-color); height: 320px; display: flex; flex-direction: column; overflow: hidden; }
+        /* Движ (Чат) */
+        .chat-container { margin: 0 20px; background: var(--card-bg); border-radius: 16px; border: 1px solid var(--border-color); height: 300px; display: flex; flex-direction: column; overflow: hidden; }
         .chat-messages { flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
         .msg { background: rgba(255,255,255,0.04); padding: 8px 12px; border-radius: 10px; max-width: 85%; font-size: 13px; line-height: 1.4; }
         .msg-user { font-weight: bold; color: var(--neon-blue); font-size: 11px; margin-bottom: 2px; }
@@ -70,10 +71,10 @@
         .chat-input { flex: 1; background: #0B0E14; border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 12px; color: white; outline: none; font-size: 13px; }
         .btn-send { background: var(--accent-gradient); border: none; border-radius: 8px; color: white; padding: 0 14px; font-weight: bold; font-size: 12px; cursor: pointer; }
 
-        /* Заглушка статистики */
+        /* Таблица Статистики */
         .placeholder-box { margin: 0 20px; background: var(--card-bg); padding: 20px; border-radius: 16px; border: 1px solid var(--border-color); text-align: center; color: var(--text-muted); font-size: 13px; }
 
-        /* Нижнее меню */
+        /* Навигация */
         .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 60px; background: #111622; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid var(--border-color); }
         .nav-item { color: var(--text-muted); font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; }
         .nav-item span:first-child { font-size: 16px; }
@@ -98,11 +99,11 @@
             <div class="balance-card">
                 <div class="balance-row">
                     <span>Доступно к выводу:</span>
-                    <span class="balance-val available">$<span id="bal-avail">0.00</span></span>
+                    <span class="balance-val available">$0.00</span>
                 </div>
                 <div class="balance-row">
                     <span>В холде (10 дн.):</span>
-                    <span class="balance-val hold">$<span id="bal-hold">0.00</span></span>
+                    <span class="balance-val hold">$0.00</span>
                 </div>
                 <button class="btn-main" onclick="openWithdrawModal()">💰 Вывести баланс</button>
             </div>
@@ -110,43 +111,31 @@
 
         <div class="section-title">Статистика VVD CPA</div>
         <div class="grid-stats">
-            <div class="stat-box"><div>Клики</div><div class="num" id="stat-clicks">0</div></div>
-            <div class="stat-box"><div>Конверсии</div><div class="num" id="stat-leads" style="color:var(--neon-blue)">0</div></div>
+            <div class="stat-box"><div>Клики</div><div class="num">0</div></div>
+            <div class="stat-box"><div>Конверсии</div><div class="num" style="color:var(--neon-blue)">0</div></div>
         </div>
     </div>
 
-    <!-- ЭКРАН 2: СМАРТЛИНКИ -->
-    <div id="screen-smartlinks" class="screen">
-        <div class="section-title">Доступные Смартлинки</div>
+    <!-- ЭКРАН 2: СМАРТЛИНКА -->
+    <div id="screen-smartlink" class="screen">
+        <div class="section-title">Твоя Персональная Смартлинка</div>
         <div class="list-container">
             <div class="item-card">
-                <div class="item-header"><span class="badge">Adult Dating</span><span class="payout">CPA: до $4.50</span></div>
-                <div class="item-title">Adult Smartlink WW</div>
-                <div class="item-desc">Автоматический ротатор дейтинг офферов. Система сама определяет ГЕО и девайс пользователя, показывая максимально прибыльный лендинг.</div>
-                <button class="btn-main btn-sm" onclick="generateLink(1)">Генерировать ссылку</button>
+                <div class="item-header"><span class="badge">Adult Dating WW</span><span class="payout">CPA: до $4.50</span></div>
+                <div class="item-title">Умный Ротатор Ссылок</div>
+                <div class="item-desc">Твоя личная ссылка для слива трафика. Система сама определит страну и устройство пользователя. Ссылка привязана к твоему ID:</div>
+                <div class="link-output-box" id="user-tracking-link">Загрузка ссылки...</div>
+                <button class="btn-main btn-sm" style="margin-top: 10px;" onclick="copyMyLink()">📋 Скопировать Ссылку</button>
             </div>
         </div>
     </div>
 
-    <!-- ЭКРАН 3: ОФФЕРЫ -->
-    <div id="screen-offers" class="screen">
-        <div class="section-title">CPA Офферы (Прямые)</div>
-        <div class="list-container">
-            <div class="item-card">
-                <div class="item-header"><span class="badge">Mainstream Dating</span><span class="payout">CPL: $2.10</span></div>
-                <div class="item-title">Dating US/UK/CA (SOI)</div>
-                <div class="item-desc">Прямой дейтинг оффер под англоязычные страны. Оплата начисляется за простую регистрацию (без подтверждения почты).</div>
-                <button class="btn-main btn-sm" onclick="generateLink(2)">Взять ссылку</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ЭКРАН 4: ДВИЖ (ЧАТ) -->
+    <!-- ЭКРАН 3: ДВИЖ -->
     <div id="screen-chat" class="screen">
         <div class="section-title">Общий чат партнеров</div>
         <div class="chat-container">
             <div class="chat-messages" id="chat-messages">
-                <div class="msg"><div class="msg-user">Система VVD</div>Добро пожаловать в Движ! Чат запущен. Здесь можно общаться и делиться связками.</div>
+                <div class="msg"><div class="msg-user">Система VVD</div>Добро пожаловать в Движ! Чат запущен. Общайтесь и делитесь профитом здесь.</div>
             </div>
             <div class="chat-input-bar">
                 <input type="text" class="chat-input" id="chat-input" placeholder="Написать в Движ...">
@@ -155,14 +144,27 @@
         </div>
     </div>
 
-    <!-- ЭКРАН 5: СТАТИСТИКА -->
+    <!-- ЭКРАН 4: СТАТИСТИКА -->
     <div id="screen-stats" class="screen">
         <div class="section-title">Детальный отчет</div>
         <div class="placeholder-box">У вас пока нет кликов. История появится сразу после запуска трафика.</div>
     </div>
 
-    <!-- НИЖНЕЕ МЕНЮ НАВИГАЦИИ -->
+    <!-- МЕНЮ НАВИГАЦИИ -->
     <nav class="bottom-nav">
         <div class="nav-item active" onclick="switchScreen('home', this)"><span>🏠</span><span>Домой</span></div>
-        <div class="nav-item" onclick="switchScreen('smartlinks', this)"><span>🔗</span><span>Смартлинки</span></div>
-        <div class="nav-item" onclick="switchScreen('offers', this)"><span>🔥</span><span>Офферы</span></div>
+        <div class="nav-item" onclick="switchScreen('smartlink', this)"><span>🔗</span><span>Смартлинка</span></div>
+        <div class="nav-item" onclick="switchScreen('chat', this)"><span>💬</span><span>Движ</span></div>
+        <div class="nav-item" onclick="switchScreen('stats', this)"><span>📊</span><span>Статистика</span></div>
+    </nav>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        let myId = '123456789';
+
+        // 1. Авторизация и вывод ID
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            const user = tg.initDataUnsafe.user;
+            myId = user.id;
+            document.getElementById('user-name').innerText = user.first_name || 'Webmaster';
