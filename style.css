@@ -1012,6 +1012,213 @@ transition:
 
 }
 
+/* ==========================================
+   OFFERS PAGE V2
+========================================== */
+
+.page-header{
+
+    margin-bottom:20px;
+
+}
+
+.page-header h2{
+
+    color:#ffffff;
+
+    font-size:32px;
+
+    font-weight:700;
+
+}
+
+.offer-search{
+
+    margin:18px 0 25px;
+
+}
+
+.offer-search input{
+
+    width:100%;
+
+    height:48px;
+
+    border:none;
+
+    outline:none;
+
+    border-radius:14px;
+
+    background:#1B202C;
+
+    color:#ffffff;
+
+    padding:0 18px;
+
+    font-size:15px;
+
+    box-sizing:border-box;
+
+}
+
+.offer-search input::placeholder{
+
+    color:#7f889f;
+
+}
+
+.offers-list{
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:14px;
+
+}
+
+.offer-category{
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:space-between;
+
+    background:#181C27;
+
+    border-radius:18px;
+
+    padding:18px;
+
+    cursor:pointer;
+
+    transition:.25s;
+
+    border:1px solid rgba(255,255,255,.04);
+
+}
+
+.offer-category:hover{
+
+    transform:translateY(-3px);
+
+    background:#202637;
+
+    box-shadow:0 10px 25px rgba(0,0,0,.35);
+
+}
+
+.offer-left{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:16px;
+
+}
+
+.offer-icon{
+
+    width:48px;
+
+    height:48px;
+
+    border-radius:14px;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    background:linear-gradient(135deg,#7B5CFF,#A855F7);
+
+    font-size:22px;
+
+    flex-shrink:0;
+
+}
+
+.offer-info{
+
+    display:flex;
+
+    flex-direction:column;
+
+}
+
+.offer-info strong{
+
+    color:#ffffff;
+
+    font-size:16px;
+
+}
+
+.offer-info small{
+
+    color:#8b95b3;
+
+    margin-top:4px;
+
+}
+
+.offer-right{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:12px;
+
+}
+
+.offer-count{
+
+    min-width:42px;
+
+    height:34px;
+
+    border-radius:12px;
+
+    background:#7B5CFF;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    color:#ffffff;
+
+    font-weight:700;
+
+}
+
+.offer-arrow{
+
+    color:#8b95b3;
+
+    font-size:18px;
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
