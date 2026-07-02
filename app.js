@@ -126,3 +126,42 @@ function initNavigation(){
     openPage("homePage");
 
 }
+/* ==========================================
+   ОТКРЫТИЕ КАРТОЧЕК ОФФЕРОВ
+========================================== */
+
+document.querySelectorAll(".offer-category").forEach(card => {
+
+    card.addEventListener("click", () => {
+
+        const page = card.dataset.page;
+
+        if (page) {
+
+            openPage(page);
+
+        }
+
+    });
+
+});
+
+/* ==========================================
+   КНОПКА НАЗАД
+========================================== */
+
+document.querySelectorAll(".back-button").forEach(button => {
+
+    button.addEventListener("click", () => {
+
+        const page = button.dataset.page;
+
+        if (page) {
+
+            openPage(page);
+
+        }
+
+    });
+
+});
