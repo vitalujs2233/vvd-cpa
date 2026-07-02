@@ -5,25 +5,19 @@
 
 "use strict";
 
-/*
-==========================================
-Telegram Mini App
-==========================================
-*/
+/* ==========================================
+   TELEGRAM MINI APP
+========================================== */
 
 let tg = null;
-
 let telegramUser = null;
-
 let isTelegram = false;
 
-/*
-==========================================
-Проверяем Telegram
-==========================================
-*/
+/* ==========================================
+   ИНИЦИАЛИЗАЦИЯ TELEGRAM
+========================================== */
 
-if(window.Telegram && window.Telegram.WebApp){
+if (window.Telegram && window.Telegram.WebApp) {
 
     tg = window.Telegram.WebApp;
 
@@ -31,116 +25,123 @@ if(window.Telegram && window.Telegram.WebApp){
 
     tg.expand();
 
-    tg.setHeaderColor("#0B0E14");
+    try {
 
-    tg.setBackgroundColor("#0B0E14");
+        tg.setHeaderColor("#0B0E14");
+        tg.setBackgroundColor("#0B0E14");
 
-    isTelegram = true;
+    } catch (e) {
 
-    telegramUser = tg.initDataUnsafe.user;
+        console.log("Telegram colors not supported");
+
+    }
+
+    if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+
+        isTelegram = true;
+
+        telegramUser = tg.initDataUnsafe.user;
+
+    }
 
 }
 
-/*
-==========================================
-Режим разработки
-==========================================
-*/
+/* ==========================================
+   DEV MODE
+========================================== */
 
-if(!isTelegram){
+if (!telegramUser) {
 
     console.log("DEV MODE");
 
     telegramUser = {
 
-        id:123456789,
+        id: 123456789,
 
-        username:"developer",
+        username: "developer",
 
-        first_name:"Vitaliy",
+        first_name: "Vitaliy",
 
-        last_name:"Developer",
+        last_name: "Developer",
 
-        photo_url:"https://i.pravatar.cc/150"
+        photo_url: "https://i.pravatar.cc/150"
 
     };
 
 }
 
-/*
-==========================================
-App
-==========================================
-*/
+/* ==========================================
+   APP OBJECT
+========================================== */
 
-window.App={
+window.App = {
 
-    telegram:tg,
+    telegram: tg,
 
-    user:telegramUser,
+    user: telegramUser,
 
-    isTelegram:isTelegram,
+    isTelegram: isTelegram,
 
-    initData:isTelegram ? tg.initData : "",
+    initData: tg ? tg.initData : "",
 
-    initDataUnsafe:isTelegram ? tg.initDataUnsafe : null,
+    initDataUnsafe: tg ? tg.initDataUnsafe : null,
 
-    isAdmin:false
+    isAdmin: false
 
 };
 
-/*
-==========================================
-Получить пользователя
-==========================================
-*/
+/* ==========================================
+   USER HELPERS
+========================================== */
 
-function getUser(){
+function getUser() {
 
-    return App.user;
+    return App.user || {};
 
 }
 
-function getUserId(){
+function getUserId() {
 
-    return App.user.id;
-
-}
-
-function getUsername(){
-
-    return App.user.username || "";
+    return App.user ? App.user.id : 0;
 
 }
 
-function getFirstName(){
+function getUsername() {
 
-    return App.user.first_name || "";
-
-}
-
-function getLastName(){
-
-    return App.user.last_name || "";
+    return App.user ? (App.user.username || "") : "";
 
 }
 
-function getPhoto(){
+function getFirstName() {
 
-    return App.user.photo_url || "";
+    return App.user ? (App.user.first_name || "") : "";
 
 }
 
-/*
-==========================================
-Admin
-==========================================
-*/
+function getLastName() {
+
+    return App.user ? (App.user.last_name || "") : "";
+
+}
+
+function getPhoto() {
+
+    return App.user ? (App.user.photo_url || "") : "";
+
+}
+
+/* ==========================================
+   ADMIN
+========================================== */
 
 const ADMIN_ID = 123456789;
 
-if(getUserId()===ADMIN_ID){
+App.isAdmin = getUserId() === ADMIN_ID;
 
-    App.isAdmin=true;
+/* ==========================================
+   READY
+========================================== */
 
-}
+console.log("Telegram Ready");
+
+console.log(App);
