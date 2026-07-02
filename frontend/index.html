@@ -4,13 +4,24 @@
 <head>
 
 <meta charset="UTF-8">
-
-<meta name="viewport"
-content="width=device-width, initial-scale=1.0">
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
 <title>VVD CPA</title>
 
-<link rel="stylesheet" href="style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+
+<link rel="preconnect"
+href="https://fonts.gstatic.com"
+crossorigin>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+rel="stylesheet">
+
+<link rel="stylesheet" href="css/style.css">
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 
 </head>
 
@@ -18,137 +29,1026 @@ content="width=device-width, initial-scale=1.0">
 
 <div id="app">
 
+<!-- ========================= -->
+<!-- LOADER -->
+<!-- ========================= -->
+
+<div id="loader">
+
+<div class="loader-logo">
+VVD CPA
+</div>
+
+<div class="loader-circle"></div>
+
+</div>
+
+<!-- ========================= -->
+<!-- HEADER -->
+<!-- ========================= -->
+
 <header class="header">
+
+<div class="header-left">
+
+<div class="avatar">
+
+<img
+id="userAvatar"
+src="assets/avatar.png"
+alt="avatar">
+
+</div>
 
 <div class="profile">
 
-<div class="avatar">
-👤
-</div>
+<h2 id="username">
+Loading...
+</h2>
 
-<div class="userinfo">
-
-<h2>Vitalij</h2>
-
-<p>Добро пожаловать в VVD CPA</p>
+<p id="userid">
+ID:
+</p>
 
 </div>
+
+</div>
+
+<div class="header-right">
+
+<div class="online-dot"></div>
 
 </div>
 
 </header>
 
-<main>
+<!-- ========================= -->
+<!-- DASHBOARD -->
+<!-- ========================= -->
 
-<section class="balance">
+<section id="homePage" class="page active">
 
-<h3>Баланс</h3>
+<div class="welcome-card">
 
-<div class="money">
+<div class="welcome-left">
 
-<div class="card">
+<h1>
 
-<span>Доступно</span>
+Добро пожаловать 👋
 
-<h2>$0.00</h2>
+</h1>
 
-</div>
+<p>
 
-<div class="card">
+Приватная Dating CPA сеть
 
-<span>Hold</span>
-
-<h2>$0.00</h2>
-
-</div>
+</p>
 
 </div>
 
-<button>
+<div class="welcome-right">
+
+<img
+src="assets/logo.svg"
+class="logo">
+
+</div>
+
+</div>
+
+<!-- ========================= -->
+<!-- BALANCE -->
+<!-- ========================= -->
+
+<div class="balance-card">
+
+<div class="balance-title">
+
+Доступно к выводу
+
+</div>
+
+<div
+class="balance-value"
+id="availableBalance">
+
+$0.00
+
+</div>
+
+<button id="withdrawButton">
 
 💰 Вывести
 
 </button>
 
-</section>
+</div>
 
-<section class="offer">
+<div class="hold-card">
 
-<h3>
+<div class="hold-title">
 
-❤️ Dating SmartLink
-
-</h3>
-
-<p>
-
-Worldwide SmartLink
-
-</p>
-
-<button>
-
-Получить ссылку
-
-</button>
-
-</section>
-
-<section class="activity">
-
-<h3>
-
-Последняя активность
-
-</h3>
-
-<p>
-
-Пока активности нет
-
-</p>
-
-</section>
-
-</main>
-
-<nav>
-
-<button>
-
-🏠
-
-</button>
-
-<button>
-
-📊
-
-</button>
-
-<button>
-
-🔥
-
-</button>
-
-<button>
-
-💰
-
-</button>
-
-<button>
-
-👤
-
-</button>
-
-</nav>
+В холде
 
 </div>
 
-<script src="app.js"></script>
+<div
+class="hold-value"
+id="holdBalance">
+
+$0.00
+
+</div>
+
+</div>
+
+<!-- ========================= -->
+<!-- STAT -->
+<!-- ========================= -->
+
+<div class="stats-grid">
+
+<div class="stat-box">
+
+<span>
+
+Доступно
+
+</span>
+
+<h3 id="statAvailable">
+
+0$
+
+</h3>
+
+</div>
+
+<div class="stat-box">
+
+<span>
+
+Hold
+
+</span>
+
+<h3 id="statHold">
+
+0$
+
+</h3>
+
+</div>
+
+<div class="stat-box">
+
+<span>
+
+Выведено
+
+</span>
+
+<h3 id="statWithdraw">
+
+0$
+
+</h3>
+
+</div>
+
+<div class="stat-box">
+
+<span>
+
+Сеть
+
+</span>
+
+<h3>
+
+Traforce
+
+</h3>
+
+</div>
+
+</div>
+
+<!-- ========================= -->
+<!-- OFFERS -->
+<!-- ========================= -->
+
+<section class="offers">
+
+<div class="section-title">
+
+🔥 Dating Offers
+
+</div>
+
+<div class="offer-slider">
+
+<div class="offer-card">
+
+<div class="offer-top">
+
+<h2>
+
+Adult Dating WW
+
+</h2>
+
+<span class="rate">
+
+$1.20
+
+</span>
+
+</div>
+
+<p>
+
+Worldwide Smartlink
+
+Высокий CR
+
+Ежедневные выплаты
+
+</p>
+
+<button
+class="offer-btn"
+data-offer="1">
+
+Взять ссылку
+
+</button>
+
+</div>
+
+<div class="offer-card">
+
+<div class="offer-top">
+
+<h2>
+
+Mainstream Dating
+
+</h2>
+
+<span class="rate">
+
+$0.95
+
+</span>
+
+</div>
+
+<p>
+
+Tier 1
+
+Smartlink
+
+SOI
+
+</p>
+
+<button
+class="offer-btn"
+data-offer="2">
+
+Взять ссылку
+
+</button>
+
+</div>
+
+<div class="offer-card">
+
+<div class="offer-top">
+
+<h2>
+
+Adult US
+
+</h2>
+
+<span class="rate">
+
+$1.50
+
+</span>
+
+</div>
+
+<p>
+
+US GEO
+
+Premium Traffic
+
+</p>
+
+<button
+class="offer-btn"
+data-offer="3">
+
+Взять ссылку
+
+</button>
+
+</div>
+
+</div>
+
+</section>
+
+<!-- ========================= -->
+<!-- QUICK STATS -->
+<!-- ========================= -->
+
+<section class="quick-stats">
+
+<div class="quick-card">
+
+<h4>
+
+Клики
+
+</h4>
+
+<h2 id="clickCount">
+
+0
+
+</h2>
+
+</div>
+
+<div class="quick-card">
+
+<h4>
+
+Регистрации
+
+</h4>
+
+<h2 id="leadCount">
+
+0
+
+</h2>
+
+</div>
+
+<div class="quick-card">
+
+<h4>
+
+CR
+
+</h4>
+
+<h2 id="crValue">
+
+0%
+
+</h2>
+
+</div>
+
+<div class="quick-card">
+
+<h4>
+
+Доход
+
+</h4>
+
+<h2 id="incomeValue">
+
+$0
+
+</h2>
+
+</div>
+
+</section>
+<!-- ===================================== -->
+<!-- HISTORY PAGE -->
+<!-- ===================================== -->
+
+</section>
+
+<section id="historyPage" class="page">
+
+<div class="page-header">
+
+<h1>📈 Статистика</h1>
+
+<p>История работы по дням</p>
+
+</div>
+
+<div class="history-summary">
+
+<div class="summary-card">
+<span>Клики</span>
+<h2 id="totalClicks">0</h2>
+</div>
+
+<div class="summary-card">
+<span>Конверсии</span>
+<h2 id="totalConversions">0</h2>
+</div>
+
+<div class="summary-card">
+<span>CR</span>
+<h2 id="totalCR">0%</h2>
+</div>
+
+<div class="summary-card">
+<span>Доход</span>
+<h2 id="totalProfit">$0.00</h2>
+</div>
+
+</div>
+
+<div class="table-wrapper">
+
+<table class="stats-table">
+
+<thead>
+
+<tr>
+
+<th>Дата</th>
+
+<th>Клики</th>
+
+<th>Рег.</th>
+
+<th>CR</th>
+
+<th>Доход</th>
+
+</tr>
+
+</thead>
+
+<tbody id="historyTable">
+
+<tr>
+
+<td>02.07.2026</td>
+
+<td>0</td>
+
+<td>0</td>
+
+<td>0%</td>
+
+<td>$0.00</td>
+
+</tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+</section>
+
+<!-- ===================================== -->
+<!-- ADMIN PAGE -->
+<!-- ===================================== -->
+
+<section
+id="adminPage"
+class="page">
+
+<div class="page-header">
+
+<h1>
+
+🛠 Админ панель
+
+</h1>
+
+<p>
+
+VVD CPA Owner
+
+</p>
+
+</div>
+
+<div class="admin-grid">
+
+<div class="admin-box">
+
+<span>
+
+Всего пользователей
+
+</span>
+
+<h2 id="adminUsers">
+
+0
+
+</h2>
+
+</div>
+
+<div class="admin-box">
+
+<span>
+
+Всего кликов
+
+</span>
+
+<h2 id="adminClicks">
+
+0
+
+</h2>
+
+</div>
+
+<div class="admin-box">
+
+<span>
+
+В холде
+
+</span>
+
+<h2 id="adminHold">
+
+$0
+
+</h2>
+
+</div>
+
+<div class="admin-box">
+
+<span>
+
+Комиссия VVD
+
+</span>
+
+<h2 id="adminIncome">
+
+$0
+
+</h2>
+
+</div>
+
+</div>
+
+<!-- USERS -->
+
+<div class="users-title">
+
+Вебмастера
+
+</div>
+
+<div
+class="users-list"
+id="usersList">
+
+<div class="user-card">
+
+<div class="user-left">
+
+<h3>
+
+@username
+
+</h3>
+
+<p>
+
+ID: 123456789
+
+</p>
+
+</div>
+
+<div class="user-right">
+
+<span>
+
+$0.00
+
+</span>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="admin-actions">
+
+<button class="admin-btn">
+
+Изменить баланс
+
+</button>
+
+<button class="admin-btn red">
+
+Забанить пользователя
+
+</button>
+
+<button class="admin-btn">
+
+Просмотреть профиль
+
+</button>
+
+</div>
+
+</section>
+
+<!-- ===================================== -->
+<!-- SUPPORT PAGE -->
+<!-- ===================================== -->
+
+<section
+id="supportPage"
+class="page">
+
+<div class="page-header">
+
+<h1>
+
+💬 Поддержка
+
+</h1>
+
+<p>
+
+Всегда на связи
+
+</p>
+
+</div>
+
+<div class="support-card">
+
+<div class="support-icon">
+
+💎
+
+</div>
+
+<h2>
+
+VVD Support
+
+</h2>
+
+<p>
+
+Если появились вопросы по выплатам,
+офферам или качеству трафика —
+напишите напрямую.
+
+</p>
+
+<a
+
+href="https://t.me/YOUR_SUPPORT"
+
+target="_blank"
+
+class="support-button">
+
+Открыть Telegram
+
+</a>
+
+</div>
+
+<div class="faq">
+
+<h2>
+
+FAQ
+
+</h2>
+
+<div class="faq-item">
+
+<h4>
+
+Когда выплаты?
+
+</h4>
+
+<p>
+
+После окончания Hold.
+
+</p>
+
+</div>
+
+<div class="faq-item">
+
+<h4>
+
+Какие платежки?
+
+</h4>
+
+<p>
+
+USDT TRC20
+
+Capitalist
+
+</p>
+
+</div>
+
+<div class="faq-item">
+
+<h4>
+
+Минимальный вывод
+
+</h4>
+
+<p>
+
+10$
+
+</p>
+
+</div>
+
+</div>
+
+</section>
+<!-- ===================================== -->
+<!-- MODAL : GET LINK -->
+<!-- ===================================== -->
+
+<div id="linkModal" class="modal">
+
+    <div class="modal-content">
+
+        <div class="modal-header">
+
+            <h2>Получить ссылку</h2>
+
+            <button class="close-modal" id="closeLinkModal">
+                ✕
+            </button>
+
+        </div>
+
+        <div class="modal-body">
+
+            <p>
+
+                Ваша персональная ссылка
+
+            </p>
+
+            <input
+                id="offerLink"
+                class="modal-input"
+                readonly
+                value="">
+
+            <button
+                id="copyLinkButton"
+                class="gradient-button">
+
+                📋 Копировать
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ===================================== -->
+<!-- MODAL : WITHDRAW -->
+<!-- ===================================== -->
+
+<div id="withdrawModal" class="modal">
+
+    <div class="modal-content">
+
+        <div class="modal-header">
+
+            <h2>
+
+                Заявка на вывод
+
+            </h2>
+
+            <button
+                id="closeWithdrawModal"
+                class="close-modal">
+
+                ✕
+
+            </button>
+
+        </div>
+
+        <div class="modal-body">
+
+            <label>
+
+                Платежная система
+
+            </label>
+
+            <select id="paymentSystem">
+
+                <option>
+
+                    USDT TRC20
+
+                </option>
+
+                <option>
+
+                    Capitalist
+
+                </option>
+
+            </select>
+
+            <label>
+
+                Кошелек
+
+            </label>
+
+            <input
+
+                id="wallet"
+
+                class="modal-input"
+
+                placeholder="Введите реквизиты">
+
+            <label>
+
+                Сумма
+
+            </label>
+
+            <input
+
+                id="withdrawAmount"
+
+                class="modal-input"
+
+                type="number"
+
+                placeholder="0">
+
+            <button
+
+                id="sendWithdraw"
+
+                class="gradient-button">
+
+                Отправить заявку
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ===================================== -->
+<!-- TOAST -->
+<!-- ===================================== -->
+
+<div id="toast">
+
+    <span id="toastText">
+
+        Успешно
+
+    </span>
+
+</div>
+
+<!-- ===================================== -->
+<!-- BOTTOM NAVIGATION -->
+<!-- ===================================== -->
+
+<nav class="bottom-nav">
+
+    <button
+        class="nav-button active"
+        data-page="homePage">
+
+        <span>
+
+            🏠
+
+        </span>
+
+        <small>
+
+            Главная
+
+        </small>
+
+    </button>
+
+    <button
+        class="nav-button"
+        data-page="historyPage">
+
+        <span>
+
+            📈
+
+        </span>
+
+        <small>
+
+            История
+
+        </small>
+
+    </button>
+
+    <button
+        class="nav-button admin-only"
+        data-page="adminPage">
+
+        <span>
+
+            ⚙️
+
+        </span>
+
+        <small>
+
+            Админ
+
+        </small>
+
+    </button>
+
+    <button
+        class="nav-button"
+        data-page="supportPage">
+
+        <span>
+
+            💬
+
+        </span>
+
+        <small>
+
+            Support
+
+        </small>
+
+    </button>
+
+</nav>
+
+<!-- ===================================== -->
+<!-- SCRIPTS -->
+<!-- ===================================== -->
+
+<script src="js/telegram.js"></script>
+<script src="js/api.js"></script>
+<script src="js/offers.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+
+</div>
 
 </body>
 
