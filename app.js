@@ -26,7 +26,21 @@ window.onload=()=>{
         getPhoto();
 
     }
+document.getElementById("homeUserName").innerHTML =
 
+    getFirstName() + " " + getLastName();
+
+document.getElementById("homeUserId").innerHTML =
+
+    "ID: " + getUserId();
+
+if(getPhoto()){
+
+    document.getElementById("homeAvatar").src =
+
+        getPhoto();
+
+}
     if(App.isAdmin){
 
         document
