@@ -1,32 +1,39 @@
-/* ========================================== VVD CPA app.js
+/* ==========================================
+   VVD CPA
+   app.js
 ========================================== */
 
-“use strict”;
+"use strict";
 
-let pages = []; let tabButtons = [];
+/* ==========================================
+   ЗАГРУЗКА ПРИЛОЖЕНИЯ
+========================================== */
 
 window.onload = () => {
 
     console.log("VVD CPA Started");
+
     console.log(App.user);
 
     loadUser();
 
-    pages = document.querySelectorAll(".page");
-    tabButtons = document.querySelectorAll(".tab-button");
-
     initNavigation();
-    initOfferNavigation();
-
-    openPage("homePage");
 
 };
+
+/* ==========================================
+   ЗАГРУЗКА ПОЛЬЗОВАТЕЛЯ
+========================================== */
 
 function loadUser() {
 
     const fullName = getFirstName() + " " + getLastName();
+
     const userId = "ID: " + getUserId();
+
     const photo = getPhoto();
+
+    // Верхний профиль
 
     if(document.getElementById("userName"))
         document.getElementById("userName").innerHTML = fullName;
@@ -37,6 +44,8 @@ function loadUser() {
     if(photo && document.getElementById("userAvatar"))
         document.getElementById("userAvatar").src = photo;
 
+    // Карточка пользователя
+
     if(document.getElementById("homeUserName"))
         document.getElementById("homeUserName").innerHTML = fullName;
 
@@ -46,31 +55,67 @@ function loadUser() {
     if(photo && document.getElementById("homeAvatar"))
         document.getElementById("homeAvatar").src = photo;
 
-    const admin = document.querySelector(".admin-only");
-    if(App.isAdmin && admin){
-        admin.style.display = "flex";
+    // Панель администратора
+
+    if(App.isAdmin){
+
+        const admin=document.querySelector(".admin-only");
+
+        if(admin){
+
+            admin.style.display="flex";
+
+        }
+
     }
 
 }
 
-function openPage(pageId){
-
-    pages.forEach(page => page.classList.remove("active"));
-    tabButtons.forEach(btn => btn.classList.remove("active"));
-
-    const page = document.getElementById(pageId);
-    if(page) page.classList.add("active");
-
-    const tab = document.querySelector('.tab-button[data-page="' + pageId + '"]');
-    if(tab) tab.classList.add("active");
-
-}
+/* ==========================================
+   НАВИГАЦИЯ
+========================================== */
 
 function initNavigation(){
 
-    tabButtons.forEach(button => {
+    const pages=document.querySelectorAll(".page");
 
-        button.addEventListener("click", () => {
+    const buttons=document.querySelectorAll(".tab-button");
+
+    function openPage(pageId){
+
+        pages.forEach(page=>{
+
+            page.classList.remove("active");
+
+        });
+
+        buttons.forEach(button=>{
+
+            button.classList.remove("active");
+
+        });
+
+        const page=document.getElementById(pageId);
+
+        if(page){
+
+            page.classList.add("active");
+
+        }
+
+        const activeButton=document.querySelector(`[data-page="${pageId}"]`);
+
+        if(activeButton){
+
+            activeButton.classList.add("active");
+
+        }
+
+    }
+
+    buttons.forEach(button=>{
+
+        button.addEventListener("click",()=>{
 
             openPage(button.dataset.page);
 
@@ -78,36 +123,45 @@ function initNavigation(){
 
     });
 
+    openPage("homePage");
+
 }
+/* ==========================================
+   ОТКРЫТИЕ КАРТОЧЕК ОФФЕРОВ
+========================================== */
 
-function initOfferNavigation(){
+document.querySelectorAll(".offer-category").forEach(card => {
 
-    document.querySelectorAll(".offer-category").forEach(card => {
+    card.addEventListener("click", () => {
 
-        card.addEventListener("click", () => {
+        const page = card.dataset.page;
 
-            const page = card.dataset.page;
+        if (page) {
 
-            if(page){
-                openPage(page);
-            }
+            openPage(page);
 
-        });
+        }
 
     });
 
-    document.querySelectorAll(".back-button").forEach(button => {
+});
 
-        button.addEventListener("click", () => {
+/* ==========================================
+   КНОПКА НАЗАД
+========================================== */
 
-            const page = button.dataset.page;
+document.querySelectorAll(".back-button").forEach(button => {
 
-            if(page){
-                openPage(page);
-            }
+    button.addEventListener("click", () => {
 
-        });
+        const page = button.dataset.page;
+
+        if (page) {
+
+            openPage(page);
+
+        }
 
     });
 
-}
+});
