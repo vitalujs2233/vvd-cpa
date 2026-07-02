@@ -1,3 +1,0 @@
-# Nginx
-
-Конфигурация Reverse Proxy.
