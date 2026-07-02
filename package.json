@@ -1,1 +1,12 @@
-
+{
+  "name": "vvd-cpa",
+  "version": "1.0.0",
+  "description": "VVD CPA Telegram Mini App",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
