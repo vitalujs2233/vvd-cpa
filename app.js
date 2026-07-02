@@ -5,96 +5,124 @@
 
 "use strict";
 
+/* ==========================================
+   ЗАГРУЗКА ПРИЛОЖЕНИЯ
+========================================== */
+
 window.onload = () => {
 
     console.log("VVD CPA Started");
+
     console.log(App.user);
 
-    /* ---------- Верхняя карточка ---------- */
+    loadUser();
 
-    document.getElementById("userName").innerHTML =
-        getFirstName() + " " + getLastName();
+    initNavigation();
 
-    document.getElementById("userId").innerHTML =
-        "ID: " + getUserId();
+};
 
-    if (getPhoto()) {
-        document.getElementById("userAvatar").src = getPhoto();
-    }
+/* ==========================================
+   ЗАГРУЗКА ПОЛЬЗОВАТЕЛЯ
+========================================== */
 
-    /* ---------- Главная карточка ---------- */
+function loadUser() {
 
-    const homeName = document.getElementById("homeUserName");
-    const homeId = document.getElementById("homeUserId");
-    const homeAvatar = document.getElementById("homeAvatar");
+    const fullName = getFirstName() + " " + getLastName();
 
-    if (homeName) {
-        homeName.innerHTML = getFirstName() + " " + getLastName();
-    }
+    const userId = "ID: " + getUserId();
 
-    if (homeId) {
-        homeId.innerHTML = "ID: " + getUserId();
-    }
+    const photo = getPhoto();
 
-    if (homeAvatar && getPhoto()) {
-        homeAvatar.src = getPhoto();
-    }
+    // Верхний профиль
 
-    /* ---------- Админ ---------- */
+    if(document.getElementById("userName"))
+        document.getElementById("userName").innerHTML = fullName;
 
-    if (App.isAdmin) {
+    if(document.getElementById("userId"))
+        document.getElementById("userId").innerHTML = userId;
 
-        const admin = document.querySelector(".admin-only");
+    if(photo && document.getElementById("userAvatar"))
+        document.getElementById("userAvatar").src = photo;
 
-        if (admin) {
-            admin.style.display = "flex";
+    // Карточка пользователя
+
+    if(document.getElementById("homeUserName"))
+        document.getElementById("homeUserName").innerHTML = fullName;
+
+    if(document.getElementById("homeUserId"))
+        document.getElementById("homeUserId").innerHTML = userId;
+
+    if(photo && document.getElementById("homeAvatar"))
+        document.getElementById("homeAvatar").src = photo;
+
+    // Панель администратора
+
+    if(App.isAdmin){
+
+        const admin=document.querySelector(".admin-only");
+
+        if(admin){
+
+            admin.style.display="flex";
+
         }
 
     }
 
-    /* ==========================================
-       НАВИГАЦИЯ
-    ========================================== */
+}
 
-    const pages = document.querySelectorAll(".page");
-    const tabs = document.querySelectorAll(".tab-button");
+/* ==========================================
+   НАВИГАЦИЯ
+========================================== */
 
-    function openPage(pageId) {
+function initNavigation(){
 
-        pages.forEach(page => {
+    const pages=document.querySelectorAll(".page");
+
+    const buttons=document.querySelectorAll(".tab-button");
+
+    function openPage(pageId){
+
+        pages.forEach(page=>{
+
             page.classList.remove("active");
+
         });
 
-        tabs.forEach(tab => {
-            tab.classList.remove("active");
+        buttons.forEach(button=>{
+
+            button.classList.remove("active");
+
         });
 
-        const page = document.getElementById(pageId);
+        const page=document.getElementById(pageId);
 
-        if (page) {
+        if(page){
+
             page.classList.add("active");
+
         }
 
-        const activeTab = document.querySelector(`[data-page="${pageId}"]`);
+        const activeButton=document.querySelector(`[data-page="${pageId}"]`);
 
-        if (activeTab) {
-            activeTab.classList.add("active");
+        if(activeButton){
+
+            activeButton.classList.add("active");
+
         }
 
     }
 
-    tabs.forEach(tab => {
+    buttons.forEach(button=>{
 
-        tab.addEventListener("click", () => {
+        button.addEventListener("click",()=>{
 
-            openPage(tab.dataset.page);
+            openPage(button.dataset.page);
 
         });
 
     });
 
-    /* ---------- Открываем главную ---------- */
-
     openPage("homePage");
 
-};
+}
