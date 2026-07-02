@@ -11,11 +11,11 @@ window.onload=()=>{
 
     console.log(App.user);
 
-    document.getElementById("username").innerHTML=
+    document.getElementById("userName").innerHTML=
 
         getFirstName()+" "+getLastName();
 
-    document.getElementById("userid").innerHTML=
+    document.getElementById("userId").innerHTML=
 
         "ID: "+getUserId();
 
