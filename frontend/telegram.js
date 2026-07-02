@@ -1,96 +1,146 @@
-/* ============================================
+/* ==========================================
    VVD CPA
    telegram.js
-============================================ */
+========================================== */
 
 "use strict";
 
-const tg = window.Telegram.WebApp;
+/*
+==========================================
+Telegram Mini App
+==========================================
+*/
 
-// Инициализация Mini App
-tg.ready();
-tg.expand();
+let tg = null;
 
-// Цвета Telegram
-tg.setHeaderColor("#0B0E14");
-tg.setBackgroundColor("#0B0E14");
+let telegramUser = null;
 
-// Объект приложения
-window.App = {
+let isTelegram = false;
 
-    telegram: tg,
+/*
+==========================================
+Проверяем Telegram
+==========================================
+*/
 
-    user: null,
+if(window.Telegram && window.Telegram.WebApp){
 
-    isAdmin: false,
+    tg = window.Telegram.WebApp;
 
-    initData: "",
+    tg.ready();
 
-    initDataUnsafe: null
+    tg.expand();
 
-};
+    tg.setHeaderColor("#0B0E14");
 
-// Получение данных Telegram
-function initTelegram(){
+    tg.setBackgroundColor("#0B0E14");
 
-    App.initData = tg.initData;
+    isTelegram = true;
 
-    App.initDataUnsafe = tg.initDataUnsafe;
-
-    if(!tg.initDataUnsafe.user){
-
-        console.error("Telegram user not found");
-
-        return;
-
-    }
-
-    App.user = tg.initDataUnsafe.user;
-
-    console.log(App.user);
+    telegramUser = tg.initDataUnsafe.user;
 
 }
 
-// Получение информации пользователя
+/*
+==========================================
+Режим разработки
+==========================================
+*/
+
+if(!isTelegram){
+
+    console.log("DEV MODE");
+
+    telegramUser = {
+
+        id:123456789,
+
+        username:"developer",
+
+        first_name:"Vitaliy",
+
+        last_name:"Developer",
+
+        photo_url:"https://i.pravatar.cc/150"
+
+    };
+
+}
+
+/*
+==========================================
+App
+==========================================
+*/
+
+window.App={
+
+    telegram:tg,
+
+    user:telegramUser,
+
+    isTelegram:isTelegram,
+
+    initData:isTelegram ? tg.initData : "",
+
+    initDataUnsafe:isTelegram ? tg.initDataUnsafe : null,
+
+    isAdmin:false
+
+};
+
+/*
+==========================================
+Получить пользователя
+==========================================
+*/
+
 function getUser(){
 
     return App.user;
 
 }
 
-// Telegram ID
 function getUserId(){
 
     return App.user.id;
 
 }
 
-// Username
 function getUsername(){
 
     return App.user.username || "";
 
 }
 
-// Имя
 function getFirstName(){
 
     return App.user.first_name || "";
 
 }
 
-// Фамилия
 function getLastName(){
 
     return App.user.last_name || "";
 
 }
 
-// Фото
 function getPhoto(){
 
     return App.user.photo_url || "";
 
 }
 
-initTelegram();
+/*
+==========================================
+Admin
+==========================================
+*/
+
+const ADMIN_ID = 123456789;
+
+if(getUserId()===ADMIN_ID){
+
+    App.isAdmin=true;
+
+}
