@@ -3,22 +3,16 @@
 
 <head>
 
-<meta charset="UTF-8">
+    <meta charset="UTF-8">
 
-<meta name="viewport"
-content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
 
-<title>VVD CPA</title>
+    <title>VVD CPA</title>
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="style.css">
 
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-<link rel="stylesheet" href="style.css">
-
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
 </head>
 
@@ -26,752 +20,369 @@ content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable
 
 <div id="app">
 
-<!-- ========================= -->
+    <!-- ========================= -->
+    <!-- HEADER -->
+    <!-- ========================= -->
 
-<!-- HEADER -->
+    <header id="header">
+<header id="header">
 
-<!-- ========================= -->
+    <div class="header-left">
 
-<header class="header">
+        <div class="avatar">
 
-<div class="header-left">
+            <img
+                id="userAvatar"
+                src=""
+                alt="Avatar">
 
-<div class="avatar-box">
+        </div>
 
-<img id="userAvatar"
-src=""
-alt="avatar">
+        <div class="user-info">
 
-</div>
+            <span class="welcome-text">
+                Welcome back
+            </span>
 
-<div class="header-user">
+            <h2 id="userName">
+                Loading...
+            </h2>
 
-<h2 id="username">
+            <small id="userId">
+                ID: 000000000
+            </small>
 
-Loading...
+        </div>
 
-</h2>
-
-<p id="userid">
-
-ID:
-
-</p>
-
-</div>
-
-</div>
-
-<div class="header-right">
-
-<div class="online-dot"></div>
-
-</div>
-
-</header>
-
-
-
-
-
-<!-- ========================= -->
-
-<!-- HOME -->
-
-<!-- ========================= -->
-
-<section
-id="homePage"
-class="page active">
-
-<div class="dashboard">
-
-<div class="mini-card">
-
-<span>
-
-Available
-
-</span>
-
-<h3 id="balanceAvailable">
-
-$0.00
-
-</h3>
-
-</div>
-
-<div class="mini-card">
-
-<span>
-
-Hold
-
-</span>
-
-<h3 id="balanceHold">
-
-$0.00
-
-</h3>
-
-</div>
-
-<div class="mini-card">
-
-<span>
-
-Today
-
-</span>
-
-<h3 id="todayIncome">
-
-$0.00
-
-</h3>
-
-</div>
-
-<div class="mini-card">
-
-<span>
-
-Paid
-
-</span>
-
-<h3 id="paidBalance">
-
-$0.00
-
-</h3>
-
-</div>
-
-</div>
-
-<div class="quick-grid">
-
-<button
-class="quick-btn">
-
-Withdraw
-
-</button>
-
-<button
-class="quick-btn">
-
-History
-
-</button>
-
-<button
-class="quick-btn">
-
-Support
-
-</button>
-
-<button
-class="quick-btn">
-
-Offers
-
-</button>
-
-</div>
-
-<div class="block-title">
-
-Hot Offers
-
-</div>
-
-<div
-id="offersContainer">
-
-<div class="offer-card">
-
-<div>
-
-<h3>
-
-Adult Dating WW
-
-</h3>
-
-<p>
-
-Worldwide Smartlink
-
-</p>
-
-</div>
-
-<button>
-
-Get Link
-
-</button>
-
-</div>
-
-<div class="offer-card">
-
-<div>
-
-<h3>
-
-Mainstream Dating
-
-</h3>
-
-<p>
-
-Europe Smartlink
-
-</p>
-
-</div>
-
-<button>
-
-Get Link
-
-</button>
-
-</div>
-
-</div>
-
-</section>
-<!-- ========================= -->
-<!-- STATISTICS -->
-<!-- ========================= -->
-
-<section id="statsPage" class="page">
-
-<div class="page-title">
-
-<h2>Statistics</h2>
-
-<p>Your traffic analytics</p>
-
-</div>
-
-<div class="dashboard">
-
-<div class="mini-card">
-
-<span>Clicks</span>
-
-<h3>0</h3>
-
-</div>
-
-<div class="mini-card">
-
-<span>Leads</span>
-
-<h3>0</h3>
-
-</div>
-
-<div class="mini-card">
-
-<span>CR</span>
-
-<h3>0%</h3>
-
-</div>
-
-<div class="mini-card">
-
-<span>Income</span>
-
-<h3>$0.00</h3>
-
-</div>
-
-</div>
-
-<div class="chart-card">
-
-<div class="chart-placeholder">
-
-Statistics Chart
-
-</div>
-
-</div>
-
-<div class="history-list">
-
-<div class="history-item">
-
-<span>Today</span>
-
-<b>$0.00</b>
-
-</div>
-
-<div class="history-item">
-
-<span>Yesterday</span>
-
-<b>$0.00</b>
-
-</div>
-
-<div class="history-item">
-
-<span>Last 7 days</span>
-
-<b>$0.00</b>
-
-</div>
-
-</div>
-
-</section>
-
-
-
-<!-- ========================= -->
-<!-- OFFERS -->
-<!-- ========================= -->
-
-<section id="offersPage" class="page">
-
-<div class="page-title">
-
-<h2>Offers</h2>
-
-<p>Available campaigns</p>
-
-</div>
-
-<div id="offersList">
-
-<div class="offer-card">
-
-<div>
-
-<h3>Adult Dating WW</h3>
-
-<p>CPA $1.20</p>
-
-</div>
-
-<button>
-
-Get Link
-
-</button>
-
-</div>
-
-<div class="offer-card">
-
-<div>
-
-<h3>Mainstream Dating</h3>
-
-<p>CPA $0.95</p>
-
-</div>
-
-<button>
-
-Get Link
-
-</button>
-
-</div>
-
-<div class="offer-card">
-
-<div>
-
-<h3>Germany Dating</h3>
-
-<p>CPA $1.45</p>
-
-</div>
-
-<button>
-
-Get Link
-
-</button>
-
-</div>
-
-</div>
-
-</section>
-
-
-
-<!-- ========================= -->
-<!-- CHAT -->
-<!-- ========================= -->
-
-<section id="chatPage" class="page">
-
-<div class="page-title">
-
-<h2>Движ</h2>
-
-<p>Community Chat</p>
-
-</div>
-
-<div class="chat-box">
-
-<div class="message">
-
-<b>Admin</b>
-
-<span>
-
-Welcome to VVD CPA
-
-</span>
-
-</div>
-
-<div class="message">
-
-<b>Alex</b>
-
-<span>
-
-Who works with Adult WW?
-
-</span>
-
-</div>
-
-<div class="message">
-
-<b>Denis</b>
-
-<span>
-
-Today's CR is 🔥
-
-</span>
-
-</div>
-
-</div>
-
-<div class="chat-input">
-
-<input
-type="text"
-placeholder="Write message...">
-
-<button>
-
-Send
-
-</button>
-
-</div>
-
-</section>
-<!-- ========================================= -->
-<!-- PROFILE PAGE -->
-<!-- ========================================= -->
-
-<section id="profilePage" class="page">
-
-    <div class="page-title">
-        <h2>Profile</h2>
-        <p>Your account</p>
     </div>
 
-    <div class="profile-box">
+    <div class="header-right">
+
+        <button class="notification-button">
+
+            🔔
+
+        </button>
+
+    </div>
+
+</header>
+    </header>
+
+    <!-- ========================= -->
+    <!-- MAIN -->
+    <!-- ========================= -->
+
+    <main>
+
+        <!-- HOME -->
+
+        <section id="homePage"
+                 class="page active">
+<!-- ========================= -->
+<!-- PROFILE CARD -->
+<!-- ========================= -->
+
+<div class="profile-card">
+
+    <div class="profile-top">
 
         <div class="profile-avatar">
 
-            <img id="profileAvatar" src="" alt="">
+            <img
+                id="homeAvatar"
+                src=""
+                alt="Avatar">
 
         </div>
 
-        <h2 id="profileName">
+        <div class="profile-info">
 
-            Loading...
+            <h2 id="homeUserName">
 
-        </h2>
+                Loading...
 
-        <span id="profileTelegram">
+            </h2>
 
-            @username
+            <span class="partner-badge">
 
-        </span>
+                Партнёр
 
-        <div class="profile-grid">
+            </span>
 
-            <div class="profile-item">
+            <div class="online-status">
 
-                <small>Telegram ID</small>
+                <span class="online-dot"></span>
 
-                <strong id="profileId">
+                <span>
 
-                    00000000
+                    online
 
-                </strong>
-
-            </div>
-
-            <div class="profile-item">
-
-                <small>Status</small>
-
-                <strong>
-
-                    Premium
-
-                </strong>
+                </span>
 
             </div>
 
-            <div class="profile-item">
+            <small id="homeUserId">
 
-                <small>Total Earned</small>
+                ID: 000000000
 
-                <strong>
-
-                    $0.00
-
-                </strong>
-
-            </div>
-
-            <div class="profile-item">
-
-                <small>Partner Since</small>
-
-                <strong>
-
-                    2025
-
-                </strong>
-
-            </div>
+            </small>
 
         </div>
 
     </div>
 
-</section>
+</div>
+            <!-- ========================= -->
+<!-- DASHBOARD -->
+<!-- ========================= -->
 
+<div class="dashboard-grid">
 
+    <!-- Доступно -->
 
+    <div class="dashboard-card">
 
+        <span class="card-title">
+            Доступно
+        </span>
 
-<!-- ========================================= -->
-<!-- ADMIN PAGE -->
-<!-- ========================================= -->
+        <h3 id="balanceAvailable">
+            $0.00
+        </h3>
 
-<section id="adminPage" class="page admin-only">
+    </div>
 
-<div class="page-title">
+    <!-- Hold -->
 
-<h2>Admin Panel</h2>
+    <div class="dashboard-card">
 
-<p>VVD CPA Management</p>
+        <span class="card-title">
+            Hold
+        </span>
+
+        <h3 id="balanceHold">
+            $0.00
+        </h3>
+
+    </div>
+
+    <!-- Сегодня -->
+
+    <div class="dashboard-card">
+
+        <span class="card-title">
+            Сегодня
+        </span>
+
+        <h3 id="todayProfit">
+            $0.00
+        </h3>
+
+    </div>
+
+    <!-- Выплачено -->
+
+    <div class="dashboard-card">
+
+        <span class="card-title">
+            Выплачено
+        </span>
+
+        <h3 id="paidBalance">
+            $0.00
+        </h3>
+
+    </div>
 
 </div>
+            <!-- ========================= -->
+<!-- QUICK ACTIONS -->
+<!-- ========================= -->
 
-<div class="admin-grid">
+<div class="quick-actions">
 
-<button class="admin-button">
+    <button id="withdrawBtn"
+            class="action-button">
 
-👥
+        <span>💸</span>
 
-<span>
+        <span>
 
-Users
+            Вывести
 
-</span>
+        </span>
 
-</button>
+    </button>
 
-<button class="admin-button">
+    <button id="historyBtn"
+            class="action-button">
 
-💰
+        <span>📜</span>
 
-<span>
+        <span>
 
-Withdraws
+            История
 
-</span>
+        </span>
 
-</button>
-
-<button class="admin-button">
-
-🎯
-
-<span>
-
-Offers
-
-</span>
-
-</button>
-
-<button class="admin-button">
-
-📢
-
-<span>
-
-Broadcast
-
-</span>
-
-</button>
-
-<button class="admin-button">
-
-📈
-
-<span>
-
-Statistics
-
-</span>
-
-</button>
-
-<button class="admin-button">
-
-⚙️
-
-<span>
-
-Settings
-
-</span>
-
-</button>
+    </button>
 
 </div>
+            <!-- ========================= -->
+<!-- RECENT CONVERSIONS -->
+<!-- ========================= -->
 
-</section>
+<div class="recent-conversions">
+
+    <div class="section-header">
+
+        <h3>
+
+            Последние конверсии
+
+        </h3>
+
+        <button class="link-button">
+
+            Смотреть все
+
+        </button>
+
+    </div>
+
+    <div class="conversion-item">
+
+        <div>
+
+            <strong>Adult Dating</strong>
+
+            <small>Smartlink</small>
+
+        </div>
+
+        <span class="conversion-profit">
+
+            +$1.20
+
+        </span>
+
+    </div>
+
+    <div class="conversion-item">
+
+        <div>
+
+            <strong>Mainstream Dating</strong>
+
+            <small>Smartlink</small>
+
+        </div>
+
+        <span class="conversion-profit">
+
+            +$0.95
+
+        </span>
+
+    </div>
 
 
+</div>  
+            <!-- ========================= -->
+<!-- NEW OFFERS -->
+<!-- ========================= -->
 
+<div class="new-offers-card">
 
+    <div class="new-offers-left">
 
-<!-- ========================================= -->
-<!-- BOTTOM MENU -->
-<!-- ========================================= -->
+        <span class="new-offers-icon">
 
-<nav class="bottom-menu">
+            🔥
 
-<button class="menu-button active">
+        </span>
 
-<div>
+        <div>
 
-🏠
+            <h3>
+
+                Новые офферы
+
+            </h3>
+
+            <small>
+
+                2 новых оффера доступны
+
+            </small>
+
+        </div>
+
+    </div>
+
+    <button
+        id="newOffersBtn"
+        class="open-button">
+
+        Открыть
+
+    </button>
 
 </div>
+        </section>
 
-<span>
+        <!-- OFFERS -->
 
-Home
+        <section id="offersPage"
+                 class="page">
 
-</span>
+        </section>
 
-</button>
+        <!-- STATISTICS -->
 
-<button class="menu-button">
+        <section id="statisticsPage"
+                 class="page">
 
-<div>
+        </section>
 
-📊
+        <!-- CHAT -->
 
-</div>
+        <section id="chatPage"
+                 class="page">
 
-<span>
+        </section>
 
-Stats
+        <!-- PROFILE -->
 
-</span>
+        <section id="profilePage"
+                 class="page">
 
-</button>
+        </section>
 
-<button class="menu-button">
+        <!-- ADMIN -->
 
-<div>
+        <section id="adminPage"
+                 class="page">
 
-🎯
+        </section>
 
-</div>
+    </main>
 
-<span>
+    <!-- ========================= -->
+    <!-- BOTTOM MENU -->
+    <!-- ========================= -->
 
-Offers
+    <nav id="bottomMenu">
 
-</span>
-
-</button>
-
-<button class="menu-button">
-
-<div>
-
-💬
-
-</div>
-
-<span>
-
-Chat
-
-</span>
-
-</button>
-
-<button class="menu-button">
-
-<div>
-
-👤
+    </nav>
 
 </div>
-
-<span>
-
-Profile
-
-</span>
-
-</button>
-
-</nav>
-
-</div>
-
-
 
 <script src="telegram.js"></script>
-
 <script src="api.js"></script>
-
 <script src="offers.js"></script>
-
 <script src="ui.js"></script>
-
 <script src="app.js"></script>
 
 </body>
