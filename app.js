@@ -5,108 +5,96 @@
 
 "use strict";
 
-window.onload=()=>{
+window.onload = () => {
 
     console.log("VVD CPA Started");
-
     console.log(App.user);
 
-    document.getElementById("userName").innerHTML=
+    /* ---------- Верхняя карточка ---------- */
 
-        getFirstName()+" "+getLastName();
+    document.getElementById("userName").innerHTML =
+        getFirstName() + " " + getLastName();
 
-    document.getElementById("userId").innerHTML=
+    document.getElementById("userId").innerHTML =
+        "ID: " + getUserId();
 
-        "ID: "+getUserId();
+    if (getPhoto()) {
+        document.getElementById("userAvatar").src = getPhoto();
+    }
 
-    if(getPhoto()){
+    /* ---------- Главная карточка ---------- */
 
-        document.getElementById("userAvatar").src=
+    const homeName = document.getElementById("homeUserName");
+    const homeId = document.getElementById("homeUserId");
+    const homeAvatar = document.getElementById("homeAvatar");
 
-        getPhoto();
+    if (homeName) {
+        homeName.innerHTML = getFirstName() + " " + getLastName();
+    }
+
+    if (homeId) {
+        homeId.innerHTML = "ID: " + getUserId();
+    }
+
+    if (homeAvatar && getPhoto()) {
+        homeAvatar.src = getPhoto();
+    }
+
+    /* ---------- Админ ---------- */
+
+    if (App.isAdmin) {
+
+        const admin = document.querySelector(".admin-only");
+
+        if (admin) {
+            admin.style.display = "flex";
+        }
 
     }
-document.getElementById("homeUserName").innerHTML =
 
-    getFirstName() + " " + getLastName();
+    /* ==========================================
+       НАВИГАЦИЯ
+    ========================================== */
 
-document.getElementById("homeUserId").innerHTML =
+    const pages = document.querySelectorAll(".page");
+    const tabs = document.querySelectorAll(".tab-button");
 
-    "ID: " + getUserId();
+    function openPage(pageId) {
 
-if(getPhoto()){
+        pages.forEach(page => {
+            page.classList.remove("active");
+        });
 
-    document.getElementById("homeAvatar").src =
+        tabs.forEach(tab => {
+            tab.classList.remove("active");
+        });
 
-        getPhoto();
+        const page = document.getElementById(pageId);
 
-}
-    if(App.isAdmin){
+        if (page) {
+            page.classList.add("active");
+        }
 
-        document
+        const activeTab = document.querySelector(`[data-page="${pageId}"]`);
 
-        .querySelector(".admin-only")
-
-        .style.display="flex";
+        if (activeTab) {
+            activeTab.classList.add("active");
+        }
 
     }
+
+    tabs.forEach(tab => {
+
+        tab.addEventListener("click", () => {
+
+            openPage(tab.dataset.page);
+
+        });
+
+    });
+
+    /* ---------- Открываем главную ---------- */
+
+    openPage("homePage");
 
 };
-/* ==========================================
-   НАВИГАЦИЯ ПО ЭКРАНАМ
-========================================== */
-
-const pages = document.querySelectorAll(".page");
-
-const tabs = document.querySelectorAll(".tab-button");
-
-function openPage(pageId){
-
-    pages.forEach(page=>{
-
-        page.classList.remove("active");
-
-    });
-
-    tabs.forEach(tab=>{
-
-        tab.classList.remove("active");
-
-    });
-
-    document
-        .getElementById(pageId)
-        .classList
-        .add("active");
-
-    document
-        .querySelector(`[data-page="${pageId}"]`)
-        .classList
-        .add("active");
-
-}
-/* ==========================================
-   ОБРАБОТКА НАЖАТИЯ НА ВКЛАДКИ
-========================================== */
-
-tabs.forEach(tab=>{
-
-    tab.addEventListener("click",()=>{
-
-        const pageId = tab.dataset.page;
-
-        openPage(pageId);
-
-    });
-
-});
-/* ==========================================
-   ПЕРВАЯ ЗАГРУЗКА
-========================================== */
-
-openPage("homePage");
-
-
-
-
-
