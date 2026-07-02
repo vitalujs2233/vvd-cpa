@@ -851,3 +851,170 @@ transition:
     font-weight:600;
 
 }
+ /* ==========================================
+   OFFERS PAGE
+========================================== */
+
+.page-header{
+    padding:20px 22px 10px;
+}
+
+.page-header h2{
+    color:#ffffff;
+    font-size:24px;
+    font-weight:700;
+}
+
+.offer-search{
+    padding:0 20px 18px;
+}
+
+.offer-search input{
+
+    width:100%;
+
+    height:48px;
+
+    background:#1b202d;
+
+    border:1px solid rgba(255,255,255,.06);
+
+    border-radius:14px;
+
+    padding:0 16px;
+
+    color:#ffffff;
+
+    font-size:15px;
+
+    outline:none;
+
+    transition:.25s;
+}
+
+.offer-search input:focus{
+
+    border-color:#7b5cff;
+
+    box-shadow:0 0 15px rgba(123,92,255,.25);
+
+}
+
+.offers-list{
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:14px;
+
+    padding:0 20px 100px;
+
+}
+
+.offer-category{
+
+    display:flex;
+
+    align-items:center;
+
+    background:#1b202d;
+
+    border:1px solid rgba(255,255,255,.05);
+
+    border-radius:18px;
+
+    padding:16px;
+
+    transition:.25s;
+
+    cursor:pointer;
+
+}
+
+.offer-category:hover{
+
+    transform:translateY(-3px);
+
+    border-color:#7b5cff;
+
+    box-shadow:0 12px 30px rgba(123,92,255,.18);
+
+}
+
+.offer-icon{
+
+    width:52px;
+
+    height:52px;
+
+    border-radius:16px;
+
+    background:#242b3d;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    font-size:24px;
+
+    margin-right:16px;
+
+}
+
+.offer-info{
+
+    flex:1;
+
+}
+
+.offer-info strong{
+
+    display:block;
+
+    color:#ffffff;
+
+    font-size:16px;
+
+    margin-bottom:5px;
+
+}
+
+.offer-info small{
+
+    color:#8d96b5;
+
+    font-size:13px;
+
+}
+
+.offer-count{
+
+    min-width:42px;
+
+    height:32px;
+
+    border-radius:12px;
+
+    background:#7b5cff;
+
+    color:#ffffff;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    font-weight:700;
+
+}
+
+
+
+
+
+
+
