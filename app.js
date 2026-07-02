@@ -38,3 +38,61 @@ window.onload=()=>{
     }
 
 };
+/* ==========================================
+   НАВИГАЦИЯ ПО ЭКРАНАМ
+========================================== */
+
+const pages = document.querySelectorAll(".page");
+
+const tabs = document.querySelectorAll(".tab-button");
+
+function openPage(pageId){
+
+    pages.forEach(page=>{
+
+        page.classList.remove("active");
+
+    });
+
+    tabs.forEach(tab=>{
+
+        tab.classList.remove("active");
+
+    });
+
+    document
+        .getElementById(pageId)
+        .classList
+        .add("active");
+
+    document
+        .querySelector(`[data-page="${pageId}"]`)
+        .classList
+        .add("active");
+
+}
+/* ==========================================
+   ОБРАБОТКА НАЖАТИЯ НА ВКЛАДКИ
+========================================== */
+
+tabs.forEach(tab=>{
+
+    tab.addEventListener("click",()=>{
+
+        const pageId = tab.dataset.page;
+
+        openPage(pageId);
+
+    });
+
+});
+/* ==========================================
+   ПЕРВАЯ ЗАГРУЗКА
+========================================== */
+
+openPage("homePage");
+
+
+
+
+
