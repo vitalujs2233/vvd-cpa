@@ -749,4 +749,90 @@ main{
     transform:scale(.96);
 
 }
+/* ===========================================
+   BOTTOM TAB BAR
+=========================================== */
 
+#bottomMenu{
+
+    position:fixed;
+
+    bottom:0;
+
+    left:50%;
+
+    transform:translateX(-50%);
+
+    width:100%;
+
+    max-width:480px;
+
+    height:82px;
+
+    background:#11141d;
+
+    border-top:1px solid rgba(255,255,255,.06);
+
+    display:flex;
+
+    justify-content:space-around;
+
+    align-items:center;
+
+    z-index:999;
+
+    backdrop-filter:blur(20px);
+
+}
+
+.tab-button{
+
+    display:flex;
+
+    flex-direction:column;
+
+    align-items:center;
+
+    justify-content:center;
+
+    gap:6px;
+
+    width:70px;
+
+    height:60px;
+
+    border-radius:18px;
+
+    transition:.25s;
+
+    color:#8a90a5;
+
+}
+
+.tab-button:hover{
+
+    color:#ffffff;
+
+}
+
+.tab-button.active{
+
+    color:#7b5cff;
+
+    background:rgba(123,92,255,.12);
+
+}
+
+.tab-icon{
+
+    font-size:22px;
+
+}
+
+.tab-text{
+
+    font-size:11px;
+
+    font-weight:600;
+
+}
