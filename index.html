@@ -1,13 +1,17 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
 
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
 <title>VVD CPA</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
+
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -22,180 +26,477 @@
 
 <div id="app">
 
-<header class="top-header">
+<!-- ========================= -->
 
-<div class="profile">
+<!-- HEADER -->
 
-<div class="avatar">
-<img id="userAvatar" src="" alt="">
+<!-- ========================= -->
+
+<header class="header">
+
+<div class="header-left">
+
+<div class="avatar-box">
+
+<img id="userAvatar"
+src=""
+alt="avatar">
+
 </div>
 
-<div class="profile-info">
+<div class="header-user">
 
 <h2 id="username">
+
 Loading...
+
 </h2>
 
 <p id="userid">
+
 ID:
+
 </p>
 
 </div>
 
 </div>
 
+<div class="header-right">
+
 <div class="online-dot"></div>
+
+</div>
 
 </header>
 
-<main>
 
-<section id="homePage" class="page active">
 
-<div class="stats-grid">
 
-<div class="stat-card">
 
-<span class="stat-title">
+<!-- ========================= -->
+
+<!-- HOME -->
+
+<!-- ========================= -->
+
+<section
+id="homePage"
+class="page active">
+
+<div class="dashboard">
+
+<div class="mini-card">
+
+<span>
+
 Available
+
 </span>
 
 <h3 id="balanceAvailable">
+
 $0.00
+
 </h3>
 
 </div>
 
-<div class="stat-card">
+<div class="mini-card">
 
-<span class="stat-title">
+<span>
+
 Hold
+
 </span>
 
 <h3 id="balanceHold">
+
 $0.00
+
 </h3>
 
 </div>
 
-<div class="stat-card">
+<div class="mini-card">
 
-<span class="stat-title">
+<span>
+
 Today
+
 </span>
 
 <h3 id="todayIncome">
+
 $0.00
+
 </h3>
 
 </div>
 
-<div class="stat-card">
+<div class="mini-card">
 
-<span class="stat-title">
+<span>
+
 Paid
+
 </span>
 
 <h3 id="paidBalance">
+
 $0.00
+
 </h3>
 
 </div>
 
 </div>
 
-<div class="action-grid">
+<div class="quick-grid">
 
-<button class="action-card" id="withdrawButton">
-
-<div class="action-icon">
-
-💳
-
-</div>
-
-<span>
+<button
+class="quick-btn">
 
 Withdraw
 
-</span>
-
 </button>
 
-<button class="action-card" id="historyButton">
-
-<div class="action-icon">
-
-📜
-
-</div>
-
-<span>
+<button
+class="quick-btn">
 
 History
 
-</span>
+</button>
+
+<button
+class="quick-btn">
+
+Support
+
+</button>
+
+<button
+class="quick-btn">
+
+Offers
 
 </button>
 
 </div>
 
-<section class="section-title">
+<div class="block-title">
 
-🔥 Featured Offers
+Hot Offers
 
-</section>
+</div>
 
-<div id="offersContainer">
+<div
+id="offersContainer">
+
+<div class="offer-card">
+
+<div>
+
+<h3>
+
+Adult Dating WW
+
+</h3>
+
+<p>
+
+Worldwide Smartlink
+
+</p>
+
+</div>
+
+<button>
+
+Get Link
+
+</button>
+
+</div>
+
+<div class="offer-card">
+
+<div>
+
+<h3>
+
+Mainstream Dating
+
+</h3>
+
+<p>
+
+Europe Smartlink
+
+</p>
+
+</div>
+
+<button>
+
+Get Link
+
+</button>
+
+</div>
 
 </div>
 
 </section>
-<section id="offersPage" class="page">
+<!-- ========================= -->
+<!-- STATISTICS -->
+<!-- ========================= -->
 
-    <div class="page-header">
-        <h2>🔥 Offers</h2>
-        <p>Top converting campaigns</p>
-    </div>
+<section id="statsPage" class="page">
 
-    <div id="offersList">
+<div class="page-title">
 
-    </div>
+<h2>Statistics</h2>
+
+<p>Your traffic analytics</p>
+
+</div>
+
+<div class="dashboard">
+
+<div class="mini-card">
+
+<span>Clicks</span>
+
+<h3>0</h3>
+
+</div>
+
+<div class="mini-card">
+
+<span>Leads</span>
+
+<h3>0</h3>
+
+</div>
+
+<div class="mini-card">
+
+<span>CR</span>
+
+<h3>0%</h3>
+
+</div>
+
+<div class="mini-card">
+
+<span>Income</span>
+
+<h3>$0.00</h3>
+
+</div>
+
+</div>
+
+<div class="chart-card">
+
+<div class="chart-placeholder">
+
+Statistics Chart
+
+</div>
+
+</div>
+
+<div class="history-list">
+
+<div class="history-item">
+
+<span>Today</span>
+
+<b>$0.00</b>
+
+</div>
+
+<div class="history-item">
+
+<span>Yesterday</span>
+
+<b>$0.00</b>
+
+</div>
+
+<div class="history-item">
+
+<span>Last 7 days</span>
+
+<b>$0.00</b>
+
+</div>
+
+</div>
 
 </section>
 
+
+
+<!-- ========================= -->
+<!-- OFFERS -->
+<!-- ========================= -->
+
+<section id="offersPage" class="page">
+
+<div class="page-title">
+
+<h2>Offers</h2>
+
+<p>Available campaigns</p>
+
+</div>
+
+<div id="offersList">
+
+<div class="offer-card">
+
+<div>
+
+<h3>Adult Dating WW</h3>
+
+<p>CPA $1.20</p>
+
+</div>
+
+<button>
+
+Get Link
+
+</button>
+
+</div>
+
+<div class="offer-card">
+
+<div>
+
+<h3>Mainstream Dating</h3>
+
+<p>CPA $0.95</p>
+
+</div>
+
+<button>
+
+Get Link
+
+</button>
+
+</div>
+
+<div class="offer-card">
+
+<div>
+
+<h3>Germany Dating</h3>
+
+<p>CPA $1.45</p>
+
+</div>
+
+<button>
+
+Get Link
+
+</button>
+
+</div>
+
+</div>
+
+</section>
+
+
+
+<!-- ========================= -->
+<!-- CHAT -->
+<!-- ========================= -->
 
 <section id="chatPage" class="page">
 
-    <div class="page-header">
-        <h2>💬 Движ</h2>
-        <p>Внутренний чат партнеров</p>
-    </div>
+<div class="page-title">
 
-    <div class="chat-placeholder">
+<h2>Движ</h2>
 
-        <div class="chat-icon">
-            💬
-        </div>
+<p>Community Chat</p>
 
-        <h3>Скоро</h3>
+</div>
 
-        <p>
-            Здесь появится внутренний чат партнеров VVD CPA.
-        </p>
+<div class="chat-box">
 
-    </div>
+<div class="message">
+
+<b>Admin</b>
+
+<span>
+
+Welcome to VVD CPA
+
+</span>
+
+</div>
+
+<div class="message">
+
+<b>Alex</b>
+
+<span>
+
+Who works with Adult WW?
+
+</span>
+
+</div>
+
+<div class="message">
+
+<b>Denis</b>
+
+<span>
+
+Today's CR is 🔥
+
+</span>
+
+</div>
+
+</div>
+
+<div class="chat-input">
+
+<input
+type="text"
+placeholder="Write message...">
+
+<button>
+
+Send
+
+</button>
+
+</div>
 
 </section>
-
+<!-- ========================================= -->
+<!-- PROFILE PAGE -->
+<!-- ========================================= -->
 
 <section id="profilePage" class="page">
 
-    <div class="page-header">
-        <h2>👤 Профиль</h2>
+    <div class="page-title">
+        <h2>Profile</h2>
+        <p>Your account</p>
     </div>
 
-    <div class="profile-card">
+    <div class="profile-box">
 
         <div class="profile-avatar">
 
@@ -204,96 +505,256 @@ History
         </div>
 
         <h2 id="profileName">
+
             Loading...
+
         </h2>
 
-        <span id="profileId">
-            ID:
+        <span id="profileTelegram">
+
+            @username
+
         </span>
+
+        <div class="profile-grid">
+
+            <div class="profile-item">
+
+                <small>Telegram ID</small>
+
+                <strong id="profileId">
+
+                    00000000
+
+                </strong>
+
+            </div>
+
+            <div class="profile-item">
+
+                <small>Status</small>
+
+                <strong>
+
+                    Premium
+
+                </strong>
+
+            </div>
+
+            <div class="profile-item">
+
+                <small>Total Earned</small>
+
+                <strong>
+
+                    $0.00
+
+                </strong>
+
+            </div>
+
+            <div class="profile-item">
+
+                <small>Partner Since</small>
+
+                <strong>
+
+                    2025
+
+                </strong>
+
+            </div>
+
+        </div>
 
     </div>
 
 </section>
 
+
+
+
+
+<!-- ========================================= -->
+<!-- ADMIN PAGE -->
+<!-- ========================================= -->
 
 <section id="adminPage" class="page admin-only">
 
-    <div class="page-header">
+<div class="page-title">
 
-        <h2>⚙️ Admin Panel</h2>
+<h2>Admin Panel</h2>
 
-    </div>
+<p>VVD CPA Management</p>
 
-    <div class="admin-grid">
+</div>
 
-        <button class="admin-card">
-            👥
-            <span>Users</span>
-        </button>
+<div class="admin-grid">
 
-        <button class="admin-card">
-            🎁
-            <span>Offers</span>
-        </button>
+<button class="admin-button">
 
-        <button class="admin-card">
-            💸
-            <span>Payouts</span>
-        </button>
+👥
 
-        <button class="admin-card">
-            📢
-            <span>Broadcast</span>
-        </button>
+<span>
 
-    </div>
+Users
+
+</span>
+
+</button>
+
+<button class="admin-button">
+
+💰
+
+<span>
+
+Withdraws
+
+</span>
+
+</button>
+
+<button class="admin-button">
+
+🎯
+
+<span>
+
+Offers
+
+</span>
+
+</button>
+
+<button class="admin-button">
+
+📢
+
+<span>
+
+Broadcast
+
+</span>
+
+</button>
+
+<button class="admin-button">
+
+📈
+
+<span>
+
+Statistics
+
+</span>
+
+</button>
+
+<button class="admin-button">
+
+⚙️
+
+<span>
+
+Settings
+
+</span>
+
+</button>
+
+</div>
 
 </section>
 
-</main>
 
 
-<nav class="bottom-nav">
 
-<button class="nav-button active" data-page="homePage">
 
-<div>🏠</div>
+<!-- ========================================= -->
+<!-- BOTTOM MENU -->
+<!-- ========================================= -->
 
-<small>Home</small>
+<nav class="bottom-menu">
 
-</button>
+<button class="menu-button active">
 
-<button class="nav-button" data-page="offersPage">
+<div>
 
-<div>🎯</div>
+🏠
 
-<small>Offers</small>
+</div>
 
-</button>
+<span>
 
-<button class="nav-button" data-page="chatPage">
+Home
 
-<div>💬</div>
-
-<small>Chat</small>
+</span>
 
 </button>
 
-<button class="nav-button" data-page="profilePage">
+<button class="menu-button">
 
-<div>👤</div>
+<div>
 
-<small>Profile</small>
+📊
+
+</div>
+
+<span>
+
+Stats
+
+</span>
 
 </button>
 
-<button
-class="nav-button admin-only"
-data-page="adminPage">
+<button class="menu-button">
 
-<div>⚙️</div>
+<div>
 
-<small>Admin</small>
+🎯
+
+</div>
+
+<span>
+
+Offers
+
+</span>
+
+</button>
+
+<button class="menu-button">
+
+<div>
+
+💬
+
+</div>
+
+<span>
+
+Chat
+
+</span>
+
+</button>
+
+<button class="menu-button">
+
+<div>
+
+👤
+
+</div>
+
+<span>
+
+Profile
+
+</span>
 
 </button>
 
@@ -301,11 +762,18 @@ data-page="adminPage">
 
 </div>
 
+
+
 <script src="telegram.js"></script>
+
 <script src="api.js"></script>
+
 <script src="offers.js"></script>
+
 <script src="ui.js"></script>
+
 <script src="app.js"></script>
 
 </body>
+
 </html>
