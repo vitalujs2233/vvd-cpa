@@ -1,16 +1,15 @@
 /* ==========================================================================
-   PREMIUM DARK LUXURY DESIGN SYSTEM — VVD CPA
-   Inspired by: Stripe, Linear, Apple Vision Pro UI & Telegram Premium
+   PREMIUM DARK LUXURY DESIGN SYSTEM — VVD CPA (ЧАСТЬ 1)
    ========================================================================== */
 
 :root {
-    /* Цветовая палитра по ТЗ */
+    /* Цветовая палитра строго по вашему ТЗ */
     --bg-main: #070A14;
     --bg-secondary: #0D1222;
     --bg-card: #101726;
     --bg-card-hover: #141C31;
     
-    /* Акценты и неоновое свечение */
+    /* Сочные неоновые акценты */
     --color-purple: #7B4DFF;
     --color-purple-secondary: #A855F7;
     --color-purple-glow: rgba(123, 77, 255, 0.55);
@@ -20,79 +19,59 @@
     --color-white: #F8FAFF;
     --color-gray: #A5AEC5;
 
-    /* Радиусы по ТЗ */
+    /* Радиусы по вашему ТЗ */
     --radius-card: 28px;
     --radius-btn: 20px;
     --radius-badge: 14px;
     --radius-avatar: 72px;
 }
 
-/* Сброс стилей и полноэкранный каркас Native UI */
+/* Сброс стилей и блокировка лишних скроллов */
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
     -webkit-tap-highlight-color: transparent;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', Roboto, sans-serif;
+    font-family: 'Inter', sans-serif;
 }
 
 body {
     background-color: var(--bg-main);
     color: var(--color-white);
-    overflow: hidden;
-    font-size: 16px;
-    font-weight: 500;
+    overflow: hidden; /* Запрещаем скролл всему телу сайта, скроллится только контент внутри экранов */
     position: relative;
     width: 100vw;
     height: 100vh;
 }
 
-/* ==========================================================================
-   ЭФФЕКТЫ ЗАДНЕГО ФОНА (РАЗМЫТЫЕ НЕОНОВЫЕ ТУМАННОСТИ И ШУМ)
-   ========================================================================== */
+/* Фоновые неоновые туманности (Radial Gradient), волны и слабый шум по ТЗ */
 .bg-glow {
     position: fixed;
     border-radius: 50%;
     filter: blur(120px);
     z-index: -2;
     pointer-events: none;
-    opacity: 0.6;
-    animation: floatingGlow 10s ease-in-out infinite alternate;
+    opacity: 0.5;
+    animation: floatingGlow 12s ease-in-out infinite alternate;
 }
 
-.spotlight-1 {
-    width: 300px;
-    height: 300px;
-    background: var(--color-purple);
-    top: -50px;
-    left: -50px;
-}
-
-.spotlight-2 {
-    width: 250px;
-    height: 250px;
-    background: var(--color-purple-secondary);
-    bottom: 50px;
-    right: -50px;
-    animation-delay: -3s;
-}
+.spotlight-purple { width: 320px; height: 320px; background: var(--color-purple); top: -40px; left: -40px; }
+.spotlight-violet { width: 260px; height: 260px; background: var(--color-purple-secondary); bottom: 60px; right: -40px; animation-delay: -4s; }
 
 .bg-noise {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    top: 0; left: 0; width: 100%; height: 100%;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://w3.org id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.015'/%3E%3C/svg%3E");
     z-index: -1;
     pointer-events: none;
 }
 
 @keyframes floatingGlow {
-    0% { transform: translate(0, 0) scale(1); opacity: 0.5; }
-    100% { transform: translate(30px, 20px) scale(1.15); opacity: 0.75; }
+    0% { transform: translate(0, 0) scale(1); opacity: 0.45; }
+    100% { transform: translate(40px, 30px) scale(1.15); opacity: 0.7; }
 }
 
+/* Жёсткий каркас приложения на весь физический экран телефона */
 #app {
     display: flex;
     flex-direction: column;
@@ -102,22 +81,19 @@ body {
     z-index: 1;
 }
 
-/* ==========================================================================
-   ТИПОГРАФИКА И УТИЛИТЫ ПО ТЗ
-   ========================================================================== */
+/* Типографика строго по параметрам ТЗ */
 h1 { font-size: 34px; font-weight: 700; letter-spacing: -0.8px; }
 h2 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
 h3 { font-size: 18px; font-weight: 600; letter-spacing: -0.2px; }
 h4 { font-size: 16px; font-weight: 600; }
-
 p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
+
 .green-text { color: var(--color-green) !important; }
 .blue-text { color: #38BDF8 !important; }
-.purple-text { color: #A78BFA !important; }
-.orange-text { color: var(--color-orange) !important; }
+.purple-text { color: #A78BFA !important; font-weight: 600; }
+.orange-text { color: #FF9F43 !important; }
 .red-text { color: var(--color-red) !important; }
 
-/* Текстовый градиент из ТЗ */
 .purple-gradient-text {
     background: linear-gradient(135deg, #6E45FF, #9747FF, #C44DFF);
     -webkit-background-clip: text;
@@ -125,7 +101,7 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     font-weight: 700;
 }
 
-/* Настоящий Glassmorphism 2.0 по ТЗ */
+/* Премиальный Glassmorphism 2.0 по ТЗ */
 .glass-card {
     background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
     backdrop-filter: blur(28px);
@@ -134,36 +110,29 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     border-radius: var(--radius-card);
     box-shadow: 0 15px 60px rgba(0,0,0,.55);
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 100%;
 }
 
+/* Анимация при наведении / удержании по ТЗ */
 .glass-card:hover {
     background: var(--bg-card-hover);
     transform: translateY(-3px);
-    border-color: rgba(123, 77, 255, 0.2);
+    border-color: rgba(123, 77, 255, 0.25);
 }
 
-/* Анимация плавного появления экранов (Slide Up) */
+/* Изолированные экраны. Высота строго вычитает нижний док-бар (84px) */
 .page {
-    display: none;
+    display: none; /* Скрыты по умолчанию для предотвращения наложения */
     flex-direction: column;
     height: calc(100vh - 84px);
-    overflow-y: auto;
+    overflow-y: auto; /* Скроллится только контент внутри экрана */
     padding: 24px 16px;
-    padding-bottom: 110px;
+    padding-bottom: 120px; /* Плотный зазор снизу, чтобы контент не перекрывался меню */
     width: 100%;
-    animation: pageAppear 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
-
-@keyframes pageAppear {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
 .page.active { display: flex; }
 
-/* ==========================================================================
-   ПРЕМИУМ КНОПКИ ПО ТЗ (ВЫСОТА 56PX, НЕОНОВЫЙ ГЛОВ)
-   ========================================================================== */
+/* Кнопки 56px по вашему ТЗ */
 .btn {
     height: 56px;
     border-radius: var(--radius-btn);
@@ -183,48 +152,31 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
 .btn-gradient {
     background: linear-gradient(135deg, #6E45FF, #9747FF, #C44DFF);
     box-shadow: 0 0 15px rgba(123,77,255,.45), 0 0 40px rgba(123,77,255,.18);
-    border: 1px solid rgba(255, 255, 255, 0.1);
 }
-
 .btn-gradient:hover {
     transform: translateY(-2px) scale(1.02);
-    box-shadow: 0 0 25px rgba(123,77,255,.6), 0 0 50px rgba(123,77,255,.3);
+    box-shadow: 0 0 25px rgba(123,77,255,.6);
 }
-
-.btn-gradient:active {
-    transform: translateY(0) scale(0.98);
-}
+.btn-gradient:active { transform: translateY(0) scale(0.98); }
 
 .btn-purple-outline {
-    background: rgba(123, 77, 255, 0.05);
+    background: rgba(123, 77, 255, 0.04);
     border: 2px solid var(--color-purple);
     box-shadow: inset 0 0 10px rgba(123, 77, 255, 0.1);
 }
-.btn-purple-outline:hover {
-    background: rgba(123, 77, 255, 0.15);
-    transform: translateY(-2px);
-}
+.btn-purple-outline:hover { background: rgba(123, 77, 255, 0.12); transform: translateY(-2px); }
 
-.btn-back {
-    background: none;
-    border: none;
-    color: var(--color-gray);
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 20px;
-    cursor: pointer;
-    text-align: left;
-}
+.btn-back { background: none; border: none; color: var(--color-gray); font-size: 14px; margin-bottom: 20px; text-align: left; cursor: pointer; }
 .btn-back:hover { color: var(--color-white); }
 /* ==========================================================================
    ВЕРХНЯЯ ЛЕНТА: КАРТА ЭКРАНОВ И ГОРИЗОНТАЛЬНАЯ НАВИГАЦИЯ
    ========================================================================== */
 .top-navigation-slider {
     padding: 14px 16px;
-    background: rgba(7, 10, 20, 0.5);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    background: rgba(7, 10, 20, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .slider-title {
@@ -241,9 +193,8 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     gap: 8px;
     overflow-x: auto;
     white-space: nowrap;
-    padding-bottom: 4px;
 }
-.slider-track::-webkit-scrollbar { display: none; } /* Скрываем стандартный скроллбар */
+.slider-track::-webkit-scrollbar { display: none; }
 
 .slide-tag {
     font-size: 13px;
@@ -265,7 +216,7 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
 }
 
 /* ==========================================================================
-   РОСКОШНАЯ КАРТОЧКА ПРОФИЛЯ — LUXURY PROFILE CARD (ПО МАКЕТУ)
+   РОСКОШНАЯ КАРТОЧКА ПРОФИЛЯ — LUXURY PROFILE CARD (АВАТАР 72PX)
    ========================================================================== */
 .luxury-profile-card {
     background: linear-gradient(150deg, rgba(20, 25, 45, 0.85) 0%, rgba(10, 12, 22, 0.95) 100%);
@@ -287,7 +238,6 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     gap: 16px;
 }
 
-/* Контейнер аватара 72px с неоновым глоу */
 .avatar-container {
     position: relative;
     width: var(--radius-avatar);
@@ -341,7 +291,6 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     margin-top: 1px;
 }
 
-/* Бейдж Partner с пульсирующим свечением */
 .badge-partner {
     font-size: 10px;
     font-weight: 800;
@@ -363,7 +312,6 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     100% { opacity: 1; box-shadow: 0 0 15px rgba(123, 77, 255, 0.35); }
 }
 
-/* Правый блок финансов в шапке */
 .profile-right-financial {
     text-align: right;
     display: flex;
@@ -372,11 +320,7 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     gap: 8px;
 }
 
-.fin-item {
-    margin-bottom: 2px;
-}
-.fin-item:last-of-type { margin-bottom: 4px; }
-
+.fin-item { margin-bottom: 2px; }
 .fin-lbl {
     font-size: 11px;
     color: var(--color-gray);
@@ -390,7 +334,6 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     font-weight: 700;
 }
 
-/* Кнопка «Вывести» встроенная в карточку профиля */
 .btn-payout-quick {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -438,11 +381,8 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     font-weight: 700;
     margin-top: 4px;
 }
-.metric-amount.font-large {
-    font-size: 22px;
-}
+.metric-amount.font-large { font-size: 22px; }
 
-/* Мини спарклайны (Кастомные столбики тренда из ТЗ) */
 .mini-sparkline {
     display: flex;
     align-items: flex-end;
@@ -517,7 +457,6 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     margin-top: 2px;
 }
 
-/* Квадратные дорогие глянцевые иконки */
 .luxury-icon-box {
     width: 42px;
     height: 42px;
@@ -540,7 +479,7 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     font-weight: 700;
 }
 /* ==========================================================================
-   КЕНТРОВАЯ КАРТОЧКА: SMARTLINK SHOWCASE (НАТИВНЫЙ НЕОН)
+   ЦЕНТРОВАЯ КАРТОЧКА: SMARTLINK SHOWCASE (НАТИВНЫЙ НЕОН)
    ========================================================================== */
 .luxury-smartlink-showcase {
     background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
@@ -585,7 +524,6 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     margin-top: 1px;
 }
 
-/* Статус-пилл со встроенной пульсирующей точкой */
 .status-pill {
     font-size: 12px;
     font-weight: 700;
@@ -696,10 +634,7 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     margin-bottom: 16px;
 }
 
-.pcat-icon {
-    font-size: 24px;
-}
-
+.pcat-icon { font-size: 24px; }
 .badge-count {
     font-size: 11px;
     font-weight: 700;
@@ -709,10 +644,7 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     border-radius: 10px;
 }
 
-.premium-category-card h3 {
-    font-size: 16px;
-    margin-bottom: 4px;
-}
+.premium-category-card h3 { font-size: 16px; margin-bottom: 4px; }
 
 /* ==========================================================================
    ЭКРАН 3: АНАЛИТИКА, ГРАФИКИ И ФОРМЫ (STRIPE UI STYLE)
@@ -724,10 +656,7 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     margin-bottom: 16px;
 }
 
-.stats-box {
-    padding: 16px 12px;
-    text-align: left;
-}
+.stats-box { padding: 16px 12px; text-align: left; }
 .stats-box span {
     font-size: 11px;
     color: var(--color-gray);
@@ -741,11 +670,7 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     margin-top: 4px;
 }
 
-.sparkline-trend {
-    font-size: 11px;
-    font-weight: 700;
-    margin-top: 6px;
-}
+.sparkline-trend { font-size: 11px; font-weight: 700; margin-top: 6px; }
 
 .mock-chart {
     height: 120px;
@@ -755,7 +680,6 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     background: linear-gradient(180deg, rgba(123,77,255,0.08) 0%, rgba(123,77,255,0) 100%);
     border-radius: 0 0 12px 12px;
 }
-/* Световой след тренда Linear App */
 .mock-chart::after {
     content: '';
     position: absolute;
@@ -767,10 +691,7 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     box-shadow: 0 0 20px var(--color-purple);
 }
 
-.detailed-stats-table {
-    padding: 6px 18px;
-}
-
+.detailed-stats-table { padding: 6px 18px; }
 .table-row {
     display: flex;
     justify-content: space-between;
@@ -836,9 +757,7 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
 }
 
 /* Настройки и Неоновые переключатели */
-.settings-toggle-card {
-    padding: 6px 20px;
-}
+.settings-toggle-card { padding: 6px 20px; }
 .toggle-row {
     display: flex;
     justify-content: space-between;
@@ -921,8 +840,8 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     bottom: 0;
     left: 0;
     right: 0;
-    height: 84px; /* Фиксированная высота по ТЗ */
-    background: rgba(13, 18, 34, 0.75); /* Полупрозрачный вторичный тон */
+    height: 84px; /* Чёткая высота по ТЗ */
+    background: rgba(13, 18, 34, 0.85); /* Полупрозрачный вторичный тон */
     backdrop-filter: blur(28px);
     -webkit-backdrop-filter: blur(28px);
     border-top: 1px solid rgba(255,255,255,.08);
@@ -930,7 +849,7 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     justify-content: space-around;
     align-items: center;
     padding-bottom: env(safe-area-inset-bottom);
-    z-index: 1000;
+    z-index: 9999; /* Поверх всего контента */
     width: 100vw;
 }
 
@@ -949,9 +868,8 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     transition: all 0.25s ease;
 }
 
-/* Стили активной кнопки и подсветки по ТЗ */
 .nav-item.active {
-    background: rgba(123, 77, 255, 0.18); /* Активный фон по ТЗ */
+    background: rgba(123, 77, 255, 0.18); /* Полупрозрачный фиолетовый по ТЗ */
     color: var(--color-white);
 }
 
@@ -964,3 +882,12 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
 .nav-item .icon {
     font-size: 22px; /* Размер по ТЗ */
     margin-bottom: 4px;
+    transition: transform 0.25s, color 0.25s;
+}
+
+.nav-item .label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
