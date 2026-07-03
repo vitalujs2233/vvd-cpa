@@ -49,6 +49,12 @@ export const Profile: React.FC = () => {
     setSaveSuccess(false);
   };
 
+  // Метод перехода в админку
+  const handleNavigateToAdmin = () => {
+    triggerHaptic.mediumImpact();
+    navigate('/admin');
+  };
+
   // Метод очистки кэша
   const handleClearCache = () => {
     if (cacheSize === '0 MB') return;
@@ -121,7 +127,7 @@ export const Profile: React.FC = () => {
             <div className="flex flex-col">
               <span className="text-base font-bold text-white">{profileName}</span>
               <span className="text-xs text-textMuted mt-0.5">@{profileUsername}</span>
-              <span className="text-[10px] text-accent font-semibold mt-1">ID: 123456 • Рег. 25.05.2024</span>
+              <span className="text-[10px] text-accent font-semibold mt-1">ID: {telegramUser.id} • Рег. 25.05.2024</span>
             </div>
           </Card>
 
@@ -182,6 +188,20 @@ export const Profile: React.FC = () => {
                 </div>
                 <span className="text-[10px] text-textMuted font-medium">Язык, Кэш, Тема</span>
               </div>
+
+              {/* Админ-панель (Видна только пользователю с ID 123456 по макету) */}
+              {telegramUser.id === 123456 && (
+                <div 
+                  onClick={handleNavigateToAdmin}
+                  className="flex items-center justify-between p-12 hover:bg-white/[0.01] active:bg-white/[0.03] cursor-pointer transition-colors duration-150 border-t border-gray-800/40"
+                >
+                  <div className="flex items-center gap-12">
+                    <Shield size={16} className="text-accent animate-pulse" />
+                    <span className="text-xs font-bold text-accent">Админ панель</span>
+                  </div>
+                  <span className="text-[10px] text-accent font-semibold">Войти</span>
+                </div>
+              )}
             </Card>
 
             {/* Выйти */}
