@@ -1,0 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Базовые переменные для гибкой работы с темой */
+:root {
+  font-family: 'Inter', sans-serif;
+  color-scheme: dark;
+  
+  --color-bg-dark: #0b0e14;
+  --color-bg-card: #151b24;
+  --color-accent: #7b5cff;
+}
+
+/* Настройки для превращения веб-страницы в монолитный мобильный интерфейс */
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--color-bg-dark);
+  color: #ffffff;
+  /* Блокируем скролл всего окна, чтобы зафиксировать шапку и нижнее меню */
+  overflow: hidden; 
+  /* Отключаем выделение текста, чтобы элементы вели себя как нативные кнопки */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-text-size-adjust: 100%;
+  /* Убираем синее выделение при клике на iOS Safari */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Класс для прокрутки контента во внутренних блоках (страницах, списках) */
+.scrollable-container {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Вспомогательный класс для скрытия стандартных полос прокрутки */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE и Edge */
+  scrollbar-width: none;  /* Firefox */
+}
