@@ -1,14 +1,13 @@
 // ==========================================================================
-// VVD CPA — ПОЛНЫЙ ФАЙЛ ЛОГИКИ ПРИЛОЖЕНИЯ ДЛЯ ВСЕХ 9 ЭКРАНОВ СТРУКТУРЫ
+// VVD CPA — ПОЛНЫЙ ФАЙЛ ЛОГИКИ И НАВИГАЦИИ ДЛЯ ВСЕХ 9 ЭКРАНОВ ШАБЛОНА
 // ==========================================================================
 
 document.addEventListener("DOMContentLoaded", () => {
-    // Автоматический запуск менеджера навигации при загрузке приложения
+    // Автоматический запуск роутера при загрузке приложения
     AppRouter.init();
 });
 
 const AppRouter = {
-    // Инициализация всех обработчиков кликов
     init() {
         // 1. НАВИГАЦИЯ ПО НИЖНЕМУ МЕНЮ (BOTTOM MENU)
         const menuButtons = document.querySelectorAll(".bottom-menu .nav-item");
@@ -21,7 +20,7 @@ const AppRouter = {
                 // Переключаем главный экран
                 this.switchScreen(targetScreenId);
                 
-                // Обновляем подсветку иконок (серый -> фиолетовый)
+                // Обновляем подсветку иконок в меню (серый -> фиолетовый)
                 menuButtons.forEach(b => {
                     b.style.color = "#A5AEC5"; 
                 });
@@ -29,14 +28,14 @@ const AppRouter = {
             });
         });
 
-        // 2. ЗАПУСК ОБРАБОТЧИКОВ ДЛЯ ВНУТРЕННИХ ПОДЭКРАНОВ И КНОПОК «НАЗАД»
+        // 2. АКТИВАЦИЯ ОБРАБОТЧИКОВ ДЛЯ ВНУТРЕННИХ ПОДЭКРАНОВ И КНОПОК «НАЗАД»
         this.bindSubScreens();
 
-        // 3. ЗАПУСК ИНТЕРАКТИВНЫХ ФУНКЦИЙ (ОФФЕРЫ И ЧАТ)
+        // 3. АКТИВАЦИЯ ИНТЕРАКТИВНЫХ ФУНКЦИЙ (ГЕНЕРАЦИЯ ССЫЛОК И СИМУЛЯТОР ЧАТА)
         this.bindOffersAndChat();
     },
 
-    // Функция показа нужного экрана и скрытия остальных
+    // Функция переключения видимости экранов
     switchScreen(screenId) {
         // Находим и скрываем вообще все экраны в корневом контейнере
         const allScreens = document.querySelectorAll("#screens-root .screen");
@@ -49,20 +48,20 @@ const AppRouter = {
         const targetScreen = document.getElementById(screenId);
         if (targetScreen) {
             targetScreen.style.display = "block";
-            // Даем микрозадержку, чтобы CSS-анимация плавного появления сработала корректно
+            // Даем микрозадержку для корректного срабатывания плавного CSS-появления
             setTimeout(() => {
                 targetScreen.classList.add("active");
             }, 10);
         }
         
-        // Автоматически скроллим вверх, чтобы пользователь не оставался внизу страницы
+        // Автоматически скроллим вверх, чтобы контент не открывался «снизу»
         window.scrollTo(0, 0);
     },
 
     // Логика кликов по кнопкам внутри экранов и переходов «Назад»
     bindSubScreens() {
-        // Клик по тексту "История" на Главной переключает на вкладку Статистики
-        const historyLink = document.getElementById("link-to-history");
+        // Клик по тексту "История лога" на Главной переключает на вкладку Статистики
+        const historyLink = document.getElementById("link-to-stats-history");
         if (historyLink) {
             historyLink.addEventListener("click", () => {
                 const statsTabButton = document.querySelector(".bottom-menu [data-target='screen-stats']");
@@ -115,47 +114,45 @@ const AppRouter = {
             this.switchScreen("screen-profile");
         });
 
-        // Имитация создания заявки на выплату по кнопке "Вывести"
+        // Симуляция клика по кнопке "Заказать выплату"
         document.getElementById("btn-do-withdraw")?.addEventListener("click", () => {
-            alert("Заявка на вывод средств успешно создана! Обработка займет до 24 часов.");
+            alert("Заявка на вывод средств успешно создана! Статус можно отслеживать в логе выплат.");
             this.switchScreen("screen-profile");
         });
 
-        // Имитация сохранения настроек
+        // Симуляция клика по кнопке "Сохранить конфигурацию"
         document.getElementById("btn-save-settings")?.addEventListener("click", () => {
-            alert("Настройки профиля успешно обновлены!");
+            alert("Конфигурация профиля успешно обновлена.");
             this.switchScreen("screen-profile");
         });
     },
 
-    // Логика получения ссылок и отправки сообщений в поддержку
+    // Логика получения ссылок SmartLink и живой отправки сообщений в поддержку
     bindOffersAndChat() {
         // --- РАЗДЕЛ ОФФЕРОВ ---
-        // Находим все кнопки "Получить SmartLink" на экране офферов
         const offerButtons = document.querySelectorAll("#screen-offers .vvd-btn-get");
         
         offerButtons.forEach((btn, index) => {
             btn.addEventListener("click", (e) => {
-                // Получаем родительскую карточку оффера
                 const card = e.currentTarget.parentElement;
                 
-                // Удаляем саму кнопку "Получить SmartLink"
+                // Удаляем кнопку "Получить SmartLink"
                 e.currentTarget.remove();
                 
-                // Создаем контейнер для красивого отображения ссылки
+                // Создаем стеклянный контейнер для вывода сгенерированной ссылки
                 const linkBox = document.createElement("div");
                 linkBox.style.display = "flex";
                 linkBox.style.gap = "8px";
-                linkBox.style.marginTop = "10px";
+                linkBox.style.marginTop = "12px";
                 
-                // Добавляем инпут с готовым адресом смартлинка
+                // Добавляем инпут со ссылкой
                 const input = document.createElement("input");
                 input.type = "text";
                 input.value = `https://vvd.cpa{index + 1}`;
                 input.readOnly = true;
                 input.style.width = "100%";
                 input.style.height = "48px";
-                input.style.background = "rgba(255,255,255,0.03)";
+                input.style.background = "rgba(255,255,255,0.02)";
                 input.style.border = "1px solid rgba(255,255,255,0.08)";
                 input.style.borderRadius = "14px";
                 input.style.padding = "0 12px";
@@ -163,23 +160,23 @@ const AppRouter = {
                 input.style.fontSize = "13px";
                 input.style.outline = "none";
                 
-                // Добавляем премиальную кнопку "Копировать"
+                // Добавляем кнопку "Копировать"
                 const copyBtn = document.createElement("button");
                 copyBtn.innerHTML = "Копировать";
                 copyBtn.style.height = "48px";
-                copyBtn.style.padding = "0 16px";
-                copyBtn.style.background = "rgba(123, 77, 255, 0.15)";
-                copyBtn.style.border = "1px solid rgba(123, 77, 255, 0.3)";
+                copyBtn.style.padding = "0 14px";
+                copyBtn.style.background = "rgba(123, 77, 255, 0.12)";
+                copyBtn.style.border = "1px solid rgba(123, 77, 255, 0.25)";
                 copyBtn.style.borderRadius = "14px";
                 copyBtn.style.color = "#9D6BFF";
                 copyBtn.style.fontWeight = "600";
                 copyBtn.style.cursor = "pointer";
                 copyBtn.style.fontSize = "13px";
                 
-                // Обработчик копирования в буфер обмена
+                // Копирование по клику
                 copyBtn.addEventListener("click", () => {
                     navigator.clipboard.writeText(input.value);
-                    alert("SmartLink успешно скопирован в буфер обмена!");
+                    alert("Ваша персональная ссылка SmartLink успешно скопирована!");
                 });
                 
                 linkBox.appendChild(input);
@@ -188,7 +185,7 @@ const AppRouter = {
             });
         });
 
-        // --- РАЗДЕЛ СЛУЖБЫ ПОДДЕРЖКИ (ЧАТ) ---
+        // --- РАЗДЕЛ ТЕХПОДДЕРЖКИ (ЖИВОЙ ЧАТ) ---
         const sendBtn = document.getElementById("btn-send-msg");
         const inputField = document.getElementById("chat-input-field");
         const chatBox = document.getElementById("chat-box");
@@ -196,13 +193,13 @@ const AppRouter = {
         if (sendBtn && inputField && chatBox) {
             const sendMessage = () => {
                 const text = inputField.value.trim();
-                if (!text) return; // Если в инпуте пусто — ничего не делаем
+                if (!text) return;
 
-                // Создаем и настраиваем блок сообщения от пользователя
+                // Отрендерить сообщение пользователя
                 const userMessage = document.createElement("div");
                 userMessage.style.maxWidth = "80%";
                 userMessage.style.padding = "12px 16px";
-                userMessage.style.background = "#7B4DFF"; // Неоновый фиолетовый для пользователя
+                userMessage.style.background = "#7B4DFF"; // Премиум фиолетовый
                 userMessage.style.alignSelf = "flex-end";
                 userMessage.style.borderRadius = "18px";
                 userMessage.style.borderBottomRightRadius = "4px";
@@ -216,8 +213,12 @@ const AppRouter = {
                 `;
 
                 chatBox.appendChild(userMessage);
-                inputField.value = ""; // Мгновенно очищаем поле ввода
-                chatBox.scrollTop = chatBox.scrollHeight; // Скроллим чат до самого низа
+                inputField.value = ""; // Очистка поля
+                chatBox.scrollTop = chatBox.scrollHeight; // Скролл вниз
 
-                // Симулируем ответ от техподдержки сети через 1.5 секунды
+                // Имитация мгновенного ответа личного менеджера через 1.2 секунды
                 setTimeout(() => {
+                    const managerMessage = document.createElement("div");
+                    managerMessage.style.maxWidth = "80%";
+                    managerMessage.style.padding = "12px 16px";
+                    managerMessage.style.background = "rgba(255,255,255,0.04)";
