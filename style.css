@@ -1,497 +1,761 @@
 /* ==========================================================================
-   ПОЛНАЯ АДАПТАЦИЯ ПОД ЭКРАН ТЕЛЕФОНА (FULL-SCREEN NATIVE UI)
+   PREMIUM DARK LUXURY DESIGN SYSTEM — VVD CPA
+   Inspired by: Stripe, Linear, Apple Vision Pro UI & Telegram Premium
    ========================================================================== */
 
 :root {
-    --bg-main: #090812;
-    --bg-card: rgba(22, 21, 38, 0.7);
-    --bg-card-active: rgba(33, 31, 56, 0.9);
+    /* Цветовая палитра по ТЗ */
+    --bg-main: #070A14;
+    --bg-secondary: #0D1222;
+    --bg-card: #101726;
+    --bg-card-hover: #141C31;
     
-    /* Сочный премиальный неон */
-    --color-purple: #6E51E2;
-    --color-purple-glow: rgba(110, 81, 226, 0.45);
-    --color-green: #00C26F;
-    --color-green-glow: rgba(0, 194, 111, 0.3);
-    --color-blue: #1F75FE;
-    --color-blue-glow: rgba(31, 117, 254, 0.3);
-    --color-pink: #FF4B72;
-    --color-orange: #FF9F43;
-    --color-danger: #FF3B30;
+    /* Акценты и неоновое свечение */
+    --color-purple: #7B4DFF;
+    --color-purple-secondary: #A855F7;
+    --color-purple-glow: rgba(123, 77, 255, 0.55);
+    
+    --color-green: #1EEA7A;
+    --color-red: #FF4B6A;
+    --color-white: #F8FAFF;
+    --color-gray: #A5AEC5;
 
-    --text-primary: #FFFFFF;
-    --text-secondary: #9493A8;
-    
-    /* Скругления для эффекта iOS приложений */
-    --radius-xs: 6px;
-    --radius-sm: 10px;
-    --radius-md: 14px;
-    --radius-lg: 18px;
-    --radius-xl: 24px;
+    /* Радиусы по ТЗ */
+    --radius-card: 28px;
+    --radius-btn: 20px;
+    --radius-badge: 14px;
+    --radius-avatar: 72px;
 }
 
+/* Сброс стилей и полноэкранный каркас Native UI */
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
     -webkit-tap-highlight-color: transparent;
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', Roboto, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', Roboto, sans-serif;
 }
 
 body {
     background-color: var(--bg-main);
-    /* Глубокий бэкграунд с мягким фиолетовым и синим свечением по углам */
-    background-image: 
-        radial-gradient(circle at 10% 10%, rgba(110, 81, 226, 0.15), transparent 45%),
-        radial-gradient(circle at 90% 90%, rgba(31, 117, 254, 0.12), transparent 45%);
-    background-attachment: fixed;
-    color: var(--text-primary);
+    color: var(--color-white);
     overflow: hidden;
-    font-size: 14px;
+    font-size: 16px;
+    font-weight: 500;
+    position: relative;
+    width: 100vw;
+    height: 100vh;
 }
 
-/* Настоящий Full-Screen каркас без ограничений ширины */
+/* ==========================================================================
+   ЭФФЕКТЫ ЗАДНЕГО ФОНА (РАЗМЫТЫЕ НЕОНОВЫЕ ТУМАННОСТИ И ШУМ)
+   ========================================================================== */
+.bg-glow {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    z-index: -2;
+    pointer-events: none;
+    opacity: 0.6;
+    animation: floatingGlow 10s ease-in-out infinite alternate;
+}
+
+.spotlight-1 {
+    width: 300px;
+    height: 300px;
+    background: var(--color-purple);
+    top: -50px;
+    left: -50px;
+}
+
+.spotlight-2 {
+    width: 250px;
+    height: 250px;
+    background: var(--color-purple-secondary);
+    bottom: 50px;
+    right: -50px;
+    animation-delay: -3s;
+}
+
+.bg-noise {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://w3.org id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.015'/%3E%3C/svg%3E");
+    z-index: -1;
+    pointer-events: none;
+}
+
+@keyframes floatingGlow {
+    0% { transform: translate(0, 0) scale(1); opacity: 0.5; }
+    100% { transform: translate(30px, 20px) scale(1.15); opacity: 0.75; }
+}
+
 #app {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    width: 100vw; /* Теперь приложение заполняет 100% экрана смартфона */
+    width: 100vw;
     position: relative;
+    z-index: 1;
 }
 
-/* Заголовки как в премиальных приложениях */
-h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
-h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.4px; margin-bottom: 20px; }
-h3 { font-size: 17px; font-weight: 600; letter-spacing: -0.2px; }
-h4 { font-size: 15px; font-weight: 600; }
+/* ==========================================================================
+   ТИПОГРАФИКА И УТИЛИТЫ ПО ТЗ
+   ========================================================================== */
+h1 { font-size: 34px; font-weight: 700; letter-spacing: -0.8px; }
+h2 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+h3 { font-size: 18px; font-weight: 600; letter-spacing: -0.2px; }
+h4 { font-size: 16px; font-weight: 600; }
 
-.green-text { color: var(--color-green) !important; text-shadow: 0 0 10px var(--color-green-glow); }
-.blue-text { color: var(--color-blue) !important; text-shadow: 0 0 10px var(--color-blue-glow); }
-.purple-text { color: var(--color-purple) !important; text-shadow: 0 0 15px var(--color-purple-glow); }
+p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
+.green-text { color: var(--color-green) !important; }
+.blue-text { color: #38BDF8 !important; }
+.purple-text { color: #A78BFA !important; }
 .orange-text { color: var(--color-orange) !important; }
-.red-text { color: var(--color-danger) !important; }
-.text-center { text-align: center; }
+.red-text { color: var(--color-red) !important; }
 
-/* Плавный скролл страниц */
+/* Текстовый градиент из ТЗ */
+.purple-gradient-text {
+    background: linear-gradient(135deg, #6E45FF, #9747FF, #C44DFF);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
+}
+
+/* Настоящий Glassmorphism 2.0 по ТЗ */
+.glass-card {
+    background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: var(--radius-card);
+    box-shadow: 0 15px 60px rgba(0,0,0,.55);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+    background: var(--bg-card-hover);
+    transform: translateY(-3px);
+    border-color: rgba(123, 77, 255, 0.2);
+}
+
+/* Анимация плавного появления экранов (Slide Up) */
 .page {
     display: none;
     flex-direction: column;
-    height: calc(100vh - 80px); /* Увеличили высоту контента */
+    height: calc(100vh - 84px);
     overflow-y: auto;
-    padding: 24px 20px;
-    padding-bottom: 90px; /* Отступ чтобы контент не залезал под меню */
+    padding: 24px 16px;
+    padding-bottom: 110px;
     width: 100%;
-    animation: slideUp 0.3s cubic-bezier(0.1, 0.76, 0.55, 0.94);
+    animation: pageAppear 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-@keyframes slideUp {
-    from { opacity: 0; transform: translateY(12px); }
+@keyframes pageAppear {
+    from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
 .page.active { display: flex; }
 
-.btn-back {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 20px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-}
-.btn-back:active { color: var(--color-purple); }
-
 /* ==========================================================================
-   КНОПКИ ТЕПЕРЬ ВИДНО ЧТО ЭТО КНОПКИ (3D ГРАДИЕНТ И НАЖАТИЕ)
+   ПРЕМИУМ КНОПКИ ПО ТЗ (ВЫСОТА 56PX, НЕОНОВЫЙ ГЛОВ)
    ========================================================================== */
 .btn {
+    height: 56px;
+    border-radius: var(--radius-btn);
     border: none;
     font-weight: 700;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+    font-size: 16px;
+    color: var(--color-white);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: var(--radius-md);
-    position: relative;
-    /* Четкая тень снизу для эффекта объема */
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.2);
-}
-
-/* Живой эффект глубокого клика на кнопку */
-.btn:active {
-    transform: scale(0.95);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), inset 0 1px 4px rgba(0, 0, 0, 0.3);
-}
-
-.btn-purple {
-    background: linear-gradient(180deg, #8269F7 0%, var(--color-purple) 100%);
-    color: #FFFFFF;
-    border: 1px solid rgba(110, 81, 226, 0.4);
-    box-shadow: 0 6px 20px rgba(110, 81, 226, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.3);
-}
-
-.btn-purple-outline {
-    background: rgba(110, 81, 226, 0.08);
-    border: 2px solid var(--color-purple);
-    color: #FFFFFF;
-}
-.btn-purple-outline:active {
-    background: rgba(110, 81, 226, 0.2);
-}
-/* ==========================================================================
-   ГЛАВНАЯ СТРАНИЦА И СПИСКИ (FULL SCREEN & GLASS UI)
-   ========================================================================== */
-
-.user-card {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin-bottom: 24px;
+    cursor: pointer;
+    gap: 8px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     width: 100%;
 }
 
-.user-avatar {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
+.btn-gradient {
+    background: linear-gradient(135deg, #6E45FF, #9747FF, #C44DFF);
+    box-shadow: 0 0 15px rgba(123,77,255,.45), 0 0 40px rgba(123,77,255,.18);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-gradient:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 0 25px rgba(123,77,255,.6), 0 0 50px rgba(123,77,255,.3);
+}
+
+.btn-gradient:active {
+    transform: translateY(0) scale(0.98);
+}
+
+.btn-purple-outline {
+    background: rgba(123, 77, 255, 0.05);
     border: 2px solid var(--color-purple);
-    box-shadow: 0 0 15px var(--color-purple-glow);
-    object-fit: cover;
+    box-shadow: inset 0 0 10px rgba(123, 77, 255, 0.1);
+}
+.btn-purple-outline:hover {
+    background: rgba(123, 77, 255, 0.15);
+    transform: translateY(-2px);
 }
 
-.user-role {
+.btn-back {
+    background: none;
+    border: none;
+    color: var(--color-gray);
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    cursor: pointer;
+    text-align: left;
+}
+.btn-back:hover { color: var(--color-white); }
+/* ==========================================================================
+   ВЕРХНЯЯ ЛЕНТА: КАРТА ЭКРАНОВ И ГОРИЗОНТАЛЬНАЯ НАВИГАЦИЯ
+   ========================================================================== */
+.top-navigation-slider {
+    padding: 14px 16px;
+    background: rgba(7, 10, 20, 0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.slider-title {
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 700;
+    color: var(--color-purple);
     text-transform: uppercase;
-    letter-spacing: 0.6px;
-    background: rgba(110, 81, 226, 0.22);
-    color: #c4b9ff;
-    padding: 4px 10px;
-    border-radius: var(--radius-xs);
-    display: inline-block;
-    margin-top: 4px;
-    border: 1px solid rgba(110, 81, 226, 0.3);
+    letter-spacing: 1px;
+    margin-bottom: 8px;
 }
 
-/* Огромная дорогая карточка баланса на всю ширину дисплея */
-.balance-block {
-    background: linear-gradient(135deg, rgba(26, 24, 46, 0.8) 0%, rgba(14, 13, 26, 0.9) 100%);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-radius: var(--radius-xl);
-    padding: 24px;
+.slider-track {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 4px;
+}
+.slider-track::-webkit-scrollbar { display: none; } /* Скрываем стандартный скроллбар */
+
+.slide-tag {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-gray);
+    background: rgba(255, 255, 255, 0.03);
+    padding: 6px 14px;
+    border-radius: var(--radius-badge);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.slide-tag.active, .slide-tag:hover {
+    color: var(--color-white);
+    background: rgba(123, 77, 255, 0.15);
+    border-color: var(--color-purple);
+    box-shadow: 0 0 10px rgba(123, 77, 255, 0.2);
+}
+
+/* ==========================================================================
+   РОСКОШНАЯ КАРТОЧКА ПРОФИЛЯ — LUXURY PROFILE CARD (ПО МАКЕТУ)
+   ========================================================================== */
+.luxury-profile-card {
+    background: linear-gradient(150deg, rgba(20, 25, 45, 0.85) 0%, rgba(10, 12, 22, 0.95) 100%);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: var(--radius-card);
+    padding: 24px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+}
+
+.profile-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+/* Контейнер аватара 72px с неоновым глоу */
+.avatar-container {
+    position: relative;
+    width: var(--radius-avatar);
+    height: var(--radius-avatar);
+}
+
+.luxury-avatar {
     width: 100%;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--color-purple);
+    position: relative;
+    z-index: 2;
 }
 
-.balance-main .label, .balance-hold .label {
-    font-size: 11px;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    display: block;
-    margin-bottom: 6px;
+.avatar-glow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: var(--color-purple);
+    filter: blur(12px);
+    opacity: 0.55;
+    z-index: 1;
 }
 
-.balance-main .amount {
-    font-size: 32px;
-    font-weight: 800;
-    letter-spacing: -0.5px;
-    background: linear-gradient(180deg, #FFFFFF 0%, #D4D4DF 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+.name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
-.balance-hold {
-    text-align: right;
-}
-
-.balance-hold .amount-hold {
+.name-row h2 {
     font-size: 20px;
     font-weight: 700;
-    color: var(--color-orange);
-    text-shadow: 0 0 12px rgba(255, 159, 67, 0.25);
 }
 
-/* Полноразмерные кликабельные кнопки "Выплачено" и "История" */
-.quick-stats {
+.verified-badge {
+    color: var(--color-purple);
+    font-weight: 800;
+    font-size: 14px;
+    text-shadow: 0 0 8px var(--color-purple-glow);
+}
+
+.user-handle {
+    font-size: 13px;
+    color: var(--color-gray);
+    margin-top: 1px;
+}
+
+/* Бейдж Partner с пульсирующим свечением */
+.badge-partner {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: rgba(123, 77, 255, 0.18);
+    color: #C0A5FF;
+    border: 1px solid rgba(123, 77, 255, 0.3);
+    padding: 3px 8px;
+    border-radius: var(--radius-badge);
+    display: inline-block;
+    margin-top: 6px;
+    box-shadow: 0 0 10px rgba(123, 77, 255, 0.15);
+    animation: neonPulse 2s infinite alternate;
+}
+
+@keyframes neonPulse {
+    0% { opacity: 0.75; box-shadow: 0 0 8px rgba(123, 77, 255, 0.1); }
+    100% { opacity: 1; box-shadow: 0 0 15px rgba(123, 77, 255, 0.35); }
+}
+
+/* Правый блок финансов в шапке */
+.profile-right-financial {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.fin-item {
+    margin-bottom: 2px;
+}
+.fin-item:last-of-type { margin-bottom: 4px; }
+
+.fin-lbl {
+    font-size: 11px;
+    color: var(--color-gray);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: block;
+}
+
+.fin-val {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+/* Кнопка «Вывести» встроенная в карточку профиля */
+.btn-payout-quick {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--color-white);
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s;
+}
+.btn-payout-quick:hover {
+    background: var(--color-purple);
+    border-color: var(--color-purple);
+    box-shadow: 0 0 12px var(--color-purple-glow);
+}
+
+/* ==========================================================================
+   СЕТКА ДЛЯ ЭКРАНОВ: ДЕНЬ СЕГОДНЯ / ВЫПЛАЧЕНО С МИНИ-ГРАФИКАМИ
+   ========================================================================== */
+.dashboard-grid-stats {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 14px;
-    margin-bottom: 28px;
-    width: 100%;
+    margin-bottom: 20px;
 }
 
-.q-stat-box {
-    background: var(--bg-card);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    padding: 16px;
-    border-radius: var(--radius-lg);
+.stat-metric-box {
+    padding: 20px 16px;
+    position: relative;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 14px;
-    font-weight: 600;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.25), inset 0 1px 1px rgba(255, 255, 255, 0.05);
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.q-stat-box:active {
-    transform: scale(0.97);
-    background: var(--bg-card-active);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    flex-direction: column;
 }
 
-.q-stat-box span { color: var(--text-secondary); }
-.q-stat-box strong { font-size: 15px; font-weight: 700; }
+.lbl-small {
+    font-size: 13px;
+    color: var(--color-gray);
+}
 
-/* Интерактивные крупные карточки списков */
-.mini-card {
-    background: var(--bg-card);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-radius: var(--radius-lg);
-    padding: 16px;
+.metric-amount {
+    font-size: 24px;
+    font-weight: 700;
+    margin-top: 4px;
+}
+.metric-amount.font-large {
+    font-size: 22px;
+}
+
+/* Мини спарклайны (Кастомные столбики тренда из ТЗ) */
+.mini-sparkline {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 35px;
+    margin-top: 14px;
+    align-self: flex-start;
+}
+
+.sparkline-bar {
+    width: 6px;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.1);
+}
+
+.mini-sparkline.purple .sparkline-bar {
+    background: linear-gradient(180deg, #9747FF 0%, #6E45FF 100%);
+}
+.mini-sparkline.green .sparkline-bar {
+    background: linear-gradient(180deg, #00F59A 0%, #00D26A 100%);
+}
+
+/* ==========================================================================
+   ФЛЕКС-ШАПКИ ЛЕНТЫ И ЛЕНТА ПОСЛЕДНИХ КОНВЕРСИЙ
+   ========================================================================== */
+.section-flex-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 12px;
-    width: 100%;
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-gray);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+.action-link {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-purple);
     cursor: pointer;
-    transition: all 0.2s ease;
 }
-.mini-card:active {
-    background: var(--bg-card-active);
-    transform: scale(0.99);
-}
+.action-link:hover { text-shadow: 0 0 10px var(--color-purple-glow); }
 
-/* Объемные 3D подложки под иконки офферов */
-.icon-tag {
-    width: 44px;
-    height: 44px;
-    border-radius: var(--radius-md);
+.conversions-stack {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
-    box-shadow: inset 0 1px 2px rgba(255,255,255,0.15);
-}
-.icon-tag.purple { background: rgba(110, 81, 226, 0.18); border: 1px solid rgba(110, 81, 226, 0.35); box-shadow: 0 0 15px rgba(110, 81, 226, 0.25); }
-.icon-tag.green { background: rgba(0, 194, 111, 0.18); border: 1px solid rgba(0, 194, 111, 0.35); box-shadow: 0 0 15px rgba(0, 194, 111, 0.25); }
-.icon-tag.pink { background: rgba(255, 75, 114, 0.18); border: 1px solid rgba(255, 75, 114, 0.35); box-shadow: 0 0 15px rgba(255, 75, 114, 0.25); }
-.icon-tag.blue { background: rgba(31, 117, 254, 0.18); border: 1px solid rgba(31, 117, 254, 0.35); box-shadow: 0 0 15px rgba(31, 117, 254, 0.25); }
-.icon-tag.orange { background: rgba(255, 159, 67, 0.18); border: 1px solid rgba(255, 159, 67, 0.35); box-shadow: 0 0 15px rgba(255, 159, 67, 0.25); }
-
-.payout { font-size: 16px; font-weight: 800; }
-
-/* ==========================================================================
-   ЭКРАН 2: ПРЕМИУМ КАТЕГОРИИ СМАРТЛИНКОВ
-   ========================================================================== */
-
-.search-bar { width: 100%; }
-.search-bar input {
-    width: 100%;
-    background: rgba(22, 21, 38, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    padding: 16px 20px;
-    border-radius: var(--radius-lg);
-    color: var(--text-primary);
-    font-size: 15px;
+    flex-direction: column;
+    gap: 10px;
     margin-bottom: 20px;
-    outline: none;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
-    transition: all 0.25s ease;
-}
-.search-bar input:focus {
-    border-color: var(--color-purple);
-    box-shadow: 0 0 15px var(--color-purple-glow), inset 0 2px 4px rgba(0,0,0,0.3);
 }
 
-.category-item {
-    background: var(--bg-card);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    padding: 20px 18px;
-    border-radius: var(--radius-lg);
+.conversion-row {
+    padding: 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    cursor: pointer;
-    width: 100%;
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-    transition: all 0.2s ease;
-}
-.category-item:active {
-    background: var(--bg-card-active);
-    transform: scale(0.98);
-}
-.category-item::after {
-    content: '→';
-    color: var(--text-secondary);
-    font-size: 18px;
-    font-weight: bold;
-}
-.category-item:active::after {
-    color: var(--color-purple);
-}
-/* ==========================================================================
-   ЭКРАН 2.1-2.7: ГЕНЕРАТОР SMARTLINK (ШИРОКИЙ ГЛЯНЕЦ)
-   ========================================================================== */
-
-.smartlink-card {
-    background: linear-gradient(145deg, rgba(28, 26, 48, 0.9) 0%, rgba(14, 13, 24, 0.95) 100%);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border-radius: var(--radius-xl);
-    padding: 24px;
-    width: 100%;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.55);
 }
 
-.smartlink-metrics {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-bottom: 24px;
+.conv-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
 }
 
-.metric-box {
-    background: rgba(6, 5, 12, 0.6);
-    padding: 14px 10px;
-    border-radius: var(--radius-md);
-    text-align: center;
-    border: 1px solid rgba(255, 255, 255, 0.04);
+.time-stamp {
+    font-size: 12px;
+    color: var(--color-gray);
+    margin-top: 2px;
 }
 
-.metric-box span {
-    font-size: 11px;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    display: block;
-    margin-bottom: 4px;
+/* Квадратные дорогие глянцевые иконки */
+.luxury-icon-box {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
 }
 
-.metric-box strong {
+.luxury-icon-box.purple { background: rgba(123, 77, 255, 0.1); border-color: rgba(123, 77, 255, 0.25); }
+.luxury-icon-box.pink { background: rgba(255, 75, 103, 0.1); border-color: rgba(255, 75, 103, 0.25); }
+.luxury-icon-box.green { background: rgba(30, 234, 122, 0.1); border-color: rgba(30, 234, 122, 0.25); }
+.luxury-icon-box.orange { background: rgba(255, 159, 67, 0.1); border-color: rgba(255, 159, 67, 0.25); }
+
+.conv-payout-val {
     font-size: 16px;
     font-weight: 700;
 }
-
-.link-generator label {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    margin-bottom: 10px;
-    display: block;
+/* ==========================================================================
+   КЕНТРОВАЯ КАРТОЧКА: SMARTLINK SHOWCASE (НАТИВНЫЙ НЕОН)
+   ========================================================================== */
+.luxury-smartlink-showcase {
+    background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
+    border-radius: var(--radius-card);
+    padding: 24px;
+    margin-bottom: 24px;
+    border: 1px solid rgba(255,255,255,.08);
 }
 
-.link-input-group {
+.sl-main-header {
     display: flex;
-    gap: 10px;
-    background: rgba(6, 5, 12, 0.7);
-    padding: 8px;
-    border-radius: var(--radius-md);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
 }
 
-.link-input-group input {
-    flex: 1;
-    background: none;
-    border: none;
-    padding: 8px 12px;
-    color: #bcbbd3;
-    font-size: 14px;
-    outline: none;
+.sl-title-block {
+    display: flex;
+    align-items: center;
+    gap: 14px;
 }
 
-.traffic-rules {
-    background: rgba(6, 5, 12, 0.4);
-    padding: 18px;
-    border-radius: var(--radius-md);
+.luxury-icon-box.large {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    font-size: 24px;
+}
+
+.pink-neon-glow {
+    box-shadow: 0 0 15px rgba(255,75,103,.35), 0 0 40px rgba(255,75,103,.1);
+    border-color: rgba(255,75,103,0.4);
+}
+.purple-neon-glow {
+    box-shadow: 0 0 15px rgba(123,77,255,.35), 0 0 40px rgba(123,77,255,.1);
+    border-color: rgba(123,77,255,0.4);
+}
+
+.geo-text {
     font-size: 13px;
-    border: 1px solid rgba(255, 255, 255, 0.03);
-    margin-top: 26px;
+    color: var(--color-gray);
+    margin-top: 1px;
 }
 
-.traffic-rules h4 {
-    margin-bottom: 8px;
-    text-transform: uppercase;
+/* Статус-пилл со встроенной пульсирующей точкой */
+.status-pill {
     font-size: 12px;
-    letter-spacing: 0.6px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: var(--radius-badge);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.status-pill.green {
+    background: rgba(30, 234, 122, 0.12);
+    color: var(--color-green);
+    border: 1px solid rgba(30, 234, 122, 0.25);
+}
+
+.pulse-dot {
+    width: 6px;
+    height: 6px;
+    background-color: var(--color-green);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--color-green);
+    animation: dotPulse 1.5s infinite alternate;
+}
+
+@keyframes dotPulse {
+    0% { transform: scale(0.8); opacity: 0.6; }
+    100% { transform: scale(1.2); opacity: 1; }
+}
+
+.sl-meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    background: rgba(0,0,0,0.2);
+    padding: 14px;
+    border-radius: 16px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(255,255,255,0.03);
+}
+
+.sl-meta-item span {
+    font-size: 11px;
+    color: var(--color-gray);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: block;
+    margin-bottom: 2px;
+}
+.sl-meta-item strong {
+    font-size: 15px;
+    font-weight: 600;
 }
 
 /* ==========================================================================
-   ЭКРАН 3: СТАТИСТИКА С НЕОНОВЫМ ИНДИКАТОРОМ
+   ЭКРАН 2: СЕТКА СЕТЕВЫХ КАТЕГОРИЙ (APPLE APPS STYLE)
    ========================================================================== */
+.search-wrapper {
+    position: relative;
+    width: 100%;
+    margin-bottom: 20px;
+}
 
+.luxury-search-input {
+    width: 100%;
+    height: 56px;
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius-btn);
+    padding: 0 20px 0 46px;
+    color: var(--color-white);
+    font-size: 15px;
+    font-weight: 500;
+    outline: none;
+    transition: all 0.25s;
+}
+.luxury-search-input:focus {
+    border-color: var(--color-purple);
+    background: var(--bg-card-hover);
+    box-shadow: 0 0 20px rgba(123,77,255,0.25);
+}
+
+.search-icon-placeholder {
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    opacity: 0.5;
+}
+
+.luxury-categories-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.premium-category-card {
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+}
+
+.pcat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.pcat-icon {
+    font-size: 24px;
+}
+
+.badge-count {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--color-gray);
+    background: rgba(255,255,255,0.05);
+    padding: 3px 8px;
+    border-radius: 10px;
+}
+
+.premium-category-card h3 {
+    font-size: 16px;
+    margin-bottom: 4px;
+}
+
+/* ==========================================================================
+   ЭКРАН 3: АНАЛИТИКА, ГРАФИКИ И ФОРМЫ (STRIPE UI STYLE)
+   ========================================================================== */
 .stats-total-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-bottom: 24px;
-    width: 100%;
+    gap: 10px;
+    margin-bottom: 16px;
 }
 
 .stats-box {
-    background: var(--bg-card);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    padding: 18px 12px;
-    border-radius: var(--radius-lg);
-    text-align: center;
-    border: 1px solid rgba(255,255,255,0.04);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+    padding: 16px 12px;
+    text-align: left;
 }
-
 .stats-box span {
     font-size: 11px;
-    color: var(--text-secondary);
+    color: var(--color-gray);
     text-transform: uppercase;
-    letter-spacing: 0.6px;
-    display: block;
-    margin-bottom: 6px;
+    letter-spacing: 0.5px;
 }
-
 .stats-box strong {
-    font-size: 19px;
-    font-weight: 800;
+    font-size: 20px;
+    font-weight: 700;
+    display: block;
+    margin-top: 4px;
 }
 
-.graph-placeholder {
-    background: linear-gradient(180deg, var(--bg-card) 0%, rgba(22, 21, 38, 0.3) 100%);
-    border-radius: var(--radius-lg);
-    padding: 20px;
-    margin-bottom: 24px;
-    width: 100%;
-    border: 1px solid rgba(255,255,255,0.04);
+.sparkline-trend {
+    font-size: 11px;
+    font-weight: 700;
+    margin-top: 6px;
 }
 
 .mock-chart {
     height: 120px;
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    border-bottom: 2px solid rgba(255,255,255,0.08);
+    border-bottom: 2px solid rgba(255,255,255,0.06);
     position: relative;
-    margin-top: 15px;
-    background: linear-gradient(180deg, rgba(110, 81, 226, 0.1) 0%, rgba(110, 81, 226, 0) 100%);
+    margin-top: 16px;
+    background: linear-gradient(180deg, rgba(123,77,255,0.08) 0%, rgba(123,77,255,0) 100%);
+    border-radius: 0 0 12px 12px;
 }
-
+/* Световой след тренда Linear App */
 .mock-chart::after {
     content: '';
     position: absolute;
@@ -499,124 +763,88 @@ h4 { font-size: 15px; font-weight: 600; }
     left: 0;
     right: 0;
     height: 2.5px;
-    background: linear-gradient(90deg, transparent, var(--color-purple) 30%, var(--color-blue) 70%, transparent);
-    box-shadow: 0 0 16px var(--color-purple);
+    background: linear-gradient(90deg, transparent, var(--color-purple) 40%, var(--color-purple-secondary) 70%, transparent);
+    box-shadow: 0 0 20px var(--color-purple);
 }
 
 .detailed-stats-table {
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    padding: 6px 20px;
-    width: 100%;
-    border: 1px solid rgba(255,255,255,0.04);
+    padding: 6px 18px;
 }
 
 .table-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 18px 0;
+    padding: 16px 0;
     border-bottom: 1px solid rgba(255,255,255,0.04);
-    font-size: 15px;
+    font-size: 14px;
 }
 .table-row:last-child { border-bottom: none; }
 
-/* ==========================================================================
-   ЭКРАНЫ 4-9: ЛИЧНЫЙ КАБИНЕТ, ФОРМЫ И ТУМБЛЕРЫ
-   ========================================================================== */
-
-.chat-tabs {
-    display: flex;
-    background: rgba(22, 21, 38, 0.6);
-    padding: 4px;
-    border-radius: var(--radius-md);
-    margin-bottom: 24px;
-    border: 1px solid rgba(255,255,255,0.05);
+/* Поля ввода и шлюз выплат */
+.app-select, .app-input {
     width: 100%;
+    height: 56px;
+    background: rgba(7, 10, 20, 0.6);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius-btn);
+    padding: 0 16px;
+    color: var(--color-white);
+    font-size: 15px;
+    font-weight: 500;
+    outline: none;
+    transition: all 0.25s;
+}
+.app-select:focus, .app-input:focus {
+    border-color: var(--color-purple);
+    box-shadow: 0 0 15px var(--color-purple-glow);
 }
 
-.chat-tab {
+.form-group label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-gray);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.link-generator label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-gray);
+    margin-bottom: 8px;
+    display: block;
+}
+.link-input-group {
+    display: flex;
+    gap: 8px;
+    background: rgba(0,0,0,0.3);
+    padding: 6px;
+    border-radius: var(--radius-btn);
+    border: 1px solid rgba(255,255,255,0.05);
+}
+.link-input-group input {
     flex: 1;
     background: none;
     border: none;
-    color: var(--text-secondary);
-    padding: 12px;
-    font-weight: 700;
-    font-size: 14px;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-}
-
-.chat-tab.active {
-    background: var(--color-purple);
-    color: #FFFFFF;
-    box-shadow: 0 4px 12px var(--color-purple-glow);
-}
-
-.profile-financials {
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    padding: 20px;
-    margin-bottom: 24px;
-    width: 100%;
-    border: 1px solid rgba(255,255,255,0.04);
-}
-
-.fin-row {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 14px;
-    font-size: 15px;
-}
-.fin-row:last-child { margin-bottom: 0; }
-
-.menu-list {
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-    margin-bottom: 24px;
-    width: 100%;
-    border: 1px solid rgba(255,255,255,0.04);
-}
-
-.menu-item {
-    padding: 18px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid rgba(255,255,255,0.03);
-    font-size: 15px;
-    cursor: pointer;
-}
-.menu-item:active { background: var(--bg-card-active); }
-
-.app-select, .app-input {
-    width: 100%;
-    background: rgba(22, 21, 38, 0.8);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: var(--radius-lg);
-    padding: 18px;
-    color: #FFFFFF;
-    font-size: 15px;
+    color: var(--color-gray);
+    padding: 0 12px;
+    font-size: 13px;
     outline: none;
 }
-.app-select:focus, .app-input:focus { border-color: var(--color-purple); }
 
+/* Настройки и Неоновые переключатели */
 .settings-toggle-card {
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    padding: 4px 20px;
-    margin-bottom: 24px;
-    width: 100%;
-    border: 1px solid rgba(255,255,255,0.04);
+    padding: 6px 20px;
 }
-
 .toggle-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 18px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.03);
+    padding: 16px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
 }
 .toggle-row:last-child { border-bottom: none; }
 
@@ -624,7 +852,7 @@ h4 { font-size: 15px; font-weight: 600; }
     width: 48px;
     height: 26px;
     appearance: none;
-    background: #2b293d;
+    background: #1C2333;
     border-radius: 13px;
     position: relative;
     outline: none;
@@ -633,7 +861,7 @@ h4 { font-size: 15px; font-weight: 600; }
 }
 .toggle-row input[type="checkbox"]:checked {
     background: var(--color-purple);
-    box-shadow: 0 0 12px var(--color-purple-glow);
+    box-shadow: 0 0 15px var(--color-purple-glow);
 }
 .toggle-row input[type="checkbox"]::before {
     content: '';
@@ -643,36 +871,65 @@ h4 { font-size: 15px; font-weight: 600; }
     border-radius: 50%;
     top: 3px;
     left: 3px;
-    background: #FFFFFF;
-    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    background: var(--color-white);
+    transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 .toggle-row input[type="checkbox"]:checked::before {
     transform: translateX(22px);
 }
 
-.full-width-btn { width: 100%; padding: 16px; font-size: 15px; border-radius: var(--radius-lg); }
+.chat-tabs {
+    display: flex;
+    background: rgba(255,255,255,0.03);
+    padding: 4px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.05);
+    margin-bottom: 20px;
+}
+.chat-tab {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--color-gray);
+    padding: 12px;
+    font-weight: 600;
+    font-size: 14px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+.chat-tab.active {
+    background: var(--color-purple);
+    color: var(--color-white);
+    box-shadow: 0 0 15px rgba(123,77,255,0.3);
+}
+
+.menu-item {
+    padding: 18px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    cursor: pointer;
+}
+.menu-item:last-child { border-bottom: none; }
 
 /* ==========================================================================
-   ПОЛНОРАЗМЕРНОЕ ПАРЯЩЕЕ НИЖНЕЕ МЕНЮ (BOTTOM NAV 100% WIDE)
+   ФИКСИРОВАННЫЙ НИЖНИЙ ДОК-БАР ПО ТЗ (ВЫСОТА 84PX & GLASS КАРКАС)
    ========================================================================== */
-
 .app-nav {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    height: 72px;
-    /* Полное перекрытие низа матовым стеклом */
-    background: rgba(11, 10, 19, 0.88);
-    backdrop-filter: blur(25px);
-    -webkit-backdrop-filter: blur(25px);
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.6);
+    height: 84px; /* Фиксированная высота по ТЗ */
+    background: rgba(13, 18, 34, 0.75); /* Полупрозрачный вторичный тон */
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border-top: 1px solid rgba(255,255,255,.08);
     display: flex;
     justify-content: space-around;
     align-items: center;
-    /* Учёт безопасной зоны iPhone / современных Android */
-    padding-bottom: calc(env(safe-area-inset-bottom) / 2);
+    padding-bottom: env(safe-area-inset-bottom);
     z-index: 1000;
     width: 100vw;
 }
@@ -683,33 +940,27 @@ h4 { font-size: 15px; font-weight: 600; }
     display: flex;
     flex-direction: column;
     align-items: center;
-    color: var(--text-secondary);
+    color: var(--color-gray);
     cursor: pointer;
-    flex: 1;
     height: 100%;
     justify-content: center;
-    transition: color 0.2s ease;
+    flex: 1;
+    position: relative;
+    transition: all 0.25s ease;
 }
 
+/* Стили активной кнопки и подсветки по ТЗ */
 .nav-item.active {
-    color: #FFFFFF;
+    background: rgba(123, 77, 255, 0.18); /* Активный фон по ТЗ */
+    color: var(--color-white);
 }
 
 .nav-item.active .icon {
-    transform: translateY(-3px);
-    color: var(--color-purple);
-    text-shadow: 0 0 15px var(--color-purple-glow);
+    color: #9D6BFF; /* Тональность иконки по ТЗ */
+    text-shadow: 0 0 15px rgba(123,77,255,.45);
+    transform: translateY(-2px);
 }
 
 .nav-item .icon {
-    font-size: 22px;
+    font-size: 22px; /* Размер по ТЗ */
     margin-bottom: 4px;
-    transition: transform 0.2s ease, color 0.2s ease;
-}
-
-.nav-item .label {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.3px;
-    text-transform: uppercase;
-}
