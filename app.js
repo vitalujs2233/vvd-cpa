@@ -1,58 +1,86 @@
 /**
  * ==========================================================================
- * НАДЁЖНАЯ МАРШРУТИЗАЦИЯ ДЛЯ VVD CPA (СТРОГО ПО МАКЕТУ)
- * ИСПРАВЛЯЕТ НАЛОЖЕНИЕ ЭКРАНОВ И ОЖИВЛЯЕТ КНОПКИ
+ * ПРЕМИУМ-ЛОГИКА И СИНХРОНИЗАЦИЯ МАРШРУТОВ ДЛЯ VVD CPA (ПО ТЗ)
+ * Управляет всеми 9 экранами и восстанавливает работу кнопок
  * ==========================================================================
  */
 
+// Главная функция навигации. Принимает ID страницы и элемент, на который кликнули
 function switchPage(pageId, navElement = null) {
-    // 1. Находим абсолютно все экраны в приложении
+    // 1. Ищем абсолютно все секции страниц с классом .page
     const pages = document.querySelectorAll('.page');
     
-    // 2. Скрываем каждый экран, чтобы они не выстраивались в одну длинную ленту
+    // 2. Жестко скрываем их, убирая активный класс и сбрасывая отображение
     pages.forEach(page => {
         page.classList.remove('active');
-        page.style.display = 'none'; 
+        page.style.display = 'none';
     });
 
-    // 3. Находим именно тот экран, который нажал пользователь
+    // 3. Находим целевой экран
     const targetPage = document.getElementById(`page-${pageId}`);
     if (targetPage) {
-        // Показываем только его
+        // Показываем только его в режиме Flex
         targetPage.classList.add('active');
         targetPage.style.display = 'flex';
     } else {
-        console.error(`Экран "page-${pageId}" не найден в файле index.html`);
+        console.error(`Критическая ошибка каркаса: Экран "page-${pageId}" отсутствует в index.html`);
     }
 
-    // 4. Красим нажатую кнопку в меню в фиолетовый цвет, а остальные тушим
+    // 4. Синхронизируем подсветку активных вкладок (для нижнего дока и верхней ленты отладки)
     if (navElement) {
-        const navItems = document.querySelectorAll('.nav-item');
-        navItems.forEach(item => item.classList.remove('active'));
+        // Если кликнули по кнопке, тушим все соседние элементы в этом блоке
+        const parent = navElement.parentElement;
+        if (parent) {
+            const siblings = parent.querySelectorAll('.nav-item, .slide-tag');
+            siblings.forEach(item => item.classList.remove('active'));
+        }
         navElement.classList.add('active');
+    } else {
+        // Если переключение вызвано кодом (например, кнопка Назад), находим и подсвечиваем нужные теги
+        updateActiveNavState(pageId);
     }
+}
 
-    // 5. Автоматически прокручиваем страницу наверх при переключении
-    const appContent = document.getElementById('app');
-    if (appContent) appContent.scrollTop = 0;
+// Вспомогательная функция для синхронизации кнопок при программном переключении
+function updateActiveNavState(pageId) {
+    // Синхронизируем верхний слайдер отладки
+    const tags = document.querySelectorAll('.slide-tag');
+    tags.forEach(tag => {
+        tag.classList.remove('active');
+        if (tag.getAttribute('onclick') && tag.getAttribute('onclick').includes(`'${pageId}'`)) {
+            tag.add('active');
+        }
+    });
+
+    // Синхронизируем нижний док-бар 84px
+    const navItems = document.querySelectorAll('.app-nav .nav-item');
+    navItems.forEach(item => {
+        item.classList.remove('active');
+        if (item.getAttribute('onclick') && item.getAttribute('onclick').includes(`'${pageId}'`)) {
+            item.classList.add('active');
+        }
+    });
 }
 
 /**
- * КОНФИГУРАЦИЯ ОФФЕРОВ ДЛЯ ВНУТРЕННИХ ЭКРАНОВ (КАТЕГОРИИ 2.1 - 2.7)
+ * БАЗА ДАННЫХ ПРИВАТНЫХ ОФФЕРОВ (ДЛЯ ЭКРАНОВ СМАРТЛИНКОВ 2.1)
  */
 const categoriesConfig = {
-    adult: { title: "Adult Dating SmartLink", payout: "$1.50" },
-    mainstream: { title: "Mainstream Dating", payout: "$0.85" },
-    nutra: { title: "Nutra Offers", payout: "$15.20" },
-    crypto: { title: "Crypto Private", payout: "Dynamic" }
+    adult: { title: "Adult Dating Private SmartLink", payout: "$1.50 за лид", url: "https://vvd-cpa.link" },
+    mainstream: { title: "Mainstream Dating Private", payout: "$0.85 за лид", url: "https://vvd-cpa.link" },
+    nutra: { title: "Nutra / COD Premium Offers", payout: "$15.20 за подтверждение", url: "https://vvd-cpa.link" },
+    crypto: { title: "Crypto / Forex VIP Exclusive", payout: "До $1,200.00 CPA", url: "https://vvd-cpa.link" }
 };
 
-// Функция для кнопок "Получить ссылку" или клика по категории
+// Функция открытия приватного смартлинка
 function openCategory(catKey) {
     const cat = categoriesConfig[catKey];
-    if (!cat) return;
+    if (!cat) {
+        console.warn(`Конфигурация оффера для "${catKey}" не найдена.`);
+        return;
+    }
 
-    // Подставляем текст в карточку оффера
+    // Заполняем данными шаблон карточки генератора
     const titleEl = document.getElementById('cat-detail-title');
     const payoutEl = document.getElementById('cat-detail-payout');
     const urlInput = document.getElementById('smartlink-url');
@@ -60,43 +88,45 @@ function openCategory(catKey) {
     if (titleEl) titleEl.innerText = cat.title;
     if (payoutEl) payoutEl.innerText = cat.payout;
     
-    // Генерируем ссылку под Telegram ID пользователя
-    const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || "77777";
-    if (urlInput) urlInput.value = `https://vvd-cpa.link{catKey}?wm=${userId}`;
+    // Получаем ID пользователя Telegram для создания индивидуального трекинг-хвоста
+    const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || "99999";
+    if (urlInput) urlInput.value = cat.url + userId;
 
-    // Переключаем на экран генератора ссылки
+    // Переводим каркас на экран деталей ссылки
     switchPage('category-detail');
 }
 
-// Копирование ссылки
+// Функция премиум-копирования ссылки с вызовом нативного PopUp мессенджера
 function copySmartLink() {
     const input = document.getElementById('smartlink-url');
     if (!input) return;
 
     input.select();
+    input.setSelectionRange(0, 99999); // Защита для корректного копирования на iOS
     navigator.clipboard.writeText(input.value);
 
+    // Если запущено внутри Telegram, вызываем красивое нативное окно Premium-уровня
     if (window.Telegram?.WebApp?.showPopup) {
         window.Telegram.WebApp.showPopup({
-            title: "Успешно",
-            message: "Приватный SmartLink скопирован!",
-            buttons: [{ type: "ok" }]
+            title: "🔐 Доступ зашифрован",
+            message: "Ваша приватная CPA-ссылка скопирована в буфер обмена.",
+            buttons: [{ type: "ok", text: "Принять" }]
         });
     } else {
-        alert("Ссылка скопирована!");
+        alert("SmartLink успешно скопирован!");
     }
 }
 
-// Вывод средств
+// Демо-обработка создания финансовой заявки на выплату
 function processWithdrawMock() {
     if (window.Telegram?.WebApp?.showPopup) {
         window.Telegram.WebApp.showPopup({
-            title: "Заявка принята",
-            message: "Выплата успешно поставлена в очередь обработки.",
-            buttons: [{ type: "ok" }]
+            title: "💎 Шлюз активирован",
+            message: "Заявка на вывод средств успешно сформирована и отправлена на модерацию в финансовый отдел.",
+            buttons: [{ type: "ok", text: "Ожидать" }]
         });
     } else {
-        alert("Заявка на выплату создана!");
+        alert("Заявка на выплату успешно создана!");
     }
-    switchPage('main');
+    switchPage('main'); // Возвращаем каркас на главный экран
 }
