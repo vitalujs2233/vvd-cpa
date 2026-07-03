@@ -2,7 +2,7 @@ name: Deploy Static Content to Pages
 
 on:
   push:
-    branches: ["main"] # Если ваша основная ветка называется master, замените "main" на "master"
+    branches: ["main"]
 
   workflow_dispatch:
 
@@ -29,10 +29,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          # Мы убрали строчку cache: 'npm', чтобы сборка шла без package-lock.json
 
       - name: Install dependencies
-        run: npm ci || npm install
+        run: npm install
 
       - name: Build project
         run: npm run build
@@ -43,7 +43,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist' # Загружаем на хостинг готовую скомпилированную папку dist
+          path: './dist'
 
       - name: Deploy to GitHub Pages
         id: deployment
