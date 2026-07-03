@@ -3,72 +3,402 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>VVD CPA — Premium CPA Network</title>
-    <!-- Шрифты и Иконки -->
+    <title>VVD CPA — Premium Mini App</title>
+    <!-- Подключение шрифта Inter и иконок Lucide -->
     <link rel="preconnect" href="https://googleapis.com">
     <link rel="preconnect" href="https://gstatic.com" crossorigin>
     <link href="https://googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com"></script>
-    <!-- Telegram WebApp SDK -->
-    <script src="https://telegram.org"></script>
-    <!-- Стили -->
-    <link rel="stylesheet" href="style.css">
+    <!-- Официальный SDK Telegram WebApp -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Временные базовые стили для отображения структуры демо-версии -->
+    <style>
+        body { background: #070A14; color: #F8FAFF; font-family: 'Inter', sans-serif; margin: 0; padding-bottom: 90px; }
+        .screen { display: none; padding: 20px; animation: fadeIn 0.3s ease; }
+        .screen.active { display: block; }
+        .vvd-card { background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015)); backdrop-filter: blur(28px); border: 1px solid rgba(255,255,255,.08); border-radius: 28px; padding: 20px; margin-bottom: 15px; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
 </head>
 <body>
-    <!-- Задний фон с неоновым свечением и размытыми пятнами -->
-    <div class="bg-glow-container">
-        <div class="glow-spot spot-1"></div>
-        <div class="glow-spot spot-2"></div>
-        <div class="bg-noise"></div>
+
+    <!-- ЗАДНИЙ ФОН: Неоновые пятна и размытие -->
+    <div class="bg-glow-container" style="position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;">
+        <div class="glow-spot spot-1" style="position: absolute; top: -10%; right: -10%; width: 300px; height: 300px; background: #7B4DFF; filter: blur(130px); opacity: 0.3;"></div>
+        <div class="glow-spot spot-2" style="position: absolute; bottom: 10%; left: -10%; width: 350px; height: 350px; background: #A855F7; filter: blur(130px); opacity: 0.25;"></div>
     </div>
 
-    <!-- Основной контейнер приложения -->
-    <div id="app" class="app-container">
-        
-        <!-- Верхний брендированный бар -->
-        <header class="app-header">
-            <div class="brand">
-                <span class="brand-logo">VVD CPA</span>
-                <span class="badge-demo">DEMO VERSION</span>
+    <!-- ВЕРХНИЙ БАР (HEADER) -->
+    <header class="app-header" style="height: 64px; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(7,10,20,0.7); backdrop-filter: blur(15px); sticky; top:0; z-index:10;">
+        <div class="brand" style="display: flex; align-items: center; gap: 8px;">
+            <span class="brand-logo" style="font-weight: 700; font-size: 18px; color: #7B4DFF;">VVD CPA</span>
+            <span class="badge-demo" style="font-size: 9px; font-weight: 600; padding: 3px 8px; border-radius: 14px; background: rgba(123,77,255,0.15); color: #A855F7; border: 1px solid rgba(123,77,255,0.3);">DEMO VERSION</span>
+        </div>
+        <div class="header-status" style="display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.04); padding: 6px 12px; border-radius: 20px;">
+            <div class="status-indicator" style="width: 6px; height: 6px; background: #1EEA7A; border-radius: 50%; box-shadow: 0 0 8px #1EEA7A;"></div>
+            <span class="status-text" style="font-size: 11px; color: #A5AEC5;">CPA Affiliate Network</span>
+        </div>
+    </header>
+
+    <!-- КОНТЕНТНАЯ ЗОНА ДЛЯ ЭКРАНОВ -->
+    <main id="screens-root">
+    <!-- СЛЕДУЮЩИЙ КОД ВСТАВЛЯТЬ СТРОГО СЮДА -->
+        <!-- ЭКРАН 1: ГЛАВНАЯ (MAIN SCREEN) -->
+        <section id="screen-main" class="screen active">
+            <!-- Блок профиля -->
+            <div class="user-welcome-bar" style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+                <div class="avatar-mock" style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #6E45FF, #9747FF); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px;">JD</div>
+                <div class="user-info">
+                    <div class="welcome-title" style="font-size: 12px; color: #A5AEC5;">Главная</div>
+                    <div class="username" style="font-size: 16px; font-weight: 600;">John Doe</div>
+                </div>
             </div>
-            <div class="header-status">
-                <div class="status-indicator"></div>
-                <span class="status-text">CPA Network</span>
+
+            <!-- Карточка Баланса -->
+            <div class="vvd-card balance-card">
+                <div class="balance-label" style="font-size: 12px; color: #A5AEC5; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Баланс</div>
+                <div class="balance-amount" style="font-size: 34px; font-weight: 700; margin-bottom: 15px;">$154.50</div>
+                
+                <div class="balance-stats-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 15px;">
+                    <div class="stat-item-mini">
+                        <span style="font-size: 11px; color: #A5AEC5; display:block;">Hold</span>
+                        <span style="font-size: 15px; font-weight: 600; color: #FFB800;">$32.40</span>
+                    </div>
+                    <div class="stat-item-mini">
+                        <span style="font-size: 11px; color: #A5AEC5; display:block;">Всего выведено</span>
+                        <span style="font-size: 15px; font-weight: 600; color: #1EEA7A;">$1,234.50</span>
+                    </div>
+                </div>
             </div>
-        </header>
 
-        <!-- Контентная область (динамически переключаемые экраны) -->
-        <main id="screen-container" class="screen-container">
-            <!-- Экраны будут рендериться здесь через JS (app.js) -->
-        </main>
+            <!-- Блок последних конверсий -->
+            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0 12px 0;">
+                <h3 class="section-title" style="font-size: 16px; font-weight: 600;">Последние конверсии</h3>
+                <span class="section-link" style="font-size: 13px; color: #A855F7; cursor: pointer;">История</span>
+            </div>
+            
+            <div class="conversions-list" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- Элемент 1 -->
+                <div class="conversion-item" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 20px;">
+                    <div class="item-left" style="display: flex; align-items: center; gap: 12px;">
+                        <div class="item-icon-wrapper" style="width: 38px; height: 38px; border-radius: 12px; background: rgba(255,75,106,0.1); color: #FF4B6A; display: flex; align-items: center; justify-content: center;"><i data-lucide="heart"></i></div>
+                        <div class="item-meta">
+                            <span style="font-size: 14px; font-weight: 600; display:block;">Adult Dating</span>
+                            <span style="font-size: 11px; color: #A5AEC5;">SmartLink #1</span>
+                        </div>
+                    </div>
+                    <div class="item-right" style="text-align: right;">
+                        <span style="font-size: 14px; font-weight: 600; color: #1EEA7A; display:block;">+$10.50</span>
+                        <span style="font-size: 11px; color: #A5AEC5;">2 мин. назад</span>
+                    </div>
+                </div>
+                <!-- Элемент 2 -->
+                <div class="conversion-item" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 20px;">
+                    <div class="item-left" style="display: flex; align-items: center; gap: 12px;">
+                        <div class="item-icon-wrapper" style="width: 38px; height: 38px; border-radius: 12px; background: rgba(30,234,122,0.1); color: #1EEA7A; display: flex; align-items: center; justify-content: center;"><i data-lucide="activity"></i></div>
+                        <div class="item-meta">
+                            <span style="font-size: 14px; font-weight: 600; display:block;">Nutra Offers</span>
+                            <span style="font-size: 11px; color: #A5AEC5;">Keto Slim Capsule</span>
+                        </div>
+                    </div>
+                    <div class="item-right" style="text-align: right;">
+                        <span style="font-size: 14px; font-weight: 600; color: #1EEA7A; display:block;">+$15.20</span>
+                        <span style="font-size: 11px; color: #A5AEC5;">15 мин. назад</span>
+                    </div>
+                </div>
+                <!-- Элемент 3 -->
+                <div class="conversion-item" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 20px;">
+                    <div class="item-left" style="display: flex; align-items: center; gap: 12px;">
+                        <div class="item-icon-wrapper" style="width: 38px; height: 38px; border-radius: 12px; background: rgba(123,77,255,0.1); color: #A855F7; display: flex; align-items: center; justify-content: center;"><i data-lucide="wallet"></i></div>
+                        <div class="item-meta">
+                            <span style="font-size: 14px; font-weight: 600; display:block;">Crypto</span>
+                            <span style="font-size: 11px; color: #A5AEC5;">Bitcoin Profit Bot</span>
+                        </div>
+                    </div>
+                    <div class="item-right" style="text-align: right;">
+                        <span style="font-size: 14px; font-weight: 600; color: #1EEA7A; display:block;">+$120.00</span>
+                        <span style="font-size: 11px; color: #A5AEC5;">3 ч. назад</span>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-        <!-- Нижнее премиальное меню (Bottom Menu) -->
-        <nav class="bottom-menu">
-            <button class="nav-item active" data-screen="main">
-                <i data-lucide="home"></i>
-                <span>Главная</span>
-            </button>
-            <button class="nav-item" data-screen="offers">
-                <i data-lucide="layers"></i>
-                <span>Офферы</span>
-            </button>
-            <button class="nav-item" data-screen="stats">
-                <i data-lucide="bar-chart-3"></i>
-                <span>Статистика</span>
-            </button>
-            <button class="nav-item" data-screen="chat">
-                <i data-lucide="message-square"></i>
-                <span>Чат</span>
-            </button>
-            <button class="nav-item" data-screen="profile">
-                <i data-lucide="user"></i>
-                <span>Профиль</span>
-            </button>
-        </nav>
-    </div>
+        <!-- ЭКРАН 2: ОФФЕРЫ (OFFERS SCREEN) -->
+        <section id="screen-offers" class="screen">
+            <h2 style="font-size: 24px; font-weight: 700; margin-bottom: 20px;">Офферы</h2>
+            <div class="offers-list" style="display: flex; flex-direction: column; gap: 15px;">
+                
+                <!-- 2.1 Adult Dating -->
+                <div class="vvd-card offer-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <span style="font-size:11px; font-weight:600; padding:4px 10px; background:rgba(255,255,255,0.06); border-radius:10px; color:#A5AEC5;">Dating</span>
+                        <span style="font-size:12px; color:#A5AEC5; display:flex; align-items:center; gap:4px;"><i data-lucide="globe" style="width:14px; height:14px;"></i> WW</span>
+                    </div>
+                    <h3 style="font-size:18px; font-weight:700; margin-bottom:10px;">Adult Dating</h3>
+                    <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:15px;">
+                        <span style="color:#A5AEC5;">Выплата:</span> <span style="font-weight:600; color:#1EEA7A;">$1.5 - $12</span>
+                    </div>
+                    <button class="vvd-btn-get" style="width:100%; height:48px; border-radius:16px; background:#7B4DFF; border:none; color:#fff; font-weight:600;">Получить SmartLink</button>
+                </div>
 
-    <!-- Скрипты -->
-    <script src="telegram.js"></script>
-    <script src="app.js"></script>
-</body>
-</html>
+                <!-- 2.2 Mainstream Dating -->
+                <div class="vvd-card offer-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <span style="font-size:11px; font-weight:600; padding:4px 10px; background:rgba(255,255,255,0.06); border-radius:10px; color:#A5AEC5;">Dating</span>
+                        <span style="font-size:12px; color:#A5AEC5; display:flex; align-items:center; gap:4px;"><i data-lucide="globe" style="width:14px; height:14px;"></i> WW</span>
+                    </div>
+                    <h3 style="font-size:18px; font-weight:700; margin-bottom:10px;">Mainstream Dating</h3>
+                    <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:15px;">
+                        <span style="color:#A5AEC5;">Выплата:</span> <span style="font-weight:600; color:#1EEA7A;">$1.0 - $8</span>
+                    </div>
+                    <button class="vvd-btn-get" style="width:100%; height:48px; border-radius:16px; background:#7B4DFF; border:none; color:#fff; font-weight:600;">Получить SmartLink</button>
+                </div>
+
+                <!-- 2.3 Nutra -->
+                <div class="vvd-card offer-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <span style="font-size:11px; font-weight:600; padding:4px 10px; background:rgba(255,255,255,0.06); border-radius:10px; color:#A5AEC5;">Nutra</span>
+                        <span style="font-size:12px; color:#A5AEC5; display:flex; align-items:center; gap:4px;"><i data-lucide="globe" style="width:14px; height:14px;"></i> EU/CIS</span>
+                    </div>
+                    <h3 style="font-size:18px; font-weight:700; margin-bottom:10px;">Nutra Offers</h3>
+                    <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:15px;">
+        <!-- ЭКРАН 3: СТАТИСТИКА (STATISTICS SCREEN) -->
+        <section id="screen-stats" class="screen">
+            <h2 style="font-size: 24px; font-weight: 700; margin-bottom: 20px;">Статистика</h2>
+            
+            <!-- Сетка мини-карточек метрик -->
+            <div class="stats-summary-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px;">
+                <div class="vvd-card" style="padding: 16px; display: flex; flex-direction: column; gap: 4px;">
+                    <span style="font-size: 12px; color: #A5AEC5;">Клики / Переходы</span>
+                    <div style="font-size: 22px; font-weight: 700;">1,234</div>
+                    <span style="font-size: 11px; font-weight: 500; padding: 2px 6px; border-radius: 6px; width: max-content; background: rgba(30, 234, 122, 0.1); color: #1EEA7A;">+12.5%</span>
+                </div>
+                <div class="vvd-card" style="padding: 16px; display: flex; flex-direction: column; gap: 4px;">
+                    <span style="font-size: 12px; color: #A5AEC5;">Конверсии</span>
+                    <div style="font-size: 22px; font-weight: 700;">56</div>
+                    <span style="font-size: 11px; font-weight: 500; padding: 2px 6px; border-radius: 6px; width: max-content; background: rgba(30, 234, 122, 0.1); color: #1EEA7A;">+4.54%</span>
+                </div>
+            </div>
+
+            <!-- График доходов (Glassmorphism + Bars) -->
+            <div class="vvd-card chart-card" style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 24px;">
+                <div style="font-size: 14px; font-weight: 500; color: #A5AEC5; display: flex; justify-content: space-between; align-items: center;">
+                    <span>Доход за неделю</span>
+                    <span style="color: #1EEA7A; font-weight: 600;">+$23.45</span>
+                </div>
+                <div class="mock-chart" style="height: 120px; display: flex; align-items: flex-end; justify-content: space-between; padding: 15px 5px 25px 5px; position: relative;">
+                    <!-- Столбцы графика -->
+                    <div class="chart-bar" style="flex: 1; margin: 0 4px; background: rgba(255,255,255,0.05); border-radius: 6px; height: 35%; position: relative;"><span style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #A5AEC5;">Пн</span></div>
+                    <div class="chart-bar" style="flex: 1; margin: 0 4px; background: rgba(255,255,255,0.05); border-radius: 6px; height: 55%; position: relative;"><span style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #A5AEC5;">Вт</span></div>
+                    <div class="chart-bar" style="flex: 1; margin: 0 4px; background: rgba(255,255,255,0.05); border-radius: 6px; height: 40%; position: relative;"><span style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #A5AEC5;">Ср</span></div>
+                    <div class="chart-bar" style="flex: 1; margin: 0 4px; background: rgba(255,255,255,0.05); border-radius: 6px; height: 75%; position: relative;"><span style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #A5AEC5;">Чт</span></div>
+                    <div class="chart-bar" style="flex: 1; margin: 0 4px; background: #7B4DFF; box-shadow: 0 0 15px rgba(123,77,255,0.4); border-radius: 6px; height: 95%; position: relative;"><span style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #7B4DFF; font-weight: 600;">Пт</span></div>
+                    <div class="chart-bar" style="flex: 1; margin: 0 4px; background: rgba(255,255,255,0.05); border-radius: 6px; height: 20%; position: relative;"><span style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #A5AEC5;">Сб</span></div>
+                    <div class="chart-bar" style="flex: 1; margin: 0 4px; background: rgba(255,255,255,0.05); border-radius: 6px; height: 10%; position: relative;"><span style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #A5AEC5;">Вс</span></div>
+                </div>
+            </div>
+
+            <!-- История выплат -->
+            <h3 class="section-title" style="font-size: 16px; font-weight: 600; margin-bottom: 12px;">История выплат</h3>
+            <div class="payouts-history-list" style="display: flex; flex-direction: column; gap: 10px;">
+                
+                <!-- Транзакция 1 (Успешно) -->
+                <div class="payout-history-item" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 20px; cursor: pointer;">
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <span style="font-size: 14px; font-weight: 600;">USDT TRC20</span>
+                        <span style="font-size: 11px; color: #A5AEC5;">21.05.2026 12:30</span>
+                    </div>
+                    <div style="text-align: right; display: flex; flex-direction: column; gap: 2px;">
+                        <span style="font-size: 14px; font-weight: 600; color: #1EEA7A;">+100.00 USDT</span>
+                        <span style="font-size: 11px; color: #1EEA7A; font-weight: 500;">Выплачено</span>
+                    </div>
+                </div>
+
+                <!-- Транзакция 2 (В обработке) -->
+                <div class="payout-history-item" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 20px; cursor: pointer;">
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <span style="font-size: 14px; font-weight: 600;">USDT TRC20</span>
+                        <span style="font-size: 11px; color: #A5AEC5;">Сегодня 19:00</span>
+                    </div>
+                    <div style="text-align: right; display: flex; flex-direction: column; gap: 2px;">
+                        <span style="font-size: 14px; font-weight: 600; color: #fff;">+50.00 USDT</span>
+                        <span style="font-size: 11px; color: #FFB800; font-weight: 500;">В обработке</span>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+        <!-- ЭКРАН 4: ЧАТ С ПОДДЕРЖКОЙ (CHAT SCREEN) -->
+        <section id="screen-chat" class="screen">
+            <div class="chat-header-panel" style="display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 15px;">
+                <div class="chat-manager-avatar" style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; font-size: 18px; border: 1px solid rgba(123,77,255,0.3);">🧑‍💻</div>
+                <div>
+                    <div class="manager-name" style="font-size: 14px; font-weight: 600;">Support Team</div>
+                    <div class="manager-status" style="font-size: 11px; color: #1EEA7A; display: flex; align-items: center; gap: 4px;">
+                        <span style="width: 5px; height: 5px; background: #1EEA7A; border-radius: 50%; display: inline-block;"></span> Техническая поддержка
+                    </div>
+                </div>
+            </div>
+
+            <!-- Область сообщений чата -->
+            <div class="chat-messages-area" id="chat-box" style="height: calc(100vh - 280px); overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-right: 4px;">
+                <!-- Сообщение от поддержки -->
+                <div class="message support" style="max-width: 80%; padding: 12px 16px; background: rgba(255,255,255,0.04); align-self: flex-start; border-radius: 18px; border-bottom-left-radius: 4px; display: flex; flex-direction: column; gap: 4px;">
+                    <div class="message-text" style="font-size: 14px; line-height: 1.4;">Привет! Добро пожаловать в приватную сеть VVD CPA. Твой персональный менеджер на связи. Готовы помочь с любыми вопросами.</div>
+                    <div class="message-time" style="font-size: 10px; opacity: 0.5; align-self: flex-end;">12:00</div>
+                </div>
+            </div>
+
+            <!-- Строка отправки сообщений -->
+            <div class="chat-input-row" style="display: flex; gap: 8px; margin-top: 15px;">
+                <input type="text" id="chat-input-field" class="vvd-input" placeholder="Напишите сообщение..." style="width: 100%; height: 50px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 0 16px; color: #fff; outline: none; font-size: 14px;">
+                <button class="vvd-btn" id="btn-send-msg" style="width: 50px; height: 50px; flex-shrink: 0; border-radius: 16px; background: #7B4DFF; border: none; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer;"><i data-lucide="send" style="width: 18px; height: 18px;"></i></button>
+            </div>
+        </section>
+
+        <!-- ЭКРАН 5: ПРОФИЛЬ (PROFILE SCREEN) -->
+        <section id="screen-profile" class="screen">
+            <div class="profile-card-top vvd-card" style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; margin-bottom: 20px; padding: 24px;">
+                <div class="profile-avatar-big" style="width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #6E45FF, #9747FF, #C44DFF); display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; box-shadow: 0 0 20px rgba(123,77,255,0.4);">JD</div>
+                <h3 class="profile-name-title" style="font-size: 20px; font-weight: 700; margin: 0;">John Doe</h3>
+                <span class="profile-id-badge" style="font-size: 11px; color: #A5AEC5; background: rgba(255,255,255,0.04); padding: 4px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.04);">ID: 74123457</span>
+            </div>
+
+            <!-- Список переходов во вложенные меню -->
+            <div class="vvd-card profile-menu-list" style="display: flex; flex-direction: column; padding: 6px 0;">
+                
+                <!-- Экран 6: Вывод средств -->
+                <div class="menu-list-item" id="p-btn-withdraw" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.04);">
+                    <div class="item-inner" style="display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 500;">
+                        <i data-lucide="banknote" style="width: 20px; height: 20px; color: #A5AEC5;"></i>
+                        <span>Вывод средств</span>
+                    </div>
+                    <i data-lucide="chevron-right" style="width: 16px; height: 16px; opacity: 0.3;"></i>
+                </div>
+
+                <!-- Экран 8: Настройки -->
+                <div class="menu-list-item" id="p-btn-settings" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.04);">
+                    <div class="item-inner" style="display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 500;">
+                        <i data-lucide="settings" style="width: 20px; height: 20px; color: #A5AEC5;"></i>
+                        <span>Настройки профиля</span>
+                    </div>
+                    <i data-lucide="chevron-right" style="width: 16px; height: 16px; opacity: 0.3;"></i>
+                </div>
+
+                <!-- Экран 9: Админ панель -->
+                <div class="menu-list-item" id="p-btn-admin" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; cursor: pointer;">
+                    <div class="item-inner" style="display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 500;">
+                        <i data-lucide="shield-check" style="width: 20px; height: 20px; color: #A5AEC5;"></i>
+                        <span>Админ-панель</span>
+                    </div>
+                    <i data-lucide="chevron-right" style="width: 16px; height: 16px; opacity: 0.3;"></i>
+                </div>
+
+            </div>
+        </section>
+        <!-- ЭКРАН 6: ВЫВОД СРЕДСТВ (SUB-SCREEN) -->
+        <section id="screen-withdraw" class="screen">
+            <div class="sub-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                <button class="btn-back" id="back-withdraw" style="background: none; border: none; color: #A855F7; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                    <i data-lucide="chevron-left" style="width: 16px; height: 16px;"></i> Назад
+                </button>
+                <span style="font-size: 16px; font-weight: 600;">Вывод средств</span>
+                <div style="width: 50px;"></div>
+            </div>
+
+            <div class="vvd-card">
+                <label style="font-size: 12px; color: #A5AEC5; text-transform: uppercase; margin-bottom: 8px; display: block;">Метод вывода</label>
+                <select class="vvd-input" style="width: 100%; height: 50px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 0 16px; color: #fff; font-size: 14px; outline: none; margin-bottom: 15px;">
+                    <option value="usdt">USDT TRC20</option>
+                    <option value="capitalist">Capitalist</option>
+                </select>
+                
+                <label style="font-size: 12px; color: #A5AEC5; text-transform: uppercase; margin-bottom: 8px; display: block;">Сумма вывода</label>
+                <input type="text" class="vvd-input" value="100.00" style="width: 100%; height: 50px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 0 16px; color: #fff; font-size: 14px; outline: none; margin-bottom: 15px;">
+                
+                <label style="font-size: 12px; color: #A5AEC5; text-transform: uppercase; margin-bottom: 8px; display: block;">Адрес кошелька / Счета</label>
+                <input type="text" class="vvd-input" value="TWh4Ff...9jF2Wb37N" style="width: 100%; height: 50px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 0 16px; color: #fff; font-size: 14px; outline: none; margin-bottom: 25px;">
+                
+                <button class="vvd-btn-submit" id="btn-do-withdraw" style="width: 100%; height: 56px; border-radius: 20px; background: linear-gradient(135deg, #6E45FF, #9747FF); border: none; color: #fff; font-weight: 600; font-size: 15px; cursor: pointer; box-shadow: 0 0 15px rgba(123,77,255,0.4);">Вывести</button>
+                <p style="font-size: 12px; color: #A5AEC5; text-align: center; margin-top: 12px;">Обработка выплаты занимает до 24 часов</p>
+            </div>
+        </section>
+
+        <!-- ЭКРАН 6.2: ДЕТАЛИ / УВЕДОМЛЕНИЕ О ВЫПЛАТЕ (SUB-SCREEN) -->
+        <section id="screen-payout-detail" class="screen">
+            <div class="sub-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                <button class="btn-back" id="back-payout-detail" style="background: none; border: none; color: #A855F7; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                    <i data-lucide="chevron-left" style="width: 16px; height: 16px;"></i> К истории
+                </button>
+                <span style="font-size: 16px; font-weight: 600;">Детали выплаты</span>
+                <div style="width: 50px;"></div>
+            </div>
+
+            <div class="vvd-card" style="text-align: center; padding: 30px 20px;">
+                <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(30, 234, 122, 0.1); color: #1EEA7A; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto; font-size: 24px;">✓</div>
+                <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 5px;">Выплата отправлена</h3>
+                <div style="font-size: 28px; font-weight: 700; color: #1EEA7A; margin-bottom: 20px;">100.00 USDT</div>
+                
+                <div style="text-align: left; display: flex; flex-direction: column; gap: 12px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 15px; font-size: 13px; color: #A5AEC5;">
+                    <div style="display:flex; justify-content:space-between;"><span>Метод:</span><span style="color:#fff;">USDT TRC20</span></div>
+                    <div style="display:flex; justify-content:space-between;"><span>Адрес:</span><span style="color:#fff; font-family:monospace;">TWh4Ff...9jF2Wb37N</span></div>
+                    <div style="display:flex; justify-content:space-between;"><span>Дата:</span><span style="color:#fff;">21.05.2024 12:30</span></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ЭКРАН 8: НАСТРОЙКИ ПРОФИЛЯ (SUB-SCREEN) -->
+        <section id="screen-settings" class="screen">
+            <div class="sub-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                <button class="btn-back" id="back-settings" style="background: none; border: none; color: #A855F7; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                    <i data-lucide="chevron-left" style="width: 16px; height: 16px;"></i> Назад
+                </button>
+                <span style="font-size: 16px; font-weight: 600;">Настройки</span>
+                <div style="width: 50px;"></div>
+            </div>
+
+            <div class="vvd-card">
+                <label style="font-size: 12px; color: #A5AEC5; text-transform: uppercase; margin-bottom: 8px; display: block;">Двухфакторная аутентификация</label>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: rgba(255,255,255,0.02); padding: 12px 16px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.04);">
+                    <span style="font-size: 14px; color: #A5AEC5;">Изменить пароль / 2FA</span>
+                    <input type="checkbox" checked style="width: 20px; height: 20px; accent-color: #7B4DFF;">
+                </div>
+
+                <label style="font-size: 12px; color: #A5AEC5; text-transform: uppercase; margin-bottom: 8px; display: block;">Email для уведомлений</label>
+                <input type="email" class="vvd-input" value="johndoe@example.com" style="width: 100%; height: 50px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 0 16px; color: #fff; font-size: 14px; outline: none; margin-bottom: 25px;">
+
+                <button class="vvd-btn-submit" id="btn-save-settings" style="width: 100%; height: 56px; border-radius: 20px; background: linear-gradient(135deg, #6E45FF, #9747FF); border: none; color: #fff; font-weight: 600; font-size: 15px; cursor: pointer;">Сохранить изменения</button>
+            </div>
+        </section>
+
+        <!-- ЭКРАН 9: АДМИН ПАНЕЛЬ (SUB-SCREEN) -->
+        <section id="screen-admin" class="screen">
+            <div class="sub-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                <button class="btn-back" id="back-admin" style="background: none; border: none; color: #A855F7; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                    <i data-lucide="chevron-left" style="width: 16px; height: 16px;"></i> Назад
+                </button>
+                <span style="font-size: 16px; font-weight: 600;">Панель администратора</span>
+                <div style="width: 50px;"></div>
+            </div>
+
+            <h3 style="font-size: 14px; font-weight: 600; color: #A5AEC5; text-transform: uppercase; margin-bottom: 12px; padding-left: 4px;">Пользователи сети</h3>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <div class="vvd-card" style="padding: 14px 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <div><div style="font-size: 14px; font-weight: 600;">John Doe</div><div style="font-size: 11px; color: #A5AEC5; margin-top: 2px;">ID: 123457 | VIP Вебмастер</div></div>
+                </div>
+                <div class="vvd-card" style="padding: 14px 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <div><div style="font-size: 14px; font-weight: 600;">Jane Smith</div><div style="font-size: 11px; color: #A5AEC5; margin-top: 2px;">ID: 123458 | Новичок</div></div>
+                </div>
+                <div class="vvd-card" style="padding: 14px 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <div><div style="font-size: 14px; font-weight: 600;">Mike Johnson</div><div style="font-size: 11px; color: #A5AEC5; margin-top: 2px;">ID: 123459 | СРА Команда</div></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ПРЕМИАЛЬНОЕ НИЖНЕЕ МЕНЮ (BOTTOM NAVIGATION BAR) -->
+    <nav class="bottom-menu" style="position: fixed; bottom: 0; left: 0; width: 100%; height: 84px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px); border-top: 1px solid rgba(255, 255, 255, 0.08); display: flex; justify-content: space-around; align-items: center; padding-bottom: max(10px, env(safe-area-inset-bottom)); z-index: 100;">
+        <button class="nav-item active" data-target="screen-main" style="background: none; border: none; display: flex; flex-direction: column; align-items: center; gap: 4px; color: #9D6BFF; width: 62px; cursor: pointer;">
+            <i data-lucide="home" style="width: 22px; height: 22px;"></i>
+            <span style="font-size: 10px; font-weight: 500;">Главная</span>
+        </button>
