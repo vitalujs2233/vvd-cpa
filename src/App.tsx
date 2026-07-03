@@ -2,16 +2,10 @@ import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Outlet } from 'react-router-dom';
 import { Home as HomeIcon, Grid, BarChart3, MessageSquare, User } from 'lucide-react';
 import { triggerHaptic } from '@/shared/lib/telegram';
+import { Home } from '@/pages/home/Home';
 
 // Временные легковесные компоненты страниц для бесшовной сборки проекта на данном этапе.
 // В процессе развития проекта мы заменим их полноценными изолированными страницами.
-const HomePlaceholder = () => (
-  <div className="flex-1 flex flex-col items-center justify-center p-20 text-center h-full">
-    <h1 className="text-2xl font-bold text-white">Главная страница</h1>
-    <p className="text-textMuted text-xs mt-2">Компонент Dashboard готовится к детальной верстке.</p>
-  </div>
-);
-
 const OffersPlaceholder = () => (
   <div className="flex-1 flex flex-col items-center justify-center p-20 text-center h-full">
     <h1 className="text-2xl font-bold text-white">Офферы</h1>
@@ -131,7 +125,7 @@ const App = () => {
       <Routes>
         {/* Обертка Лейаута с нижней панелью навигации */}
         <Route path="/" element={<AppLayout />}>
-          <Route index element={<HomePlaceholder />} />
+          <Route index element={<Home />} />
           <Route path="offers" element={<OffersPlaceholder />} />
           <Route path="stats" element={<StatsPlaceholder />} />
           <Route path="chat" element={<ChatPlaceholder />} />
