@@ -7,16 +7,10 @@ import { Offers } from '@/pages/offers/Offers';
 import { OfferDetail } from '@/pages/offers/OfferDetail';
 import { Withdrawal } from '@/pages/withdrawal/Withdrawal';
 import { Stats } from '@/pages/stats/Stats';
+import { Chat } from '@/pages/chat/Chat';
 
 // Временные легковесные компоненты страниц для бесшовной сборки проекта на данном этапе.
 // В процессе развития проекта мы заменим их полноценными изолированными страницами.
-const ChatPlaceholder = () => (
-  <div className="flex-1 flex flex-col items-center justify-center p-20 text-center h-full">
-    <h1 className="text-2xl font-bold text-white">Чат Поддержки</h1>
-    <p className="text-textMuted text-xs mt-2">Форма создания тикетов и переписка готовятся к детальной верстке.</p>
-  </div>
-);
-
 const ProfilePlaceholder = () => (
   <div className="flex-1 flex flex-col items-center justify-center p-20 text-center h-full">
     <h1 className="text-2xl font-bold text-white">Профиль</h1>
@@ -118,7 +112,7 @@ const App = () => {
           <Route index element={<Home />} />
           <Route path="offers" element={<Offers />} />
           <Route path="stats" element={<Stats />} />
-          <Route path="chat" element={<ChatPlaceholder />} />
+          <Route path="chat" element={<Chat />} />
           <Route path="profile" element={<ProfilePlaceholder />} />
         </Route>
 
