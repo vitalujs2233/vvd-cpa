@@ -1,147 +1,58 @@
-/* ==========================================
-   VVD CPA
-   telegram.js
-========================================== */
+/**
+ * ==========================================================================
+ * TELEGRAM WEBAPP API INTEGRATION — VVD CPA
+ * Бесшовная интеграция с мессенджером и получение данных пользователя
+ * ==========================================================================
+ */
 
-"use strict";
+const tg = window.Telegram?.WebApp;
 
-/* ==========================================
-   TELEGRAM MINI APP
-========================================== */
+function initTelegramApp() {
+    if (!tg) {
+        console.warn("Приложение запущено вне клиента Telegram. Включен режим локальной отладки.");
+        return;
+    }
 
-let tg = null;
-let telegramUser = null;
-let isTelegram = false;
-
-/* ==========================================
-   ИНИЦИАЛИЗАЦИЯ TELEGRAM
-========================================== */
-
-if (window.Telegram && window.Telegram.WebApp) {
-
-    tg = window.Telegram.WebApp;
-
+    // Сообщаем Telegram, что каркас полностью загрузился и готов к отображению
     tg.ready();
-
+    
+    // Раскрываем приложение на максимум, убирая лишние пустые зоны сверху и снизу
     tg.expand();
 
-    try {
-
-        tg.setHeaderColor("#0B0E14");
-        tg.setBackgroundColor("#0B0E14");
-
-    } catch (e) {
-
-        console.log("Telegram colors not supported");
-
+    // Красим верхнюю статус-панель телефона в глубокий цвет фона по вашему ТЗ
+    if (tg.setHeaderColor) {
+        tg.setHeaderColor('#070A14');
     }
 
-    if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+    // Извлекаем реальные данные зашедшего в Mini App пользователя
+    const user = tg.initDataUnsafe?.user;
+    if (user) {
+        // Формируем имя: приоритет на имя/фамилию, если нет — берем никнейм
+        const fullName = user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : (user.username || "Webmaster");
+        const userHandle = user.username ? `@${user.username}` : `ID: ${user.id}`;
 
-        isTelegram = true;
+        // Подставляем имя во все текстовые ID на экранах приложения
+        const mainNameEl = document.getElementById('main-username');
+        const profileNameEl = document.getElementById('profile-username');
+        const handleEls = document.querySelectorAll('.user-handle');
 
-        telegramUser = tg.initDataUnsafe.user;
+        if (mainNameEl) mainNameEl.innerText = fullName;
+        if (profileNameEl) profileNameEl.innerText = fullName;
+        
+        handleEls.forEach(el => {
+            el.innerText = userHandle;
+        });
 
+        // Если у пользователя загружена аватарка в Telegram, подтягиваем её в интерфейс
+        if (user.photo_url) {
+            const mainAvatarEl = document.getElementById('main-avatar');
+            const profileAvatarEl = document.getElementById('profile-avatar');
+            
+            if (mainAvatarEl) mainAvatarEl.src = user.photo_url;
+            if (profileAvatarEl) profileAvatarEl.src = user.photo_url;
+        }
     }
-
 }
 
-/* ==========================================
-   DEV MODE
-========================================== */
-
-if (!telegramUser) {
-
-    console.log("DEV MODE");
-
-    telegramUser = {
-
-        id: 123456789,
-
-        username: "developer",
-
-        first_name: "Vitaliy",
-
-        last_name: "Developer",
-
-        photo_url: "https://i.pravatar.cc/150"
-
-    };
-
-}
-
-/* ==========================================
-   APP OBJECT
-========================================== */
-
-window.App = {
-
-    telegram: tg,
-
-    user: telegramUser,
-
-    isTelegram: isTelegram,
-
-    initData: tg ? tg.initData : "",
-
-    initDataUnsafe: tg ? tg.initDataUnsafe : null,
-
-    isAdmin: false
-
-};
-
-/* ==========================================
-   USER HELPERS
-========================================== */
-
-function getUser() {
-
-    return App.user || {};
-
-}
-
-function getUserId() {
-
-    return App.user ? App.user.id : 0;
-
-}
-
-function getUsername() {
-
-    return App.user ? (App.user.username || "") : "";
-
-}
-
-function getFirstName() {
-
-    return App.user ? (App.user.first_name || "") : "";
-
-}
-
-function getLastName() {
-
-    return App.user ? (App.user.last_name || "") : "";
-
-}
-
-function getPhoto() {
-
-    return App.user ? (App.user.photo_url || "") : "";
-
-}
-
-/* ==========================================
-   ADMIN
-========================================== */
-
-const ADMIN_ID = 123456789;
-
-App.isAdmin = getUserId() === ADMIN_ID;
-
-/* ==========================================
-   READY
-========================================== */
-
-console.log("Telegram Ready");
-
-console.log(App);
+// Запускаем инициализацию сразу после того, как браузер построит DOM-дерево
+document.addEventListener("DOMContentLoaded", initTelegramApp);
