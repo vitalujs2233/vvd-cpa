@@ -29,17 +29,19 @@ export const Home: React.FC = () => {
           {user.photo_url ? (
             <img
               src={user.photo_url}
-              alt={user.first_name}
+              alt={user.first_name || 'User'}
               className="w-10 h-10 rounded-full border border-gray-800 object-cover"
             />
           ) : (
             <div className="w-10 h-10 rounded-full bg-accentDark border border-accent/20 flex items-center justify-center text-accent font-semibold text-sm">
-              {user.first_name.slice(0, 2).toUpperCase()}
+              {/* Добавлена безопасная обработка на случай отсутствия имени */}
+              {(user.first_name || 'JD').slice(0, 2).toUpperCase()}
             </div>
           )}
           <div className="flex flex-col text-left">
             <span className="text-sm font-bold text-white">
-              {user.first_name} {user.last_name || ''}
+              {/* Безопасный вывод имени с фоллбеком на 'John' */}
+              {user.first_name || 'John'} {user.last_name || ''}
             </span>
             <span className="text-xs text-textMuted">
               {user.username ? `@${user.username}` : 'Пользователь CPA'}
