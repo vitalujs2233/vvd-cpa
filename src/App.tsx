@@ -9,6 +9,7 @@ import { Withdrawal } from '@/pages/withdrawal/Withdrawal';
 import { Stats } from '@/pages/stats/Stats';
 import { Chat } from '@/pages/chat/Chat';
 import { Profile } from '@/pages/profile/Profile';
+import { Admin } from '@/pages/admin/Admin';
 
 // Главный Лейаут приложения, фиксирующий Bottom Menu
 const AppLayout = () => {
@@ -113,6 +114,9 @@ const App = () => {
 
         {/* Вложенный экран финансов и выплат (Форма, история, чек) без нижнего меню */}
         <Route path="/withdrawal" element={<Withdrawal />} />
+
+        {/* Вложенный экран админ-панели без нижнего меню */}
+        <Route path="/admin" element={<Admin />} />
       </Routes>
     </HashRouter>
   );
