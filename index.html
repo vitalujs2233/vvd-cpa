@@ -3,175 +3,266 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>VVD CPA - Demo</title>
+    <title>VVD CPA - Premium</title>
+    <!-- Официальный скрипт Telegram WebApp SDK -->
     <script src="https://telegram.org"></script>
+    <!-- Подключаем шрифты Inter и SF Pro из Google Fonts / Стили -->
+    <link rel="preconnect" href="https://googleapis.com">
+    <link rel="preconnect" href="https://gstatic.com" crossorigin>
+    <link href="https://googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- Фоновые размытые неоновые туманности (Radial Spotlights) -->
+    <div class="bg-glow spotlight-1"></div>
+    <div class="bg-glow spotlight-2"></div>
+    <div class="bg-noise"></div>
+
     <div id="app">
         
-        <!-- ================= ЭКРАН 1: ГЛАВНАЯ ================= -->
+        <!-- ВЕРХНЯЯ ЛЕНТА: КАРТА ЭКРАНОВ И НАВИГАЦИЯ (Кастомный горизонтальный скролл) -->
+        <header class="top-navigation-slider">
+            <div class="slider-title">Карта экранов и навигация</div>
+            <div class="slider-track">
+                <span class="slide-tag active" onclick="switchPage('main')">1. Главная</span>
+                <span class="slide-tag" onclick="switchPage('offers')">2. Офферы</span>
+                <span class="slide-tag" onclick="switchPage('stats')">3. Статистика</span>
+                <span class="slide-tag" onclick="switchPage('chat')">4. Чат</span>
+                <span class="slide-tag" onclick="switchPage('profile')">5. Профиль</span>
+                <span class="slide-tag" onclick="switchPage('withdraw')">6. Вывод средств</span>
+                <span class="slide-tag" onclick="switchPage('notifications')">7. Уведомления</span>
+                <span class="slide-tag" onclick="switchPage('settings')">8. Настройки</span>
+                <span class="slide-tag" onclick="switchPage('admin')">9. Админ-панель</span>
+            </div>
+        </header>
+
+        <!-- ================= ЭКРАН 1: ГЛАВНАЯ (PREMIUM DASHBOARD) ================= -->
         <section id="page-main" class="page active">
-            <div class="user-card">
-                <img id="main-avatar" src="assets/default-avatar.png" alt="User" class="user-avatar">
-                <div class="user-info">
-                    <h3 id="main-username">John Doe</h3>
-                    <p class="user-role">Вебмастер</p>
-                </div>
-            </div>
-            
-            <div class="balance-block">
-                <div class="balance-main">
-                    <span class="label">Баланс</span>
-                    <span class="amount" id="balance-val">$154.50</span>
-                </div>
-                <div class="balance-hold">
-                    <span class="label">Hold</span>
-                    <span class="amount-hold">$32.40</span>
-                </div>
-            </div>
-
-            <div class="quick-stats">
-                <div class="q-stat-box">
-                    <span>Выплачено</span>
-                    <strong class="green-text">$23.40</strong>
-                </div>
-                <div class="q-stat-box">
-                    <span>История</span>
-                    <strong class="blue-text" onclick="switchPage('withdraw-history')">$1,234.50</strong>
-                </div>
-            </div>
-
-            <div class="section-title">Последние конверсии</div>
-            <div class="conversions-list">
-                <div class="mini-card">
-                    <div class="card-left">
-                        <span class="icon-tag purple">🔞</span>
-                        <div>
-                            <h4>Adult Dating</h4>
-                            <p>10 минут назад</p>
-                        </div>
+            <!-- Главный блок профиля юзера (John Doe) -->
+            <div class="luxury-profile-card">
+                <div class="profile-left">
+                    <div class="avatar-container">
+                        <img id="main-avatar" src="assets/default-avatar.png" alt="User Avatar" class="luxury-avatar">
+                        <div class="avatar-glow"></div>
                     </div>
-                    <span class="payout green-text">+$1.50</span>
-                </div>
-                <div class="mini-card">
-                    <div class="card-left">
-                        <span class="icon-tag green">🥦</span>
-                        <div>
-                            <h4>Nutra</h4>
-                            <p>1 час назад</p>
+                    <div class="profile-meta">
+                        <div class="name-row">
+                            <h2 id="main-username">John Doe</h2>
+                            <span class="verified-badge">✓</span>
                         </div>
+                        <p class="user-handle">@johndoe</p>
+                        <span class="badge-partner">Partner</span>
                     </div>
-                    <span class="payout green-text">+$15.20</span>
-                </div>
-            </div>
-
-            <div class="section-title">Новые офферы</div>
-            <div class="new-offers-list">
-                <div class="mini-card" onclick="openCategory('mainstream')">
-                    <div class="card-left">
-                        <span class="icon-tag pink">❤️</span>
-                        <div>
-                            <h4>Mainstream Dating</h4>
-                            <p>Smartlink обновлен</p>
-                        </div>
-                    </div>
-                    <span class="payout blue-text">$0.85</span>
-                </div>
-            </div>
-        </section>
-
-        <!-- ================= ЭКРАН 2: ОФФЕРЫ ================= -->
-        <section id="page-offers" class="page">
-            <div class="search-bar">
-                <input type="text" placeholder="Поиск офферов...">
-            </div>
-            
-            <div class="categories-list">
-                <div class="category-item" onclick="openCategory('adult')">
-                    <div class="cat-left"><span class="cat-icon">🔞</span> Adult Dating</div>
-                    <span class="cat-count">85 офферов</span>
-                </div>
-                <div class="category-item" onclick="openCategory('mainstream')">
-                    <div class="cat-left"><span class="cat-icon">❤️</span> Mainstream Dating</div>
-                    <span class="cat-count">42 оффера</span>
-                </div>
-                <div class="category-item" onclick="openCategory('nutra')">
-                    <div class="cat-left"><span class="cat-icon">🥦</span> Nutra</div>
-                    <span class="cat-count">112 офферов</span>
-                </div>
-                <div class="category-item" onclick="openCategory('crypto')">
-                    <div class="cat-left"><span class="cat-icon">🪙</span> Crypto</div>
-                    <span class="cat-count">34 оффера</span>
-                </div>
-                <div class="category-item" onclick="openCategory('finance')">
-                    <div class="cat-left"><span class="cat-icon">💳</span> Finance</div>
-                    <span class="cat-count">21 оффер</span>
-                </div>
-                <div class="category-item" onclick="openCategory('gaming')">
-                    <div class="cat-left"><span class="cat-icon">🎮</span> Gaming</div>
-                    <span class="cat-count">67 офферов</span>
-                </div>
-                <div class="category-item" onclick="openCategory('utilities')">
-                    <div class="cat-left"><span class="cat-icon">⚙️</span> Utilities</div>
-                    <span class="cat-count">45 офферов</span>
-                </div>
-            </div>
-        </section>
-                <!-- ВЛОЖЕННЫЙ ЭКРАН 2.1: ДЕТАЛИ КАТЕГОРИИ / SMARTLINK -->
-        <section id="page-category-detail" class="page">
-            <button class="btn-back" onclick="switchPage('offers')">← Назад к офферам</button>
-            <div class="smartlink-card">
-                <div class="smartlink-header">
-                    <span id="cat-detail-icon" class="icon-tag">🔞</span>
-                    <h2 id="cat-detail-title">Adult Dating</h2>
                 </div>
                 
-                <div class="smartlink-metrics">
-                    <div class="metric-box"><span>Выплата</span><strong id="cat-detail-payout">$1.50</strong></div>
-                    <div class="metric-box"><span>Hold</span><strong>10 дней</strong></div>
-                    <div class="metric-box"><span>CR</span><strong>4.2%</strong></div>
+                <div class="profile-right-financial">
+                    <div class="fin-item">
+                        <span class="fin-lbl">Баланс</span>
+                        <div class="fin-val purple-text">$154.50</div>
+                    </div>
+                    <div class="fin-item">
+                        <span class="fin-lbl">Hold</span>
+                        <div class="fin-val orange-text">$32.40</div>
+                    </div>
+                    <button class="btn-payout-quick" onclick="switchPage('withdraw')">
+                        <span class="btn-icon">📤</span> Вывести
+                    </button>
+                </div>
+            </div>
+
+            <!-- Сетка промежуточных финансовых блоков (День сегодня / Выплачено) -->
+            <div class="dashboard-grid-stats">
+                <div class="glass-card stat-metric-box">
+                    <span class="lbl-small">День сегодня</span>
+                    <div class="metric-amount">$23.40</div>
+                    <div class="mini-sparkline purple">
+                        <div class="sparkline-bar" style="height: 30%"></div>
+                        <div class="sparkline-bar" style="height: 45%"></div>
+                        <div class="sparkline-bar" style="height: 35%"></div>
+                        <div class="sparkline-bar" style="height: 70%"></div>
+                    </div>
+                </div>
+                <div class="glass-card stat-metric-box">
+                    <span class="lbl-small">Выплачено</span>
+                    <div class="metric-amount font-large">$1,234.50</div>
+                    <div class="mini-sparkline green">
+                        <div class="sparkline-bar" style="height: 20%"></div>
+                        <div class="sparkline-bar" style="height: 40%"></div>
+                        <div class="sparkline-bar" style="height: 60%"></div>
+                        <div class="sparkline-bar" style="height: 85%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Лента последних конверсий -->
+            <div class="section-flex-header">
+                <span class="section-title">Последние конверсии</span>
+                <span class="action-link" onclick="switchPage('stats')">Смотреть все</span>
+            </div>
+            <div class="conversions-stack">
+                <div class="glass-card conversion-row">
+                    <div class="conv-left">
+                        <div class="luxury-icon-box pink">❤️</div>
+                        <div>
+                            <h4>Adult Dating</h4>
+                            <p class="time-stamp">1 минуту назад</p>
+                        </div>
+                    </div>
+                    <span class="conv-payout-val green-text">+$12.50</span>
+                </div>
+                <div class="glass-card conversion-row">
+                    <div class="conv-left">
+                        <div class="luxury-icon-box green">🥦</div>
+                        <div>
+                            <h4>Nutra</h4>
+                            <p class="time-stamp">5 минут назад</p>
+                        </div>
+                    </div>
+                    <span class="conv-payout-val green-text">+$8.30</span>
+                </div>
+                <div class="glass-card conversion-row">
+                    <div class="conv-left">
+                        <div class="luxury-icon-box orange">🪙</div>
+                        <div>
+                            <h4>Crypto</h4>
+                            <p class="time-stamp">10 минут назад</p>
+                        </div>
+                    </div>
+                    <span class="conv-payout-val green-text">+$15.20</span>
+                </div>
+            </div>
+
+            <!-- Кастомный блок SmartLink (Dating Adult) в самом центре ленты -->
+            <div class="glass-card luxury-smartlink-showcase">
+                <div class="sl-main-header">
+                    <div class="sl-title-block">
+                        <div class="luxury-icon-box large pink-neon-glow">💝</div>
+                        <div>
+                            <h3>Dating Adult SmartLink</h3>
+                            <p class="geo-text">Worldwide</p>
+                        </div>
+                    </div>
+                    <span class="status-pill green"><span class="pulse-dot"></span> Active</span>
+                </div>
+                <div class="sl-meta-grid">
+                    <div class="sl-meta-item">
+                        <span>Статус</span>
+                        <strong class="green-text">● Active</strong>
+                    </div>
+                    <div class="sl-meta-item">
+                        <span>Выплата</span>
+                        <strong class="purple-gradient-text">Dynamic</strong>
+                    </div>
+                </div>
+                <button class="btn btn-gradient full-width" onclick="openCategory('adult')">
+                    <span class="icon-link">🔗</span> Получить ссылку
+                </button>
+            </div>
+        </section>
+
+        <!-- ================= ЭКРАН 2: ОФФЕРЫ (КАТЕГОРИИ) ================= -->
+        <section id="page-offers" class="page">
+            <div class="search-wrapper">
+                <input type="text" class="luxury-search-input" placeholder="Поиск приватных офферов...">
+                <span class="search-icon-placeholder">🔍</span>
+            </div>
+            
+            <div class="luxury-categories-grid">
+                <div class="glass-card premium-category-card" onclick="openCategory('adult')">
+                    <div class="pcat-header">
+                        <span class="pcat-icon">🔞</span>
+                        <span class="badge-count">85 Offers</span>
+                    </div>
+                    <h3>Adult Dating</h3>
+                    <p>Высокий CR, SmartLink обновлен</p>
+                </div>
+                <div class="glass-card premium-category-card" onclick="openCategory('mainstream')">
+                    <div class="pcat-header">
+                        <span class="pcat-icon">❤️</span>
+                        <span class="badge-count">42 Offers</span>
+                    </div>
+                    <h3>Mainstream</h3>
+                    <p>Прямые рекламодатели, WW</p>
+                </div>
+                <div class="glass-card premium-category-card" onclick="openCategory('nutra')">
+                    <div class="pcat-header">
+                        <span class="pcat-icon">🥦</span>
+                        <span class="badge-count">112 Offers</span>
+                    </div>
+                    <h3>Nutra / COD</h3>
+                    <p>Топовые гео, высокие ставки</p>
+                </div>
+                <div class="glass-card premium-category-card" onclick="openCategory('crypto')">
+                    <div class="pcat-header">
+        <!-- ВЛОЖЕННЫЙ ЭКРАН 2.1: ДЕТАЛИ КАТЕГОРИИ / GENERATOR -->
+        <section id="page-category-detail" class="page">
+            <button class="btn-back" onclick="switchPage('offers')">← Назад к категориям</button>
+            <div class="glass-card luxury-smartlink-showcase">
+                <div class="sl-main-header">
+                    <div class="sl-title-block">
+                        <div id="cat-detail-icon" class="luxury-icon-box large purple-neon-glow">🔞</div>
+                        <div>
+                            <h3 id="cat-detail-title">Adult Dating</h3>
+                            <p class="geo-text">Worldwide Private SmartLink</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="sl-meta-grid">
+                    <div class="sl-meta-item"><span>Выплата</span><strong id="cat-detail-payout" class="green-text">$1.50</strong></div>
+                    <div class="sl-meta-item"><span>Hold</span><strong>10 дней</strong></div>
+                    <div class="sl-meta-item"><span>CR</span><strong class="blue-text">4.54%</strong></div>
                 </div>
 
                 <div class="link-generator">
-                    <label>Ваша ссылка (SmartLink):</label>
+                    <label>Ваша приватная ссылка</label>
                     <div class="link-input-group">
                         <input type="text" id="smartlink-url" value="https://vvd-cpa.link" readonly>
-                        <button class="btn btn-purple" onclick="copySmartLink()">Копировать</button>
+                        <button class="btn btn-gradient" onclick="copySmartLink()" style="height: 44px; padding: 0 16px; border-radius: 12px;">Копировать</button>
                     </div>
                 </div>
 
                 <div class="traffic-rules">
-                    <h4>Разрешенный трафик:</h4>
-                    <p class="green-text">✓ Social Media, SEO, Context, Тизеры</p>
-                    <h4 style="margin-top: 10px;">Запрещенный трафик:</h4>
-                    <p class="red-text">✗ Фрод, Схемы, Мотивированный трафик, Спам</p>
+                    <h4 class="green-text" style="margin-bottom: 6px;">✓ Разрешено:</h4>
+                    <p>Social, SEO, Context, Teasers, In-App</p>
+                    <h4 class="red-text" style="margin-top: 12px; margin-bottom: 6px;">✗ Запрещено:</h4>
+                    <p>Fraud, Motivated traffic, Spam, Coercion</p>
                 </div>
             </div>
         </section>
 
-        <!-- ================= ЭКРАН 3: СТАТИСТИКА ================= -->
+        <!-- ================= ЭКРАН 3: СТАТИСТИКА (TODAY ANALYTICS) ================= -->
         <section id="page-stats" class="page">
-            <h2>Статистика</h2>
+            <h2 class="section-title">Сегодня</h2>
+            
             <div class="stats-total-grid">
-                <div class="stats-box"><span>Клики</span><strong>1,234</strong></div>
-                <div class="stats-box"><span>Холд</span><strong>56</strong></div>
-                <div class="stats-box"><span>CR</span><strong>4.54%</strong></div>
-            </div>
-
-            <div class="graph-placeholder">
-                <div class="graph-title">График доходности</div>
-                <div class="mock-chart">
-                    <span class="chart-line"></span>
-                    <span class="chart-value green-text">+$23.45</span>
+                <div class="glass-card stats-box">
+                    <span>Клики</span>
+                    <strong>1,234</strong>
+                    <div class="sparkline-trend green-text">↑ 12%</div>
+                </div>
+                <div class="glass-card stats-box">
+                    <span>Конверсии</span>
+                    <strong>56</strong>
+                    <div class="sparkline-trend green-text">↑ 4.5%</div>
+                </div>
+                <div class="glass-card stats-box">
+                    <span>CR</span>
+                    <strong>4.54%</strong>
+                    <div class="sparkline-trend blue-text">Стабильно</div>
                 </div>
             </div>
 
-            <div class="detailed-stats-table">
-                <div class="table-row"><span>👁️ Клики</span><strong>1,234 <small class="green-text">+15%</small></strong></div>
-                <div class="table-row"><span>🔄 Конверсии</span><strong>56 <small class="green-text">+4.2%</small></strong></div>
-                <div class="table-row"><span>💰 Доход</span><strong>$23.45 <small class="green-text">+12.1%</small></strong></div>
-                <div class="table-row"><span>📊 EPC</span><strong>$0.10 <small class="red-text">-0.1%</small></strong></div>
+            <div class="glass-card stats-box" style="margin-bottom: 24px; text-align: left; padding: 20px;">
+                <span>Доход</span>
+                <div style="font-size: 26px; font-weight: 800; margin-top: 4px;" class="green-text">$23.45 <small style="font-size:13px; font-weight:600;">+12.5%</small></div>
+                <div class="mock-chart"></div>
+            </div>
+
+            <div class="glass-card detailed-stats-table">
+                <div class="table-row"><span>👁️ Уникальные клики</span><strong>1,190</strong></div>
+                <div class="table-row"><span>🔄 Ср. конверсия</span><strong class="purple-text">1:21</strong></div>
+                <div class="table-row"><span>📊 EPC</span><strong>$0.10</strong></div>
             </div>
         </section>
 
@@ -182,50 +273,48 @@
                 <button class="chat-tab">Мои тикеты</button>
             </div>
 
-            <div class="support-contacts">
-                <div class="contact-item">
-                    <span class="avatar-icon">🎯</span>
-                    <div class="contact-info">
-                        <h4>Support Team</h4>
-                        <p>Менеджер поддержки</p>
+            <div class="support-contacts" style="display: flex; flex-direction: column; gap: 12px;">
+                <div class="glass-card conversion-row">
+                    <div class="conv-left">
+                        <div class="luxury-icon-box purple">🎯</div>
+                        <div>
+                            <h4>Support Team</h4>
+                            <p>Общие вопросы и офферы</p>
+                        </div>
                     </div>
-                    <button class="btn btn-purple-outline">Написать</button>
+                    <button class="btn btn-purple-outline" style="height:36px; padding:0 12px; font-size:12px; border-radius:10px;">Написать</button>
                 </div>
-                <div class="contact-item">
-                    <span class="avatar-icon">👨‍💼</span>
-                    <div class="contact-info">
-                        <h4>John Support</h4>
-                        <p>Ваш личный менеджер</p>
+                <div class="glass-card conversion-row">
+                    <div class="conv-left">
+                        <div class="luxury-icon-box purple">👑</div>
+                        <div>
+                            <h4>VIP Manager</h4>
+                            <p>Индивидуальные условия</p>
+                        </div>
                     </div>
-                    <button class="btn btn-purple-outline">Написать</button>
+                    <button class="btn btn-purple-outline" style="height:36px; padding:0 12px; font-size:12px; border-radius:10px;">Связаться</button>
                 </div>
             </div>
-            
-            <button class="btn btn-purple full-width-btn" style="margin-top: 20px;">Создать тикет</button>
         </section>
+
         <!-- ================= ЭКРАН 5: ПРОФИЛЬ ================= -->
         <section id="page-profile" class="page">
-            <div class="profile-main-card">
-                <img id="profile-avatar" src="assets/default-avatar.png" alt="User" class="large-avatar">
-                <h2 id="profile-username">John Doe</h2>
-                <p class="user-subtext">ID: 1234567</p>
-                <p class="user-subtext">Регистрация: 23.04.2024</p>
+            <div class="glass-card" style="text-align: center; padding: 32px 20px; margin-bottom: 20px;">
+                <div class="avatar-container" style="margin: 0 auto 16px auto; width:72px; height:72px;">
+                    <img id="profile-avatar" src="assets/default-avatar.png" alt="User Avatar" class="luxury-avatar" style="width:72px; height:72px;">
+                    <div class="avatar-glow"></div>
+                </div>
+                <h2 style="margin-bottom: 4px;" id="profile-username">John Doe</h2>
+                <p class="user-handle" style="margin-bottom: 12px;">ID: 1234567</p>
+                <span class="badge-partner">Partner</span>
             </div>
 
-            <div class="profile-financials">
-                <div class="fin-row"><span>Баланс:</span><strong class="green-text">$154.50</strong></div>
-                <div class="fin-row"><span>Hold:</span><strong class="orange-text">$32.40</strong></div>
-                <div class="fin-row"><span>Выплачено:</span><strong class="blue-text">$1,234.50</strong></div>
+            <div class="glass-card menu-list">
+                <div class="menu-item" onclick="switchPage('withdraw')"><span>⚙️ Платежные реквизиты</span><span>&gt;</span></div>
+                <div class="menu-item" onclick="switchPage('notifications')"><span>🔔 Центр уведомлений</span><span>&gt;</span></div>
+                <div class="menu-item" onclick="switchPage('settings')"><span>🛠️ Настройки безопасности</span><span>&gt;</span></div>
+                <div class="menu-item" onclick="switchPage('admin')"><span class="red-text">👑 Административная панель</span><span>&gt;</span></div>
             </div>
-
-            <div class="menu-list">
-                <div class="menu-item" onclick="switchPage('withdraw')"><span>⚙️ Настройки выплат</span><span>&gt;</span></div>
-                <div class="menu-item" onclick="switchPage('notifications')"><span>🔔 Уведомления</span><span>&gt;</span></div>
-                <div class="menu-item" onclick="switchPage('settings')"><span>🛠️ Настройки профиля</span><span>&gt;</span></div>
-                <div class="menu-item" onclick="switchPage('admin')"><span class="red-text">👑 Админ-панель</span><span>&gt;</span></div>
-            </div>
-            
-            <button class="btn btn-danger-outline full-width-btn" style="margin-top: 20px;">Выйти</button>
         </section>
 
         <!-- ================= ЭКРАН 6: ВЫВОД СРЕДСТВ ================= -->
@@ -233,83 +322,50 @@
             <button class="btn-back" onclick="switchPage('profile')">← В профиль</button>
             <h2>Вывод средств</h2>
             
-            <div class="form-group">
-                <label>Метод вывода</label>
-                <select class="app-select">
-                    <option>USDT TRC20</option>
-                    <option>Capitalist</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Сумма вывода</label>
-                <input type="number" class="app-input" value="100.00">
-            </div>
-
-            <div class="form-group">
-                <label>Адрес кошелька</label>
-                <input type="text" class="app-input" value="T9zB4X...dFjWbN2WTm">
-            </div>
-
-            <div class="withdraw-calculation">
-                <div class="calc-row"><span>Вы получите:</span><strong>100.00 USDT</strong></div>
-                <div class="calc-row"><span>Комиссия:</span><strong>0 USDT</strong></div>
-            </div>
-
-            <button class="btn btn-purple full-width-btn" onclick="processWithdrawMock()">Вывести</button>
-            <p class="hint-text text-center">Обработка выплаты до 24 часов</p>
-        </section>
-
-        <!-- ================= ЭКРАН 6.1: ИСТОРИЯ ВЫПЛАТ ================= -->
-        <section id="page-withdraw-history" class="page">
-            <button class="btn-back" onclick="switchPage('main')">← На главную</button>
-            <h2>История выплат</h2>
-            <div class="history-list">
-                <div class="history-item" onclick="openWithdrawDetail()">
-                    <div>
-                        <h4>USDT TRC20</h4>
-                        <p>21.05.2024 12:30</p>
-                    </div>
-                    <span class="status-badge success">+$100.00</span>
+            <div class="glass-card" style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+                <div class="form-group">
+                    <label>Метод выплаты</label>
+                    <select class="app-select">
+                        <option>USDT TRC20 (Рекомендуется)</option>
+                        <option>Capitalist USD</option>
+                        <option>Bitcoin BTC</option>
+                    </select>
                 </div>
+
+                <div class="form-group">
+                    <label>Сумма для вывода (USD)</label>
+                    <input type="number" class="app-input" value="150.00">
+                </div>
+
+                <div class="form-group">
+                    <label>Адрес кошелька / Направление</label>
+                    <input type="text" class="app-input" value="TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t">
+                </div>
+
+                <div class="withdraw-calculation" style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 12px;">
+                    <div class="calc-row"><span>Сеть:</span><strong>Tron (TRC-20)</strong></div>
+                    <div class="calc-row"><span>Комиссия шлюза:</span><strong class="green-text">0.00%</strong></div>
+                </div>
+
+                <button class="btn btn-gradient full-width" onclick="processWithdrawMock()" style="margin-top: 8px;">Заказать выплату</button>
             </div>
         </section>
 
-        <!-- ================= ЭКРАН 6.2: ДЕТАЛИ ВЫПЛАТЫ ================= -->
-        <section id="page-withdraw-detail" class="page">
-            <button class="btn-back" onclick="switchPage('withdraw-history')">← К истории</button>
-            <div class="payout-detail-card text-center">
-                <div class="success-icon-large">✓</div>
-                <h3>Выплата отправлена</h3>
-                <div class="payout-amount-big">100.00 USDT</div>
-                
-                <div class="detailed-stats-table" style="margin-top: 20px;">
-                    <div class="table-row"><span>Метод:</span><strong>USDT TRC20</strong></div>
-                    <div class="table-row"><span>Адрес:</span><strong>T9z...2WTm</strong></div>
-                    <div class="table-row"><span>ID:</span><strong>1234__5678</strong></div>
-                    <div class="table-row"><span>Дата:</span><strong>21.05.2024 12:30</strong></div>
-                </div>
-                <button class="btn btn-purple-outline full-width-btn" style="margin-top:20px;">Поддержка</button>
-            </div>
-        </section>
         <!-- ================= ЭКРАН 7: УВЕДОМЛЕНИЯ ================= -->
         <section id="page-notifications" class="page">
             <button class="btn-back" onclick="switchPage('profile')">← В профиль</button>
-            <div class="flex-space-between" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                <h2>Уведомления</h2>
-                <span class="blue-text" style="font-size:12px; cursor:pointer;">Отметить все как прочитанные</span>
-            </div>
-
-            <div class="notifications-list">
-                <div class="notif-card unread">
-                    <h4>Новая конверсия</h4>
-                    <p>Вам начислено $1.50 за оффер Adult Dating</p>
-                    <span class="notif-time">10 минут назад</span>
-                </div>
-                <div class="notif-card">
-                    <h4>Выплата утверждена</h4>
-                    <p>100.00 USDT успешно отправлены</p>
-                    <span class="notif-time">1 день назад</span>
+            <h2>Уведомления</h2>
+            
+            <div class="conversions-stack">
+                <div class="glass-card conversion-row unread">
+                    <div class="conv-left">
+                        <div class="luxury-icon-box purple">💰</div>
+                        <div>
+                            <h4>Конверсия засчитана</h4>
+                            <p class="time-stamp">Только что</p>
+                        </div>
+                    </div>
+                    <span class="green-text">+$12.50</span>
                 </div>
             </div>
         </section>
@@ -319,101 +375,12 @@
             <button class="btn-back" onclick="switchPage('profile')">← В профиль</button>
             <h2>Настройки</h2>
             
-            <div class="menu-list">
-                <div class="menu-item"><span>👤 Изменить профиль</span><span>&gt;</span></div>
-                <div class="menu-item"><span>🔒 Безопасность</span><span>&gt;</span></div>
-            </div>
-
-            <div class="section-title" style="margin-top:15px;">Основное</div>
-            <div class="settings-toggle-card">
+            <div class="glass-card settings-toggle-card">
                 <div class="toggle-row">
-                    <span>Push уведомления</span>
+                    <span>Уведомления в Telegram</span>
                     <input type="checkbox" checked>
                 </div>
                 <div class="toggle-row">
-                    <span>Email уведомления</span>
+                    <span>Звуковые сигналы лидов</span>
                     <input type="checkbox">
                 </div>
-            </div>
-
-            <div class="section-title">Другое</div>
-            <div class="menu-list">
-                <div class="menu-item"><span>🌐 Язык</span><span>Русский &gt;</span></div>
-                <div class="menu-item"><span>🎨 Тема</span><span>Тёмная &gt;</span></div>
-            </div>
-            
-            <button class="btn btn-danger-outline full-width-btn" style="margin-top: 20px;">Удалить аккаунт</button>
-        </section>
-
-        <!-- ================= ЭКРАН 9: АДМИН-ПАНЕЛЬ ================= -->
-        <section id="page-admin" class="page">
-            <button class="btn-back" onclick="switchPage('profile')">← В профиль</button>
-            <h2>Админ-панель</h2>
-            
-            <div class="menu-list">
-                <div class="menu-item" onclick="openAdminSub('users')"><span>👥 Пользователи</span><span>&gt;</span></div>
-                <div class="menu-item"><span>💼 Офферы</span><span>&gt;</span></div>
-                <div class="menu-item"><span>💳 Выплаты</span><span>&gt;</span></div>
-                <div class="menu-item"><span>📊 Статистика</span><span>&gt;</span></div>
-            </div>
-            <button class="btn btn-danger full-width-btn" style="margin-top:30px;">Выход из админ-панели</button>
-        </section>
-
-        <!-- ВЛОЖЕННЫЙ ЭКРАН 9.1: ПОЛЬЗОВАТЕЛИ (АДМИН) ================= -->
-        <section id="page-admin-users" class="page">
-            <button class="btn-back" onclick="switchPage('admin')">← В админку</button>
-            <h2>Управление пользователями</h2>
-            <div class="users-admin-list">
-                <div class="admin-user-card">
-                    <div class="card-left">
-                        <span class="avatar-icon">👤</span>
-                        <div>
-                            <h4>John Doe</h4>
-                            <p>ID: 1234567 | wm@vvd.com</p>
-                        </div>
-                    </div>
-                    <span class="badge badge-purple">Admin</span>
-                </div>
-                <div class="admin-user-card">
-                    <div class="card-left">
-                        <span class="avatar-icon">👤</span>
-                        <div>
-                            <h4>Jane Smith</h4>
-                            <p>ID: 7654321 | jane@cpa.ru</p>
-                        </div>
-                    </div>
-                    <span class="badge">Webmaster</span>
-                </div>
-            </div>
-        </section>
-
-        <!-- ================= НАВИГАЦИЯ (BOTTOM MENU) ================= -->
-        <nav class="app-nav">
-            <button class="nav-item active" onclick="switchPage('main', this)">
-                <span class="icon">🏠</span>
-                <span class="label">Главная</span>
-            </button>
-            <button class="nav-item" onclick="switchPage('offers', this)">
-                <span class="icon">💼</span>
-                <span class="label">Офферы</span>
-            </button>
-            <button class="nav-item" onclick="switchPage('stats', this)">
-                <span class="icon">📊</span>
-                <span class="label">Статистика</span>
-            </button>
-            <button class="nav-item" onclick="switchPage('chat', this)">
-                <span class="icon">💬</span>
-                <span class="label">Чат</span>
-            </button>
-            <button class="nav-item" onclick="switchPage('profile', this)">
-                <span class="icon">👤</span>
-                <span class="label">Профиль</span>
-            </button>
-        </nav>
-    </div>
-
-    <!-- ПОДКЛЮЧЕНИЕ СКРИПТОВ ЛОГИКИ -->
-    <script src="telegram.js"></script>
-    <script src="app.js"></script>
-</body>
-</html>
