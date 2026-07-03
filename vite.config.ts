@@ -4,6 +4,8 @@ import { fileURLToPath } from 'url';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // Указываем базовый путь для корректного поиска ассетов на GitHub Pages
+  base: '/vvd-cpa/',
   plugins: [react()],
   resolve: {
     alias: {
