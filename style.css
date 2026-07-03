@@ -1,10 +1,10 @@
 /* ==========================================================================
-   VVD CPA — ФИНАЛЬНЫЙ СТИЛЕВОЙ ПАКЕТ (PREMIUM DARK LUXURY DESIGN SYSTEM)
+   VVD CPA — СТИЛИЗАЦИЯ ИНТЕРФЕЙСА PREMIUM DARK LUXURY (ПОЛНЫЙ ФАЙЛ)
    ========================================================================== */
 
-/* 1. ПЕРЕМЕННЫЕ И ДИЗАЙН-КОНСТАНТЫ ИЗ ТЗ */
+/* 1. БАЗОВАЯ НАСТРОЙКА ПЕРЕМЕННЫХ И ДИЗАЙН-СИСТЕМЫ */
 :root {
-    /* Основные цвета */
+    /* Цветовая палитра из ТЗ */
     --bg-main: #070A14;
     --bg-secondary: #0D1222;
     --bg-card: #101726;
@@ -19,25 +19,25 @@
     --color-white: #F8FAFF;
     --color-gray: #A5AEC5;
 
-    /* Фирменные Градиенты */
+    /* Градиенты Stripe / Apple Style */
     --grad-primary: linear-gradient(135deg, #6E45FF, #9747FF, #C44DFF);
     --grad-green: linear-gradient(135deg, #00D26A, #00F59A);
     --grad-red: linear-gradient(135deg, #FF4D67, #FF6A7A);
     --grad-glass: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015));
 
-    /* Свечения, Тени и Блуры */
+    /* Свечения, Тени и Размытия */
     --shadow-glow: 0 0 15px rgba(123, 77, 255, 0.45), 0 0 40px rgba(123, 77, 255, 0.18);
     --shadow-card: 0 15px 60px rgba(0, 0, 0, 0.55);
     --blur-glass: blur(28px);
 
-    /* Геометрия интерфейса */
+    /* Геометрия и Шрифты */
     --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
     --radius-card: 28px;
     --radius-btn: 20px;
     --radius-badge: 14px;
 }
 
-/* 2. ГЛОБАЛЬНЫЕ СБРОСЫ И БАЗОВЫЕ НАСТРОЙКИ СТРАНИЦЫ */
+/* 2. ГЛОБАЛЬНЫЕ СБРОСЫ СТИЛЕЙ */
 * {
     box-sizing: border-box;
     margin: 0;
@@ -52,10 +52,10 @@ body {
     min-height: 100vh;
     overflow-x: hidden;
     position: relative;
-    padding-bottom: 104px; /* Отступ снизу для безопасного скролла над меню */
+    padding-bottom: 104px; /* Безопасный отступ для нижнего меню */
 }
 
-/* Элегантный тонкий скроллбар */
+/* Элегантный кастомный скроллбар */
 ::-webkit-scrollbar {
     width: 4px;
 }
@@ -67,7 +67,16 @@ body {
     border-radius: 10px;
 }
 
-/* 3. НЕОНОВЫЙ КИБЕР-ЗАДНИЙ ФОН И СВЕТОВЫЕ ЭФФЕКТЫ */
+/* Поведение контейнеров экранов */
+.screen {
+    display: none;
+}
+.screen.active {
+    display: block;
+    animation: screenAnimateIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 3. НЕОНОВЫЕ СВЕТОВЫЕ ПЯТНА НА ЗАДНЕМ ФОНЕ */
 .bg-glow-container {
     position: fixed;
     inset: 0;
@@ -88,7 +97,7 @@ body {
     width: 350px;
     height: 350px;
     background: var(--accent-purple);
-    animation: floatGlow 12s ease-in-out infinite alternate;
+    animation: pulseFloatingGlow 12s ease-in-out infinite alternate;
 }
 .spot-2 {
     bottom: 15%;
@@ -96,107 +105,44 @@ body {
     width: 400px;
     height: 400px;
     background: var(--accent-purple-secondary);
-    animation: floatGlow 18s ease-in-out infinite alternate-reverse;
+    animation: pulseFloatingGlow 18s ease-in-out infinite alternate-reverse;
 }
 .bg-noise {
     position: absolute;
     inset: 0;
     opacity: 0.02;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://w3.org id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://w3.org id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
 }
 
-/* 4. ШАПКА ПРИЛОЖЕНИЯ (HEADER) */
-.app-header {
-    height: 64px;
-    padding: 0 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    background: rgba(7, 10, 20, 0.7);
-    backdrop-filter: blur(15px);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-}
-.brand { display: flex; align-items: center; gap: 8px; }
-.brand-logo {
-    font-size: 18px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    background: var(--grad-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-.badge-demo {
-    font-size: 9px;
-    font-weight: 600;
-    padding: 3px 8px;
-    border-radius: var(--radius-badge);
-    background: rgba(123, 77, 255, 0.15);
-    color: #9D6BFF;
-    border: 1px solid rgba(123, 77, 255, 0.25);
-}
-.header-status {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(255, 255, 255, 0.04);
-    padding: 6px 12px;
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-}
-.status-indicator {
-    width: 6px;
-    height: 6px;
-    background-color: var(--color-green);
-    border-radius: 50%;
-    box-shadow: 0 0 8px var(--color-green);
-}
-.status-text { font-size: 11px; font-weight: 500; color: var(--color-gray); }
-
-/* 5. ОБЩИЕ ЭЛЕМЕНТЫ КОНТЕНТА И СЕТКИ КАНВАSA */
-.screen-container {
-    flex: 1;
-    padding: 20px;
-}
-
-/* БАЗОВЫЙ КЛАСС GLASSMORPHISM КАРТОЧЕК */
-.vvd-card {
-    background: var(--grad-glass);
-    backdrop-filter: var(--blur-glass);
-    -webkit-backdrop-filter: var(--blur-glass);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: var(--radius-card);
-    padding: 22px;
-    box-shadow: var(--shadow-card);
-    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.25s;
-}
-.vvd-card:hover {
-    background-color: var(--bg-card-hover);
-    transform: translateY(-3px);
-}
-
-/* ГЛОБАЛЬНЫЙ СТИЛЬ КНОПОК И ПОЛЕЙ ВВОДА */
+/* 4. ГЛОБАЛЬНЫЕ СТИЛИ КОМПОНЕНТОВ (ИНПУТЫ, СЕЛЕКТЫ, КНОПКИ) */
 .vvd-input {
     width: 100%;
     height: 52px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 16px !important;
     padding: 0 16px;
-    color: #fff;
+    color: #fff !important;
     font-family: var(--font-family);
     font-size: 14px;
     outline: none;
-    transition: border-color 0.25s ease;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 .vvd-input:focus {
-    border-color: var(--accent-purple);
-    box-shadow: 0 0 10px rgba(123, 77, 255, 0.15);
+    border-color: var(--accent-purple) !important;
+    box-shadow: 0 0 12px rgba(123, 77, 255, 0.2);
+}
+select.vvd-input {
+    appearance: none;
+    cursor: pointer;
+}
+select.vvd-input option {
+    background: var(--bg-secondary);
+    color: #fff;
 }
 
-.vvd-btn, #btn-send-msg, #btn-do-withdraw, #btn-save-settings {
+/* Премиум-кнопки по ТЗ */
+.vvd-btn {
     height: 56px;
     border-radius: var(--radius-btn);
     border: none;
@@ -214,66 +160,92 @@ body {
     background: var(--grad-primary);
     box-shadow: var(--shadow-glow);
 }
-.vvd-btn:hover, #btn-send-msg:hover, #btn-do-withdraw:hover, #btn-save-settings:hover {
+.vvd-btn:hover {
     transform: scale(1.02) translateY(-2px);
 }
-
-/* 6. СТИЛИЗАЦИЯ ИНТЕРФЕЙСОВ ЭКРАНОВ */
-
-/* --- ЭКРАН 1: ГЛАВНАЯ ПАНЕЛЬ --- */
-.user-welcome-bar { display: flex; align-items: center; gap: 12px; }
-.avatar-mock {
-    width: 44px; height: 44px; border-radius: 50%; background: var(--grad-primary);
-    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px;
+.vvd-btn:active {
+    transform: scale(0.98) translateY(0);
 }
-.welcome-title { font-size: 12px; color: var(--color-gray); }
-.username { font-size: 16px; font-weight: 600; }
 
-.balance-card { position: relative; }
-.balance-label { font-size: 12px; color: var(--color-gray); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-.balance-amount { font-size: 34px; font-weight: 700; margin-bottom: 18px; letter-spacing: -0.5px; }
-.balance-stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 15px; }
+/* 5. СТИЛИЗАЦИЯ ИНТЕРФЕЙСОВ ЭКРАНОВ */
 
-.section-header { display: flex; justify-content: space-between; align-items: center; }
-.section-link { font-size: 13px; color: var(--accent-purple-secondary); cursor: pointer; font-weight: 500; }
-
-.conversions-list { display: flex; flex-direction: column; gap: 10px; }
+/* Лента недавних конверсий */
 .conversion-item {
-    display: flex; align-items: center; justify-content: space-between; padding: 14px 16px;
-    background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 20px;
+    transition: background-color 0.2s ease, transform 0.2s ease;
 }
-.item-icon-wrapper { width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
-.item-icon-wrapper.dating { background: rgba(255, 75, 106, 0.1); color: var(--color-red); }
-.item-icon-wrapper.nutra { background: rgba(30, 234, 122, 0.1); color: var(--color-green); }
-.item-icon-wrapper.crypto { background: rgba(123, 77, 255, 0.1); color: var(--accent-purple-secondary); }
+.conversion-item:hover {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    transform: translateY(-2px);
+}
 
-/* --- ЭКРАН 2: ВЕРТИКАЛИ ОФФЕРОВ --- */
-.offers-list { display: flex; flex-direction: column; gap: 16px; }
+/* Карточки вертикалей офферов */
+.offer-card {
+    transition: all 0.25s ease;
+}
+.offer-card:hover {
+    background-color: var(--bg-card-hover) !important;
+    transform: translateY(-3px);
+}
 .vvd-btn-get {
-    width: 100%; height: 48px; border-radius: 16px; background: var(--accent-purple);
-    border: none; color: #fff; font-weight: 600; font-size: 14px; cursor: pointer;
-    box-shadow: 0 4px 15px rgba(123, 77, 255, 0.2); transition: all 0.25s;
+    width: 100%;
+    height: 56px;
+    border-radius: var(--radius-btn);
+    background: var(--accent-purple);
+    border: none;
+    color: #fff;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+    box-shadow: var(--shadow-glow);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.vvd-btn-get:hover { transform: scale(1.02); background: #8c62ff; box-shadow: var(--shadow-glow); }
+.vvd-btn-get:hover {
+    transform: scale(1.02) translateY(-2px);
+    background: #8c62ff;
+}
 
-/* --- ЭКРАН 3: ГРАФИКИ И ТРАНЗАКЦИИ --- */
-.mock-chart { height: 120px; display: flex; align-items: flex-end; justify-content: space-between; padding: 15px 5px 25px 5px; position: relative; }
-.chart-bar { transition: transform 0.3s ease; cursor: pointer; }
-.chart-bar:hover { transform: scaleY(1.05); }
+/* Столбцы недельного графика */
+.chart-bar {
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s;
+}
+.chart-bar:not(.active-day):hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    transform: scaleY(1.05);
+}
 
-.payout-history-item { transition: all 0.2s; }
-.payout-history-item:hover { background: rgba(255,255,255,0.04) !important; border-color: rgba(255,255,255,0.08) !important; }
+/* Лог выплат */
+.payout-history-item {
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.payout-history-item:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
 
-/* --- ЭКРАН 4: ТЕХПОДДЕРЖКА --- */
-.chat-messages-area::-webkit-scrollbar { width: 2px; }
-.message { transition: transform 0.2s ease; }
+/* Элементы списков в Профиле */
+.menu-list-item {
+    transition: background-color 0.2s ease;
+}
+.menu-list-item:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
 
-/* --- НИЖНЯЯ ПАНЕЛЬ МЕНЮ (BOTTOM MENU NAVIGATION) --- */
+/* 6. ПРЕМИАЛЬНОЕ СТЕКЛЯННОЕ НИЖНЕЕ МЕНЮ (BOTTOM MENU) */
 .bottom-menu {
-    position: fixed; bottom: 0; left: 0; width: 100%; height: 84px;
-    background: var(--grad-glass); backdrop-filter: var(--blur-glass); -webkit-backdrop-filter: var(--blur-glass);
-    border-top: 1px solid rgba(255, 255, 255, 0.08); box-shadow: var(--shadow-card);
-    display: flex; justify-content: space-around; align-items: center;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 84px;
+    background: var(--grad-glass);
+    backdrop-filter: var(--blur-glass);
+    -webkit-backdrop-filter: var(--blur-glass);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: var(--shadow-card);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
     padding-bottom: max(10px, env(safe-area-inset-bottom));
     z-index: 1000;
 }
@@ -281,17 +253,23 @@ body {
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     border-radius: var(--radius-btn);
 }
-.nav-item:active { transform: scale(0.9); }
-
-/* 7. АНИМАЦИИ ПОЯВЛЕНИЯ ЭКРАНОВ И ПУЛЬСАЦИИ СВЕЧЕНИЯ */
-@keyframes floatGlow {
-    0% { transform: translate(0, 0) scale(1); }
-    100% { transform: translate(30px, 20px) scale(1.12); }
+.nav-item:active {
+    transform: scale(0.9);
 }
 
-@keyframes screenFadeIn {
+/* 7. ПЛАВНЫЕ АНИМАЦИИ КИБЕР-ЭФФЕКТОВ */
+@keyframes pulseFloatingGlow {
+    0% { transform: translate(0, 0) scale(1); opacity: 0.3; }
+    100% { transform: translate(30px, 20px) scale(1.12); opacity: 0.4; }
+}
+
+@keyframes screenAnimateIn {
     from {
         opacity: 0;
-        transform: translateY(12px);
+        transform: translateY(15px);
     }
     to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
