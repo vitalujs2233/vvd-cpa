@@ -6,16 +6,10 @@ import { Home } from '@/pages/home/Home';
 import { Offers } from '@/pages/offers/Offers';
 import { OfferDetail } from '@/pages/offers/OfferDetail';
 import { Withdrawal } from '@/pages/withdrawal/Withdrawal';
+import { Stats } from '@/pages/stats/Stats';
 
 // Временные легковесные компоненты страниц для бесшовной сборки проекта на данном этапе.
 // В процессе развития проекта мы заменим их полноценными изолированными страницами.
-const StatsPlaceholder = () => (
-  <div className="flex-1 flex flex-col items-center justify-center p-20 text-center h-full">
-    <h1 className="text-2xl font-bold text-white">Статистика</h1>
-    <p className="text-textMuted text-xs mt-2">Раздел интерактивной аналитики готовится к детальной верстке.</p>
-  </div>
-);
-
 const ChatPlaceholder = () => (
   <div className="flex-1 flex flex-col items-center justify-center p-20 text-center h-full">
     <h1 className="text-2xl font-bold text-white">Чат Поддержки</h1>
@@ -123,7 +117,7 @@ const App = () => {
         <Route path="/" element={<AppLayout />}>
           <Route index element={<Home />} />
           <Route path="offers" element={<Offers />} />
-          <Route path="stats" element={<StatsPlaceholder />} />
+          <Route path="stats" element={<Stats />} />
           <Route path="chat" element={<ChatPlaceholder />} />
           <Route path="profile" element={<ProfilePlaceholder />} />
         </Route>
