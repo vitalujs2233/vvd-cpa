@@ -1,5 +1,5 @@
 // ==========================================================================
-// VVD CPA — ПОЛНЫЙ ФАЙЛ ЛОГИКИ ПРИЛОЖЕНИЯ (ВСЕ ЭКРАНЫ И ИНТЕРАКТИВ)
+// VVD CPA — ПОЛНЫЙ ФАЙЛ ЛОГИКИ ПРИЛОЖЕНИЯ ДЛЯ ВСЕХ 9 ЭКРАНОВ СТРУКТУРЫ
 // ==========================================================================
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -62,7 +62,7 @@ const AppRouter = {
     // Логика кликов по кнопкам внутри экранов и переходов «Назад»
     bindSubScreens() {
         // Клик по тексту "История" на Главной переключает на вкладку Статистики
-        const historyLink = document.querySelector("#screen-main .section-link");
+        const historyLink = document.getElementById("link-to-history");
         if (historyLink) {
             historyLink.addEventListener("click", () => {
                 const statsTabButton = document.querySelector(".bottom-menu [data-target='screen-stats']");
@@ -114,6 +114,18 @@ const AppRouter = {
         document.getElementById("back-admin")?.addEventListener("click", () => {
             this.switchScreen("screen-profile");
         });
+
+        // Имитация создания заявки на выплату по кнопке "Вывести"
+        document.getElementById("btn-do-withdraw")?.addEventListener("click", () => {
+            alert("Заявка на вывод средств успешно создана! Обработка займет до 24 часов.");
+            this.switchScreen("screen-profile");
+        });
+
+        // Имитация сохранения настроек
+        document.getElementById("btn-save-settings")?.addEventListener("click", () => {
+            alert("Настройки профиля успешно обновлены!");
+            this.switchScreen("screen-profile");
+        });
     },
 
     // Логика получения ссылок и отправки сообщений в поддержку
@@ -124,19 +136,19 @@ const AppRouter = {
         
         offerButtons.forEach((btn, index) => {
             btn.addEventListener("click", (e) => {
-                // Имитируем получение ссылки: создаем поле с готовым SmartLink и кнопку Копировать
+                // Получаем родительскую карточку оффера
                 const card = e.currentTarget.parentElement;
                 
-                // Удаляем кнопку "Получить"
+                // Удаляем саму кнопку "Получить SmartLink"
                 e.currentTarget.remove();
                 
-                // Создаем контейнер для ссылки
+                // Создаем контейнер для красивого отображения ссылки
                 const linkBox = document.createElement("div");
                 linkBox.style.display = "flex";
                 linkBox.style.gap = "8px";
                 linkBox.style.marginTop = "10px";
                 
-                // Добавляем инпут со ссылкой
+                // Добавляем инпут с готовым адресом смартлинка
                 const input = document.createElement("input");
                 input.type = "text";
                 input.value = `https://vvd.cpa{index + 1}`;
@@ -151,7 +163,7 @@ const AppRouter = {
                 input.style.fontSize = "13px";
                 input.style.outline = "none";
                 
-                // Добавляем кнопку "Копировать"
+                // Добавляем премиальную кнопку "Копировать"
                 const copyBtn = document.createElement("button");
                 copyBtn.innerHTML = "Копировать";
                 copyBtn.style.height = "48px";
@@ -162,7 +174,9 @@ const AppRouter = {
                 copyBtn.style.color = "#9D6BFF";
                 copyBtn.style.fontWeight = "600";
                 copyBtn.style.cursor = "pointer";
+                copyBtn.style.fontSize = "13px";
                 
+                // Обработчик копирования в буфер обмена
                 copyBtn.addEventListener("click", () => {
                     navigator.clipboard.writeText(input.value);
                     alert("SmartLink успешно скопирован в буфер обмена!");
@@ -182,13 +196,13 @@ const AppRouter = {
         if (sendBtn && inputField && chatBox) {
             const sendMessage = () => {
                 const text = inputField.value.trim();
-                if (!text) return; // Если пусто — ничего не делаем
+                if (!text) return; // Если в инпуте пусто — ничего не делаем
 
-                // Создаем облачко сообщения от пользователя
+                // Создаем и настраиваем блок сообщения от пользователя
                 const userMessage = document.createElement("div");
                 userMessage.style.maxWidth = "80%";
                 userMessage.style.padding = "12px 16px";
-                userMessage.style.background = "#7B4DFF"; // Фиолетовый фон для юзера
+                userMessage.style.background = "#7B4DFF"; // Неоновый фиолетовый для пользователя
                 userMessage.style.alignSelf = "flex-end";
                 userMessage.style.borderRadius = "18px";
                 userMessage.style.borderBottomRightRadius = "4px";
@@ -202,20 +216,8 @@ const AppRouter = {
                 `;
 
                 chatBox.appendChild(userMessage);
-                inputField.value = ""; // Очищаем поле ввода
-                chatBox.scrollTop = chatBox.scrollHeight; // Скроллим чат вниз
+                inputField.value = ""; // Мгновенно очищаем поле ввода
+                chatBox.scrollTop = chatBox.scrollHeight; // Скроллим чат до самого низа
 
-                // Имитируем автоответ от менеджера через 1.5 секунды
+                // Симулируем ответ от техподдержки сети через 1.5 секунды
                 setTimeout(() => {
-                    const managerMessage = document.createElement("div");
-                    managerMessage.style.maxWidth = "80%";
-                    managerMessage.style.padding = "12px 16px";
-                    managerMessage.style.background = "rgba(255,255,255,0.04)";
-                    managerMessage.style.alignSelf = "flex-start";
-                    managerMessage.style.borderRadius = "18px";
-                    managerMessage.style.borderBottomLeftRadius = "4px";
-                    managerMessage.style.display = "flex";
-                    managerMessage.style.flexDirection = "column";
-                    managerMessage.style.gap = "4px";
-
-                    managerMessage.innerHTML = `
