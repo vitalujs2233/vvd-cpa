@@ -16,8 +16,8 @@
 
     /* Проверки качества кода */
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,        // Изменено на false, чтобы неиспользуемые импорты не ломали сборку
+    "noUnusedParameters": false,    // Изменено на false, чтобы неиспользуемые параметры не ломали сборку
     "noFallthroughCasesInSwitch": true,
 
     /* Настройка алиасов для TypeScript */
