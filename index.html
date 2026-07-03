@@ -3,43 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>VVD CPA - Premium</title>
-    <!-- Официальный скрипт Telegram WebApp SDK -->
+    <title>VVD CPA - Premium Platform</title>
+    <!-- Официальное SDK Telegram WebApp -->
     <script src="https://telegram.org"></script>
-    <!-- Подключаем шрифт Inter для дорогого SaaS стиля -->
+    <!-- Премиум-шрифты Inter и SF Pro Display -->
     <link rel="preconnect" href="https://googleapis.com">
     <link rel="preconnect" href="https://gstatic.com" crossorigin>
     <link href="https://googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Слои для неонового размытого бэкграунда и мелкого шума -->
-    <div class="bg-glow spotlight-1"></div>
-    <div class="bg-glow spotlight-2"></div>
+    <!-- Фоновые неоновые световые пятна (Radial Gradient), волны и шум по ТЗ -->
+    <div class="bg-glow spotlight-purple"></div>
+    <div class="bg-glow spotlight-violet"></div>
     <div class="bg-noise"></div>
 
     <div id="app">
         
-        <!-- ВЕРХНЯЯ ЛЕНТА: КАРТА ЭКРАНОВ (Горизонтальный скролл) -->
+        <!-- ВЕРХНЯЯ ЛЕНТА: КАРТА ЭКРАНОВ (Кастомный горизонтальный скролл для отладки каркаса) -->
         <header class="top-navigation-slider">
             <div class="slider-title">Карта экранов и навигация</div>
             <div class="slider-track">
-                <span class="slide-tag active" onclick="switchPage('main')">1. Главная</span>
-                <span class="slide-tag" onclick="switchPage('offers')">2. Офферы</span>
-                <span class="slide-tag" onclick="switchPage('stats')">3. Статистика</span>
-                <span class="slide-tag" onclick="switchPage('chat')">4. Чат</span>
-                <span class="slide-tag" onclick="switchPage('profile')">5. Профиль</span>
-                <span class="slide-tag" onclick="switchPage('withdraw')">6. Вывод</span>
-                <span class="slide-tag" onclick="switchPage('notifications')">7. Уведомления</span>
-                <span class="slide-tag" onclick="switchPage('settings')">8. Настройки</span>
-                <span class="slide-tag" onclick="switchPage('admin')">9. Админка</span>
+                <span class="slide-tag active" onclick="switchPage('main', this)">1. Главная</span>
+                <span class="slide-tag" onclick="switchPage('offers', this)">2. Офферы</span>
+                <span class="slide-tag" onclick="switchPage('stats', this)">3. Статистика</span>
+                <span class="slide-tag" onclick="switchPage('chat', this)">4. Чат</span>
+                <span class="slide-tag" onclick="switchPage('profile', this)">5. Профиль</span>
+                <span class="slide-tag" onclick="switchPage('withdraw', this)">6. Вывод</span>
+                <span class="slide-tag" onclick="switchPage('notifications', this)">7. Уведомления</span>
+                <span class="slide-tag" onclick="switchPage('settings', this)">8. Настройки</span>
+                <span class="slide-tag" onclick="switchPage('admin', this)">9. Админка</span>
             </div>
         </header>
 
         <!-- ================= ЭКРАН 1: ГЛАВНАЯ (PREMIUM DASHBOARD) ================= -->
         <section id="page-main" class="page active">
-            <!-- Главная карточка профиля (Аватар 72px) -->
-            <div class="luxury-profile-card">
+            <!-- Роскошный блок профиля вебмастера -->
+            <div class="glass-card luxury-profile-card">
                 <div class="profile-left">
                     <div class="avatar-container">
                         <img id="main-avatar" src="assets/default-avatar.png" alt="User Avatar" class="luxury-avatar">
@@ -68,16 +68,16 @@
                 </div>
             </div>
 
-            <!-- Сетка промежуточных метрик с мини-графиками -->
+            <!-- Сетка финансовых блоков (День сегодня / Выплачено) с мини-графиками по ТЗ -->
             <div class="dashboard-grid-stats">
                 <div class="glass-card stat-metric-box">
                     <span class="lbl-small">День сегодня</span>
                     <div class="metric-amount">$23.40</div>
                     <div class="mini-sparkline purple">
                         <div class="sparkline-bar" style="height: 30%"></div>
-                        <div class="sparkline-bar" style="height: 45%"></div>
-                        <div class="sparkline-bar" style="height: 35%"></div>
-                        <div class="sparkline-bar" style="height: 70%"></div>
+                        <div class="sparkline-bar" style="height: 55%"></div>
+                        <div class="sparkline-bar" style="height: 40%"></div>
+                        <div class="sparkline-bar" style="height: 80%"></div>
                     </div>
                 </div>
                 <div class="glass-card stat-metric-box">
@@ -85,13 +85,14 @@
                     <div class="metric-amount font-large">$1,234.50</div>
                     <div class="mini-sparkline green">
                         <div class="sparkline-bar" style="height: 20%"></div>
-                        <div class="sparkline-bar" style="height: 40%"></div>
-                        <div class="sparkline-bar" style="height: 60%"></div>
-                        <div class="sparkline-bar" style="height: 85%"></div>
+                        <div class="sparkline-bar" style="height: 45%"></div>
+                        <div class="sparkline-bar" style="height: 65%"></div>
+                        <div class="sparkline-bar" style="height: 90%"></div>
                     </div>
                 </div>
             </div>
 
+            <!-- Лента последних конверсий по ТЗ -->
             <div class="section-flex-header">
                 <span class="section-title">Последние конверсии</span>
                 <span class="action-link" onclick="switchPage('stats')">Смотреть все</span>
@@ -120,7 +121,7 @@
                 </div>
             </div>
 
-            <!-- Главный SmartLink на основном экране -->
+            <!-- Карточка оффера на главном экране по ТЗ -->
             <div class="glass-card luxury-smartlink-showcase">
                 <div class="sl-main-header">
                     <div class="sl-title-block">
@@ -145,8 +146,7 @@
                 <button class="btn btn-gradient full-width" onclick="openCategory('adult')">🔗 Получить SmartLink</button>
             </div>
         </section>
-
-        <!-- ================= ЭКРАН 2: ОФФЕРЫ (КАТЕГОРИИ) ================= -->
+                <!-- ================= ЭКРАН 2: ОФФЕРЫ (КАТЕГОРИИ) ================= -->
         <section id="page-offers" class="page">
             <div class="search-wrapper">
                 <input type="text" class="luxury-search-input" placeholder="Поиск приватных офферов...">
@@ -168,7 +168,7 @@
                         <span class="badge-count">42 Offers</span>
                     </div>
                     <h3>Mainstream</h3>
-                    <p>Прямые реклы</p>
+                    <p>Прямые рекламодатели</p>
                 </div>
                 <div class="glass-card premium-category-card" onclick="openCategory('nutra')">
                     <div class="pcat-header">
@@ -176,7 +176,7 @@
                         <span class="badge-count">112 Offers</span>
                     </div>
                     <h3>Nutra Offers</h3>
-                    <p>Высокие ставки</p>
+                    <p>Высокие ставки, COD</p>
                 </div>
                 <div class="glass-card premium-category-card" onclick="openCategory('crypto')">
                     <div class="pcat-header">
@@ -188,6 +188,7 @@
                 </div>
             </div>
         </section>
+
         <!-- ВЛОЖЕННЫЙ ЭКРАН 2.1: ДЕТАЛИ КАТЕГОРИИ / GENERATOR -->
         <section id="page-category-detail" class="page">
             <button class="btn-back" onclick="switchPage('offers')">← Назад к категориям</button>
@@ -247,8 +248,9 @@
                 </div>
             </div>
 
+            <!-- Большой премиум-график по ТЗ -->
             <div class="glass-card stats-box" style="margin-bottom: 24px; text-align: left; padding: 20px;">
-                <span>Доход</span>
+                <span>Доход сегодня</span>
                 <div style="font-size: 26px; font-weight: 800; margin-top: 4px;" class="green-text">$23.45 <small style="font-size:13px; font-weight:600;">+12.5%</small></div>
                 <div class="mock-chart"></div>
             </div>
@@ -290,8 +292,7 @@
                 </div>
             </div>
         </section>
-
-        <!-- ================= ЭКРАН 5: ПРОФИЛЬ ================= -->
+        <!-- ================= ЭКРАН 5: ПРОФИЛЬ (ЛИЧНЫЙ КАБИНЕТ) ================= -->
         <section id="page-profile" class="page">
             <div class="glass-card" style="text-align: center; padding: 32px 20px; margin-bottom: 20px;">
                 <div class="avatar-container" style="margin: 0 auto 16px auto; width:72px; height:72px;">
@@ -311,7 +312,7 @@
             </div>
         </section>
 
-        <!-- ================= ЭКРАН 6: ВЫВОД СРЕДСТВ ================= -->
+        <!-- ================= ЭКРАН 6: ВЫВОД СРЕДСТВ (FINANCIAL GATEWAY) ================= -->
         <section id="page-withdraw" class="page">
             <button class="btn-back" onclick="switchPage('profile')">← В профиль</button>
             <h2>Вывод средств</h2>
@@ -364,7 +365,7 @@
             </div>
         </section>
 
-        <!-- ================= ЭКРАН 8: НАСТРОЙКИ ================= -->
+        <!-- ================= ЭКРАН 8: НАСТРОЙКИ (TOGGLES) ================= -->
         <section id="page-settings" class="page">
             <button class="btn-back" onclick="switchPage('profile')">← В профиль</button>
             <h2>Настройки</h2>
@@ -378,3 +379,52 @@
                     <span>Звуковые сигналы лидов</span>
                     <input type="checkbox">
                 </div>
+                <div class="toggle-row">
+                    <span>Двухфакторная защита</span>
+                    <input type="checkbox" checked>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= ЭКРАН 9: АДМИН-ПАНЕЛЬ (ДЛЯ КАРТЫ ЭКРАНОВ) ================= -->
+        <section id="page-admin" class="page">
+            <button class="btn-back" onclick="switchPage('profile')">← В профиль</button>
+            <h2>Панель управления</h2>
+            
+            <div class="glass-card menu-list">
+                <div class="menu-item"><span>👥 Всего вебмастеров:</span><strong>1,420</strong></div>
+                <div class="menu-item"><span>💳 Выплат на холде:</span><strong class="orange-text">$4,320.00</strong></div>
+                <div class="menu-item"><span>📊 Общий EPC сети:</span><strong class="blue-text">$0.14</strong></div>
+            </div>
+        </section>
+
+        <!-- ================= ФИКСИРОВАННЫЙ НИЖНИЙ ДОК-БАР (ВЫСОТА 84PX) ================= -->
+        <nav class="app-nav">
+            <button class="nav-item active" onclick="switchPage('main', this)">
+                <span class="icon">🏠</span>
+                <span class="label">Главная</span>
+            </button>
+            <button class="nav-item" onclick="switchPage('offers', this)">
+                <span class="icon">💼</span>
+                <span class="label">Офферы</span>
+            </button>
+            <button class="nav-item" onclick="switchPage('stats', this)">
+                <span class="icon">📊</span>
+                <span class="label">Статистика</span>
+            </button>
+            <button class="nav-item" onclick="switchPage('chat', this)">
+                <span class="icon">💬</span>
+                <span class="label">Чат</span>
+            </button>
+            <button class="nav-item" onclick="switchPage('profile', this)">
+                <span class="icon">👤</span>
+                <span class="label">Профиль</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- ПОДКЛЮЧЕНИЕ СКРИПТОВ ЛОГИКИ СИНХРОННО КАРКАСУ -->
+    <script src="telegram.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
