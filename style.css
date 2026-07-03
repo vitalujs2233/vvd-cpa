@@ -1,191 +1,48 @@
 /* ==========================================================================
-   PREMIUM DARK LUXURY DESIGN SYSTEM — VVD CPA (ЧАСТЬ 1)
+   ЖЕСТКИЙ СИСТЕМНЫЙ КАРКАС ДЛЯ VVD CPA (УБИРАЕМ КРИВИЗНУ И НАЛОЖЕНИЯ)
    ========================================================================== */
 
-:root {
-    /* Цветовая палитра строго по вашему ТЗ */
-    --bg-main: #070A14;
-    --bg-secondary: #0D1222;
-    --bg-card: #101726;
-    --bg-card-hover: #141C31;
-    
-    /* Сочные неоновые акценты */
-    --color-purple: #7B4DFF;
-    --color-purple-secondary: #A855F7;
-    --color-purple-glow: rgba(123, 77, 255, 0.55);
-    
-    --color-green: #1EEA7A;
-    --color-red: #FF4B6A;
-    --color-white: #F8FAFF;
-    --color-gray: #A5AEC5;
-
-    /* Радиусы по вашему ТЗ */
-    --radius-card: 28px;
-    --radius-btn: 20px;
-    --radius-badge: 14px;
-    --radius-avatar: 72px;
-}
-
-/* Сброс стилей и блокировка лишних скроллов */
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
     -webkit-tap-highlight-color: transparent;
-    font-family: 'Inter', sans-serif;
 }
 
+/* Фиксируем каркас под размеры экрана телефона */
 body {
-    background-color: var(--bg-main);
-    color: var(--color-white);
-    overflow: hidden; /* Запрещаем скролл всему телу сайта, скроллится только контент внутри экранов */
-    position: relative;
+    background-color: #070A14;
+    color: #F8FAFF;
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
     width: 100vw;
     height: 100vh;
+    overflow: hidden; /* Запрещаем скролл всему сайту, скроллится только контент */
 }
 
-/* Фоновые неоновые туманности (Radial Gradient), волны и слабый шум по ТЗ */
-.bg-glow {
-    position: fixed;
-    border-radius: 50%;
-    filter: blur(120px);
-    z-index: -2;
-    pointer-events: none;
-    opacity: 0.5;
-    animation: floatingGlow 12s ease-in-out infinite alternate;
-}
-
-.spotlight-purple { width: 320px; height: 320px; background: var(--color-purple); top: -40px; left: -40px; }
-.spotlight-violet { width: 260px; height: 260px; background: var(--color-purple-secondary); bottom: 60px; right: -40px; animation-delay: -4s; }
-
-.bg-noise {
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://w3.org id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.015'/%3E%3C/svg%3E");
-    z-index: -1;
-    pointer-events: none;
-}
-
-@keyframes floatingGlow {
-    0% { transform: translate(0, 0) scale(1); opacity: 0.45; }
-    100% { transform: translate(40px, 30px) scale(1.15); opacity: 0.7; }
-}
-
-/* Жёсткий каркас приложения на весь физический экран телефона */
+/* Главный контейнер на весь экран смартфона */
 #app {
     display: flex;
     flex-direction: column;
+    width: 100%;
     height: 100vh;
-    width: 100vw;
     position: relative;
-    z-index: 1;
 }
 
-/* Типографика строго по параметрам ТЗ */
-h1 { font-size: 34px; font-weight: 700; letter-spacing: -0.8px; }
-h2 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
-h3 { font-size: 18px; font-weight: 600; letter-spacing: -0.2px; }
-h4 { font-size: 16px; font-weight: 600; }
-p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
-
-.green-text { color: var(--color-green) !important; }
-.blue-text { color: #38BDF8 !important; }
-.purple-text { color: #A78BFA !important; font-weight: 600; }
-.orange-text { color: #FF9F43 !important; }
-.red-text { color: var(--color-red) !important; }
-
-.purple-gradient-text {
-    background: linear-gradient(135deg, #6E45FF, #9747FF, #C44DFF);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    font-weight: 700;
-}
-
-/* Премиальный Glassmorphism 2.0 по ТЗ */
-.glass-card {
-    background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
-    backdrop-filter: blur(28px);
-    -webkit-backdrop-filter: blur(28px);
-    border: 1px solid rgba(255,255,255,.08);
-    border-radius: var(--radius-card);
-    box-shadow: 0 15px 60px rgba(0,0,0,.55);
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    width: 100%;
-}
-
-/* Анимация при наведении / удержании по ТЗ */
-.glass-card:hover {
-    background: var(--bg-card-hover);
-    transform: translateY(-3px);
-    border-color: rgba(123, 77, 255, 0.25);
-}
-
-/* Изолированные экраны. Высота строго вычитает нижний док-бар (84px) */
-.page {
-    display: none; /* Скрыты по умолчанию для предотвращения наложения */
-    flex-direction: column;
-    height: calc(100vh - 84px);
-    overflow-y: auto; /* Скроллится только контент внутри экрана */
-    padding: 24px 16px;
-    padding-bottom: 120px; /* Плотный зазор снизу, чтобы контент не перекрывался меню */
-    width: 100%;
-}
-.page.active { display: flex; }
-
-/* Кнопки 56px по вашему ТЗ */
-.btn {
-    height: 56px;
-    border-radius: var(--radius-btn);
-    border: none;
-    font-weight: 700;
-    font-size: 16px;
-    color: var(--color-white);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    gap: 8px;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    width: 100%;
-}
-
-.btn-gradient {
-    background: linear-gradient(135deg, #6E45FF, #9747FF, #C44DFF);
-    box-shadow: 0 0 15px rgba(123,77,255,.45), 0 0 40px rgba(123,77,255,.18);
-}
-.btn-gradient:hover {
-    transform: translateY(-2px) scale(1.02);
-    box-shadow: 0 0 25px rgba(123,77,255,.6);
-}
-.btn-gradient:active { transform: translateY(0) scale(0.98); }
-
-.btn-purple-outline {
-    background: rgba(123, 77, 255, 0.04);
-    border: 2px solid var(--color-purple);
-    box-shadow: inset 0 0 10px rgba(123, 77, 255, 0.1);
-}
-.btn-purple-outline:hover { background: rgba(123, 77, 255, 0.12); transform: translateY(-2px); }
-
-.btn-back { background: none; border: none; color: var(--color-gray); font-size: 14px; margin-bottom: 20px; text-align: left; cursor: pointer; }
-.btn-back:hover { color: var(--color-white); }
-/* ==========================================================================
-   ВЕРХНЯЯ ЛЕНТА: КАРТА ЭКРАНОВ И ГОРИЗОНТАЛЬНАЯ НАВИГАЦИЯ
-   ========================================================================== */
+/* ВЕРХНЯЯ ЛЕНТА ОТЛАДКИ (ГОРИЗОНТАЛЬНЫЙ СКРОЛЛ) */
 .top-navigation-slider {
-    padding: 14px 16px;
-    background: rgba(7, 10, 20, 0.4);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    width: 100%;
+    padding: 12px 16px;
+    background: #0D1222;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 
 .slider-title {
     font-size: 11px;
     font-weight: 700;
-    color: var(--color-purple);
+    color: #7B4DFF;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
 }
 
 .slider-track {
@@ -199,37 +56,71 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
 .slide-tag {
     font-size: 13px;
     font-weight: 600;
-    color: var(--color-gray);
+    color: #A5AEC5;
     background: rgba(255, 255, 255, 0.03);
-    padding: 6px 14px;
-    border-radius: var(--radius-badge);
+    padding: 6px 12px;
+    border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.05);
     cursor: pointer;
-    transition: all 0.2s ease;
 }
-
-.slide-tag.active, .slide-tag:hover {
-    color: var(--color-white);
+.slide-tag.active {
+    color: #F8FAFF;
     background: rgba(123, 77, 255, 0.15);
-    border-color: var(--color-purple);
-    box-shadow: 0 0 10px rgba(123, 77, 255, 0.2);
+    border-color: #7B4DFF;
 }
 
-/* ==========================================================================
-   РОСКОШНАЯ КАРТОЧКА ПРОФИЛЯ — LUXURY PROFILE CARD (АВАТАР 72PX)
-   ========================================================================== */
-.luxury-profile-card {
-    background: linear-gradient(150deg, rgba(20, 25, 45, 0.85) 0%, rgba(10, 12, 22, 0.95) 100%);
-    backdrop-filter: blur(30px);
-    -webkit-backdrop-filter: blur(30px);
-    border: 1px solid rgba(255, 255, 255, 0.09);
-    border-radius: var(--radius-card);
-    padding: 24px 20px;
+/* ЭКРАНЫ: Главное исправление. Вычитаем высоту нижнего меню (84px) */
+.page {
+    display: none; /* ВСЕ ЭКРАНЫ СКРЫТЫ ПО УМОЛЧАНИЮ! */
+    flex-direction: column;
+    width: 100%;
+    height: calc(100vh - 84px); /* Ровное вертикальное окно */
+    overflow-y: auto; /* Скролл разрешен ТОЛЬКО внутри этого экрана */
+    padding: 20px 16px;
+    padding-bottom: 120px; /* Зазор, чтобы контент не залезал под нижнее меню */
+}
+
+/* Показываем только ОДИН активный экран, который вызван через JS */
+.page.active {
     display: flex;
+}
+
+/* Типографика по ТЗ */
+h2 { font-size: 22px; font-weight: 700; margin-bottom: 16px; }
+h3 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+h4 { font-size: 15px; font-weight: 600; }
+/* ==========================================================================
+   КОМПОНЕНТЫ КАРТОЧЕК И ЭЛЕМЕНТОВ (ГЛУБОКИЙ GLASSMORPHISM)
+   ========================================================================== */
+
+/* Общая премиум-карточка по ТЗ */
+.glass-card {
+    background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 28px;
+    box-shadow: 0 15px 60px rgba(0,0,0,.55);
+    padding: 20px;
+    margin-bottom: 16px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Шапка профиля */
+.luxury-profile-card {
+    display: flex;
+    flex-direction: row;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+    background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
+    backdrop-filter: blur(28px);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 28px;
+    padding: 20px;
+    margin-bottom: 16px;
+    width: 100%;
 }
 
 .profile-left {
@@ -240,31 +131,31 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
 
 .avatar-container {
     position: relative;
-    width: var(--radius-avatar);
-    height: var(--radius-avatar);
+    width: 72px;
+    height: 72px;
 }
 
 .luxury-avatar {
-    width: 100%;
-    height: 100%;
+    width: 72px;
+    height: 72px;
     border-radius: 50%;
     object-fit: cover;
-    border: 2px solid var(--color-purple);
-    position: relative;
-    z-index: 2;
+    border: 2px solid #7B4DFF;
 }
 
 .avatar-glow {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    top: 0; left: 0; width: 100%; height: 100%;
     border-radius: 50%;
-    background: var(--color-purple);
+    background: #7B4DFF;
     filter: blur(12px);
-    opacity: 0.55;
-    z-index: 1;
+    opacity: 0.45;
+    z-index: -1;
+}
+
+.profile-meta {
+    display: flex;
+    flex-direction: column;
 }
 
 .name-row {
@@ -273,107 +164,86 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     gap: 6px;
 }
 
-.name-row h2 {
-    font-size: 20px;
-    font-weight: 700;
-}
-
 .verified-badge {
-    color: var(--color-purple);
-    font-weight: 800;
-    font-size: 14px;
-    text-shadow: 0 0 8px var(--color-purple-glow);
+    color: #7B4DFF;
+    font-weight: 700;
 }
 
 .user-handle {
     font-size: 13px;
-    color: var(--color-gray);
-    margin-top: 1px;
+    color: #A5AEC5;
 }
 
 .badge-partner {
     font-size: 10px;
-    font-weight: 800;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    background: rgba(123, 77, 255, 0.18);
-    color: #C0A5FF;
-    border: 1px solid rgba(123, 77, 255, 0.3);
-    padding: 3px 8px;
-    border-radius: var(--radius-badge);
-    display: inline-block;
-    margin-top: 6px;
-    box-shadow: 0 0 10px rgba(123, 77, 255, 0.15);
-    animation: neonPulse 2s infinite alternate;
-}
-
-@keyframes neonPulse {
-    0% { opacity: 0.75; box-shadow: 0 0 8px rgba(123, 77, 255, 0.1); }
-    100% { opacity: 1; box-shadow: 0 0 15px rgba(123, 77, 255, 0.35); }
+    background: rgba(123,77,255,0.18);
+    color: #A855F7;
+    padding: 2px 8px;
+    border-radius: 14px;
+    margin-top: 4px;
+    align-self: flex-start;
+    border: 1px solid rgba(123,77,255,0.3);
 }
 
 .profile-right-financial {
-    text-align: right;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 8px;
+    gap: 6px;
 }
 
-.fin-item { margin-bottom: 2px; }
+.fin-item {
+    text-align: right;
+}
+
 .fin-lbl {
     font-size: 11px;
-    color: var(--color-gray);
+    color: #A5AEC5;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    display: block;
 }
 
 .fin-val {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 700;
 }
 
+.purple-text { color: #7B4DFF !important; }
+.orange-text { color: #A855F7 !important; }
+.green-text { color: #1EEA7A !important; }
+.red-text { color: #FF4B6A !important; }
+.blue-text { color: #38BDF8 !important; }
+
 .btn-payout-quick {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: var(--color-white);
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #F8FAFF;
     padding: 6px 12px;
     border-radius: 12px;
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    transition: all 0.2s;
-}
-.btn-payout-quick:hover {
-    background: var(--color-purple);
-    border-color: var(--color-purple);
-    box-shadow: 0 0 12px var(--color-purple-glow);
+    margin-top: 4px;
 }
 
-/* ==========================================================================
-   СЕТКА ДЛЯ ЭКРАНОВ: ДЕНЬ СЕГОДНЯ / ВЫПЛАЧЕНО С МИНИ-ГРАФИКАМИ
-   ========================================================================== */
+/* Сетка блоков 50/50 по ТЗ */
 .dashboard-grid-stats {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 14px;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
+    width: 100%;
 }
 
 .stat-metric-box {
-    padding: 20px 16px;
-    position: relative;
     display: flex;
     flex-direction: column;
 }
 
 .lbl-small {
     font-size: 13px;
-    color: var(--color-gray);
+    color: #A5AEC5;
 }
 
 .metric-amount {
@@ -381,15 +251,13 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     font-weight: 700;
     margin-top: 4px;
 }
-.metric-amount.font-large { font-size: 22px; }
 
 .mini-sparkline {
     display: flex;
     align-items: flex-end;
     gap: 4px;
-    height: 35px;
-    margin-top: 14px;
-    align-self: flex-start;
+    height: 30px;
+    margin-top: 10px;
 }
 
 .sparkline-bar {
@@ -398,27 +266,22 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     background: rgba(255,255,255,0.1);
 }
 
-.mini-sparkline.purple .sparkline-bar {
-    background: linear-gradient(180deg, #9747FF 0%, #6E45FF 100%);
-}
-.mini-sparkline.green .sparkline-bar {
-    background: linear-gradient(180deg, #00F59A 0%, #00D26A 100%);
-}
+.mini-sparkline.purple .sparkline-bar { background: linear-gradient(135deg, #6E45FF, #9747FF); }
+.mini-sparkline.green .sparkline-bar { background: linear-gradient(135deg, #00D26A, #00F59A); }
 
-/* ==========================================================================
-   ФЛЕКС-ШАПКИ ЛЕНТЫ И ЛЕНТА ПОСЛЕДНИХ КОНВЕРСИЙ
-   ========================================================================== */
+/* Лента последних конверсий */
 .section-flex-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 12px;
+    width: 100%;
 }
 
 .section-title {
     font-size: 13px;
     font-weight: 700;
-    color: var(--color-gray);
+    color: #A5AEC5;
     text-transform: uppercase;
     letter-spacing: 0.8px;
 }
@@ -426,35 +289,30 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
 .action-link {
     font-size: 13px;
     font-weight: 600;
-    color: var(--color-purple);
+    color: #7B4DFF;
     cursor: pointer;
 }
-.action-link:hover { text-shadow: 0 0 10px var(--color-purple-glow); }
 
 .conversions-stack {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
+    width: 100%;
 }
 
 .conversion-row {
-    padding: 16px;
     display: flex;
+    flex-direction: row;
     justify-content: space-between;
     align-items: center;
+    padding: 16px;
 }
 
 .conv-left {
     display: flex;
     align-items: center;
-    gap: 14px;
-}
-
-.time-stamp {
-    font-size: 12px;
-    color: var(--color-gray);
-    margin-top: 2px;
+    gap: 12px;
 }
 
 .luxury-icon-box {
@@ -468,89 +326,60 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     background: rgba(255,255,255,0.03);
     border: 1px solid rgba(255,255,255,0.06);
 }
+.luxury-icon-box.large { width: 48px; height: 48px; border-radius: 14px; font-size: 24px; }
 
-.luxury-icon-box.purple { background: rgba(123, 77, 255, 0.1); border-color: rgba(123, 77, 255, 0.25); }
-.luxury-icon-box.pink { background: rgba(255, 75, 103, 0.1); border-color: rgba(255, 75, 103, 0.25); }
-.luxury-icon-box.green { background: rgba(30, 234, 122, 0.1); border-color: rgba(30, 234, 122, 0.25); }
-.luxury-icon-box.orange { background: rgba(255, 159, 67, 0.1); border-color: rgba(255, 159, 67, 0.25); }
+.time-stamp {
+    font-size: 12px;
+    color: #A5AEC5;
+}
 
 .conv-payout-val {
     font-size: 16px;
     font-weight: 700;
 }
-/* ==========================================================================
-   ЦЕНТРОВАЯ КАРТОЧКА: SMARTLINK SHOWCASE (НАТИВНЫЙ НЕОН)
-   ========================================================================== */
+
+/* Карточка SmartLink */
 .luxury-smartlink-showcase {
-    background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
-    border-radius: var(--radius-card);
     padding: 24px;
-    margin-bottom: 24px;
-    border: 1px solid rgba(255,255,255,.08);
 }
 
 .sl-main-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
 }
 
 .sl-title-block {
     display: flex;
     align-items: center;
-    gap: 14px;
-}
-
-.luxury-icon-box.large {
-    width: 48px;
-    height: 48px;
-    border-radius: 14px;
-    font-size: 24px;
-}
-
-.pink-neon-glow {
-    box-shadow: 0 0 15px rgba(255,75,103,.35), 0 0 40px rgba(255,75,103,.1);
-    border-color: rgba(255,75,103,0.4);
-}
-.purple-neon-glow {
-    box-shadow: 0 0 15px rgba(123,77,255,.35), 0 0 40px rgba(123,77,255,.1);
-    border-color: rgba(123,77,255,0.4);
+    gap: 12px;
 }
 
 .geo-text {
     font-size: 13px;
-    color: var(--color-gray);
-    margin-top: 1px;
+    color: #A5AEC5;
 }
 
 .status-pill {
     font-size: 12px;
     font-weight: 700;
     padding: 4px 10px;
-    border-radius: var(--radius-badge);
+    border-radius: 14px;
     display: inline-flex;
     align-items: center;
     gap: 6px;
-}
-.status-pill.green {
     background: rgba(30, 234, 122, 0.12);
-    color: var(--color-green);
+    color: #1EEA7A;
     border: 1px solid rgba(30, 234, 122, 0.25);
 }
 
 .pulse-dot {
     width: 6px;
     height: 6px;
-    background-color: var(--color-green);
+    background-color: #1EEA7A;
     border-radius: 50%;
-    box-shadow: 0 0 8px var(--color-green);
-    animation: dotPulse 1.5s infinite alternate;
-}
-
-@keyframes dotPulse {
-    0% { transform: scale(0.8); opacity: 0.6; }
-    100% { transform: scale(1.2); opacity: 1; }
+    box-shadow: 0 0 8px #1EEA7A;
 }
 
 .sl-meta-grid {
@@ -560,70 +389,59 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     background: rgba(0,0,0,0.2);
     padding: 14px;
     border-radius: 16px;
-    margin-bottom: 20px;
-    border: 1px solid rgba(255,255,255,0.03);
+    margin-bottom: 16px;
 }
 
 .sl-meta-item span {
     font-size: 11px;
-    color: var(--color-gray);
+    color: #A5AEC5;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
     display: block;
-    margin-bottom: 2px;
 }
+
 .sl-meta-item strong {
     font-size: 15px;
     font-weight: 600;
 }
 
-/* ==========================================================================
-   ЭКРАН 2: СЕТКА СЕТЕВЫХ КАТЕГОРИЙ (APPLE APPS STYLE)
-   ========================================================================== */
-.search-wrapper {
-    position: relative;
-    width: 100%;
-    margin-bottom: 20px;
+.purple-gradient-text {
+    background: linear-gradient(135deg, #6E45FF, #9747FF, #C44DFF);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
 }
 
-.luxury-search-input {
-    width: 100%;
+/* Кнопки по ТЗ */
+.btn {
     height: 56px;
-    background: var(--bg-card);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: var(--radius-btn);
-    padding: 0 20px 0 46px;
-    color: var(--color-white);
-    font-size: 15px;
-    font-weight: 500;
-    outline: none;
+    border-radius: 20px;
+    border: none;
+    font-weight: 700;
+    font-size: 16px;
+    color: #F8FAFF;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    width: 100%;
     transition: all 0.25s;
 }
-.luxury-search-input:focus {
-    border-color: var(--color-purple);
-    background: var(--bg-card-hover);
-    box-shadow: 0 0 20px rgba(123,77,255,0.25);
+.btn:hover { transform: translateY(-2px) scale(1.02); }
+
+.btn-gradient {
+    background: linear-gradient(135deg, #6E45FF, #9747FF, #C44DFF);
+    box-shadow: 0 0 15px rgba(123,77,255,.45), 0 0 40px rgba(123,77,255,.18);
 }
 
-.search-icon-placeholder {
-    position: absolute;
-    left: 18px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 16px;
-    opacity: 0.5;
-}
-
+/* Страница Офферов */
 .luxury-categories-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 14px;
+    width: 100%;
 }
 
 .premium-category-card {
-    padding: 20px 16px;
-    display: flex;
-    flex-direction: column;
     cursor: pointer;
 }
 
@@ -631,38 +449,37 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
 }
 
-.pcat-icon { font-size: 24px; }
 .badge-count {
     font-size: 11px;
     font-weight: 700;
-    color: var(--color-gray);
+    color: #A5AEC5;
     background: rgba(255,255,255,0.05);
     padding: 3px 8px;
     border-radius: 10px;
 }
 
-.premium-category-card h3 { font-size: 16px; margin-bottom: 4px; }
-
-/* ==========================================================================
-   ЭКРАН 3: АНАЛИТИКА, ГРАФИКИ И ФОРМЫ (STRIPE UI STYLE)
-   ========================================================================== */
+/* Аналитика и таблицы */
 .stats-total-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 10px;
     margin-bottom: 16px;
+    width: 100%;
 }
 
-.stats-box { padding: 16px 12px; text-align: left; }
+.stats-box {
+    text-align: left;
+}
+
 .stats-box span {
     font-size: 11px;
-    color: var(--color-gray);
+    color: #A5AEC5;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
 }
+
 .stats-box strong {
     font-size: 20px;
     font-weight: 700;
@@ -670,224 +487,97 @@ p { color: var(--color-gray); font-size: 13px; font-weight: 400; }
     margin-top: 4px;
 }
 
-.sparkline-trend { font-size: 11px; font-weight: 700; margin-top: 6px; }
+.sparkline-trend {
+    font-size: 11px;
+    font-weight: 700;
+    margin-top: 4px;
+}
 
 .mock-chart {
-    height: 120px;
+    height: 100px;
     border-bottom: 2px solid rgba(255,255,255,0.06);
     position: relative;
-    margin-top: 16px;
+    margin-top: 12px;
     background: linear-gradient(180deg, rgba(123,77,255,0.08) 0%, rgba(123,77,255,0) 100%);
-    border-radius: 0 0 12px 12px;
 }
 .mock-chart::after {
     content: '';
     position: absolute;
-    bottom: 35px;
-    left: 0;
-    right: 0;
-    height: 2.5px;
-    background: linear-gradient(90deg, transparent, var(--color-purple) 40%, var(--color-purple-secondary) 70%, transparent);
-    box-shadow: 0 0 20px var(--color-purple);
+    bottom: 30px;
+    left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, #7B4DFF, #A855F7, transparent);
+    box-shadow: 0 0 15px #7B4DFF;
 }
 
-.detailed-stats-table { padding: 6px 18px; }
+.detailed-stats-table { padding: 6px 16px; }
 .table-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 0;
+    padding: 14px 0;
     border-bottom: 1px solid rgba(255,255,255,0.04);
-    font-size: 14px;
 }
 .table-row:last-child { border-bottom: none; }
 
-/* Поля ввода и шлюз выплат */
+/* Формы и настройки */
 .app-select, .app-input {
     width: 100%;
     height: 56px;
     background: rgba(7, 10, 20, 0.6);
     border: 1px solid rgba(255,255,255,0.08);
-    border-radius: var(--radius-btn);
+    border-radius: 20px;
     padding: 0 16px;
-    color: var(--color-white);
+    color: #F8FAFF;
     font-size: 15px;
-    font-weight: 500;
     outline: none;
-    transition: all 0.25s;
-}
-.app-select:focus, .app-input:focus {
-    border-color: var(--color-purple);
-    box-shadow: 0 0 15px var(--color-purple-glow);
 }
 
 .form-group label {
     font-size: 12px;
-    font-weight: 600;
-    color: var(--color-gray);
+    color: #A5AEC5;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
     display: block;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
-.link-generator label {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--color-gray);
-    margin-bottom: 8px;
-    display: block;
+.withdraw-calculation {
+    background: rgba(0,0,0,0.2);
+    padding: 12px;
+    border-radius: 12px;
+    width: 100%;
 }
-.link-input-group {
+.calc-row {
     display: flex;
-    gap: 8px;
-    background: rgba(0,0,0,0.3);
-    padding: 6px;
-    border-radius: var(--radius-btn);
-    border: 1px solid rgba(255,255,255,0.05);
-}
-.link-input-group input {
-    flex: 1;
-    background: none;
-    border: none;
-    color: var(--color-gray);
-    padding: 0 12px;
-    font-size: 13px;
-    outline: none;
+    justify-content: space-between;
+    font-size: 14px;
+    margin-bottom: 4px;
 }
 
-/* Настройки и Неоновые переключатели */
-.settings-toggle-card { padding: 6px 20px; }
+.settings-toggle-card { padding: 6px 16px; }
 .toggle-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 0;
+    padding: 14px 0;
     border-bottom: 1px solid rgba(255,255,255,0.04);
 }
 .toggle-row:last-child { border-bottom: none; }
 
 .toggle-row input[type="checkbox"] {
-    width: 48px;
-    height: 26px;
+    width: 48px; height: 26px;
     appearance: none;
     background: #1C2333;
     border-radius: 13px;
     position: relative;
-    outline: none;
     cursor: pointer;
-    transition: background 0.3s;
 }
-.toggle-row input[type="checkbox"]:checked {
-    background: var(--color-purple);
-    box-shadow: 0 0 15px var(--color-purple-glow);
-}
+.toggle-row input[type="checkbox"]:checked { background: #7B4DFF; }
 .toggle-row input[type="checkbox"]::before {
-    content: '';
-    position: absolute;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    top: 3px;
-    left: 3px;
-    background: var(--color-white);
-    transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+    content: ''; position: absolute;
+    width: 20px; height: 20px; border-radius: 50%;
+    top: 3px; left: 3px; background: white;
+    transition: transform 0.2s;
 }
-.toggle-row input[type="checkbox"]:checked::before {
-    transform: translateX(22px);
-}
+.toggle-row input[type="checkbox"]:checked::before { transform: translateX(22px); }
 
 .chat-tabs {
-    display: flex;
-    background: rgba(255,255,255,0.03);
-    padding: 4px;
-    border-radius: 14px;
-    border: 1px solid rgba(255,255,255,0.05);
-    margin-bottom: 20px;
-}
-.chat-tab {
-    flex: 1;
-    background: none;
-    border: none;
-    color: var(--color-gray);
-    padding: 12px;
-    font-weight: 600;
-    font-size: 14px;
-    border-radius: 10px;
-    cursor: pointer;
-}
-.chat-tab.active {
-    background: var(--color-purple);
-    color: var(--color-white);
-    box-shadow: 0 0 15px rgba(123,77,255,0.3);
-}
-
-.menu-item {
-    padding: 18px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid rgba(255,255,255,0.03);
-    cursor: pointer;
-}
-.menu-item:last-child { border-bottom: none; }
-
-/* ==========================================================================
-   ФИКСИРОВАННЫЙ НИЖНИЙ ДОК-БАР ПО ТЗ (ВЫСОТА 84PX & GLASS КАРКАС)
-   ========================================================================== */
-.app-nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 84px; /* Чёткая высота по ТЗ */
-    background: rgba(13, 18, 34, 0.85); /* Полупрозрачный вторичный тон */
-    backdrop-filter: blur(28px);
-    -webkit-backdrop-filter: blur(28px);
-    border-top: 1px solid rgba(255,255,255,.08);
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    padding-bottom: env(safe-area-inset-bottom);
-    z-index: 9999; /* Поверх всего контента */
-    width: 100vw;
-}
-
-.nav-item {
-    background: none;
-    border: none;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    color: var(--color-gray);
-    cursor: pointer;
-    height: 100%;
-    justify-content: center;
-    flex: 1;
-    position: relative;
-    transition: all 0.25s ease;
-}
-
-.nav-item.active {
-    background: rgba(123, 77, 255, 0.18); /* Полупрозрачный фиолетовый по ТЗ */
-    color: var(--color-white);
-}
-
-.nav-item.active .icon {
-    color: #9D6BFF; /* Тональность иконки по ТЗ */
-    text-shadow: 0 0 15px rgba(123,77,255,.45);
-    transform: translateY(-2px);
-}
-
-.nav-item .icon {
-    font-size: 22px; /* Размер по ТЗ */
-    margin-bottom: 4px;
-    transition: transform 0.25s, color 0.25s;
-}
-
-.nav-item .label {
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
