@@ -5,6 +5,7 @@ import { triggerHaptic } from '@/shared/lib/telegram';
 import { Home } from '@/pages/home/Home';
 import { Offers } from '@/pages/offers/Offers';
 import { OfferDetail } from '@/pages/offers/OfferDetail';
+import { Withdrawal } from '@/pages/withdrawal/Withdrawal';
 
 // Временные легковесные компоненты страниц для бесшовной сборки проекта на данном этапе.
 // В процессе развития проекта мы заменим их полноценными изолированными страницами.
@@ -129,6 +130,9 @@ const App = () => {
 
         {/* Вложенный детальный экран оффера без нижнего меню */}
         <Route path="/offers/:id" element={<OfferDetail />} />
+
+        {/* Вложенный экран финансов и выплат (Форма, история, чек) без нижнего меню */}
+        <Route path="/withdrawal" element={<Withdrawal />} />
       </Routes>
     </HashRouter>
   );
