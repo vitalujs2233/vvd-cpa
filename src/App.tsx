@@ -8,15 +8,7 @@ import { OfferDetail } from '@/pages/offers/OfferDetail';
 import { Withdrawal } from '@/pages/withdrawal/Withdrawal';
 import { Stats } from '@/pages/stats/Stats';
 import { Chat } from '@/pages/chat/Chat';
-
-// Временные легковесные компоненты страниц для бесшовной сборки проекта на данном этапе.
-// В процессе развития проекта мы заменим их полноценными изолированными страницами.
-const ProfilePlaceholder = () => (
-  <div className="flex-1 flex flex-col items-center justify-center p-20 text-center h-full">
-    <h1 className="text-2xl font-bold text-white">Профиль</h1>
-    <p className="text-textMuted text-xs mt-2">Настройки личного кабинета готовятся к детальной верстке.</p>
-  </div>
-);
+import { Profile } from '@/pages/profile/Profile';
 
 // Главный Лейаут приложения, фиксирующий Bottom Menu
 const AppLayout = () => {
@@ -113,7 +105,7 @@ const App = () => {
           <Route path="offers" element={<Offers />} />
           <Route path="stats" element={<Stats />} />
           <Route path="chat" element={<Chat />} />
-          <Route path="profile" element={<ProfilePlaceholder />} />
+          <Route path="profile" element={<Profile />} />
         </Route>
 
         {/* Вложенный детальный экран оффера без нижнего меню */}
