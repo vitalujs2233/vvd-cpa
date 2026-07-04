@@ -7,23 +7,23 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Дорогие глубокие цвета из гайдлайна
-        bgMain: '#070A14',          // Основной фон Premium Dark
-        bgSec: '#0D1222',           // Второй фон (для глубины и подложек)
-        bgCard: '#111827',          // Базовый цвет премиум-карточек
-        borderCard: 'rgba(255, 255, 255, 0.08)', // Деликатная полупрозрачная граница
+        // Палитра Gold Premium строго по спецификации
+        bgMain: '#070707',          // Глубокий почти черный цвет фона
+        bgSec: '#0D0D0D',           // Вторичный черный фон (индиго-оттенок)
+        bgCard: '#111111',          // Оформление премиум-карточек
+        borderCard: 'rgba(255, 255, 255, 0.08)', // Деликатная рамка
         
-        textPrimary: '#F8FAFC',     // Чистый контрастный текст
-        textSecondary: '#A6ADC8',   // Вторичный благородный приглушенный текст
+        textPrimary: '#FFFFFF',     // Чистый белый текст
+        textSecondary: '#A6ADC8',   // Благородный приглушенный текст
         
-        // Акцентная неоновая палитра
-        accentPurple: '#7C3AED',    // Главный неоновый фиолетовый
-        accentViolet: '#9D4EDD',    // Дополнительный фиолетовый
-        accentPink: '#C026D3',      // Дополнительный розовый
+        // Акцентное золото (Gold Gradient)
+        accentGold: '#D4AF37',      // Благородное золото
+        accentBrightGold: '#F6C453',// Яркое золото
+        accentLightGold: '#FFE08A', // Сверкающий золотой свет
         
-        // Статусные цвета премиум-класса
+        // Статусные цвета Premium SaaS
         success: '#22C55E',         // Зеленый для прибыли
-        error: '#EF4444',           // Красный для ошибок/деструктивных действий
+        error: '#EF4444',           // Красный для ошибок
         info: '#3B82F6',            // Синий для информации
       },
       fontFamily: {
@@ -31,37 +31,38 @@ export default {
         sans: ['Inter', 'SF Pro Display', 'sans-serif'],
       },
       borderRadius: {
-        // Радиусы скругления строго по гайдлайну
-        'card': '24px',             // Премиум-карточки (24-30px)
-        'btn': '18px',              // Большие кнопки (18-22px)
-        'app-xs': '12px',           // Малые элементы управления
+        // Скругления строго по спецификации
+        'card': '24px',             // Карточки: 24 px
+        'btn': '18px',              // Кнопки: 18–20 px
+        'badge': '14px',            // Бейджи: 14 px
+        'app-xs': '12px',           // Малые элементы
       },
       boxShadow: {
-        // Многослойная парящая тень без использования дешевых box-shadow
-        'premium': '0 12px 40px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 0 rgba(255, 255, 255, 0.08)',
+        // Многослойные парящие тени без дешевых box-shadow
+        'premium': '0 16px 40px -10px rgba(0, 0, 0, 0.85), inset 0 1px 1px 0 rgba(255, 255, 255, 0.12)',
         
-        // Фирменное неоновое свечение для активных элементов (Purple Glow)
-        'glow-purple': '0 0 20px rgba(124, 58, 237, 0.35), 0 0 40px rgba(192, 38, 211, 0.15)',
+        // Фирменное неоновое золотое свечение (Gold Premium Glow)
+        'glow-gold': '0 0 20px rgba(246, 196, 83, 0.35), 0 0 40px rgba(212, 175, 55, 0.18)',
         
-        // Легкое внутреннее свечение для Glassmorphism карточек
-        'glass-inner': 'inset 0 1px 1px 0 rgba(255, 255, 255, 0.05)',
+        // Легкое внутреннее свечение для Glassmorphism
+        'glass-inner': 'inset 0 1px 1px 0 rgba(255, 255, 255, 0.15)',
       },
       backgroundImage: {
-        // Благородный неоновый градиент Purple → Violet → Pink
-        'accent-gradient': 'linear-gradient(135deg, #7C3AED 0%, #9D4EDD 50%, #C026D3 100%)',
+        // Роскошный золотой градиент Gold Premium (Light Gold → Gold → Bright Gold)
+        'gold-gradient': 'linear-gradient(135deg, #FFE08A 0%, #D4AF37 50%, #F6C453 100%)',
         // Мягкий темный градиент для премиального фона
-        'dark-radial': 'radial-gradient(circle at 50% 0%, #0D1222 0%, #070A14 100%)',
+        'dark-radial': 'radial-gradient(circle at 50% 0%, #0D0D0D 0%, #070707 100%)',
       },
       animation: {
-        // Мягкий пульсирующий неоновый свет
+        // Мягкий пульсирующий неоновый свет золота
         'neon-pulse': 'neonPulse 2.5s infinite ease-in-out',
         // Медленное парение элементов (Float)
         'float': 'float 4s infinite ease-in-out',
       },
       keyframes: {
         neonPulse: {
-          '0%, 100%': { opacity: '0.8', filter: 'drop-shadow(0 0 15px rgba(124, 58, 237, 0.3))' },
-          '50%': { opacity: '1', filter: 'drop-shadow(0 0 30px rgba(192, 38, 211, 0.6))' },
+          '0%, 100%': { opacity: '0.8', filter: 'drop-shadow(0 0 15px rgba(246, 196, 83, 0.3))' },
+          '50%': { opacity: '1', filter: 'drop-shadow(0 0 30px rgba(212, 175, 55, 0.55))' },
         },
         float: {
           '0%, 100%': { transform: 'translateY(0)' },
