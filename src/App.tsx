@@ -22,13 +22,13 @@ const AppLayout = () => {
   return (
     <div className="flex flex-col h-screen w-full bg-transparent text-textPrimary overflow-hidden relative">
       
-      {/* === ЛЮКСОВЫЕ НЕОНОВЫЕ ВОЛНЫ (SVG) НА ЗАДНЕМ ПЛАНЕ === */}
+      {/* === ОПТИМИЗИРОВАННЫЙ НЕОНОВЫЙ ФОН С ВЕКТОРНЫМИ НИТЯМИ (БЕЗ ТЯЖЕЛЫХ ФИЛЬТРОВ) === */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-bgMain">
         {/* Мягкие размытые фоновые световые пятна ( Radial Spots ) */}
         <div className="absolute top-[10%] left-[-10%] w-[90%] h-[90%] rounded-full bg-[#784DFF]/[0.04] blur-[130px] pointer-events-none" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[100%] h-[100%] rounded-full bg-[#3B82F6]/[0.03] blur-[140px] pointer-events-none" />
 
-        {/* Векторные парящие неоновые нити из гайдлайна */}
+        {/* Векторные парящие неоновые нити из гайдлайна (Оптимизировано: Multi-Stroke) */}
         <svg className="absolute inset-0 w-full h-full opacity-45" viewBox="0 0 1440 800" preserveAspectRatio="none">
           <defs>
             <linearGradient id="waveGrad1" x1="0" y1="0" x2="1" y2="0">
@@ -41,32 +41,44 @@ const AppLayout = () => {
               <stop offset="50%" stopColor="#784DFF" stopOpacity="0.45" />
               <stop offset="100%" stopColor="#9D4EDD" stopOpacity="0" />
             </linearGradient>
-            <filter id="waveNeonGlow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="10" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
           </defs>
           
-          {/* Синяя/Фиолетовая волна 1 */}
+          {/* ВОЛНА 1: Внутренний широкий светящийся ореол (Glow Underlay) */}
           <path 
             className="animate-wave-1" 
             d="M-100 350 C300 480 500 220 900 420 C1300 620 1500 320 1700 470" 
             fill="none" 
             stroke="url(#waveGrad1)" 
-            strokeWidth="4" 
-            filter="url(#waveNeonGlow)" 
+            strokeWidth="16" 
+            opacity="0.25"
           />
-          {/* Розовая/Фиолетовая волна 2 */}
+          {/* ВОЛНА 1: Тонкая яркая центральная нить (Core) */}
+          <path 
+            className="animate-wave-1" 
+            d="M-100 350 C300 480 500 220 900 420 C1300 620 1500 320 1700 470" 
+            fill="none" 
+            stroke="url(#waveGrad1)" 
+            strokeWidth="2.5" 
+            opacity="0.85"
+          />
+
+          {/* ВОЛНА 2: Внутренний широкий светящийся ореол (Glow Underlay) */}
           <path 
             className="animate-wave-2" 
             d="M-100 400 C200 220 600 520 1000 320 C1300 170 1500 470 1700 370" 
             fill="none" 
             stroke="url(#waveGrad2)" 
-            strokeWidth="3" 
-            filter="url(#waveNeonGlow)" 
+            strokeWidth="14" 
+            opacity="0.22"
+          />
+          {/* ВОЛНА 2: Тонкая яркая центральная нить (Core) */}
+          <path 
+            className="animate-wave-2" 
+            d="M-100 400 C200 220 600 520 1000 320 C1300 170 1500 470 1700 370" 
+            fill="none" 
+            stroke="url(#waveGrad2)" 
+            strokeWidth="2" 
+            opacity="0.8"
           />
         </svg>
         
@@ -79,7 +91,7 @@ const AppLayout = () => {
         <Outlet />
       </div>
 
-      {/* Нижняя парящая стеклянная панель навигации (Glass Navigation, Blur, Высота 80px) */}
+      {/* Нижняя парящая стеклянная панель навигации */}
       <nav className="h-[80px] bg-bgCard/60 backdrop-blur-lg border-t border-white/[0.04] flex items-center justify-around px-4 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.5)] z-50">
         <NavLink
           to="/"
