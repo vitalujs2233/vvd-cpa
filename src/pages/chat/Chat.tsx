@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Send, PlusCircle, MessageSquare, ChevronRight, 
+  Send, PlusCircle, ChevronRight, 
   ArrowLeft, CheckCheck, Sparkles, User 
 } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
@@ -49,10 +49,7 @@ const SUPPORT_CONTACTS: SupportContact[] = [
 ];
 
 export const Chat: React.FC = () => {
-  // Переключение представлений: 'contacts' (список саппортов), 'dialogue' (открытый чат)
   const [view, setView] = useState<'contacts' | 'dialogue'>('contacts');
-  
-  // Состояния чата
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'msg-1',
@@ -68,7 +65,6 @@ export const Chat: React.FC = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Скролл вниз к последнему сообщению при обновлении чата
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -83,7 +79,6 @@ export const Chat: React.FC = () => {
 
   const handleCreateNewTicket = () => {
     triggerHaptic.mediumImpact();
-    // По умолчанию открываем чат с Support Team при создании нового тикета
     setSelectedAgent(SUPPORT_CONTACTS[0]);
     setView('dialogue');
   };
@@ -111,8 +106,6 @@ export const Chat: React.FC = () => {
 
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
-
-    // Имитация ответа оператора поддержки
     setIsTyping(true);
 
     setTimeout(() => {
@@ -142,26 +135,26 @@ export const Chat: React.FC = () => {
       
       {/* ================= VIEW 1: СПИСОК КОНТАКТОВ ПОДДЕРЖКИ ================= */}
       {view === 'contacts' && (
-        <div className="flex flex-col gap-16 p-16 pb-24 text-left">
+        <div className="flex flex-col gap-20 p-16 pb-24 text-left animate-fade-in">
           <div>
-            <h1 className="text-2xl font-bold text-white">Тех. Поддержка</h1>
-            <p className="text-xs text-textMuted mt-1">Создайте тикет или обратитесь напрямую к менеджеру</p>
+            <span className="text-[10px] text-textSecondary font-bold uppercase tracking-wider">Приватная поддержка</span>
+            <h1 className="text-2xl font-bold text-white mt-1">Чат саппортов</h1>
           </div>
 
-          {/* Вкладки Мои тикеты / Поддержка как в макете */}
-          <div className="flex bg-bgCard border border-gray-800/40 rounded-app-xs p-4 gap-4">
-            <button className="flex-1 py-1.5 text-xs font-semibold rounded-app-xs bg-accent text-white shadow">
+          {/* Вкладки Мои тикеты / Поддержка (Glassmorphism, Blur) */}
+          <div className="flex bg-bgCard/35 backdrop-blur-md border border-white/[0.04] rounded-app-xs p-4 gap-4 shadow-glass-inner">
+            <button className="flex-1 py-2 text-xs font-semibold rounded-app-xs bg-accent-gradient text-white shadow-glow-purple">
               Поддержка
             </button>
             <button 
               onClick={handleCreateNewTicket}
-              className="flex-1 py-1.5 text-xs font-semibold rounded-app-xs text-textMuted hover:text-white transition-colors"
+              className="flex-1 py-2 text-xs font-semibold rounded-app-xs text-textSecondary hover:text-textPrimary transition-colors duration-200"
             >
               Мои тикеты
             </button>
           </div>
 
-          {/* Карточки контактов */}
+          {/* Карточки контактов (скругление 24px) */}
           <div className="flex flex-col gap-12">
             {SUPPORT_CONTACTS.map((agent) => (
               <Card 
@@ -169,32 +162,32 @@ export const Chat: React.FC = () => {
                 clickable 
                 padding="sm"
                 onClick={() => handleOpenChat(agent)}
-                className="flex items-center justify-between"
+                className="flex items-center justify-between hover-lift shadow-premium"
               >
                 <div className="flex items-center gap-12">
-                  {/* Иконка-заглушка аватара */}
                   <div className="relative">
-                    <div className="w-10 h-10 rounded-full bg-accentDark/40 border border-accent/20 flex items-center justify-center text-accent">
+                    {/* Круглая люксовая иконка саппорта */}
+                    <div className="w-11 h-11 rounded-full bg-accentPurple/10 border border-accentPurple/20 flex items-center justify-center text-accentPurple shadow-[0_0_10px_rgba(124,58,237,0.1)]">
                       <User size={18} />
                     </div>
-                    {/* Точка статуса (онлайн/офлайн) */}
-                    <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-bgCard ${
-                      agent.status === 'online' ? 'bg-success' : 'bg-gray-500'
+                    {/* Точка статуса с неоновым свечением */}
+                    <span className={`absolute bottom-0.5 right-0.5 w-3 h-3 rounded-full border-2 border-bgCard ${
+                      agent.status === 'online' ? 'bg-success shadow-[0_0_6px_#22C55E]' : 'bg-gray-500'
                     }`} />
                   </div>
 
                   <div className="flex flex-col">
                     <div className="flex items-center gap-6">
-                      <span className="text-xs font-bold text-white">{agent.name}</span>
-                      <span className={`text-[8px] px-1.5 py-0.5 rounded-app-xs font-semibold border uppercase tracking-wider ${
+                      <span className="text-sm font-bold text-white">{agent.name}</span>
+                      <span className={`text-[8px] px-2 py-0.5 rounded-app-xs font-bold border uppercase tracking-wider ${
                         agent.status === 'online' 
-                          ? 'text-success border-success/20 bg-success/10' 
-                          : 'text-textMuted border-gray-800 bg-gray-900/10'
+                          ? 'text-success border-success/20 bg-success/10 shadow-[0_0_8px_rgba(34,197,94,0.15)]' 
+                          : 'text-textSecondary border-gray-800 bg-gray-950'
                       }`}>
                         {agent.role}
                       </span>
                     </div>
-                    <span className="text-[10px] text-textMuted mt-1">{agent.subtitle}</span>
+                    <span className="text-[10px] text-textSecondary font-semibold mt-1">{agent.subtitle}</span>
                   </div>
                 </div>
 
@@ -203,14 +196,14 @@ export const Chat: React.FC = () => {
             ))}
           </div>
 
-          {/* Кнопка "Создать тикет" внизу списка по макету */}
+          {/* Крупная кнопка "Создать тикет" (высота 54px, 18px скругление, Glow) */}
           <Button 
             variant="primary" 
             size="lg" 
             onClick={handleCreateNewTicket}
-            className="h-12 mt-8"
+            className="h-12 mt-8 shadow-glow-purple"
           >
-            <PlusCircle size={16} className="mr-2" />
+            <PlusCircle size={16} className="mr-8" />
             Создать тикет
           </Button>
         </div>
@@ -218,83 +211,85 @@ export const Chat: React.FC = () => {
 
       {/* ================= VIEW 2: ОКНО ДИАЛОГА (ЧАТ) ================= */}
       {view === 'dialogue' && selectedAgent && (
-        <div className="flex flex-col h-[calc(100vh-64px)] bg-bgDark">
+        <div className="flex flex-col h-[calc(100vh-80px)] bg-bgMain animate-fade-in">
           
-          {/* Кастомная шапка активного чата */}
-          <div className="flex items-center gap-12 p-16 border-b border-gray-800/40 bg-bgCard text-left shrink-0">
+          {/* Стеклянный Header диалога (Glass Background, Blur, Иконка Назад) */}
+          <div className="flex items-center gap-12 p-16 border-b border-white/[0.04] bg-bgCard/40 backdrop-blur-md text-left shrink-0 shadow-glass-inner">
             <button 
               onClick={handleBackToContacts}
-              className="w-8 h-8 rounded-app-xs bg-bgDark border border-gray-800/20 flex items-center justify-center text-textSec active:scale-95 transition-transform"
+              className="w-10 h-10 rounded-full bg-bgMain border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform"
             >
               <ArrowLeft size={16} />
             </button>
-            <div className="flex items-center gap-10">
+            <div className="flex items-center gap-12">
               <div className="relative">
-                <div className="w-9 h-9 rounded-full bg-accentDark/30 border border-accent/10 flex items-center justify-center text-accent">
+                <div className="w-10 h-10 rounded-full bg-accentPurple/10 border border-accentPurple/20 flex items-center justify-center text-accentPurple shadow-[0_0_10px_rgba(124,58,237,0.1)]">
                   <User size={16} />
                 </div>
-                <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-bgCard ${
-                  selectedAgent.status === 'online' ? 'bg-success' : 'bg-gray-500'
+                <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-bgCard ${
+                  selectedAgent.status === 'online' ? 'bg-success shadow-[0_0_6px_#22C55E]' : 'bg-gray-500'
                 }`} />
               </div>
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-white">{selectedAgent.name}</span>
-                <span className="text-[9px] text-textMuted mt-0.5">Тикет поддержки активен</span>
+                <span className="text-sm font-bold text-white">{selectedAgent.name}</span>
+                <span className="text-[9px] text-textSecondary font-semibold mt-0.5 uppercase tracking-wider">Приватная сессия активна</span>
               </div>
             </div>
           </div>
 
-          {/* Поле отображения сообщений (Скроллируемый контейнер) */}
-          <div className="flex-1 overflow-y-auto p-16 scrollable-container flex flex-col gap-12">
+          {/* Область сообщений (Скроллируемый контейнер с премиальным скроллбаром) */}
+          <div className="flex-1 overflow-y-auto p-16 scrollable-container flex flex-col gap-16">
             {messages.map((msg) => {
               const isUser = msg.sender === 'user';
               return (
                 <div 
                   key={msg.id}
-                  className={`flex flex-col max-w-[75%] ${isUser ? 'self-end items-end' : 'self-start items-start'}`}
+                  className={`flex flex-col max-w-[78%] ${isUser ? 'self-end items-end' : 'self-start items-start'}`}
                 >
-                  <div className={`p-10 rounded-app-md text-xs text-left leading-relaxed ${
+                  {/* Облака сообщений по гайдлайну (Glassmorphism vs Gradient) */}
+                  <div className={`p-12 text-sm text-left leading-relaxed shadow-premium ${
                     isUser 
-                      ? 'bg-accent text-white rounded-br-none' 
-                      : 'bg-bgCard border border-gray-800/40 text-textSec rounded-bl-none'
+                      ? 'bg-accent-gradient text-white rounded-card rounded-br-none border border-accentPink/20 shadow-glow-purple/20' 
+                      : 'glass-card text-textPrimary rounded-card rounded-bl-none'
                   }`}>
                     {msg.text}
                   </div>
                   
-                  {/* Время отправки и иконка статуса прочтения */}
-                  <div className="flex items-center gap-4 mt-1 px-1">
-                    <span className="text-[8px] text-textMuted font-medium">{msg.time}</span>
-                    {isUser && <CheckCheck size={10} className="text-accent" />}
+                  {/* Время отправки и светящиеся двойные галочки прочтения */}
+                  <div className="flex items-center gap-4 mt-2 px-2">
+                    <span className="text-[8px] text-textSecondary font-bold uppercase tracking-wider">{msg.time}</span>
+                    {isUser && <CheckCheck size={10} className="text-accentPurple drop-shadow-[0_0_4px_#7C3AED]" />}
                   </div>
                 </div>
               );
             })}
 
-            {/* Имитация набора текста оператором */}
+            {/* Мягкий анимированный статус набора текста саппортом */}
             {isTyping && (
-              <div className="self-start flex items-center gap-6 bg-bgCard/30 border border-gray-800/20 p-10 rounded-app-md text-[10px] text-textMuted animate-pulse">
-                <Sparkles size={10} className="text-accent animate-spin" />
-                <span>Оператор печатает ответ...</span>
+              <div className="self-start flex items-center gap-8 bg-bgCard/30 backdrop-blur-sm border border-white/[0.04] p-12 rounded-card rounded-bl-none text-[10px] text-textSecondary font-semibold animate-pulse">
+                <Sparkles size={10} className="text-accentPurple animate-spin" style={{ animationDuration: '4s' }} />
+                <span>Менеджер {selectedAgent.name} печатает ответ...</span>
               </div>
             )}
 
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Нижняя панель ввода сообщения */}
-          <div className="p-12 border-t border-gray-800/30 bg-bgCard flex items-center gap-8 shrink-0 pb-safe">
+          {/* Плавающая стеклянная панель ввода внизу (Glass Navigation, Floating, Safe Areas) */}
+          <div className="p-16 border-t border-white/[0.04] bg-bgCard/50 backdrop-blur-md flex items-center gap-12 shrink-0 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.37)] z-50">
             <Input 
               placeholder="Введите ваше сообщение..."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyPress}
-              className="flex-1 h-10"
+              className="flex-1 h-11 border-white/5 bg-white/[0.01]"
             />
+            {/* Круглая градиентная кнопка отправки (Glow, Lift) */}
             <Button 
               variant="primary" 
               size="md" 
               onClick={handleSendMessage}
-              className="w-10 h-10 p-0 flex items-center justify-center shrink-0 rounded-app-xs"
+              className="w-11 h-11 p-0 flex items-center justify-center shrink-0 rounded-full shadow-glow-purple/40 hover:-translate-y-0.5 active:scale-95"
             >
               <Send size={16} />
             </Button>
