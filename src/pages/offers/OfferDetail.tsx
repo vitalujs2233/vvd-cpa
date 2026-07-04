@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Globe, Calendar, DollarSign, Check, X, 
-  Copy, CheckCircle2, AlertCircle, Link as LinkIcon 
+  Copy, CheckCircle2, Link as LinkIcon 
 } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
@@ -20,7 +20,6 @@ interface DetailData {
   smartlinkSuffix: string;
 }
 
-// База данных по макетам (2.1 - 2.7)
 const OFFERS_DETAILS_MAP: Record<string, DetailData> = {
   'adult-dating': {
     title: 'Adult Dating',
@@ -88,12 +87,10 @@ export const OfferDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  // Состояния для работы генератора ссылок
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedLink, setGeneratedLink] = useState('');
   const [copied, setCopied] = useState(false);
 
-  // Получаем данные по ID или берем дефолтный Adult Dating, если ID некорректен
   const data = useMemo(() => {
     return OFFERS_DETAILS_MAP[id || 'adult-dating'] || OFFERS_DETAILS_MAP['adult-dating'];
   }, [id]);
@@ -107,7 +104,6 @@ export const OfferDetail: React.FC = () => {
     triggerHaptic.mediumImpact();
     setIsGenerating(true);
     
-    // Имитация задержки генерации на 1 секунду для создания реалистичного UX
     setTimeout(() => {
       setGeneratedLink(`https://demo.vvdcpa.link/${data.smartlinkSuffix}`);
       setIsGenerating(false);
@@ -122,7 +118,6 @@ export const OfferDetail: React.FC = () => {
       triggerHaptic.success();
       setCopied(true);
       
-      // Сбрасываем плашку "Скопировано" через 2.5 секунды
       setTimeout(() => {
         setCopied(false);
       }, 2500);
@@ -130,76 +125,94 @@ export const OfferDetail: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-16 p-16 select-none pb-32">
-      {/* Кнопка назад и Заголовок страницы */}
+    <div className="flex flex-col gap-20 p-16 select-none pb-32 animate-fade-in">
+      
+      {/* Кнопка назад и Заголовок страницы в стиле Luxury UI */}
       <div className="flex items-center gap-12 text-left">
         <button 
           onClick={handleBack}
-          className="w-10 h-10 rounded-app-xs bg-bgCard border border-gray-800/40 flex items-center justify-center text-textSec active:scale-95 transition-transform duration-100"
+          className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform shadow-glass-inner"
         >
           <ArrowLeft size={18} />
         </button>
         <div className="flex flex-col">
-          <span className="text-[10px] text-accent font-semibold uppercase tracking-wider">Категория</span>
-          <h1 className="text-xl font-bold text-white leading-tight">{data.title}</h1>
+          <span className="text-[10px] text-accentPurple font-bold uppercase tracking-wider">Вертикаль</span>
+          <h1 className="text-xl font-bold text-white leading-tight mt-0.5">{data.title}</h1>
         </div>
       </div>
 
       {/* Сетка условий оффера */}
       <div className="grid grid-cols-2 gap-12 text-left">
-        {/* Geo */}
-        <Card padding="sm" className="flex items-center gap-12">
-          <div className="w-8 h-8 rounded-app-xs bg-accentDark/40 flex items-center justify-center text-accent">
+        {/* ГЕО */}
+        <Card padding="sm" className="flex items-center gap-12 border-white/5 shadow-glass-inner bg-white/[0.01]">
+          <div className="w-9 h-9 rounded-full bg-accentPurple/10 border border-accentPurple/20 flex items-center justify-center text-accentPurple shadow-[0_0_10px_rgba(124,58,237,0.1)]">
             <Globe size={16} />
           </div>
           <div className="flex flex-col">
-            <span className="text-[10px] text-textMuted font-semibold uppercase">Гео</span>
-            <span className="text-xs font-bold text-white mt-0.5">{data.geo}</span>
+            <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">Гео</span>
+            <span className="text-xs font-bold text-textPrimary mt-0.5">{data.geo}</span>
           </div>
         </Card>
 
-        {/* Hold */}
-        <Card padding="sm" className="flex items-center gap-12">
-          <div className="w-8 h-8 rounded-app-xs bg-accentDark/40 flex items-center justify-center text-accent">
+        {/* Холд */}
+        <Card padding="sm" className="flex items-center gap-12 border-white/5 shadow-glass-inner bg-white/[0.01]">
+          <div className="w-9 h-9 rounded-full bg-accentPurple/10 border border-accentPurple/20 flex items-center justify-center text-accentPurple shadow-[0_0_10px_rgba(124,58,237,0.1)]">
             <Calendar size={16} />
           </div>
           <div className="flex flex-col">
-            <span className="text-[10px] text-textMuted font-semibold uppercase">Холд</span>
+            <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">Холд</span>
             <span className="text-xs font-bold text-white mt-0.5">{data.hold}</span>
           </div>
         </Card>
 
         {/* Выплаты */}
-        <Card padding="sm" className="flex items-center gap-12 col-span-2">
-          <div className="w-8 h-8 rounded-app-xs bg-accentDark/40 flex items-center justify-center text-accent">
+        <Card padding="sm" className="flex items-center gap-12 col-span-2 border-white/5 shadow-glass-inner bg-white/[0.01]">
+          <div className="w-9 h-9 rounded-full bg-success/10 border border-success/20 flex items-center justify-center text-success shadow-[0_0_10px_rgba(34,197,94,0.1)]">
             <DollarSign size={16} />
           </div>
           <div className="flex flex-col">
-            <span className="text-[10px] text-textMuted font-semibold uppercase">Выплаты (CPA)</span>
+            <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">Выплаты по CPA</span>
             <span className="text-xs font-bold text-success mt-0.5">{data.payout}</span>
           </div>
         </Card>
       </div>
 
-      {/* Генератор SmartLink */}
-      <Card variant="accent" padding="md" className="flex flex-col gap-12">
-        <div className="flex items-center gap-8 text-left">
-          <LinkIcon size={16} className="text-accent" />
-          <span className="text-xs font-bold text-white">Индивидуальный SmartLink</span>
+      {/* САМАЯ ВАЖНАЯ КАРТОЧКА: SmartLink Card по гайдлайну (Glow Border, Большая иконка, статус Active) */}
+      <Card variant="glow" padding="lg" className="flex flex-col gap-16 relative overflow-hidden border-accentPurple/30 bg-accentPurple/[0.01] shadow-glow-purple">
+        <div className="absolute -right-24 -top-24 w-48 h-48 bg-accent-gradient rounded-full blur-3xl opacity-10 pointer-events-none" />
+
+        <div className="flex justify-between items-center text-left">
+          <div className="flex items-center gap-12">
+            {/* Большая сияющая розовая иконка */}
+            <div className="w-12 h-12 rounded-full bg-accentPink/10 border border-accentPink/20 flex items-center justify-center text-accentPink drop-shadow-[0_0_10px_#C026D3]">
+              <LinkIcon size={20} />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-white">Индивидуальный SmartLink</span>
+              <span className="text-[9px] text-textSecondary font-semibold mt-0.5">Динамический ротатор офферов</span>
+            </div>
+          </div>
+          
+          {/* Пульсирующий неоновый статус Active */}
+          <div className="flex items-center gap-6 px-8 py-4 bg-success/5 border border-success/20 rounded-app-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_8px_#22C55E] animate-pulse" />
+            <span className="text-[9px] font-bold text-success uppercase tracking-wider">Active</span>
+          </div>
         </div>
 
+        {/* Интерактивный генератор с большой люксовой кнопкой 54px */}
         {!generatedLink ? (
           <Button 
             variant="primary" 
-            size="md" 
-            className="w-full h-11"
+            size="lg" 
+            className="w-full shadow-glow-purple"
             isLoading={isGenerating}
             onClick={handleGenerateLink}
           >
             Получить SmartLink
           </Button>
         ) : (
-          <div className="flex flex-col gap-8">
+          <div className="flex flex-col gap-12 animate-fade-in">
             <div className="flex gap-8">
               <Input 
                 value={generatedLink} 
@@ -208,17 +221,17 @@ export const OfferDetail: React.FC = () => {
                 onClick={(e) => (e.target as HTMLInputElement).select()}
               />
               <Button 
-                variant="outline" 
+                variant="secondary" 
                 size="md" 
-                className="w-12 h-10 px-0 flex items-center justify-center"
+                className="w-12 h-12 px-0 flex items-center justify-center shrink-0 border border-white/5 rounded-app-xs shadow-glass-inner"
                 onClick={handleCopyLink}
               >
                 <Copy size={16} />
               </Button>
             </div>
-            {/* Анимированное плавающее уведомление о копировании */}
-            <div className={`flex items-center gap-6 text-[10px] text-success transition-all duration-300 px-1 font-medium ${copied ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'}`}>
-              <CheckCircle2 size={12} />
+            {/* Анимированный статус успешного копирования */}
+            <div className={`flex items-center gap-6 text-[10px] text-success transition-all duration-300 px-1 font-semibold justify-center ${copied ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1 h-0 pointer-events-none'}`}>
+              <CheckCircle2 size={12} className="drop-shadow-[0_0_4px_#22C55E]" />
               <span>Ссылка успешно скопирована в буфер обмена!</span>
             </div>
           </div>
@@ -227,22 +240,22 @@ export const OfferDetail: React.FC = () => {
 
       {/* Блок Описания */}
       <div className="flex flex-col gap-8 text-left">
-        <span className="text-xs font-bold text-white px-1">Описание вертикали</span>
-        <Card padding="md" className="text-xs text-textSec leading-relaxed">
+        <span className="text-xs font-bold text-white px-2">Описание вертикали</span>
+        <Card padding="md" className="text-xs text-textSecondary leading-relaxed border-white/5 shadow-glass-inner bg-white/[0.01]">
           {data.description}
         </Card>
       </div>
 
-      {/* Правила Трафика по макету */}
+      {/* Правила Трафика в стиле Premium SaaS (Check/X с неоновым свечением) */}
       <div className="grid grid-cols-2 gap-12 text-left">
         {/* Разрешенный трафик */}
         <div className="flex flex-col gap-8">
-          <span className="text-[10px] font-semibold text-success uppercase tracking-wider px-1">Разрешен</span>
-          <Card padding="sm" className="flex-1 flex flex-col gap-8 border-success/10 bg-success/[0.02]">
+          <span className="text-[10px] font-bold text-success uppercase tracking-widest px-2">Разрешен</span>
+          <Card padding="sm" className="flex-1 flex flex-col gap-10 border-success/10 bg-success/[0.01] shadow-glass-inner">
             {data.allowedTraffic.map((traffic, index) => (
-              <div key={index} className="flex items-start gap-6">
-                <Check size={12} className="text-success mt-0.5 shrink-0" />
-                <span className="text-[10px] font-medium text-textSec leading-tight">{traffic}</span>
+              <div key={index} className="flex items-start gap-8">
+                <Check size={14} className="text-success mt-0.5 shrink-0 drop-shadow-[0_0_4px_#22C55E]" />
+                <span className="text-[10px] font-bold text-textSecondary leading-tight">{traffic}</span>
               </div>
             ))}
           </Card>
@@ -250,12 +263,12 @@ export const OfferDetail: React.FC = () => {
 
         {/* Запрещенный трафик */}
         <div className="flex flex-col gap-8">
-          <span className="text-[10px] font-semibold text-error uppercase tracking-wider px-1">Запрещен</span>
-          <Card padding="sm" className="flex-1 flex flex-col gap-8 border-error/10 bg-error/[0.02]">
+          <span className="text-[10px] font-bold text-error uppercase tracking-widest px-2">Запрещен</span>
+          <Card padding="sm" className="flex-1 flex flex-col gap-10 border-error/10 bg-error/[0.01] shadow-glass-inner">
             {data.forbiddenTraffic.map((traffic, index) => (
-              <div key={index} className="flex items-start gap-6">
-                <X size={12} className="text-error mt-0.5 shrink-0" />
-                <span className="text-[10px] font-medium text-textSec leading-tight">{traffic}</span>
+              <div key={index} className="flex items-start gap-8">
+                <X size={14} className="text-error mt-0.5 shrink-0 drop-shadow-[0_0_4px_#EF4444]" />
+                <span className="text-[10px] font-bold text-textSecondary leading-tight">{traffic}</span>
               </div>
             ))}
           </Card>
