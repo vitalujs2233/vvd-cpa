@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { MemoryRouter, Routes, Route, NavLink, Outlet } from 'react-router-dom';
 import { Home as HomeIcon, Grid, BarChart3, MessageSquare, User } from 'lucide-react';
 import { triggerHaptic } from '@/shared/lib/telegram';
@@ -10,6 +10,7 @@ import { Stats } from '@/pages/stats/Stats';
 import { Chat } from '@/pages/chat/Chat';
 import { Profile } from '@/pages/profile/Profile';
 import { Admin } from '@/pages/admin/Admin';
+import { Loader } from '@/shared/ui/Loader';
 
 // Главный Лейаут приложения, фиксирующий Bottom Menu
 const AppLayout = () => {
@@ -107,6 +108,14 @@ const AppLayout = () => {
 };
 
 const App = () => {
+  // Состояние отображения стартового люксового лоадера
+  const [isLoading, setIsLoading] = useState(true);
+
+  if (isLoading) {
+    // Рендерим лоадер до завершения анимации загрузки
+    return <Loader onComplete={() => setIsLoading(false)} />;
+  }
+
   return (
     <MemoryRouter>
       <Routes>
