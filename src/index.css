@@ -16,7 +16,13 @@
   --accent-purple: #7C3AED;
 }
 
-/* Настройки монолитного полноэкранного Premium-интерфейса */
+/* 1. Сплошной цвет фона устанавливается ТОЛЬКО для базового слоя html и body */
+html,
+body {
+  background-color: var(--bg-main);
+}
+
+/* Настройки монолитного полноэкранного Premium-интерфейса (без фонового цвета для #root) */
 html,
 body,
 #root {
@@ -30,13 +36,11 @@ body,
   -webkit-user-select: none;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
-  background-color: var(--bg-main);
   position: relative;
 }
 
-/* ПОДКЛЮЧЕНИЕ СТАТИЧНОЙ ПРЕМИУМ КАРТИНКИ НЕОНОВЫХ ВОЛН НА ЗАДНИЙ ФОН (0% НАГРУЗКИ) */
+/* ПОДКЛЮЧЕНИЕ СТАТИЧНОЙ ПРЕМИУМ КАРТИНКИ НЕОНОВЫХ ВОЛН НА ЗАДНИЙ ФОН */
 body {
-  /* Vite автоматически обнаружит файл bg.png в папке src, сожмет его и встроит в сайт */
   background-image: url('./bg.png');
   background-size: cover;
   background-position: center;
