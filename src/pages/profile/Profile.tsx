@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Settings, Shield, Bell, Globe, Info, 
   LogOut, Lock, Smartphone, Mail, Trash2, User, 
-  CheckCircle2, Coins, Sparkles, Crown, Trash 
+  CheckCircle2, Coins, Sparkles, Crown 
 } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
@@ -86,23 +86,24 @@ export const Profile: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-20 p-16 select-none pb-32">
+    // Заменили внешние отступы p-16 (64px) на адаптивные p-4 (16px), а gap-20 на gap-4 (16px)
+    <div className="flex flex-col gap-4 p-4 select-none pb-24">
       
-      {/* ================= VIEW 1: ГЛАВНЫЙ ЭКРАН ПРОФИЛЯ (Раздел 5) ================= */}
+      {/* ================= VIEW 1: ГЛАВНЫЙ ЭКРАН ПРОФИЛЯ ================= */}
       {subView === 'main' && (
-        <div className="flex flex-col gap-20 animate-fade-in">
+        <div className="flex flex-col gap-4 animate-fade-in">
           {/* Шапка Профиля */}
           <div className="flex flex-col text-left">
             <span className="text-[10px] text-textSecondary font-bold uppercase tracking-wider">Ваш аккаунт</span>
             <h1 className="text-2xl font-bold text-white mt-1">Кабинет</h1>
           </div>
 
-          {/* Премиальная Карточка пользователя по гайдлайну (Большая фото, Badge Partner, Badge Premium) */}
-          <Card padding="md" className="flex flex-col items-center justify-center gap-16 text-center relative overflow-hidden shadow-premium">
+          {/* Карточка пользователя с аватаром и бейджами */}
+          <Card padding="md" className="flex flex-col items-center justify-center gap-4 text-center relative overflow-hidden shadow-premium">
             <div className="absolute inset-0 bg-accent-gradient/5 blur-3xl rounded-full pointer-events-none" />
             
-            {/* Большая круглая фотография с люксовым градиентным бордером */}
-            <div className="relative p-4 rounded-full bg-accent-gradient shadow-glow-purple/35 animate-neon-pulse">
+            {/* Большая круглая фотография */}
+            <div className="relative p-1 rounded-full bg-accent-gradient shadow-glow-purple/35 animate-neon-pulse">
               {telegramUser.photo_url ? (
                 <img
                   src={telegramUser.photo_url}
@@ -117,7 +118,7 @@ export const Profile: React.FC = () => {
             </div>
 
             <div className="flex flex-col items-center justify-center">
-              <span className="text-base font-bold text-white flex items-center gap-6">
+              <span className="text-base font-bold text-white flex items-center gap-1.5">
                 {profileName}
                 <Crown size={14} className="text-accentPink" />
               </span>
@@ -125,21 +126,21 @@ export const Profile: React.FC = () => {
               <span className="text-[9px] text-accentPurple font-bold uppercase tracking-widest mt-2">ID: {telegramUser.id} • Рег. 25.05.2024</span>
             </div>
 
-            {/* Блок Премиум-бейджей вебмастера */}
-            <div className="flex items-center gap-8 mt-2 z-10">
-              <div className="bg-accent-gradient/10 border border-accentPink/20 rounded-app-xs px-2.5 py-1 flex items-center gap-4">
+            {/* Премиум-бейджи */}
+            <div className="flex items-center gap-2 mt-1 z-10">
+              <div className="bg-accent-gradient/10 border border-accentPink/20 rounded-app-xs px-2.5 py-1 flex items-center gap-1">
                 <Sparkles size={8} className="text-accentPink" />
                 <span className="text-[8px] font-bold text-white uppercase tracking-widest">Badge Partner</span>
               </div>
-              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-app-xs px-2.5 py-1 flex items-center gap-4">
+              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-app-xs px-2.5 py-1 flex items-center gap-1">
                 <Crown size={8} className="text-yellow-500" />
                 <span className="text-[8px] font-bold text-yellow-500 uppercase tracking-widest">Premium Master</span>
               </div>
             </div>
           </Card>
 
-          {/* Финансовая сводка по макету (Glass Card) */}
-          <Card padding="sm" className="grid grid-cols-3 gap-12 text-center divide-x divide-white/[0.04] shadow-premium">
+          {/* Финансовая сводка */}
+          <Card padding="sm" className="grid grid-cols-3 gap-3 text-center divide-x divide-white/[0.04] shadow-premium">
             <div className="flex flex-col items-center justify-center py-2">
               <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">Баланс</span>
               <span className="text-xs font-bold text-white mt-1">$154.50</span>
@@ -150,19 +151,19 @@ export const Profile: React.FC = () => {
             </div>
             <div className="flex flex-col items-center justify-center py-2">
               <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">Выплачено</span>
-              <span className="text-xs font-bold text-success mt-1">$1,234.50</span>
+              <span className="text-xs font-bold text-textSec mt-1">$1,234.50</span>
             </div>
           </Card>
 
-          {/* Меню настроек профиля по макету (Glass Menu) */}
-          <div className="flex flex-col gap-12">
+          {/* Меню настроек профиля */}
+          <div className="flex flex-col gap-3">
             <Card padding="none" className="divide-y divide-white/[0.04] text-left shadow-premium">
               {/* Изменить профиль */}
               <div 
                 onClick={() => handleSubViewChange('edit')}
-                className="flex items-center justify-between p-16 hover:bg-white/[0.01] active:bg-white/[0.03] cursor-pointer transition-colors duration-150"
+                className="flex items-center justify-between p-4 hover:bg-white/[0.01] active:bg-white/[0.02] cursor-pointer transition-colors duration-150"
               >
-                <div className="flex items-center gap-12">
+                <div className="flex items-center gap-3">
                   <User size={16} className="text-accentPurple" />
                   <span className="text-xs font-semibold text-white">Изменить профиль</span>
                 </div>
@@ -172,13 +173,13 @@ export const Profile: React.FC = () => {
               {/* Безопасность */}
               <div 
                 onClick={() => handleSubViewChange('security')}
-                className="flex items-center justify-between p-16 hover:bg-white/[0.01] active:bg-white/[0.03] cursor-pointer transition-colors duration-150"
+                className="flex items-center justify-between p-4 hover:bg-white/[0.01] active:bg-white/[0.02] cursor-pointer transition-colors duration-150"
               >
-                <div className="flex items-center gap-12">
+                <div className="flex items-center gap-3">
                   <Shield size={16} className="text-accentPurple" />
                   <span className="text-xs font-semibold text-white">Панель безопасности</span>
                 </div>
-                <span className="text-[9px] text-success font-bold uppercase tracking-widest flex items-center gap-4">
+                <span className="text-[9px] text-success font-bold uppercase tracking-widest flex items-center gap-1.5">
                   <span className="w-1 h-1 rounded-full bg-success shadow-[0_0_6px_#22C55E]" />
                   2FA {is2FAEnabled ? 'Активна' : 'Выкл'}
                 </span>
@@ -187,22 +188,22 @@ export const Profile: React.FC = () => {
               {/* Общие настройки */}
               <div 
                 onClick={() => handleSubViewChange('settings')}
-                className="flex items-center justify-between p-16 hover:bg-white/[0.01] active:bg-white/[0.03] cursor-pointer transition-colors duration-150"
+                className="flex items-center justify-between p-4 hover:bg-white/[0.01] active:bg-white/[0.02] cursor-pointer transition-colors duration-150"
               >
-                <div className="flex items-center gap-12">
+                <div className="flex items-center gap-3">
                   <Settings size={16} className="text-accentPurple" />
                   <span className="text-xs font-semibold text-white">Общие настройки</span>
                 </div>
                 <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">Язык, Кэш</span>
               </div>
 
-              {/* Админ-панель (Видна только админу 123456 по макету) */}
+              {/* Админ-панель (Видна только админу 123456) */}
               {telegramUser.id === 123456 && (
                 <div 
                   onClick={handleNavigateToAdmin}
-                  className="flex items-center justify-between p-16 hover:bg-white/[0.01] active:bg-white/[0.03] cursor-pointer transition-all duration-200 border-t border-white/[0.04]"
+                  className="flex items-center justify-between p-4 hover:bg-white/[0.01] active:bg-white/[0.02] cursor-pointer transition-all duration-200 border-t border-white/[0.04]"
                 >
-                  <div className="flex items-center gap-12">
+                  <div className="flex items-center gap-3">
                     <Shield size={16} className="text-accentPink animate-pulse" />
                     <span className="text-xs font-bold text-accentPink">Админ панель</span>
                   </div>
@@ -215,7 +216,7 @@ export const Profile: React.FC = () => {
             <Card padding="none" className="text-left border-error/10 bg-error/[0.01] shadow-premium">
               <div 
                 onClick={handleLogout}
-                className="flex items-center gap-12 p-16 hover:bg-error/[0.03] active:bg-error/[0.05] cursor-pointer transition-colors duration-150"
+                className="flex items-center gap-3 p-4 hover:bg-error/[0.03] active:bg-error/[0.05] cursor-pointer transition-colors duration-150"
               >
                 <LogOut size={16} className="text-error drop-shadow-[0_0_4px_#EF4444]" />
                 <span className="text-xs font-bold text-error uppercase tracking-wider">Выйти из аккаунта</span>
@@ -225,11 +226,11 @@ export const Profile: React.FC = () => {
         </div>
       )}
 
-      {/* ================= VIEW 2: НАСТРОЙКИ ПРОФИЛЯ (Раздел 5.2) ================= */}
+      {/* ================= VIEW 2: НАСТРОЙКИ ПРОФИЛЯ ================= */}
       {subView === 'edit' && (
-        <div className="flex flex-col gap-20 animate-fade-in">
+        <div className="flex flex-col gap-4 animate-fade-in">
           {/* Шапка */}
-          <div className="flex items-center gap-12 text-left">
+          <div className="flex items-center gap-3 text-left">
             <button 
               onClick={() => handleSubViewChange('main')}
               className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform shadow-glass-inner"
@@ -242,8 +243,8 @@ export const Profile: React.FC = () => {
             </div>
           </div>
 
-          {/* Форма ввода (высота 48px, скругление 12px) */}
-          <div className="flex flex-col gap-12">
+          {/* Форма ввода */}
+          <div className="flex flex-col gap-3">
             <Input 
               label="Имя пользователя"
               value={profileName}
@@ -273,7 +274,6 @@ export const Profile: React.FC = () => {
             <span>Данные профиля успешно обновлены!</span>
           </div>
 
-          {/* Большая успешная кнопка (54px, 18px скругление) */}
           <Button 
             variant="primary" 
             size="lg" 
@@ -284,11 +284,11 @@ export const Profile: React.FC = () => {
         </div>
       )}
 
-      {/* ================= VIEW 3: НАСТРОЙКИ БЕЗОПАСНОСТИ (Раздел 5.1) ================= */}
+      {/* ================= VIEW 3: НАСТРОЙКИ БЕЗОПАСНОСТИ ================= */}
       {subView === 'security' && (
-        <div className="flex flex-col gap-20 animate-fade-in">
+        <div className="flex flex-col gap-4 animate-fade-in">
           {/* Шапка */}
-          <div className="flex items-center gap-12 text-left">
+          <div className="flex items-center gap-3 text-left">
             <button 
               onClick={() => handleSubViewChange('main')}
               className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform shadow-glass-inner"
@@ -301,9 +301,9 @@ export const Profile: React.FC = () => {
             </div>
           </div>
 
-          {/* Переключатель 2FA (Glassmorphism, плавная анимация) */}
+          {/* Переключатель 2FA */}
           <Card padding="md" className="flex items-center justify-between text-left border-white/5 shadow-glass-inner">
-            <div className="flex items-center gap-12">
+            <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-accentPurple/10 border border-accentPurple/20 flex items-center justify-center text-accentPurple shadow-[0_0_10px_rgba(124,58,237,0.1)]">
                 <Lock size={16} />
               </div>
@@ -313,21 +313,20 @@ export const Profile: React.FC = () => {
               </div>
             </div>
 
-            {/* Люксовый стеклянный Switch */}
             <button 
               onClick={handleToggle2FA}
               className={`w-11 h-6 rounded-full p-2 transition-all duration-300 outline-none flex items-center ${
                 is2FAEnabled ? 'bg-accent-gradient shadow-glow-purple/50' : 'bg-white/[0.04] border border-white/10'
               }`}
             >
-              <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ${
+              <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${
                 is2FAEnabled ? 'translate-x-5' : 'translate-x-0'
               }`} />
             </button>
           </Card>
 
           {/* Активные сессии */}
-          <div className="flex flex-col gap-8 text-left">
+          <div className="flex flex-col gap-2 text-left">
             <div className="flex justify-between items-center px-2">
               <span className="text-xs font-bold text-white">Активные сессии</span>
               <span className="text-[10px] text-accentPurple font-bold uppercase tracking-widest">{activeSessions.length} сессии</span>
@@ -336,7 +335,7 @@ export const Profile: React.FC = () => {
             {activeSessions.length > 0 ? (
               <Card padding="none" className="divide-y divide-white/[0.04] shadow-premium">
                 {activeSessions.map((session) => (
-                  <div key={session.id} className="flex items-start gap-12 p-12 hover-lift">
+                  <div key={session.id} className="flex items-start gap-3 p-3 hover-lift">
                     <div className="w-8 h-8 rounded-full bg-white/[0.02] border border-white/5 flex items-center justify-center text-textSecondary shrink-0">
                       <Smartphone size={16} />
                     </div>
@@ -366,11 +365,11 @@ export const Profile: React.FC = () => {
         </div>
       )}
 
-      {/* ================= VIEW 4: ОБЩИЕ НАСТРОЙКИ (Раздел 8) ================= */}
+      {/* ================= VIEW 4: ОБЩИЕ НАСТРОЙКИ ================= */}
       {subView === 'settings' && (
-        <div className="flex flex-col gap-20 animate-fade-in text-left">
+        <div className="flex flex-col gap-4 animate-fade-in text-left">
           {/* Шапка */}
-          <div className="flex items-center gap-12 text-left">
+          <div className="flex items-center gap-3 text-left">
             <button 
               onClick={() => handleSubViewChange('main')}
               className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform shadow-glass-inner"
@@ -383,12 +382,12 @@ export const Profile: React.FC = () => {
             </div>
           </div>
 
-          {/* Тумблеры уведомлений (Glass switches) */}
-          <div className="flex flex-col gap-8">
+          {/* Тумблеры уведомлений */}
+          <div className="flex flex-col gap-2">
             <span className="text-xs font-bold text-white px-2">Уведомления</span>
             <Card padding="none" className="divide-y divide-white/[0.04] shadow-premium">
               {/* Push */}
-              <div className="flex items-center justify-between p-16">
+              <div className="flex items-center justify-between p-4">
                 <div className="flex flex-col">
                   <span className="text-xs font-bold text-white">Push уведомления</span>
                   <span className="text-[9px] text-textSecondary font-semibold mt-0.5">Мгновенный отчет о конверсиях</span>
@@ -406,7 +405,7 @@ export const Profile: React.FC = () => {
               </div>
 
               {/* Email */}
-              <div className="flex items-center justify-between p-16">
+              <div className="flex items-center justify-between p-4">
                 <div className="flex flex-col">
                   <span className="text-xs font-bold text-white">Email отчеты</span>
                   <span className="text-[9px] text-textSecondary font-semibold mt-0.5">Еженедельный аудит баланса</span>
@@ -426,23 +425,23 @@ export const Profile: React.FC = () => {
           </div>
 
           {/* Системные */}
-          <div className="flex flex-col gap-8">
+          <div className="flex flex-col gap-2">
             <span className="text-xs font-bold text-white px-2">Системные параметры</span>
             <Card padding="none" className="divide-y divide-white/[0.04] shadow-premium">
-              <div className="flex items-center justify-between p-16">
+              <div className="flex items-center justify-between p-4">
                 <span className="text-xs font-bold text-white">Язык</span>
                 <span className="text-xs font-bold text-accentPurple">{language}</span>
               </div>
 
-              <div className="flex items-center justify-between p-16">
+              <div className="flex items-center justify-between p-4">
                 <span className="text-xs font-bold text-white">Валюта</span>
                 <span className="text-xs font-bold text-accentPurple">{currency}</span>
               </div>
 
-              {/* Кэш с плавной очисткой */}
+              {/* Кэш */}
               <div 
                 onClick={handleClearCache}
-                className="flex items-center justify-between p-16 hover:bg-white/[0.01] active:bg-white/[0.02] cursor-pointer transition-colors"
+                className="flex items-center justify-between p-4 hover:bg-white/[0.01] active:bg-white/[0.02] cursor-pointer transition-colors"
               >
                 <div className="flex flex-col">
                   <span className="text-xs font-bold text-white">Очистить кэш</span>
@@ -456,9 +455,9 @@ export const Profile: React.FC = () => {
           </div>
 
           {/* Удаление */}
-          <div className="flex flex-col gap-8 mt-4">
+          <div className="flex flex-col gap-2 mt-4">
             <Card padding="none" className="border-error/15 bg-error/[0.01] shadow-premium">
-              <div className="flex items-center justify-between p-16">
+              <div className="flex items-center justify-between p-4">
                 <div className="flex flex-col">
                   <span className="text-xs font-bold text-error">Удалить аккаунт</span>
                   <span className="text-[9px] text-error/60 mt-0.5">Без возможности восстановления</span>
