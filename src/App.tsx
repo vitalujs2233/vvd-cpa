@@ -20,16 +20,9 @@ const AppLayout = () => {
   };
 
   return (
-    // Полностью прозрачный фон bg-transparent, сквозь который светится ваша картинка bg.png на body
+    // Прозрачный каркас, сквозь который насквозь светится наша картинка-фон
     <div className="flex flex-col h-screen w-full bg-transparent text-textPrimary overflow-hidden relative">
       
-      {/* 
-        === ЧИСТЫЙ ПРОЗРАЧНЫЙ ФОН ===
-        Мы полностью убрали отсюда любые блокировщики, волны и радиальные градиенты.
-        Теперь сквозь прозрачный каркас насквозь светится ваша картинка bg.png, 
-        заданная в body на уровне index.css.
-      */}
-
       {/* Контейнер контента со скроллом */}
       <div className="flex-1 overflow-y-auto scrollable-container relative z-10">
         <Outlet />
@@ -117,40 +110,37 @@ const AppLayout = () => {
 };
 
 const App = () => {
-  // Состояние отображения стартового люксового лоадера
+  // Состояние отображения стартового золотого лоадера
   const [isLoading, setIsLoading] = useState(true);
 
+  if (isLoading) {
+    // Строгий рендеринг: пока идет загрузка, рендерится ТОЛЬКО лоадер, исключая "мигания"
+    return <Loader onComplete={() => setIsLoading(false)} />;
+  }
+
+  // Приложение монтируется в браузере строго ПОСЛЕ полного исчезновения лоадера
   return (
-    <>
-      {/* Лоадер рендерится как абсолютный слой поверх всего интерфейса */}
-      {isLoading && <Loader onComplete={() => setIsLoading(false)} />}
+    <MemoryRouter>
+      <Routes>
+        {/* Обертка Лейаута с парящей нижней панелью навигации */}
+        <Route path="/" element={<AppLayout />}>
+          <Route index element={<Home />} />
+          <Route path="offers" element={<Offers />} />
+          <Route path="stats" element={<Stats />} />
+          <Route path="chat" element={<Chat />} />
+          <Route path="profile" element={<Profile />} />
+        </Route>
 
-      {/* 
-        Главный интерфейс приложения монтируется и рендерится на заднем плане 
-        одновременно с работой лоадера. Это полностью исключает любые паузы и мигания фона!
-      */}
-      <MemoryRouter>
-        <Routes>
-          {/* Обертка Лейаута с парящей нижней панелью навигации */}
-          <Route path="/" element={<AppLayout />}>
-            <Route index element={<Home />} />
-            <Route path="offers" element={<Offers />} />
-            <Route path="stats" element={<Stats />} />
-            <Route path="chat" element={<Chat />} />
-            <Route path="profile" element={<Profile />} />
-          </Route>
+        {/* Вложенный детальный экран оффера без нижнего меню */}
+        <Route path="/offers/:id" element={<OfferDetail />} />
 
-          {/* Вложенный детальный экран оффера без нижнего меню */}
-          <Route path="/offers/:id" element={<OfferDetail />} />
+        {/* Вложенный экран финансов и выплат (Форма, история, чек) без нижнего меню */}
+        <Route path="/withdrawal" element={<Withdrawal />} />
 
-          {/* Вложенный экран финансов и выплат (Форма, история, чек) без нижнего меню */}
-          <Route path="/withdrawal" element={<Withdrawal />} />
-
-          {/* Вложенный экран админ-панели без нижнего меню */}
-          <Route path="/admin" element={<Admin />} />
-        </Routes>
-      </MemoryRouter>
-    </>
+        {/* Вложенный экран админ-панели без нижнего меню */}
+        <Route path="/admin" element={<Admin />} />
+      </Routes>
+    </MemoryRouter>
   );
 };
 
