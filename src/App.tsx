@@ -19,77 +19,87 @@ const AppLayout = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen w-full bg-bgDark text-white overflow-hidden">
+    <div className="flex flex-col h-screen w-full bg-bgMain text-textPrimary overflow-hidden">
       {/* Контейнер контента со скроллом */}
       <div className="flex-1 overflow-y-auto scrollable-container">
         <Outlet />
       </div>
 
-      {/* Нижняя панель навигации (Bottom Menu) точно по макету */}
-      <nav className="h-[64px] bg-bgCard border-t border-gray-800/50 flex items-center justify-around px-4 pb-safe shadow-[0_-4px_24px_rgba(0,0,0,0.4)] z-50">
+      {/* Нижняя парящая стеклянная панель навигации (Glass Navigation, Blur, Высота 80px) */}
+      <nav className="h-[80px] bg-bgCard/60 backdrop-blur-lg border-t border-white/[0.04] flex items-center justify-around px-4 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.5)] z-50">
         <NavLink
           to="/"
           onClick={handleTabClick}
           className={({ isActive }) =>
-            `flex flex-col items-center justify-center flex-1 py-2 transition-colors duration-200 ${
-              isActive ? 'text-accent' : 'text-textMuted hover:text-white'
+            `flex flex-col items-center justify-center flex-1 py-3 transition-all duration-300 ease-out origin-center ${
+              isActive 
+                ? 'text-accentPurple scale-105 drop-shadow-[0_0_8px_#7C3AED]' 
+                : 'text-textSecondary hover:text-textPrimary'
             }`
           }
         >
           <HomeIcon size={20} />
-          <span className="text-[10px] mt-1 font-medium">Главная</span>
+          <span className="text-[10px] mt-1.5 font-bold uppercase tracking-wider scale-90">Главная</span>
         </NavLink>
 
         <NavLink
           to="/offers"
           onClick={handleTabClick}
           className={({ isActive }) =>
-            `flex flex-col items-center justify-center flex-1 py-2 transition-colors duration-200 ${
-              isActive ? 'text-accent' : 'text-textMuted hover:text-white'
+            `flex flex-col items-center justify-center flex-1 py-3 transition-all duration-300 ease-out origin-center ${
+              isActive 
+                ? 'text-accentPurple scale-105 drop-shadow-[0_0_8px_#7C3AED]' 
+                : 'text-textSecondary hover:text-textPrimary'
             }`
           }
         >
           <Grid size={20} />
-          <span className="text-[10px] mt-1 font-medium">Офферы</span>
+          <span className="text-[10px] mt-1.5 font-bold uppercase tracking-wider scale-90">Офферы</span>
         </NavLink>
 
         <NavLink
           to="/stats"
           onClick={handleTabClick}
           className={({ isActive }) =>
-            `flex flex-col items-center justify-center flex-1 py-2 transition-colors duration-200 ${
-              isActive ? 'text-accent' : 'text-textMuted hover:text-white'
+            `flex flex-col items-center justify-center flex-1 py-3 transition-all duration-300 ease-out origin-center ${
+              isActive 
+                ? 'text-accentPurple scale-105 drop-shadow-[0_0_8px_#7C3AED]' 
+                : 'text-textSecondary hover:text-textPrimary'
             }`
           }
         >
           <BarChart3 size={20} />
-          <span className="text-[10px] mt-1 font-medium">Статистика</span>
+          <span className="text-[10px] mt-1.5 font-bold uppercase tracking-wider scale-90">Анализ</span>
         </NavLink>
 
         <NavLink
           to="/chat"
           onClick={handleTabClick}
           className={({ isActive }) =>
-            `flex flex-col items-center justify-center flex-1 py-2 transition-colors duration-200 ${
-              isActive ? 'text-accent' : 'text-textMuted hover:text-white'
+            `flex flex-col items-center justify-center flex-1 py-3 transition-all duration-300 ease-out origin-center ${
+              isActive 
+                ? 'text-accentPurple scale-105 drop-shadow-[0_0_8px_#7C3AED]' 
+                : 'text-textSecondary hover:text-textPrimary'
             }`
           }
         >
           <MessageSquare size={20} />
-          <span className="text-[10px] mt-1 font-medium">Чат</span>
+          <span className="text-[10px] mt-1.5 font-bold uppercase tracking-wider scale-90">Чат</span>
         </NavLink>
 
         <NavLink
           to="/profile"
           onClick={handleTabClick}
           className={({ isActive }) =>
-            `flex flex-col items-center justify-center flex-1 py-2 transition-colors duration-200 ${
-              isActive ? 'text-accent' : 'text-textMuted hover:text-white'
+            `flex flex-col items-center justify-center flex-1 py-3 transition-all duration-300 ease-out origin-center ${
+              isActive 
+                ? 'text-accentPurple scale-105 drop-shadow-[0_0_8px_#7C3AED]' 
+                : 'text-textSecondary hover:text-textPrimary'
             }`
           }
         >
           <User size={20} />
-          <span className="text-[10px] mt-1 font-medium">Профиль</span>
+          <span className="text-[10px] mt-1.5 font-bold uppercase tracking-wider scale-90">Кабинет</span>
         </NavLink>
       </nav>
     </div>
@@ -98,10 +108,9 @@ const AppLayout = () => {
 
 const App = () => {
   return (
-    // Заменили HashRouter на MemoryRouter для полной изоляции от ссылок Телеграма
     <MemoryRouter>
       <Routes>
-        {/* Обертка Лейаута с нижней панелью навигации */}
+        {/* Обертка Лейаута с парящей нижней панелью навигации */}
         <Route path="/" element={<AppLayout />}>
           <Route index element={<Home />} />
           <Route path="offers" element={<Offers />} />
