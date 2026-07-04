@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { MemoryRouter, Routes, Route, NavLink, Outlet } from 'react-router-dom';
 import { Home as HomeIcon, Grid, BarChart3, MessageSquare, User } from 'lucide-react';
 import { triggerHaptic } from '@/shared/lib/telegram';
@@ -10,6 +10,8 @@ import { Stats } from '@/pages/stats/Stats';
 import { Chat } from '@/pages/chat/Chat';
 import { Profile } from '@/pages/profile/Profile';
 import { Admin } from '@/pages/admin/Admin';
+// Подключили импорт нашего премиального лоадера
+import { Loader } from '@/shared/ui/Loader';
 
 // Главный Лейаут приложения, фиксирующий Bottom Menu
 const AppLayout = () => {
@@ -19,7 +21,7 @@ const AppLayout = () => {
   };
 
   return (
-    // Заменили сплошной bg-bgMain на bg-transparent, чтобы открыть видимость живых волн на всех страницах
+    // bg-bgMain заменен на bg-transparent для открытия видимости неоновых волн
     <div className="flex flex-col h-screen w-full bg-transparent text-textPrimary overflow-hidden">
       {/* Контейнер контента со скроллом */}
       <div className="flex-1 overflow-y-auto scrollable-container">
