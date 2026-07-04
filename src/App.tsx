@@ -20,23 +20,22 @@ const AppLayout = () => {
   };
 
   return (
-    // Прозрачный каркас, сквозь который насквозь светится наша картинка-фон
-    <div className="flex flex-col h-screen w-full bg-transparent text-textPrimary overflow-hidden relative">
+    <div className="flex flex-col h-full w-full bg-transparent text-textPrimary overflow-hidden relative">
       
       {/* Контейнер контента со скроллом */}
       <div className="flex-1 overflow-y-auto scrollable-container relative z-10">
         <Outlet />
       </div>
 
-      {/* Нижняя парящая стеклянная панель навигации */}
-      <nav className="h-[80px] bg-bgCard/60 backdrop-blur-lg border-t border-white/[0.04] flex items-center justify-around px-4 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.5)] z-50">
+      {/* Нижняя парящая стеклянная панель навигации (Высота 80px, Золотой активный таб с Glow) */}
+      <nav className="h-[80px] bg-bgCard/60 backdrop-blur-lg border-t border-white/[0.04] flex items-center justify-around px-4 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.5)] z-50 rounded-t-card">
         <NavLink
           to="/"
           onClick={handleTabClick}
           className={({ isActive }) =>
             `flex flex-col items-center justify-center flex-1 py-3 transition-all duration-300 ease-out origin-center ${
               isActive 
-                ? 'text-accentPurple scale-105 drop-shadow-[0_0_8px_#7C3AED]' 
+                ? 'text-accentGoldBright scale-105 drop-shadow-[0_0_8px_#F6C453]' 
                 : 'text-textSecondary hover:text-textPrimary'
             }`
           }
@@ -51,7 +50,7 @@ const AppLayout = () => {
           className={({ isActive }) =>
             `flex flex-col items-center justify-center flex-1 py-3 transition-all duration-300 ease-out origin-center ${
               isActive 
-                ? 'text-accentPurple scale-105 drop-shadow-[0_0_8px_#7C3AED]' 
+                ? 'text-accentGoldBright scale-105 drop-shadow-[0_0_8px_#F6C453]' 
                 : 'text-textSecondary hover:text-textPrimary'
             }`
           }
@@ -66,7 +65,7 @@ const AppLayout = () => {
           className={({ isActive }) =>
             `flex flex-col items-center justify-center flex-1 py-3 transition-all duration-300 ease-out origin-center ${
               isActive 
-                ? 'text-accentPurple scale-105 drop-shadow-[0_0_8px_#7C3AED]' 
+                ? 'text-accentGoldBright scale-105 drop-shadow-[0_0_8px_#F6C453]' 
                 : 'text-textSecondary hover:text-textPrimary'
             }`
           }
@@ -81,7 +80,7 @@ const AppLayout = () => {
           className={({ isActive }) =>
             `flex flex-col items-center justify-center flex-1 py-3 transition-all duration-300 ease-out origin-center ${
               isActive 
-                ? 'text-accentPurple scale-105 drop-shadow-[0_0_8px_#7C3AED]' 
+                ? 'text-accentGoldBright scale-105 drop-shadow-[0_0_8px_#F6C453]' 
                 : 'text-textSecondary hover:text-textPrimary'
             }`
           }
@@ -96,7 +95,7 @@ const AppLayout = () => {
           className={({ isActive }) =>
             `flex flex-col items-center justify-center flex-1 py-3 transition-all duration-300 ease-out origin-center ${
               isActive 
-                ? 'text-accentPurple scale-105 drop-shadow-[0_0_8px_#7C3AED]' 
+                ? 'text-accentGoldBright scale-105 drop-shadow-[0_0_8px_#F6C453]' 
                 : 'text-textSecondary hover:text-textPrimary'
             }`
           }
@@ -118,29 +117,31 @@ const App = () => {
     return <Loader onComplete={() => setIsLoading(false)} />;
   }
 
-  // Приложение монтируется в браузере строго ПОСЛЕ полного исчезновения лоадера
   return (
-    <MemoryRouter>
-      <Routes>
-        {/* Обертка Лейаута с парящей нижней панелью навигации */}
-        <Route path="/" element={<AppLayout />}>
-          <Route index element={<Home />} />
-          <Route path="offers" element={<Offers />} />
-          <Route path="stats" element={<Stats />} />
-          <Route path="chat" element={<Chat />} />
-          <Route path="profile" element={<Profile />} />
-        </Route>
+    // Глобальный мобильный контейнер (max-w-[420px]), фиксирующий верстку от расползания
+    <div className="w-full h-full max-w-[420px] mx-auto relative overflow-hidden bg-transparent">
+      <MemoryRouter>
+        <Routes>
+          {/* Обертка Лейаута с парящей нижней панелью навигации */}
+          <Route path="/" element={<AppLayout />}>
+            <Route index element={<Home />} />
+            <Route path="offers" element={<Offers />} />
+            <Route path="stats" element={<Stats />} />
+            <Route path="chat" element={<Chat />} />
+            <Route path="profile" element={<Profile />} />
+          </Route>
 
-        {/* Вложенный детальный экран оффера без нижнего меню */}
-        <Route path="/offers/:id" element={<OfferDetail />} />
+          {/* Вложенный детальный экран оффера без нижнего меню */}
+          <Route path="/offers/:id" element={<OfferDetail />} />
 
-        {/* Вложенный экран финансов и выплат (Форма, история, чек) без нижнего меню */}
-        <Route path="/withdrawal" element={<Withdrawal />} />
+          {/* Вложенный экран финансов и выплат (Форма, история, чек) без нижнего меню */}
+          <Route path="/withdrawal" element={<Withdrawal />} />
 
-        {/* Вложенный экран админ-панели без нижнего меню */}
-        <Route path="/admin" element={<Admin />} />
-      </Routes>
-    </MemoryRouter>
+          {/* Вложенный экран админ-панели без нижнего меню */}
+          <Route path="/admin" element={<Admin />} />
+        </Routes>
+      </MemoryRouter>
+    </div>
   );
 };
 
