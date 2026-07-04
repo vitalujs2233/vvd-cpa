@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter, Routes, Route, NavLink, Outlet } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, NavLink, Outlet } from 'react-router-dom';
 import { Home as HomeIcon, Grid, BarChart3, MessageSquare, User } from 'lucide-react';
 import { triggerHaptic } from '@/shared/lib/telegram';
 import { Home } from '@/pages/home/Home';
@@ -98,7 +98,8 @@ const AppLayout = () => {
 
 const App = () => {
   return (
-    <HashRouter>
+    // Заменили HashRouter на MemoryRouter для полной изоляции от ссылок Телеграма
+    <MemoryRouter>
       <Routes>
         {/* Обертка Лейаута с нижней панелью навигации */}
         <Route path="/" element={<AppLayout />}>
@@ -118,7 +119,7 @@ const App = () => {
         {/* Вложенный экран админ-панели без нижнего меню */}
         <Route path="/admin" element={<Admin />} />
       </Routes>
-    </HashRouter>
+    </MemoryRouter>
   );
 };
 
