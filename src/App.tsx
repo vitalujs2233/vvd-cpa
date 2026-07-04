@@ -22,24 +22,24 @@ const AppLayout = () => {
   return (
     <div className="flex flex-col h-screen w-full bg-transparent text-textPrimary overflow-hidden relative">
       
-      {/* === ЛЮКСОВЫЕ ЗОЛОТЫЕ НЕОНОВЫЕ ВОЛНЫ (SVG) НА ЗАДНЕМ ПЛАНЕ === */}
+      {/* === ЯРКАЯ ЗОЛОТАЯ НЕОНОВАЯ ПОДСВЕТКА И ВОЛНЫ (SVG) НА ЗАДНЕМ ПЛАНЕ === */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-bgMain">
         {/* Мягкие размытые фоновые световые пятна ( Radial Spots ) */}
-        <div className="absolute top-[10%] left-[10%] w-[90%] h-[90%] rounded-full bg-[#D4AF37]/[0.02] blur-[130px] pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[100%] h-[100%] rounded-full bg-[#FFE08A]/[0.015] blur-[140px] pointer-events-none" />
+        <div className="absolute top-[10%] left-[-10%] w-[90%] h-[90%] rounded-full bg-[#D4AF37]/[0.05] blur-[130px] pointer-events-none" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[100%] h-[100%] rounded-full bg-[#FFE08A]/[0.03] blur-[140px] pointer-events-none" />
 
-        {/* Векторные парящие неоновые нити переведены на золотые градиенты (Gold Premium) */}
-        <svg className="absolute inset-0 w-full h-full opacity-45" viewBox="0 0 1440 800" preserveAspectRatio="none">
+        {/* Векторные парящие неоновые нити переведены на яркие золотые градиенты (Gold Premium) */}
+        <svg className="absolute inset-0 w-full h-full opacity-60" viewBox="0 0 1440 800" preserveAspectRatio="none">
           <defs>
-            {/* Золотые градиенты для волн строго по спецификации */}
+            {/* Яркие золотые градиенты для максимального контраста и свечения */}
             <linearGradient id="waveGradGold1" x1="0" y1="0" x2="1" y2="0">
               <stop offset="0%" stopColor="#D4AF37" stopOpacity="0" />
-              <stop offset="50%" stopColor="#FFE08A" stopOpacity="0.45" />
+              <stop offset="50%" stopColor="#FFE08A" stopOpacity="0.55" />
               <stop offset="100%" stopColor="#F6C453" stopOpacity="0" />
             </linearGradient>
             <linearGradient id="waveGradGold2" x1="0" y1="0" x2="1" y2="0">
               <stop offset="0%" stopColor="#F6C453" stopOpacity="0" />
-              <stop offset="50%" stopColor="#D4AF37" stopOpacity="0.35" />
+              <stop offset="50%" stopColor="#D4AF37" stopOpacity="0.45" />
               <stop offset="100%" stopColor="#FFE08A" stopOpacity="0" />
             </linearGradient>
           </defs>
@@ -50,8 +50,8 @@ const AppLayout = () => {
             d="M-100 350 C300 480 500 220 900 420 C1300 620 1500 320 1700 470" 
             fill="none" 
             stroke="url(#waveGradGold1)" 
-            strokeWidth="16" 
-            opacity="0.25"
+            strokeWidth="18" 
+            opacity="0.3"
           />
           {/* ВОЛНА 1: Тонкая яркая золотая центральная нить */}
           <path 
@@ -59,8 +59,8 @@ const AppLayout = () => {
             d="M-100 350 C300 480 500 220 900 420 C1300 620 1500 320 1700 470" 
             fill="none" 
             stroke="url(#waveGradGold1)" 
-            strokeWidth="2.5" 
-            opacity="0.85"
+            strokeWidth="3" 
+            opacity="0.9"
           />
 
           {/* ВОЛНА 2: Внутренний широкий светящийся ореол золотого цвета */}
@@ -70,7 +70,7 @@ const AppLayout = () => {
             fill="none" 
             stroke="url(#waveGradGold2)" 
             strokeWidth="14" 
-            opacity="0.22"
+            opacity="0.25"
           />
           {/* ВОЛНА 2: Тонкая яркая золотая центральная нить */}
           <path 
@@ -78,8 +78,8 @@ const AppLayout = () => {
             d="M-100 400 C200 220 600 520 1000 320 C1300 170 1500 470 1700 370" 
             fill="none" 
             stroke="url(#waveGradGold2)" 
-            strokeWidth="2" 
-            opacity="0.8"
+            strokeWidth="2.5" 
+            opacity="0.85"
           />
         </svg>
         
@@ -92,7 +92,7 @@ const AppLayout = () => {
         <Outlet />
       </div>
 
-      {/* Нижняя парящая стеклянная панель навигации */}
+      {/* Нижняя навигация (Золотые иконки с неоновым свечением 3-4px) */}
       <nav className="h-[80px] bg-bgCard/60 backdrop-blur-lg border-t border-white/[0.04] flex items-center justify-around px-4 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.5)] z-50 w-full max-w-[1200px] mx-auto rounded-t-card">
         <NavLink
           to="/"
@@ -100,7 +100,7 @@ const AppLayout = () => {
           className={({ isActive }) =>
             `flex flex-col items-center justify-center flex-1 py-3 transition-all duration-300 ease-out origin-center ${
               isActive 
-                ? 'text-accentGoldBright scale-105 drop-shadow-[0_0_8px_#F6C453]' 
+                ? 'text-accentGoldBright scale-105 drop-shadow-[0_0_12px_#F6C453]' 
                 : 'text-textSecondary hover:text-textPrimary'
             }`
           }
@@ -115,7 +115,7 @@ const AppLayout = () => {
           className={({ isActive }) =>
             `flex flex-col items-center justify-center flex-1 py-3 transition-all duration-300 ease-out origin-center ${
               isActive 
-                ? 'text-accentGoldBright scale-105 drop-shadow-[0_0_8px_#F6C453]' 
+                ? 'text-accentGoldBright scale-105 drop-shadow-[0_0_12px_#F6C453]' 
                 : 'text-textSecondary hover:text-textPrimary'
             }`
           }
@@ -130,7 +130,7 @@ const AppLayout = () => {
           className={({ isActive }) =>
             `flex flex-col items-center justify-center flex-1 py-3 transition-all duration-300 ease-out origin-center ${
               isActive 
-                ? 'text-accentGoldBright scale-105 drop-shadow-[0_0_8px_#F6C453]' 
+                ? 'text-accentGoldBright scale-105 drop-shadow-[0_0_12px_#F6C453]' 
                 : 'text-textSecondary hover:text-textPrimary'
             }`
           }
@@ -145,7 +145,7 @@ const AppLayout = () => {
           className={({ isActive }) =>
             `flex flex-col items-center justify-center flex-1 py-3 transition-all duration-300 ease-out origin-center ${
               isActive 
-                ? 'text-accentGoldBright scale-105 drop-shadow-[0_0_8px_#F6C453]' 
+                ? 'text-accentGoldBright scale-105 drop-shadow-[0_0_12px_#F6C453]' 
                 : 'text-textSecondary hover:text-textPrimary'
             }`
           }
@@ -160,7 +160,7 @@ const AppLayout = () => {
           className={({ isActive }) =>
             `flex flex-col items-center justify-center flex-1 py-3 transition-all duration-300 ease-out origin-center ${
               isActive 
-                ? 'text-accentGoldBright scale-105 drop-shadow-[0_0_8px_#F6C453]' 
+                ? 'text-accentGoldBright scale-105 drop-shadow-[0_0_12px_#F6C453]' 
                 : 'text-textSecondary hover:text-textPrimary'
             }`
           }
@@ -178,32 +178,33 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   if (isLoading) {
-    // Рендерим лоадер до завершения анимации загрузки
     return <Loader onComplete={() => setIsLoading(false)} />;
   }
 
   return (
-    <MemoryRouter>
-      <Routes>
-        {/* Обертка Лейаута с парящей нижней панелью навигации */}
-        <Route path="/" element={<AppLayout />}>
-          <Route index element={<Home />} />
-          <Route path="offers" element={<Offers />} />
-          <Route path="stats" element={<Stats />} />
-          <Route path="chat" element={<Chat />} />
-          <Route path="profile" element={<Profile />} />
-        </Route>
+    <div className="w-full h-full relative overflow-hidden bg-transparent">
+      <MemoryRouter>
+        <Routes>
+          {/* Обертка Лейаута */}
+          <Route path="/" element={<AppLayout />}>
+            <Route index element={<Home />} />
+            <Route path="offers" element={<Offers />} />
+            <Route path="stats" element={<Stats />} />
+            <Route path="chat" element={<Chat />} />
+            <Route path="profile" element={<Profile />} />
+          </Route>
 
-        {/* Вложенный детальный экран оффера без нижнего меню */}
-        <Route path="/offers/:id" element={<OfferDetail />} />
+          {/* Вложенный детальный экран оффера без нижнего меню */}
+          <Route path="/offers/:id" element={<OfferDetail />} />
 
-        {/* Вложенный экран финансов и выплат (Форма, история, чек) без нижнего меню */}
-        <Route path="/withdrawal" element={<Withdrawal />} />
+          {/* Вложенный экран финансов и выплат (Форма, история, чек) без нижнего меню */}
+          <Route path="/withdrawal" element={<Withdrawal />} />
 
-        {/* Вложенный экран админ-панели без нижнего меню */}
-        <Route path="/admin" element={<Admin />} />
-      </Routes>
-    </MemoryRouter>
+          {/* Вложенный экран админ-панели без нижнего меню */}
+          <Route path="/admin" element={<Admin />} />
+        </Routes>
+      </MemoryRouter>
+    </div>
   );
 };
 
