@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Settings, Shield, Bell, Globe, Info, 
   LogOut, Lock, Smartphone, Mail, Trash2, User, 
-  CheckCircle2, Coins, Sparkles, Crown 
+  CheckCircle2, Coins, Eye, Database 
 } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
@@ -20,19 +20,23 @@ export const Profile: React.FC = () => {
   const navigate = useNavigate();
   const telegramUser = getTelegramUser();
 
+  // Управление экранами профиля: 'main' (главный), 'settings' (настройки), 'security' (безопасность), 'edit' (изменение профиля)
   const [subView, setSubView] = useState<'main' | 'settings' | 'security' | 'edit'>('main');
 
+  // Глобальные состояния пользователя (с возможностью редактирования)
   const [profileName, setProfileName] = useState(`${telegramUser.first_name} ${telegramUser.last_name || ''}`.trim());
   const [profileUsername, setProfileUsername] = useState(telegramUser.username || 'johndoe');
   const [profileEmail, setProfileEmail] = useState('john@example.com');
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // Состояния безопасности (2FA и активные сессии)
   const [is2FAEnabled, setIs2FAEnabled] = useState(true);
   const [activeSessions, setActiveSessions] = useState<Session[]>([
     { id: 'sess-1', device: 'iPhone 15 Pro • Telegram App', location: 'Москва, Россия' },
     { id: 'sess-2', device: 'MacBook Pro • Chrome Browser', location: 'Рига, Латвия' },
   ]);
 
+  // Состояния общих настроек
   const [pushEnabled, setPushEnabled] = useState(true);
   const [emailNotificationEnabled, setEmailNotificationEnabled] = useState(false);
   const [cacheSize, setCacheSize] = useState('12.4 MB');
@@ -45,11 +49,13 @@ export const Profile: React.FC = () => {
     setSaveSuccess(false);
   };
 
+  // Метод перехода в админку
   const handleNavigateToAdmin = () => {
     triggerHaptic.mediumImpact();
     navigate('/admin');
   };
 
+  // Метод очистки кэша
   const handleClearCache = () => {
     if (cacheSize === '0 MB') return;
     triggerHaptic.mediumImpact();
@@ -57,6 +63,7 @@ export const Profile: React.FC = () => {
     triggerHaptic.success();
   };
 
+  // Метод завершения сессий
   const handleTerminateSessions = () => {
     if (activeSessions.length === 0) return;
     triggerHaptic.mediumImpact();
@@ -64,11 +71,13 @@ export const Profile: React.FC = () => {
     triggerHaptic.success();
   };
 
+  // Переключатель 2FA
   const handleToggle2FA = () => {
     triggerHaptic.lightImpact();
     setIs2FAEnabled(!is2FAEnabled);
   };
 
+  // Метод сохранения формы редактирования профиля
   const handleSaveProfile = () => {
     if (!profileName.trim()) return;
     triggerHaptic.mediumImpact();
@@ -86,7 +95,6 @@ export const Profile: React.FC = () => {
   };
 
   return (
-    // Заменили внешние отступы p-16 (64px) на адаптивные p-4 (16px), а gap-20 на gap-4 (16px)
     <div className="flex flex-col gap-4 p-4 select-none pb-24">
       
       {/* ================= VIEW 1: ГЛАВНЫЙ ЭКРАН ПРОФИЛЯ ================= */}
@@ -98,44 +106,26 @@ export const Profile: React.FC = () => {
             <h1 className="text-2xl font-bold text-white mt-1">Кабинет</h1>
           </div>
 
-          {/* Карточка пользователя с аватаром и бейджами */}
-          <Card padding="md" className="flex flex-col items-center justify-center gap-4 text-center relative overflow-hidden shadow-premium">
-            <div className="absolute inset-0 bg-accent-gradient/5 blur-3xl rounded-full pointer-events-none" />
+          {/* Карточка пользователя */}
+          <Card padding="md" className="flex items-center gap-12 text-left relative overflow-hidden shadow-premium">
+            <div className="absolute -right-16 -top-16 w-32 h-32 bg-accent-gradient/5 rounded-full blur-2xl pointer-events-none" />
             
-            {/* Большая круглая фотография */}
-            <div className="relative p-1 rounded-full bg-accent-gradient shadow-glow-purple/35 animate-neon-pulse">
-              {telegramUser.photo_url ? (
-                <img
-                  src={telegramUser.photo_url}
-                  alt={profileName}
-                  className="w-20 h-20 rounded-full border border-bgCard object-cover"
-                />
-              ) : (
-                <div className="w-20 h-20 rounded-full bg-bgCard flex items-center justify-center text-white font-bold text-xl">
-                  {profileName.slice(0, 2).toUpperCase()}
-                </div>
-              )}
-            </div>
+            {telegramUser.photo_url ? (
+              <img
+                src={telegramUser.photo_url}
+                alt={profileName}
+                className="w-12 h-12 rounded-full border border-gray-800 object-cover"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-accentDark border border-accent/20 flex items-center justify-center text-accent font-bold text-base">
+                {profileName.slice(0, 2).toUpperCase()}
+              </div>
+            )}
 
-            <div className="flex flex-col items-center justify-center">
-              <span className="text-base font-bold text-white flex items-center gap-1.5">
-                {profileName}
-                <Crown size={14} className="text-accentPink" />
-              </span>
+            <div className="flex flex-col">
+              <span className="text-base font-bold text-white">{profileName}</span>
               <span className="text-xs text-textSecondary mt-0.5">@{profileUsername}</span>
-              <span className="text-[9px] text-accentPurple font-bold uppercase tracking-widest mt-2">ID: {telegramUser.id} • Рег. 25.05.2024</span>
-            </div>
-
-            {/* Премиум-бейджи */}
-            <div className="flex items-center gap-2 mt-1 z-10">
-              <div className="bg-accent-gradient/10 border border-accentPink/20 rounded-app-xs px-2.5 py-1 flex items-center gap-1">
-                <Sparkles size={8} className="text-accentPink" />
-                <span className="text-[8px] font-bold text-white uppercase tracking-widest">Badge Partner</span>
-              </div>
-              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-app-xs px-2.5 py-1 flex items-center gap-1">
-                <Crown size={8} className="text-yellow-500" />
-                <span className="text-[8px] font-bold text-yellow-500 uppercase tracking-widest">Premium Master</span>
-              </div>
+              <span className="text-[9px] text-accentPurple font-bold mt-1">ID: {telegramUser.id} • Рег. 25.05.2024</span>
             </div>
           </Card>
 
@@ -197,8 +187,8 @@ export const Profile: React.FC = () => {
                 <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">Язык, Кэш</span>
               </div>
 
-              {/* Админ-панель (Видна только админу 123456) */}
-              {telegramUser.id === 123456 && (
+              {/* Админ-панель (Привязана строго к вашему Telegram ID: 232682307) */}
+              {telegramUser.id === 232682307 && (
                 <div 
                   onClick={handleNavigateToAdmin}
                   className="flex items-center justify-between p-4 hover:bg-white/[0.01] active:bg-white/[0.02] cursor-pointer transition-all duration-200 border-t border-white/[0.04]"
@@ -207,19 +197,19 @@ export const Profile: React.FC = () => {
                     <Shield size={16} className="text-accentPink animate-pulse" />
                     <span className="text-xs font-bold text-accentPink">Админ панель</span>
                   </div>
-                  <span className="text-[9px] text-accentPink font-bold uppercase tracking-widest">Войти</span>
+                  <span className="text-[10px] text-accentPink font-semibold">Войти</span>
                 </div>
               )}
             </Card>
 
-            {/* Кнопка Выйти */}
+            {/* Выйти */}
             <Card padding="none" className="text-left border-error/10 bg-error/[0.01] shadow-premium">
               <div 
                 onClick={handleLogout}
                 className="flex items-center gap-3 p-4 hover:bg-error/[0.03] active:bg-error/[0.05] cursor-pointer transition-colors duration-150"
               >
-                <LogOut size={16} className="text-error drop-shadow-[0_0_4px_#EF4444]" />
-                <span className="text-xs font-bold text-error uppercase tracking-wider">Выйти из аккаунта</span>
+                <LogOut size={16} className="text-error" />
+                <span className="text-xs font-bold text-error">Выйти из аккаунта</span>
               </div>
             </Card>
           </div>
@@ -325,7 +315,7 @@ export const Profile: React.FC = () => {
             </button>
           </Card>
 
-          {/* Активные сессии */}
+          {/* Список Активных сессий */}
           <div className="flex flex-col gap-2 text-left">
             <div className="flex justify-between items-center px-2">
               <span className="text-xs font-bold text-white">Активные сессии</span>
