@@ -17,7 +17,7 @@ export const Loader: React.FC<LoaderProps> = ({ onComplete }) => {
           clearInterval(interval);
           return 100;
         }
-        // Случайный шаг от 1 до 3% для имитации реальной загрузки данных
+        // Шаг от 1 до 3% для имитации реальной загрузки данных
         const step = Math.floor(Math.random() * 3) + 1;
         return Math.min(prev + step, 100);
       });
@@ -42,7 +42,8 @@ export const Loader: React.FC<LoaderProps> = ({ onComplete }) => {
         return () => clearTimeout(completeTimeout);
       }, 300);
       
-      return () => clearTimeout(timeout);
+      // Исправлено имя таймера на flashTimeout
+      return () => clearTimeout(flashTimeout);
     }
   }, [progress, onComplete]);
 
@@ -132,7 +133,7 @@ export const Loader: React.FC<LoaderProps> = ({ onComplete }) => {
       {/* ЦЕНТРАЛЬНАЯ ОБЛАСТЬ: Золотой логотип V + Название */}
       <div className="flex flex-col items-center justify-center gap-16 relative z-10">
         
-        {/* Изящная золотая лента в форме буквы V (Оригинальный векторный SVG-логотип) */}
+        {/* Изящная золотая лента в форме буквы V */}
         <div className="animate-logo">
           <svg width="110" height="110" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
             <g filter="url(#goldGlow)">
