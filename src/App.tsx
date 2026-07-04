@@ -20,11 +20,9 @@ const AppLayout = () => {
   };
 
   return (
+    // Убрали перекрывающий блок bg-dark-radial, чтобы открыть видимость картинки bg.png на фоне
     <div className="flex flex-col h-screen w-full bg-transparent text-textPrimary overflow-hidden relative">
       
-      {/* === АБСОЛЮТНО СТАТИЧЕСКИЙ ЛЮКСОВЫЙ ТЕМНЫЙ ФОН (0% НАГРУЗКИ НА ТЕЛЕФОН) === */}
-      <div className="absolute inset-0 z-0 pointer-events-none bg-dark-radial" />
-
       {/* Контейнер контента со скроллом */}
       <div className="flex-1 overflow-y-auto scrollable-container relative z-10">
         <Outlet />
