@@ -26,7 +26,7 @@ const CATEGORIES_DATA: OfferCategory[] = [
     iconName: 'heart',
     isTop: true,
     isNew: false,
-    colorClass: 'text-error bg-error/10 border-error/20',
+    colorClass: 'text-error bg-error/10 border-error/25 shadow-[0_0_15px_rgba(239,68,68,0.15)]',
   },
   {
     id: 'mainstream-dating',
@@ -35,7 +35,7 @@ const CATEGORIES_DATA: OfferCategory[] = [
     iconName: 'sparkles',
     isTop: false,
     isNew: true,
-    colorClass: 'text-warning bg-warning/10 border-warning/20',
+    colorClass: 'text-warning bg-warning/10 border-warning/25 shadow-[0_0_15px_rgba(245,158,11,0.15)]',
   },
   {
     id: 'nutra',
@@ -44,7 +44,7 @@ const CATEGORIES_DATA: OfferCategory[] = [
     iconName: 'pill',
     isTop: true,
     isNew: false,
-    colorClass: 'text-success bg-success/10 border-success/20',
+    colorClass: 'text-success bg-success/10 border-success/25 shadow-[0_0_15px_rgba(34,197,94,0.15)]',
   },
   {
     id: 'crypto',
@@ -53,7 +53,7 @@ const CATEGORIES_DATA: OfferCategory[] = [
     iconName: 'coins',
     isTop: true,
     isNew: false,
-    colorClass: 'text-accent bg-accent/10 border-accent/20',
+    colorClass: 'text-accentPurple bg-accentPurple/10 border-accentPurple/25 shadow-[0_0_15px_rgba(124,58,237,0.15)]',
   },
   {
     id: 'gaming',
@@ -62,7 +62,7 @@ const CATEGORIES_DATA: OfferCategory[] = [
     iconName: 'gamepad',
     isTop: false,
     isNew: true,
-    colorClass: 'text-blue-400 bg-blue-400/10 border-blue-400/20',
+    colorClass: 'text-blue-400 bg-blue-400/10 border-blue-400/25 shadow-[0_0_15px_rgba(96,165,250,0.15)]',
   },
   {
     id: 'utilities',
@@ -71,7 +71,7 @@ const CATEGORIES_DATA: OfferCategory[] = [
     iconName: 'smartphone',
     isTop: false,
     isNew: false,
-    colorClass: 'text-textSec bg-gray-800/40 border-gray-700/40',
+    colorClass: 'text-textSec bg-white/[0.02] border-white/10',
   },
 ];
 
@@ -81,18 +81,16 @@ export const Offers: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'all' | 'top' | 'new' | 'fav'>('all');
   const [favorites, setFavorites] = useState<string[]>(['adult-dating', 'crypto']); // Предустановлено по макету
 
-  // Функция переключения категории в избранное
   const toggleFavorite = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Предотвращаем клик по всей карточке
+    e.stopPropagation(); // Исключаем срабатывание клика по всей карточке
     triggerHaptic.lightImpact();
     setFavorites(prev => 
       prev.includes(id) ? prev.filter(favId => favId !== id) : [...prev, id]
     );
   };
 
-  // Выбор рендеринга соответствующей иконки для категории
   const renderIcon = (name: string, className: string) => {
-    const iconProps = { size: 18, className };
+    const iconProps = { size: 20, className }; // Крупные люксовые иконки
     switch (name) {
       case 'heart': return <Heart {...iconProps} />;
       case 'sparkles': return <Sparkles {...iconProps} />;
@@ -114,14 +112,11 @@ export const Offers: React.FC = () => {
     setActiveTab(tab);
   };
 
-  // Мемоизированная фильтрация списка категорий по тексту и активному табу
   const filteredCategories = useMemo(() => {
     return CATEGORIES_DATA.filter(category => {
-      // Фильтр по строке поиска
       const matchesSearch = category.title.toLowerCase().includes(searchQuery.toLowerCase());
       if (!matchesSearch) return false;
 
-      // Фильтр по активному табу
       if (activeTab === 'top') return category.isTop;
       if (activeTab === 'new') return category.isNew;
       if (activeTab === 'fav') return favorites.includes(category.id);
@@ -131,59 +126,68 @@ export const Offers: React.FC = () => {
   }, [searchQuery, activeTab, favorites]);
 
   return (
-    <div className="flex flex-col gap-16 p-16 select-none pb-24">
-      {/* Шапка страницы */}
-      <div className="text-left">
-        <h1 className="text-2xl font-bold text-white">Категории Офферов</h1>
-        <p className="text-xs text-textMuted mt-1">Выберите вертикаль для генерации SmartLink</p>
+    <div className="flex flex-col gap-20 p-16 select-none pb-32 animate-fade-in">
+      
+      {/* Шапка раздела */}
+      <div className="flex flex-col text-left">
+        <span className="text-[10px] text-textSecondary font-bold uppercase tracking-wider">CPA Каталог</span>
+        <h1 className="text-2xl font-bold text-white mt-1">Офферы</h1>
       </div>
 
-      {/* Инпут поиска из нашего UI-Kit */}
-      <Input
-        placeholder="Поиск вертикали..."
+      {/* Роскошный матовый поиск с иконкой */}
+      <Input 
+        placeholder="Поиск по категориям или ID..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
         icon={<Search size={16} />}
       />
 
-      {/* Горизонтальные табы-фильтры по макету */}
-      <div className="flex bg-bgCard border border-gray-800/40 rounded-app-xs p-4 gap-4">
+      {/* Панель табов (Glassmorphism, плавная анимация, неоновое свечение для активной вкладки) */}
+      <div className="flex bg-bgCard/35 backdrop-blur-md border border-white/[0.04] rounded-app-xs p-4 gap-4 shadow-glass-inner">
         <button
           onClick={() => handleTabChange('all')}
-          className={`flex-1 py-1.5 text-xs font-semibold rounded-app-xs transition-colors duration-150 ${
-            activeTab === 'all' ? 'bg-accent text-white shadow' : 'text-textMuted hover:text-white'
+          className={`flex-1 py-2 text-xs font-semibold rounded-app-xs transition-all duration-300 ${
+            activeTab === 'all' 
+              ? 'bg-accent-gradient text-white shadow-glow-purple' 
+              : 'text-textSecondary hover:text-textPrimary'
           }`}
         >
           Все
         </button>
         <button
           onClick={() => handleTabChange('top')}
-          className={`flex-1 py-1.5 text-xs font-semibold rounded-app-xs transition-colors duration-150 ${
-            activeTab === 'top' ? 'bg-accent text-white shadow' : 'text-textMuted hover:text-white'
+          className={`flex-1 py-2 text-xs font-semibold rounded-app-xs transition-all duration-300 ${
+            activeTab === 'top' 
+              ? 'bg-accent-gradient text-white shadow-glow-purple' 
+              : 'text-textSecondary hover:text-textPrimary'
           }`}
         >
           Топ
         </button>
         <button
           onClick={() => handleTabChange('new')}
-          className={`flex-1 py-1.5 text-xs font-semibold rounded-app-xs transition-colors duration-150 ${
-            activeTab === 'new' ? 'bg-accent text-white shadow' : 'text-textMuted hover:text-white'
+          className={`flex-1 py-2 text-xs font-semibold rounded-app-xs transition-all duration-300 ${
+            activeTab === 'new' 
+              ? 'bg-accent-gradient text-white shadow-glow-purple' 
+              : 'text-textSecondary hover:text-textPrimary'
           }`}
         >
           Новые
         </button>
         <button
           onClick={() => handleTabChange('fav')}
-          className={`flex-1 py-1.5 text-xs font-semibold rounded-app-xs transition-colors duration-150 flex items-center justify-center gap-1 ${
-            activeTab === 'fav' ? 'bg-accent text-white shadow' : 'text-textMuted hover:text-white'
+          className={`flex-1 py-2 text-xs font-semibold rounded-app-xs transition-all duration-300 flex items-center justify-center gap-4 ${
+            activeTab === 'fav' 
+              ? 'bg-accent-gradient text-white shadow-glow-purple' 
+              : 'text-textSecondary hover:text-textPrimary'
           }`}
         >
-          <Star size={10} className={activeTab === 'fav' ? 'fill-white' : 'fill-none'} />
+          <Star size={12} className={activeTab === 'fav' ? 'fill-white text-white' : 'fill-none'} />
           Избранное
         </button>
       </div>
 
-      {/* Список категорий */}
+      {/* Список категорий в стиле Luxury UI */}
       <div className="flex flex-col gap-12">
         {filteredCategories.length > 0 ? (
           filteredCategories.map((category) => {
@@ -194,40 +198,45 @@ export const Offers: React.FC = () => {
                 clickable
                 padding="none"
                 onClick={() => handleCategoryClick(category.id)}
-                className="flex items-center justify-between p-12 text-left"
+                className="flex items-center justify-between p-16 text-left hover-lift"
               >
-                <div className="flex items-center gap-12">
-                  {/* Контейнер иконки с цветом из макета */}
-                  <div className={`w-10 h-10 rounded-app-xs border flex items-center justify-center ${category.colorClass}`}>
+                <div className="flex items-center gap-16">
+                  {/* Крупный контейнер иконки с благородной подсветкой */}
+                  <div className={`w-12 h-12 rounded-app-xs border flex items-center justify-center ${category.colorClass}`}>
                     {renderIcon(category.iconName, '')}
                   </div>
                   <div className="flex flex-col">
                     <span className="text-sm font-bold text-white">{category.title}</span>
-                    <span className="text-[10px] text-textMuted mt-1">
+                    <span className="text-[10px] text-textSecondary font-semibold mt-1">
                       {category.offersCount} офферов доступно
                     </span>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-12">
-                  {/* Кнопка добавления в Избранное */}
+                  {/* Статус Active с неоновым зеленым пульсирующим свечением */}
+                  <div className="flex items-center gap-6 px-8 py-4 bg-white/[0.02] border border-white/5 rounded-app-xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_8px_#22C55E] animate-pulse" />
+                    <span className="text-[9px] font-bold text-success uppercase tracking-wider">Active</span>
+                  </div>
+
+                  {/* Кнопка добавления в Избранное с неоновым красным свечением */}
                   <button
                     onClick={(e) => toggleFavorite(category.id, e)}
-                    className="p-8 text-textMuted hover:text-white transition-colors duration-150"
+                    className="p-8 text-textSecondary hover:text-textPrimary transition-all duration-200"
                   >
                     <Heart 
-                      size={16} 
-                      className={isFav ? 'fill-error text-error' : 'text-textMuted hover:text-white/60'} 
+                      size={18} 
+                      className={isFav ? 'fill-error text-error drop-shadow-[0_0_6px_#EF4444]' : 'text-textSecondary/50 hover:text-textPrimary'} 
                     />
                   </button>
-                  {/* Стрелочка навигации */}
                   <ChevronRight size={16} className="text-gray-600 mr-2" />
                 </div>
               </Card>
             );
           })
         ) : (
-          <div className="py-32 text-center text-textMuted text-xs bg-bgCard border border-gray-800/40 rounded-app-md">
+          <div className="py-32 text-center text-textSecondary text-xs bg-bgCard/30 border border-white/[0.04] rounded-card backdrop-blur-md">
             Вертикали не найдены
           </div>
         )}
