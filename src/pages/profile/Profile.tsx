@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Settings, Shield, Bell, Globe, Info, 
   LogOut, Lock, Smartphone, Mail, Trash2, User, 
-  CheckCircle2, Coins, Eye, Database 
+  CheckCircle2, Coins, Sparkles, Crown, MessageSquare 
 } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
@@ -53,6 +53,12 @@ export const Profile: React.FC = () => {
   const handleNavigateToAdmin = () => {
     triggerHaptic.mediumImpact();
     navigate('/admin');
+  };
+
+  // Метод перехода в чат личной поддержки (тикет)
+  const handleNavigateToSupport = () => {
+    triggerHaptic.mediumImpact();
+    navigate('/support');
   };
 
   // Метод очистки кэша
@@ -123,7 +129,10 @@ export const Profile: React.FC = () => {
             )}
 
             <div className="flex flex-col">
-              <span className="text-base font-bold text-white">{profileName}</span>
+              <span className="text-base font-bold text-white flex items-center gap-1.5">
+                {profileName}
+                <Crown size={14} className="text-accentPink" />
+              </span>
               <span className="text-xs text-textSecondary mt-0.5">@{profileUsername}</span>
               <span className="text-[9px] text-accentPurple font-bold mt-1">ID: {telegramUser.id} • Рег. 25.05.2024</span>
             </div>
@@ -145,7 +154,7 @@ export const Profile: React.FC = () => {
             </div>
           </Card>
 
-          {/* Меню настроек профиля */}
+          {/* Меню настроек профиля (Добавлен пункт "Связаться с поддержкой") */}
           <div className="flex flex-col gap-3">
             <Card padding="none" className="divide-y divide-white/[0.04] text-left shadow-premium">
               {/* Изменить профиль */}
@@ -187,6 +196,18 @@ export const Profile: React.FC = () => {
                 <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">Язык, Кэш</span>
               </div>
 
+              {/* Личный чат поддержки (Новое расположение по гайдлайну v2.0) */}
+              <div 
+                onClick={handleNavigateToSupport}
+                className="flex items-center justify-between p-4 hover:bg-white/[0.01] active:bg-white/[0.02] cursor-pointer transition-colors duration-150"
+              >
+                <div className="flex items-center gap-3">
+                  <MessageSquare size={16} className="text-accentGold" />
+                  <span className="text-xs font-semibold text-white">Связаться с поддержкой</span>
+                </div>
+                <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">Написать</span>
+              </div>
+
               {/* Админ-панель (Привязана строго к вашему Telegram ID: 232682307) */}
               {telegramUser.id === 232682307 && (
                 <div 
@@ -219,7 +240,7 @@ export const Profile: React.FC = () => {
       {/* ================= VIEW 2: НАСТРОЙКИ ПРОФИЛЯ ================= */}
       {subView === 'edit' && (
         <div className="flex flex-col gap-4 animate-fade-in">
-          {/* Шапка */}
+          {/* ... */}
           <div className="flex items-center gap-3 text-left">
             <button 
               onClick={() => handleSubViewChange('main')}
