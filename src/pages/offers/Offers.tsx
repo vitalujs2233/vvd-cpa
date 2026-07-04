@@ -82,7 +82,7 @@ export const Offers: React.FC = () => {
   const [favorites, setFavorites] = useState<string[]>(['adult-dating', 'crypto']); // Предустановлено по макету
 
   const toggleFavorite = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Исключаем срабатывание клика по всей карточке
+    e.stopPropagation(); // Исключаем клик по всей карточке
     triggerHaptic.lightImpact();
     setFavorites(prev => 
       prev.includes(id) ? prev.filter(favId => favId !== id) : [...prev, id]
@@ -90,7 +90,7 @@ export const Offers: React.FC = () => {
   };
 
   const renderIcon = (name: string, className: string) => {
-    const iconProps = { size: 20, className }; // Крупные люксовые иконки
+    const iconProps = { size: 20, className }; // Крупные иконки
     switch (name) {
       case 'heart': return <Heart {...iconProps} />;
       case 'sparkles': return <Sparkles {...iconProps} />;
@@ -126,7 +126,8 @@ export const Offers: React.FC = () => {
   }, [searchQuery, activeTab, favorites]);
 
   return (
-    <div className="flex flex-col gap-20 p-16 select-none pb-32 animate-fade-in">
+    // Заменили внешние отступы с раздутых 64px (p-16) на адаптивные 16px (p-4), а gap-20 на gap-4
+    <div className="flex flex-col gap-4 p-4 select-none pb-24 animate-fade-in">
       
       {/* Шапка раздела */}
       <div className="flex flex-col text-left">
@@ -134,7 +135,7 @@ export const Offers: React.FC = () => {
         <h1 className="text-2xl font-bold text-white mt-1">Офферы</h1>
       </div>
 
-      {/* Роскошный матовый поиск с иконкой */}
+      {/* Поиск */}
       <Input 
         placeholder="Поиск по категориям или ID..."
         value={searchQuery}
@@ -142,11 +143,11 @@ export const Offers: React.FC = () => {
         icon={<Search size={16} />}
       />
 
-      {/* Панель табов (Glassmorphism, плавная анимация, неоновое свечение для активной вкладки) */}
-      <div className="flex bg-bgCard/35 backdrop-blur-md border border-white/[0.04] rounded-app-xs p-4 gap-4 shadow-glass-inner">
+      {/* Панель табов (Заменили p-4 на компактный p-2, чтобы кнопки не ломали сетку) */}
+      <div className="flex bg-bgCard/35 backdrop-blur-md border border-white/[0.04] rounded-app-xs p-2 gap-2 shadow-glass-inner">
         <button
           onClick={() => handleTabChange('all')}
-          className={`flex-1 py-2 text-xs font-semibold rounded-app-xs transition-all duration-300 ${
+          className={`flex-1 py-1.5 text-xs font-semibold rounded-app-xs transition-all duration-300 ${
             activeTab === 'all' 
               ? 'bg-accent-gradient text-white shadow-glow-purple' 
               : 'text-textSecondary hover:text-textPrimary'
@@ -156,7 +157,7 @@ export const Offers: React.FC = () => {
         </button>
         <button
           onClick={() => handleTabChange('top')}
-          className={`flex-1 py-2 text-xs font-semibold rounded-app-xs transition-all duration-300 ${
+          className={`flex-1 py-1.5 text-xs font-semibold rounded-app-xs transition-all duration-300 ${
             activeTab === 'top' 
               ? 'bg-accent-gradient text-white shadow-glow-purple' 
               : 'text-textSecondary hover:text-textPrimary'
@@ -166,7 +167,7 @@ export const Offers: React.FC = () => {
         </button>
         <button
           onClick={() => handleTabChange('new')}
-          className={`flex-1 py-2 text-xs font-semibold rounded-app-xs transition-all duration-300 ${
+          className={`flex-1 py-1.5 text-xs font-semibold rounded-app-xs transition-all duration-300 ${
             activeTab === 'new' 
               ? 'bg-accent-gradient text-white shadow-glow-purple' 
               : 'text-textSecondary hover:text-textPrimary'
@@ -176,19 +177,19 @@ export const Offers: React.FC = () => {
         </button>
         <button
           onClick={() => handleTabChange('fav')}
-          className={`flex-1 py-2 text-xs font-semibold rounded-app-xs transition-all duration-300 flex items-center justify-center gap-4 ${
+          className={`flex-1 py-1.5 text-xs font-semibold rounded-app-xs transition-all duration-300 flex items-center justify-center gap-1.5 ${
             activeTab === 'fav' 
               ? 'bg-accent-gradient text-white shadow-glow-purple' 
               : 'text-textSecondary hover:text-textPrimary'
           }`}
         >
-          <Star size={12} className={activeTab === 'fav' ? 'fill-white text-white' : 'fill-none'} />
+          <Star size={10} className={activeTab === 'fav' ? 'fill-white text-white' : 'fill-none'} />
           Избранное
         </button>
       </div>
 
-      {/* Список категорий в стиле Luxury UI */}
-      <div className="flex flex-col gap-12">
+      {/* Список категорий (Заменили gap-12 на плотный gap-3) */}
+      <div className="flex flex-col gap-3">
         {filteredCategories.length > 0 ? (
           filteredCategories.map((category) => {
             const isFav = favorites.includes(category.id);
@@ -196,16 +197,16 @@ export const Offers: React.FC = () => {
               <Card
                 key={category.id}
                 clickable
-                padding="none"
+                padding="sm" // Заменили жесткий p-16 на адаптивный sm (p-3 = 12px)
                 onClick={() => handleCategoryClick(category.id)}
-                className="flex items-center justify-between p-16 text-left hover-lift"
+                className="flex items-center justify-between hover-lift"
               >
-                <div className="flex items-center gap-16">
-                  {/* Крупный контейнер иконки с благородной подсветкой */}
-                  <div className={`w-12 h-12 rounded-app-xs border flex items-center justify-center ${category.colorClass}`}>
+                {/* Заменили gap-16 на gap-3 */}
+                <div className="flex items-center gap-3">
+                  <div className={`w-11 h-11 rounded-app-xs border flex items-center justify-center ${category.colorClass}`}>
                     {renderIcon(category.iconName, '')}
                   </div>
-                  <div className="flex flex-col">
+                  <div className="flex flex-col text-left">
                     <span className="text-sm font-bold text-white">{category.title}</span>
                     <span className="text-[10px] text-textSecondary font-semibold mt-1">
                       {category.offersCount} офферов доступно
@@ -213,30 +214,30 @@ export const Offers: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-12">
-                  {/* Статус Active с неоновым зеленым пульсирующим свечением */}
-                  <div className="flex items-center gap-6 px-8 py-4 bg-white/[0.02] border border-white/5 rounded-app-xs">
+                <div className="flex items-center gap-3">
+                  {/* Статус Active (Заменили px-8 py-4 на компактный px-2 py-1) */}
+                  <div className="flex items-center gap-1.5 px-2 py-1 bg-success/5 border border-success/20 rounded-app-xs">
                     <span className="w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_8px_#22C55E] animate-pulse" />
                     <span className="text-[9px] font-bold text-success uppercase tracking-wider">Active</span>
                   </div>
 
-                  {/* Кнопка добавления в Избранное с неоновым красным свечением */}
+                  {/* Кнопка Избранное (Заменили p-8 на p-2) */}
                   <button
                     onClick={(e) => toggleFavorite(category.id, e)}
-                    className="p-8 text-textSecondary hover:text-textPrimary transition-all duration-200"
+                    className="p-2 text-textSecondary hover:text-white transition-colors duration-150"
                   >
                     <Heart 
-                      size={18} 
+                      size={16} 
                       className={isFav ? 'fill-error text-error drop-shadow-[0_0_6px_#EF4444]' : 'text-textSecondary/50 hover:text-textPrimary'} 
                     />
                   </button>
-                  <ChevronRight size={16} className="text-gray-600 mr-2" />
+                  <ChevronRight size={16} className="text-gray-600 mr-1" />
                 </div>
               </Card>
             );
           })
         ) : (
-          <div className="py-32 text-center text-textSecondary text-xs bg-bgCard/30 border border-white/[0.04] rounded-card backdrop-blur-md">
+          <div className="py-32 text-center text-textSecondary text-xs bg-bgCard/35 border border-white/[0.04] rounded-card backdrop-blur-md">
             Вертикали не найдены
           </div>
         )}
