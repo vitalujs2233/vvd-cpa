@@ -20,7 +20,6 @@ interface StatsPeriodData {
   chartAreaPath: string; // Путь для SVG заливки под линией
 }
 
-// База данных по периодам для пересчета статистики на лету
 const STATS_DATA_MAP: Record<'today' | 'yesterday' | '7days' | '30days' | 'all', StatsPeriodData> = {
   today: {
     clicks: 1234,
@@ -93,7 +92,6 @@ export const Stats: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<'today' | 'yesterday' | '7days' | '30days' | 'all'>('today');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Получаем данные для активного периода
   const currentData = useMemo(() => {
     return STATS_DATA_MAP[activeFilter];
   }, [activeFilter]);
@@ -107,113 +105,122 @@ export const Stats: React.FC = () => {
     triggerHaptic.mediumImpact();
     setIsRefreshing(true);
     
-    // Имитация обновления статистики из сети
     setTimeout(() => {
       setIsRefreshing(false);
       triggerHaptic.success();
     }, 800);
   };
 
-  // Метод рендеринга плашки тренда (зеленая вверх или красная вниз)
   const renderTrend = (value: number) => {
     const isPositive = value >= 0;
     return (
-      <span className={`inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded-app-xs gap-2 ${
-        isPositive ? 'text-success bg-success/10 border border-success/20' : 'text-error bg-error/10 border border-error/20'
+      <span className={`inline-flex items-center text-[9px] font-bold px-2 py-0.5 rounded-app-xs gap-4 shrink-0 border ${
+        isPositive 
+          ? 'text-success bg-success/10 border-success/20 shadow-[0_0_10px_rgba(34,197,94,0.15)]' 
+          : 'text-error bg-error/10 border-error/20 shadow-[0_0_10px_rgba(239,68,68,0.15)]'
       }`}>
-        {isPositive ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
+        {isPositive ? <ArrowUpRight size={10} className="drop-shadow-[0_0_4px_#22C55E]" /> : <ArrowDownRight size={10} className="drop-shadow-[0_0_4px_#EF4444]" />}
         {isPositive ? '+' : ''}{value}%
       </span>
     );
   };
 
   return (
-    <div className="flex flex-col gap-16 p-16 select-none pb-24">
+    <div className="flex flex-col gap-20 p-16 select-none pb-32 animate-fade-in">
       
       {/* Шапка раздела */}
       <div className="flex items-center justify-between text-left">
         <div className="flex flex-col">
-          <h1 className="text-2xl font-bold text-white">Статистика</h1>
-          <p className="text-xs text-textMuted mt-1">Аналитика трафика в реальном времени</p>
+          <span className="text-[10px] text-textSecondary font-bold uppercase tracking-wider">Платформа VVD CPA</span>
+          <h1 className="text-2xl font-bold text-white mt-1">Анализ трафика</h1>
         </div>
         
-        {/* Кнопка ручного обновления */}
+        {/* Кнопка обновления */}
         <button 
           onClick={handleRefresh}
-          className={`w-10 h-10 rounded-app-xs bg-bgCard border border-gray-800/40 flex items-center justify-center text-textMuted active:scale-95 transition-all duration-200 ${
-            isRefreshing ? 'animate-spin text-accent' : 'hover:text-white'
+          className={`w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary active:scale-95 transition-all duration-200 shadow-glass-inner ${
+            isRefreshing ? 'animate-spin text-accentPurple' : 'hover:text-textPrimary'
           }`}
         >
           <RefreshCw size={16} />
         </button>
       </div>
 
-      {/* Горизонтальные вкладки дат по макету */}
-      <div className="flex bg-bgCard border border-gray-800/40 rounded-app-xs p-4 gap-4 overflow-x-auto no-scrollbar scrollable-container">
+      {/* Горизонтальные вкладки дат (Glassmorphism, плавная анимация) */}
+      <div className="flex bg-bgCard/35 backdrop-blur-md border border-white/[0.04] rounded-app-xs p-4 gap-4 overflow-x-auto no-scrollbar scrollable-container shadow-glass-inner">
         <button
           onClick={() => handleFilterChange('today')}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-app-xs transition-colors whitespace-nowrap shrink-0 ${
-            activeFilter === 'today' ? 'bg-accent text-white shadow' : 'text-textMuted'
+          className={`px-4 py-2 text-xs font-semibold rounded-app-xs transition-all duration-300 whitespace-nowrap shrink-0 ${
+            activeFilter === 'today' ? 'bg-accent-gradient text-white shadow-glow-purple' : 'text-textSecondary hover:text-textPrimary'
           }`}
         >
           Сегодня
         </button>
         <button
           onClick={() => handleFilterChange('yesterday')}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-app-xs transition-colors whitespace-nowrap shrink-0 ${
-            activeFilter === 'yesterday' ? 'bg-accent text-white shadow' : 'text-textMuted'
+          className={`px-4 py-2 text-xs font-semibold rounded-app-xs transition-all duration-300 whitespace-nowrap shrink-0 ${
+            activeFilter === 'yesterday' ? 'bg-accent-gradient text-white shadow-glow-purple' : 'text-textSecondary hover:text-textPrimary'
           }`}
         >
           Вчера
         </button>
         <button
           onClick={() => handleFilterChange('7days')}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-app-xs transition-colors whitespace-nowrap shrink-0 ${
-            activeFilter === '7days' ? 'bg-accent text-white shadow' : 'text-textMuted'
+          className={`px-4 py-2 text-xs font-semibold rounded-app-xs transition-all duration-300 whitespace-nowrap shrink-0 ${
+            activeFilter === '7days' ? 'bg-accent-gradient text-white shadow-glow-purple' : 'text-textSecondary hover:text-textPrimary'
           }`}
         >
           7 дней
         </button>
         <button
           onClick={() => handleFilterChange('30days')}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-app-xs transition-colors whitespace-nowrap shrink-0 ${
-            activeFilter === '30days' ? 'bg-accent text-white shadow' : 'text-textMuted'
+          className={`px-4 py-2 text-xs font-semibold rounded-app-xs transition-all duration-300 whitespace-nowrap shrink-0 ${
+            activeFilter === '30days' ? 'bg-accent-gradient text-white shadow-glow-purple' : 'text-textSecondary hover:text-textPrimary'
           }`}
         >
           30 дней
         </button>
         <button
           onClick={() => handleFilterChange('all')}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-app-xs transition-colors whitespace-nowrap shrink-0 ${
-            activeFilter === 'all' ? 'bg-accent text-white shadow' : 'text-textMuted'
+          className={`px-4 py-2 text-xs font-semibold rounded-app-xs transition-all duration-300 whitespace-nowrap shrink-0 ${
+            activeFilter === 'all' ? 'bg-accent-gradient text-white shadow-glow-purple' : 'text-textSecondary hover:text-textPrimary'
           }`}
         >
-          Все
+          Все время
         </button>
       </div>
 
-      {/* Интерактивный SVG график */}
-      <Card variant="default" padding="none" className="relative flex flex-col p-12 overflow-hidden h-[210px] justify-between">
+      {/* Интерактивный векторный график с неоновым свечением (Neon SVG Filter) */}
+      <Card variant="default" padding="none" className="relative flex flex-col p-16 overflow-hidden h-[230px] justify-between shadow-premium">
         <div className="flex items-center justify-between text-left">
-          <span className="text-xs font-bold text-white">Тренд дохода</span>
-          <span className="text-[10px] text-textMuted">Интервал: {activeFilter === 'today' ? '24 часа' : 'Динамика периода'}</span>
+          <span className="text-xs font-bold text-white">Динамика прибыли</span>
+          <span className="text-[10px] text-textSecondary">Интервал: {activeFilter === 'today' ? '24 часа' : 'Динамика периода'}</span>
         </div>
 
         {/* Тело SVG графика */}
-        <div className="w-full h-[120px] relative mt-12">
+        <div className="w-full h-[120px] relative mt-16">
           <svg className="w-full h-full" viewBox="0 0 400 150" preserveAspectRatio="none">
             <defs>
               {/* Фиолетовый градиент для плавной заливки под линией */}
               <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#7B5CFF" stopOpacity="0.25" />
-                <stop offset="100%" stopColor="#7B5CFF" stopOpacity="0.0" />
+                <stop offset="0%" stopColor="#7C3AED" stopOpacity="0.25" />
+                <stop offset="100%" stopColor="#7C3AED" stopOpacity="0.0" />
               </linearGradient>
+
+              {/* Профессиональный НЕОНОВЫЙ фильтр размытия для парящего свечения */}
+              <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="5" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
             </defs>
 
-            {/* Вспомогательные горизонтальные линии сетки */}
-            <line x1="0" y1="35" x2="400" y2="35" stroke="#374151" strokeOpacity="0.2" strokeDasharray="4" />
-            <line x1="0" y1="75" x2="400" y2="75" stroke="#374151" strokeOpacity="0.2" strokeDasharray="4" />
-            <line x1="0" y1="115" x2="400" y2="115" stroke="#374151" strokeOpacity="0.2" strokeDasharray="4" />
+            {/* Тонкие прозрачные линии сетки */}
+            <line x1="0" y1="35" x2="400" y2="35" stroke="#374151" strokeOpacity="0.15" strokeDasharray="4" />
+            <line x1="0" y1="75" x2="400" y2="75" stroke="#374151" strokeOpacity="0.15" strokeDasharray="4" />
+            <line x1="0" y1="115" x2="400" y2="115" stroke="#374151" strokeOpacity="0.15" strokeDasharray="4" />
 
             {/* Векторная область заливки под трендом */}
             <path
@@ -222,20 +229,32 @@ export const Stats: React.FC = () => {
               className="transition-all duration-500 ease-in-out"
             />
 
-            {/* Главная акцентная фиолетовая линия тренда */}
+            {/* Размытая неоновая копия линии под ней для создания ореола */}
             <path
               d={currentData.chartPath}
               fill="none"
-              stroke="#7B5CFF"
-              strokeWidth="3"
+              stroke="#9D4EDD"
+              strokeWidth="4"
+              strokeLinecap="round"
+              filter="url(#neonGlow)"
+              opacity="0.6"
+              className="transition-all duration-500 ease-in-out"
+            />
+
+            {/* Главная акцентная линия тренда */}
+            <path
+              d={currentData.chartPath}
+              fill="none"
+              stroke="#F8FAFC"
+              strokeWidth="2.5"
               strokeLinecap="round"
               className="transition-all duration-500 ease-in-out"
             />
           </svg>
         </div>
 
-        {/* Шкала оси X (Временные маркеры из макета) */}
-        <div className="flex justify-between text-[10px] text-textMuted px-2 border-t border-gray-800/20 pt-8 mt-2">
+        {/* Шкала оси X */}
+        <div className="flex justify-between text-[10px] text-textSecondary/80 px-2 border-t border-white/[0.04] pt-12 mt-4 font-semibold">
           <span>00:00</span>
           <span>06:00</span>
           <span>12:00</span>
@@ -244,55 +263,63 @@ export const Stats: React.FC = () => {
         </div>
       </Card>
 
-      {/* Сетка карточек метрик (Сводка из макета) */}
+      {/* Сетка карточек метрик (Dashboard Сводка) */}
       <div className="grid grid-cols-2 gap-12 text-left">
-        {/* Карточка 1: Клики */}
-        <Card padding="md" className="flex flex-col justify-between gap-12 min-h-[96px]">
-          <div className="flex items-center justify-between text-textMuted">
-            <span className="text-[10px] font-semibold uppercase tracking-wider">Клики</span>
-            <Eye size={12} className="text-accent" />
+        {/* Клики */}
+        <Card padding="sm" className="flex flex-col justify-between gap-16 min-h-[106px] border-white/5 shadow-glass-inner">
+          <div className="flex items-center justify-between text-textSecondary">
+            <span className="text-[10px] font-bold uppercase tracking-wider">Клики</span>
+            <div className="w-7 h-7 rounded-full bg-accentPurple/10 border border-accentPurple/20 flex items-center justify-center text-accentPurple shadow-[0_0_10px_rgba(124,58,237,0.1)]">
+              <Eye size={12} />
+            </div>
           </div>
           <div className="flex justify-between items-end">
-            <span className="text-lg font-bold text-white">{currentData.clicks.toLocaleString('ru-RU')}</span>
+            <span className="text-lg font-bold text-white tracking-tight">{currentData.clicks.toLocaleString('ru-RU')}</span>
             {renderTrend(currentData.clicksTrend)}
           </div>
         </Card>
 
-        {/* Карточка 2: Конверсии */}
-        <Card padding="md" className="flex flex-col justify-between gap-12 min-h-[96px]">
-          <div className="flex items-center justify-between text-textMuted">
-            <span className="text-[10px] font-semibold uppercase tracking-wider">Конверсии</span>
-            <ShieldAlert size={12} className="text-accent" />
+        {/* Конверсии / CR */}
+        <Card padding="sm" className="flex flex-col justify-between gap-16 min-h-[106px] border-white/5 shadow-glass-inner">
+          <div className="flex items-center justify-between text-textSecondary">
+            <span className="text-[10px] font-bold uppercase tracking-wider">Конверсии</span>
+            <div className="w-7 h-7 rounded-full bg-accentPurple/10 border border-accentPurple/20 flex items-center justify-center text-accentPurple shadow-[0_0_10px_rgba(124,58,237,0.1)]">
+              <ShieldAlert size={12} />
+            </div>
           </div>
           <div className="flex justify-between items-end">
             <div className="flex flex-col">
-              <span className="text-lg font-bold text-white">{currentData.conversions}</span>
-              <span className="text-[8px] text-textMuted font-semibold mt-0.5">CR: {currentData.cr}</span>
+              <span className="text-lg font-bold text-white tracking-tight">{currentData.conversions}</span>
+              <span className="text-[9px] text-textSecondary font-semibold mt-0.5">CR: {currentData.cr}</span>
             </div>
             {renderTrend(currentData.conversionsTrend)}
           </div>
         </Card>
 
-        {/* Карточка 3: Доход */}
-        <Card padding="md" className="flex flex-col justify-between gap-12 min-h-[96px]">
-          <div className="flex items-center justify-between text-textMuted">
-            <span className="text-[10px] font-semibold uppercase tracking-wider">Доход</span>
-            <Coins size={12} className="text-success" />
+        {/* Доход */}
+        <Card padding="sm" className="flex flex-col justify-between gap-16 min-h-[106px] border-white/5 shadow-glass-inner">
+          <div className="flex items-center justify-between text-textSecondary">
+            <span className="text-[10px] font-bold uppercase tracking-wider">Доход</span>
+            <div className="w-7 h-7 rounded-full bg-success/10 border border-success/20 flex items-center justify-center text-success shadow-[0_0_10px_rgba(34,197,94,0.1)]">
+              <Coins size={12} />
+            </div>
           </div>
           <div className="flex justify-between items-end">
-            <span className="text-lg font-bold text-white">${currentData.income.toLocaleString('ru-RU', { minimumFractionDigits: 2 })}</span>
+            <span className="text-lg font-bold text-white tracking-tight">${currentData.income.toLocaleString('ru-RU', { minimumFractionDigits: 2 })}</span>
             {renderTrend(currentData.incomeTrend)}
           </div>
         </Card>
 
-        {/* Карточка 4: EPC */}
-        <Card padding="md" className="flex flex-col justify-between gap-12 min-h-[96px]">
-          <div className="flex items-center justify-between text-textMuted">
-            <span className="text-[10px] font-semibold uppercase tracking-wider">EPC</span>
-            <BarChart2 size={12} className="text-accent" />
+        {/* EPC */}
+        <Card padding="sm" className="flex flex-col justify-between gap-16 min-h-[106px] border-white/5 shadow-glass-inner">
+          <div className="flex items-center justify-between text-textSecondary">
+            <span className="text-[10px] font-bold uppercase tracking-wider">EPC</span>
+            <div className="w-7 h-7 rounded-full bg-accentPurple/10 border border-accentPurple/20 flex items-center justify-center text-accentPurple shadow-[0_0_10px_rgba(124,58,237,0.1)]">
+              <BarChart2 size={12} />
+            </div>
           </div>
           <div className="flex justify-between items-end">
-            <span className="text-lg font-bold text-white">${currentData.epc.toFixed(2)}</span>
+            <span className="text-lg font-bold text-white tracking-tight">${currentData.epc.toFixed(2)}</span>
             {renderTrend(currentData.epcTrend)}
           </div>
         </Card>
