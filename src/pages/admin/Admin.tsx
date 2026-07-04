@@ -17,7 +17,7 @@ interface AdminUser {
 }
 
 const ADMIN_USERS_MOCK: AdminUser[] = [
-  { id: '123456', name: 'John Doe', status: 'active' },
+  { id: '232682307', name: 'Виталий lv', status: 'active' }, // Обновили демо-данные под ваш ID
   { id: '12E457', name: 'Jane Smith', status: 'active' },
   { id: '123458', name: 'Mike Johnson', status: 'active' },
   { id: '123459', name: 'Sarah Wilson', status: 'active' },
@@ -27,8 +27,8 @@ export const Admin: React.FC = () => {
   const navigate = useNavigate();
   const currentUser = getTelegramUser();
 
-  // Проверка прав администратора (по макету ID администратора — 123456)
-  const isAdmin = currentUser.id === 123456;
+  // Привязка прав администратора строго к вашему Telegram ID: 232682307
+  const isAdmin = currentUser.id === 232682307;
 
   const [subView, setSubView] = useState<'menu' | 'users'>('menu');
   const [searchQuery, setSearchQuery] = useState('');
@@ -52,7 +52,6 @@ export const Admin: React.FC = () => {
 
   if (!isAdmin) {
     return (
-      // Заменили p-16 на p-4, а gap-16 на gap-4
       <div className="flex flex-col items-center justify-center p-4 h-screen bg-bgDark select-none">
         <Card padding="lg" className="flex flex-col items-center gap-4 border-error/15 bg-error/[0.01]">
           <div className="w-16 h-16 rounded-full bg-error/10 border border-error/20 flex items-center justify-center text-error">
@@ -78,7 +77,6 @@ export const Admin: React.FC = () => {
   }
 
   return (
-    // Заменили внешние отступы p-16 (64px) на адаптивные p-4 (16px), а gap-16 на gap-4 (16px)
     <div className="flex flex-col gap-4 p-4 select-none pb-32 animate-fade-in">
       
       {/* ================= VIEW 1: ГЛАВНОЕ МЕНЮ АДМИНКИ ================= */}
@@ -200,7 +198,7 @@ export const Admin: React.FC = () => {
             icon={<Search size={16} />}
           />
 
-          {/* Таблица пользователей (Заменили gap-12 на плотный gap-3, а p-12 на sm (p-3)) */}
+          {/* Таблица пользователей */}
           <div className="flex flex-col gap-3">
             {filteredUsers.length > 0 ? (
               filteredUsers.map((user) => (
@@ -210,7 +208,7 @@ export const Admin: React.FC = () => {
                   className="flex items-center justify-between text-left hover-lift"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-accentPurple/10 border border-accentPurple/20 flex items-center justify-center text-accentPurple shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-accentPurple/10 border border-accentPurple/25 flex items-center justify-center text-accentPurple shrink-0">
                       <Users size={18} />
                     </div>
                     
