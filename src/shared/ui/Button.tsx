@@ -12,7 +12,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 export const Button: React.FC<ButtonProps> = ({
   children,
   variant = 'primary',
-  size = 'md',
+  size = 'lg',
   isLoading = false,
   hapticEffect = 'light',
   className = '',
@@ -20,29 +20,38 @@ export const Button: React.FC<ButtonProps> = ({
   onClick,
   ...props
 }) => {
-  // Базовые стили кнопки (закругление, выравнивание, тактильное сжатие при нажатии пальцем)
-  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-app-xs transition-all duration-150 outline-none select-none active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap';
+  // Базовые стили с изящной кривой Безье для анимации подъема (Lift & Scale)
+  const baseStyles = 'inline-flex items-center justify-center font-semibold transition-all duration-300 outline-none select-none active:scale-[0.97] active:translate-y-0 disabled:opacity-40 disabled:pointer-events-none whitespace-nowrap';
 
-  // Цветовые схемы на основе дизайн-системы макета
+  // Люксовые цветовые схемы из гайдлайна
   const variantStyles = {
-    primary: 'bg-accent text-white hover:bg-accent/90 focus:ring-2 focus:ring-accent/40',
-    secondary: 'bg-accentDark text-white hover:bg-accentDark/80 focus:ring-2 focus:ring-accentDark/40',
-    outline: 'bg-transparent text-white border border-gray-800 hover:bg-white/5',
-    success: 'bg-success text-white hover:bg-success/90 focus:ring-2 focus:ring-success/40',
-    danger: 'bg-error text-white hover:bg-error/90 focus:ring-2 focus:ring-error/40',
+    // Неоновый фиолетово-розовый градиент с выразительным свечением (Purple Glow)
+    primary: 'bg-accent-gradient text-white shadow-glow-purple hover:shadow-[0_0_30px_rgba(124,58,237,0.5),0_0_50px_rgba(192,38,211,0.25)] hover:-translate-y-[1.5px] hover:scale-[1.01]',
+    
+    // Полупрозрачная стеклянная кнопка со слабым внутренним свечением
+    secondary: 'bg-white/[0.04] text-textPrimary border border-white/10 hover:bg-white/[0.08] hover:-translate-y-[1px]',
+    
+    // Тонкая рамка для второстепенных действий
+    outline: 'bg-transparent text-textPrimary border border-borderCard hover:bg-white/[0.02]',
+    
+    // Элегантный зеленый градиент для выплат
+    success: 'bg-gradient-to-r from-success to-success/90 text-white shadow-[0_0_20px_rgba(34,197,94,0.25)] hover:shadow-[0_0_30px_rgba(34,197,94,0.45)] hover:-translate-y-[1px]',
+    
+    // Красный градиент для опасных действий
+    danger: 'bg-gradient-to-r from-error to-error/90 text-white shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:bg-error/95',
   };
 
-  // Размеры кнопок под разные интерфейсные задачи
+  // Размеры кнопок строго под мобильные зоны безопасности
   const sizeStyles = {
-    sm: 'px-3 py-1.5 text-xs h-8',
-    md: 'px-4 py-2.5 text-sm h-10',
-    lg: 'px-6 py-3.5 text-sm h-12 w-full', // Широкая полноразмерная кнопка
+    sm: 'px-4 py-2 text-xs h-[38px] rounded-app-xs',       // Малые кнопки внутри карточек
+    md: 'px-5 py-2.5 text-xs h-[46px] rounded-app-xs',     // Средние кнопки
+    lg: 'px-8 py-4 text-sm h-[54px] rounded-btn w-full',   // Большие люксовые кнопки (54px высота, 18px скругление)
   };
 
   const handlePress = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (disabled || isLoading) return;
 
-    // Вызываем соответствующий тип вибрации на смартфоне в момент физического тапа
+    // Вызываем нативный тактильный сигнал в момент физического касания на телефоне
     if (hapticEffect === 'light') triggerHaptic.lightImpact();
     else if (hapticEffect === 'medium') triggerHaptic.mediumImpact();
     else if (hapticEffect === 'success') triggerHaptic.success();
@@ -60,12 +69,13 @@ export const Button: React.FC<ButtonProps> = ({
       {...props}
     >
       {isLoading ? (
-        <div className="flex items-center justify-center">
-          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-          <span className="text-xs">Загрузка...</span>
+        <div className="flex items-center justify-center gap-8">
+          {/* Кастомный минималистичный премиум-лоадер вместо дешевых спиннеров */}
+          <div className="relative w-4 h-4">
+            <div className="absolute inset-0 rounded-full border-2 border-white/20"></div>
+            <div className="absolute inset-0 rounded-full border-2 border-t-white animate-spin"></div>
+          </div>
+          <span className="text-xs text-white/90">Пожалуйста, подождите...</span>
         </div>
       ) : (
         children
