@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Send, PlusCircle, ChevronRight, 
   ArrowLeft, CheckCheck, Sparkles, User 
@@ -49,8 +50,8 @@ const SUPPORT_CONTACTS: SupportContact[] = [
 ];
 
 export const Chat: React.FC = () => {
+  const navigate = useNavigate();
   const [view, setView] = useState<'contacts' | 'dialogue'>('contacts');
-  
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'msg-1',
@@ -134,23 +135,32 @@ export const Chat: React.FC = () => {
   return (
     <div className="flex flex-col h-full select-none">
       
-      {/* ================= VIEW 1: СПИСОК КОНТАКТОВ ПОДДЕРЖКИ ================= */}
+      {/* ================= VIEW 1: СПИСОК КОНТАКТОВ ПОДДЕРЖКИ (Добавлена кнопка Назад) ================= */}
       {view === 'contacts' && (
         // Заменили внешние отступы p-16 (64px) на адаптивные p-4 (16px), а gap-20 на gap-4 (16px)
         <div className="flex flex-col gap-4 p-4 pb-24 text-left animate-fade-in">
-          <div>
-            <span className="text-[10px] text-textSecondary font-bold uppercase tracking-wider">Приватная поддержка</span>
-            <h1 className="text-2xl font-bold text-white mt-1">Чат саппортов</h1>
+          {/* Премиум-шапка с кнопкой назад в Кабинет */}
+          <div className="flex items-center gap-3 text-left">
+            <button 
+              onClick={() => { triggerHaptic.lightImpact(); navigate('/profile'); }}
+              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform shadow-glass-inner"
+            >
+              <ArrowLeft size={18} />
+            </button>
+            <div className="flex flex-col">
+              <span className="text-[10px] text-accentGold font-bold uppercase tracking-wider">Приватная поддержка</span>
+              <h1 className="text-2xl font-bold text-white mt-0.5 leading-none">Чат саппортов</h1>
+            </div>
           </div>
 
           {/* Вкладки Мои тикеты / Поддержка */}
           <div className="flex bg-bgCard/35 backdrop-blur-md border border-white/[0.04] rounded-app-xs p-2 gap-2 shadow-glass-inner">
-            <button className="flex-1 py-1.5 text-xs font-semibold rounded-app-xs bg-accent-gradient text-white shadow-glow-purple">
+            <button className="flex-1 py-2 text-xs font-semibold rounded-app-xs bg-accent-gradient text-white shadow-glow-purple">
               Поддержка
             </button>
             <button 
               onClick={handleCreateNewTicket}
-              className="flex-1 py-1.5 text-xs font-semibold rounded-app-xs text-textSecondary hover:text-textPrimary transition-colors duration-200"
+              className="flex-1 py-2 text-xs font-semibold rounded-app-xs text-textSecondary hover:text-textPrimary transition-colors duration-200"
             >
               Мои тикеты
             </button>
@@ -213,7 +223,7 @@ export const Chat: React.FC = () => {
       {view === 'dialogue' && selectedAgent && (
         <div className="flex flex-col h-[calc(100vh-80px)] bg-bgMain animate-fade-in">
           
-          {/* Стеклянный Header диалога (Заменили p-16 на p-3 (12px), а gap-12 на gap-3) */}
+          {/* Стеклянный Header диалога */}
           <div className="flex items-center gap-3 p-3 border-b border-white/[0.04] bg-bgCard/40 backdrop-blur-md text-left shrink-0 shadow-glass-inner">
             <button 
               onClick={handleBackToContacts}
@@ -227,17 +237,17 @@ export const Chat: React.FC = () => {
                   <User size={16} />
                 </div>
                 <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-bgCard ${
-                  selectedAgent.status === 'online' ? 'bg-success shadow-[0_0_6px_#22C55E]' : 'bg-gray-500'
+                  selectedAgent.status === 'online' ? 'bg-success' : 'bg-gray-500'
                 }`} />
               </div>
               <div className="flex flex-col">
-                <span className="text-sm font-bold text-white">{selectedAgent.name}</span>
-                <span className="text-[9px] text-textSecondary font-semibold mt-0.5 uppercase tracking-wider">Приватная сессия активна</span>
+                <span className="text-xs font-bold text-white">{selectedAgent.name}</span>
+                <span className="text-[9px] text-textSecondary mt-0.5">Тикет поддержки активен</span>
               </div>
             </div>
           </div>
 
-          {/* Область сообщений (Заменили gap-16 на gap-4 (16px)) */}
+          {/* Область сообщений */}
           <div className="flex-1 overflow-y-auto p-4 scrollable-container flex flex-col gap-4">
             {messages.map((msg) => {
               const isUser = msg.sender === 'user';
@@ -246,7 +256,6 @@ export const Chat: React.FC = () => {
                   key={msg.id}
                   className={`flex flex-col max-w-[78%] ${isUser ? 'self-end items-end' : 'self-start items-start'}`}
                 >
-                  {/* Облака сообщений (Заменили гигантские p-12 (48px) на аккуратные p-3 (12px)) */}
                   <div className={`p-3 text-sm text-left leading-relaxed shadow-premium ${
                     isUser 
                       ? 'bg-accent-gradient text-white rounded-card rounded-br-none border border-accentPink/20 shadow-glow-purple/20' 
@@ -264,21 +273,21 @@ export const Chat: React.FC = () => {
               );
             })}
 
-            {/* Статус набора текста */}
+            {/* Лоадер набора текста */}
             {isTyping && (
               <div className="self-start flex items-center gap-2 bg-bgCard/30 backdrop-blur-sm border border-white/[0.04] p-3 rounded-card rounded-bl-none text-[10px] text-textSecondary font-semibold animate-pulse">
-                <Sparkles size={10} className="text-accentPurple animate-spin" style={{ animationDuration: '4s' }} />
-                <span>Менеджер {selectedAgent.name} печатает ответ...</span>
+                <Sparkles size={10} className="text-accentGoldBright animate-spin" style={{ animationDuration: '4s' }} />
+                <span>Оператор поддержки готовит ответ...</span>
               </div>
             )}
 
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Нижняя панель ввода сообщения (Заменили p-16 на p-3 (12px), а gap-12 на gap-3) */}
+          {/* Нижняя панель ввода сообщения */}
           <div className="p-3 border-t border-white/[0.04] bg-bgCard/50 backdrop-blur-md flex items-center gap-3 shrink-0 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.37)] z-50">
             <Input 
-              placeholder="Введите ваше сообщение..."
+              placeholder="Напишите в приватный чат..."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyPress}
