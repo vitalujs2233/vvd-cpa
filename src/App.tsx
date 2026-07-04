@@ -20,57 +20,22 @@ const AppLayout = () => {
   };
 
   return (
+    // Полностью прозрачный фон bg-transparent, сквозь который светится ваша картинка bg.png на body
     <div className="flex flex-col h-screen w-full bg-transparent text-textPrimary overflow-hidden relative">
       
-      {/* === ЛЮКСОВЫЕ НЕОНОВЫЕ ВОЛНЫ (SVG) НА ЗАДНЕМ ПЛАНЕ === */}
-      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-bgMain">
-        {/* Мягкие размытые фоновые световые пятна ( Radial Spots ) */}
-        <div className="absolute top-[10%] left-[-10%] w-[90%] h-[90%] rounded-full bg-[#784DFF]/[0.04] blur-[130px] pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[100%] h-[100%] rounded-full bg-[#3B82F6]/[0.03] blur-[140px] pointer-events-none" />
-
-        {/* Векторные парящие неоновые нити из гайдлайна */}
-        <svg className="absolute inset-0 w-full h-full opacity-45" viewBox="0 0 1440 800" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="waveGrad1" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#784DFF" stopOpacity="0" />
-              <stop offset="50%" stopColor="#9D4EDD" stopOpacity="0.55" />
-              <stop offset="100%" stopColor="#C44DFF" stopOpacity="0" />
-            </linearGradient>
-            <linearGradient id="waveGrad2" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#3B82F6" stopOpacity="0" />
-              <stop offset="50%" stopColor="#784DFF" stopOpacity="0.45" />
-              <stop offset="100%" stopColor="#9D4EDD" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          
-          {/* Синяя/Фиолетовая волна 1 */}
-          <path 
-            className="animate-wave-1" 
-            d="M-100 350 C300 480 500 220 900 420 C1300 620 1500 320 1700 470" 
-            fill="none" 
-            stroke="url(#waveGrad1)" 
-            strokeWidth="4" 
-          />
-          {/* Розовая/Фиолетовая волна 2 */}
-          <path 
-            className="animate-wave-2" 
-            d="M-100 400 C200 220 600 520 1000 320 C1300 170 1500 470 1700 370" 
-            fill="none" 
-            stroke="url(#waveGrad2)" 
-            strokeWidth="3" 
-          />
-        </svg>
-        
-        {/* Звездная пыль */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.15)_1px,transparent_1px)] bg-[size:40px_40px] opacity-20" />
-      </div>
+      {/* 
+        === ЧИСТЫЙ ПРОЗРАЧНЫЙ ФОН ===
+        Мы полностью убрали отсюда любые блокировщики, волны и радиальные градиенты.
+        Теперь сквозь прозрачный каркас насквозь светится ваша картинка bg.png, 
+        заданная в body на уровне index.css.
+      */}
 
       {/* Контейнер контента со скроллом */}
       <div className="flex-1 overflow-y-auto scrollable-container relative z-10">
         <Outlet />
       </div>
 
-      {/* Нижняя парящая стеклянная панель навигации (Glass Navigation, Blur, Высота 80px) */}
+      {/* Нижняя парящая стеклянная панель навигации */}
       <nav className="h-[80px] bg-bgCard/60 backdrop-blur-lg border-t border-white/[0.04] flex items-center justify-around px-4 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.5)] z-50">
         <NavLink
           to="/"
@@ -157,11 +122,11 @@ const App = () => {
 
   return (
     <>
-      {/* Лоадер теперь рендерится как абсолютный слой поверх всего интерфейса */}
+      {/* Лоадер рендерится как абсолютный слой поверх всего интерфейса */}
       {isLoading && <Loader onComplete={() => setIsLoading(false)} />}
 
       {/* 
-        Главный интерфейс приложения теперь монтируется и рендерится на заднем плане 
+        Главный интерфейс приложения монтируется и рендерится на заднем плане 
         одновременно с работой лоадера. Это полностью исключает любые паузы и мигания фона!
       */}
       <MemoryRouter>
