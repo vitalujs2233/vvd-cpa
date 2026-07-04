@@ -59,22 +59,22 @@ body::before {
 
 /* === УТИЛИТАРНЫЕ КЛАССЫ PREMIUM DESIGN SYSTEM === */
 
-/* Эффект матового стекла (Glassmorphism) с отполированной светящейся фаской (ребром) */
+/* Эффект матового стекла (Оптимизирован: снижен блюр с 24px до 12px для разгрузки GPU) */
 .glass-card {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%), rgba(17, 24, 39, 0.55);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-card);
   box-shadow: 
     0 16px 40px -10px rgba(0, 0, 0, 0.7),
     inset 0 1px 1px 0 rgba(255, 255, 255, 0.12); /* Сверкающая фаска */
 }
 
-/* Специальный класс для карточки баланса и важных парящих блоков с неоновым свечением */
+/* Специальный класс для карточки баланса и важных парящих блоков (Оптимизирован: blur 12px) */
 .glass-card-glow {
   background: linear-gradient(135deg, rgba(124, 58, 237, 0.08) 0%, rgba(192, 38, 211, 0.02) 50%, rgba(17, 24, 39, 0.7) 100%);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(124, 58, 237, 0.25); /* Светящийся фиолетовый бордюр */
   box-shadow: 
     0 20px 50px -12px rgba(124, 58, 237, 0.2),
@@ -138,13 +138,16 @@ body::before {
   50% { transform: translateY(14px) scaleY(0.95); opacity: 0.5; }
 }
 
+/* Включение аппаратного ускорения GPU (will-change) для разгрузки процессора телефона */
 .animate-wave-1 {
   transform-origin: center;
+  will-change: transform, opacity;
   animation: waveFloat1 12s infinite ease-in-out;
 }
 
 .animate-wave-2 {
   transform-origin: center;
+  will-change: transform, opacity;
   animation: waveFloat2 15s infinite ease-in-out;
 }
 
