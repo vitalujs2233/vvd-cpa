@@ -33,12 +33,12 @@ export const Card: React.FC<CardProps> = ({
     outlined: 'bg-transparent border border-borderCard text-textPrimary shadow-glass-inner',
   };
 
-  // Luxury-отступы из нашей сетки
+  // Перевели внутренние отступы на стандартную пиксельную сетку Tailwind
   const paddingStyles = {
     none: 'p-0',
-    sm: 'p-12', // 12px
-    md: 'p-20', // 20px
-    lg: 'p-24', // 24px
+    sm: 'p-3', // Ровно 12px (вместо старых 48px)
+    md: 'p-4', // Ровно 16px (вместо старых 80px)
+    lg: 'p-5', // Ровно 20px (вместо старых 96px)
   };
 
   // Высококлассная микро-анимация при касании на мобильном экране (Lift & Scale)
