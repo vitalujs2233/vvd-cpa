@@ -34,7 +34,7 @@ const TRANSACTIONS_MOCK: Transaction[] = [
     amount: 200.00,
     method: 'USDT TRC20',
     address: 'TQDwtZe8F2Jz9nttz2W11m78abc901234',
-    txId: '0x456da2b41a238b99',
+    txId: '0x456da2...8b99',
     date: '18.05.2024 18:10',
     status: 'completed',
   },
@@ -146,12 +146,13 @@ export const Withdrawal: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-20 p-16 select-none pb-32 animate-fade-in">
+    // Заменили внешние отступы p-16 (64px) на адаптивные p-4 (16px), а gap-20 на gap-4
+    <div className="flex flex-col gap-4 p-4 select-none pb-32 animate-fade-in">
       
       {/* Шапка раздела с переключателями */}
       {activeSubView !== 'receipt' ? (
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-12 text-left">
+          <div className="flex items-center gap-3 text-left">
             <button 
               onClick={handleBackToMain}
               className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform shadow-glass-inner"
@@ -164,11 +165,11 @@ export const Withdrawal: React.FC = () => {
             </div>
           </div>
 
-          {/* Табы переключения (Стекло, Blur, компактные размеры) */}
-          <div className="flex bg-bgCard/35 backdrop-blur-md border border-white/[0.04] rounded-app-xs p-4 gap-4 h-11 items-center shadow-glass-inner">
+          {/* Табы переключения */}
+          <div className="flex bg-bgCard/35 backdrop-blur-md border border-white/[0.04] rounded-app-xs p-2 gap-2 h-11 items-center shadow-glass-inner">
             <button 
               onClick={() => handleSubViewChange('withdraw')}
-              className={`p-2.5 rounded-app-xs transition-all duration-200 ${
+              className={`p-2 rounded-app-xs transition-all duration-200 ${
                 activeSubView === 'withdraw' 
                   ? 'bg-accent-gradient text-white shadow-glow-purple/40 scale-105' 
                   : 'text-textSecondary hover:text-textPrimary'
@@ -178,7 +179,7 @@ export const Withdrawal: React.FC = () => {
             </button>
             <button 
               onClick={() => handleSubViewChange('history')}
-              className={`p-2.5 rounded-app-xs transition-all duration-200 ${
+              className={`p-2 rounded-app-xs transition-all duration-200 ${
                 activeSubView === 'history' 
                   ? 'bg-accent-gradient text-white shadow-glow-purple/40 scale-105' 
                   : 'text-textSecondary hover:text-textPrimary'
@@ -190,7 +191,7 @@ export const Withdrawal: React.FC = () => {
         </div>
       ) : (
         /* Шапка для Экрана Чека (Квитанции) */
-        <div className="flex items-center gap-12 text-left">
+        <div className="flex items-center gap-3 text-left">
           <button 
             onClick={handleCloseReceipt}
             className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform shadow-glass-inner"
@@ -204,11 +205,12 @@ export const Withdrawal: React.FC = () => {
         </div>
       )}
 
-      {/* ================= VIEW 1: ФОРМА ВЫВОДА (Раздел 6) ================= */}
+      {/* ================= VIEW 1: ФОРМА ВЫВОДА ================= */}
       {activeSubView === 'withdraw' && (
-        <div className="flex flex-col gap-20 animate-fade-in">
+        // Заменили gap-16 (64px) на плотный gap-4 (16px)
+        <div className="flex flex-col gap-4 animate-fade-in">
           {/* Сводка балансов */}
-          <Card padding="md" className="text-left flex flex-col gap-12 border-white/5 shadow-glass-inner bg-white/[0.01]">
+          <Card padding="md" className="text-left flex flex-col gap-3 border-white/5 shadow-glass-inner bg-white/[0.01]">
             <div className="flex justify-between items-center text-xs">
               <span className="text-textSecondary font-semibold uppercase tracking-wider">Доступно к выводу</span>
               <span className="font-bold text-success">$154.50</span>
@@ -220,11 +222,11 @@ export const Withdrawal: React.FC = () => {
             </div>
           </Card>
 
-          {/* Платежный шлюз по гайдлайну (Banking Card UI) */}
-          <div className="text-left flex flex-col gap-8">
+          {/* Платежный шлюз */}
+          <div className="text-left flex flex-col gap-2">
             <span className="text-xs font-bold text-white px-2">Платежный шлюз</span>
             <Card padding="md" className="flex items-center justify-between border-success/20 bg-success/[0.02] shadow-[0_0_15px_rgba(34,197,94,0.05)]">
-              <div className="flex items-center gap-12">
+              <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-app-xs bg-success/10 border border-success/20 flex items-center justify-center text-success">
                   <Coins size={18} />
                 </div>
@@ -233,12 +235,12 @@ export const Withdrawal: React.FC = () => {
                   <span className="text-[9px] text-textSecondary font-semibold mt-0.5">Криптовалютный протокол TRON</span>
                 </div>
               </div>
-              <span className="text-[9px] text-success font-bold uppercase tracking-widest px-2.5 py-1 bg-success/10 border border-success/20 rounded-app-xs">Сеть активна</span>
+              <span className="text-[9px] text-success font-bold uppercase tracking-widest px-2 py-0.5 bg-success/10 border border-success/20 rounded-app-xs">Сеть активна</span>
             </Card>
           </div>
 
-          {/* Поля ввода (высота 48px, скругление 12px) */}
-          <div className="flex flex-col gap-12">
+          {/* Поля ввода (Заменили gap-12 на gap-3) */}
+          <div className="flex flex-col gap-3">
             <Input 
               label="Сумма вывода ($)"
               placeholder="100.00"
@@ -258,7 +260,7 @@ export const Withdrawal: React.FC = () => {
           </div>
 
           {/* Прозрачный расчет комиссии */}
-          <Card padding="md" className="flex flex-col gap-8 text-left bg-white/[0.01] border-white/5 shadow-glass-inner">
+          <Card padding="md" className="flex flex-col gap-2 text-left bg-white/[0.01] border-white/5 shadow-glass-inner">
             <div className="flex justify-between items-center text-xs">
               <span className="text-textSecondary">Итого к зачислению</span>
               <span className="font-bold text-white">{amount || '0.00'} USDT</span>
@@ -269,7 +271,7 @@ export const Withdrawal: React.FC = () => {
             </div>
           </Card>
 
-          {/* Большая успешная кнопка (54px, 18px скругление, зеленый Glow) */}
+          {/* Большая успешная кнопка */}
           <Button 
             variant="success" 
             size="lg" 
@@ -285,9 +287,10 @@ export const Withdrawal: React.FC = () => {
         </div>
       )}
 
-      {/* ================= VIEW 2: ИСТОРИЯ ВЫПЛАТ (Раздел 6.1) ================= */}
+      {/* ================= VIEW 2: ИСТОРИЯ ВЫПЛАТ ================= */}
       {activeSubView === 'history' && (
-        <div className="flex flex-col gap-12 animate-fade-in">
+        // Заменили gap-12 на плотный gap-3
+        <div className="flex flex-col gap-3 animate-fade-in">
           {TRANSACTIONS_MOCK.map((tx) => (
             <Card 
               key={tx.id} 
@@ -296,7 +299,7 @@ export const Withdrawal: React.FC = () => {
               onClick={() => handleSelectTransaction(tx)}
               className="flex items-center justify-between text-left hover-lift"
             >
-              <div className="flex items-center gap-12">
+              <div className="flex items-center gap-3">
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center border ${
                   tx.status === 'completed' 
                     ? 'text-success bg-success/10 border-success/20 shadow-[0_0_10px_rgba(34,197,94,0.1)]' 
@@ -310,7 +313,7 @@ export const Withdrawal: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-12">
+              <div className="flex items-center gap-3">
                 <div className="flex flex-col items-end">
                   <span className={`text-xs font-bold ${tx.status === 'completed' ? 'text-success' : 'text-error'}`}>
                     {tx.status === 'completed' ? '+' : '-'}${tx.amount.toFixed(2)}
@@ -328,12 +331,13 @@ export const Withdrawal: React.FC = () => {
         </div>
       )}
 
-      {/* ================= VIEW 3: ДЕТАЛИ ВЫПЛАТЫ (ЧЕК, Раздел 6.2) ================= */}
+      {/* ================= VIEW 3: ДЕТАЛИ ВЫПЛАТЫ (ЧЕК) ================= */}
       {activeSubView === 'receipt' && selectedTx && (
-        <div className="flex flex-col gap-20 animate-fade-in">
+        // Заменили gap-16 на gap-4
+        <div className="flex flex-col gap-4 animate-fade-in">
           
-          {/* Статус чека с сияющей неоновой галочкой */}
-          <Card padding="lg" className="flex flex-col items-center justify-center text-center gap-12 border-success/15 bg-success/[0.01] relative overflow-hidden">
+          {/* Статус чека */}
+          <Card padding="lg" className="flex flex-col items-center justify-center text-center gap-3 border-success/15 bg-success/[0.01] relative overflow-hidden">
             <div className="absolute inset-0 bg-success/5 blur-3xl rounded-full pointer-events-none" />
             
             {selectedTx.status === 'completed' ? (
@@ -341,8 +345,8 @@ export const Withdrawal: React.FC = () => {
                 <div className="w-16 h-16 rounded-full bg-success/10 border border-success/30 flex items-center justify-center text-success drop-shadow-[0_0_12px_#22C55E] animate-neon-pulse">
                   <CheckCircle2 size={32} />
                 </div>
-                <div className="flex flex-col z-10">
-                  <h2 className="text-lg font-bold text-white">Выплата отправлена</h2>
+                <div className="flex flex-col z-10 gap-1">
+                  <h2 className="text-lg font-bold text-white leading-tight">Выплата отправлена</h2>
                   <p className="text-xs text-textSecondary mt-1">Транзакция успешно подтверждена и обработана шлюзом.</p>
                 </div>
               </>
@@ -351,16 +355,16 @@ export const Withdrawal: React.FC = () => {
                 <div className="w-16 h-16 rounded-full bg-error/10 border border-error/30 flex items-center justify-center text-error drop-shadow-[0_0_12px_#EF4444] animate-pulse">
                   <XCircle size={32} />
                 </div>
-                <div className="flex flex-col z-10">
-                  <h2 className="text-lg font-bold text-white">Выплата отклонена</h2>
+                <div className="flex flex-col z-10 gap-1">
+                  <h2 className="text-lg font-bold text-white leading-tight">Выплата отклонена</h2>
                   <p className="text-xs text-textSecondary mt-1">Пожалуйста, свяжитесь с поддержкой платформы.</p>
                 </div>
               </>
             )}
           </Card>
 
-          {/* Параметры квитанции */}
-          <Card padding="md" variant="default" className="flex flex-col gap-12 text-left shadow-premium">
+          {/* Параметры квитанции (Заменили gap-12 на gap-3) */}
+          <Card padding="md" variant="default" className="flex flex-col gap-3 text-left shadow-premium">
             <div className="flex justify-between items-center text-xs">
               <span className="text-textSecondary">Сумма транзакции</span>
               <span className="font-bold text-white">{selectedTx.amount.toFixed(2)} USDT</span>
@@ -395,14 +399,14 @@ export const Withdrawal: React.FC = () => {
             </div>
           </Card>
 
-          {/* Кнопки возврата и поддержки */}
-          <div className="flex flex-col gap-8">
+          {/* Кнопки возврата и поддержки (Заменили gap-8 на gap-2) */}
+          <div className="flex flex-col gap-2">
             <Button 
               variant="secondary" 
               size="lg" 
               onClick={() => { triggerHaptic.lightImpact(); navigate('/chat'); }}
             >
-              <HelpCircle size={16} className="mr-8 text-textSecondary" />
+              <HelpCircle size={16} className="mr-2 text-textSecondary" />
               Поддержка транзакции
             </Button>
             
