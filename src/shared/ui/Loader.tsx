@@ -9,15 +9,15 @@ export const Loader: React.FC<LoaderProps> = ({ onComplete }) => {
   const [isFadingOut, setIsFadingOut] = useState(false);
 
   useEffect(() => {
-    // Имитируем плавный рост прогресса загрузки от 0 до 100% за 2.5 секунды
+    // Настроили интервал обновления и шаг, чтобы загрузка плавно шла ровно 5 - 6 секунд
     const interval = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 100) {
           clearInterval(interval);
           return 100;
         }
-        // Неравномерный шаг загрузки для большей естественности (имитация загрузки данных)
-        const step = Math.floor(Math.random() * 8) + 4;
+        // Шаг от 1 до 3 (в среднем 2% за тик), что дает около 50 тиков по 100ms = ~5-6 секунд плавной загрузки
+        const step = Math.floor(Math.random() * 3) + 1;
         return Math.min(prev + step, 100);
       });
     }, 100);
@@ -27,10 +27,8 @@ export const Loader: React.FC<LoaderProps> = ({ onComplete }) => {
 
   useEffect(() => {
     if (progress === 100) {
-      // Когда прогресс равен 100%, запускаем красивую анимацию растворения лоадера (Fade Out)
       const timeout = setTimeout(() => {
         setIsFadingOut(true);
-        // Полностью закрываем лоадер через 350ms после окончания растворения
         const completeTimeout = setTimeout(() => {
           if (onComplete) onComplete();
         }, 350);
@@ -125,7 +123,7 @@ export const Loader: React.FC<LoaderProps> = ({ onComplete }) => {
               <path d="M42 22C38 38 20 48 20 64C20 78 30 82 40 82C50 82 60 78 60 64C60 48 44 38 42 22Z" fill="url(#brandGrad1)" />
               {/* Правый наложенный лепесток */}
               <path opacity="0.85" d="M43 35C41 48 31 55 31 68C31 76 37 79 43 79C49 79 55 76 55 68C55 48 45 48 43 35Z" fill="url(#brandGrad2)" />
-              {/* Центральный яркий лепесток */}
+              {/* Central petal */}
               <path opacity="0.95" d="M44 50C42 58 37 62 37 68C37 73 40 75 43 75C46 75 49 73 49 68C49 58 44 58 44 50Z" fill="url(#brandGrad3)" />
             </g>
             <defs>
@@ -152,7 +150,7 @@ export const Loader: React.FC<LoaderProps> = ({ onComplete }) => {
           </svg>
         </div>
 
-        {/* Название бренда VVD CPA и PREMIUM NETWORK с плавной задержкой появления */}
+        {/* Название бренда VVD CPA и PREMIUM NETWORK */}
         <div className="flex flex-col items-center justify-center text-center animate-text-brand mt-4">
           <span className="text-[26px] font-bold text-white tracking-widest font-sans uppercase">VVD CPA</span>
           <span className="text-[9px] font-bold text-[#784DFF] tracking-[0.25em] uppercase mt-2">PREMIUM NETWORK</span>
@@ -178,7 +176,7 @@ export const Loader: React.FC<LoaderProps> = ({ onComplete }) => {
           </div>
 
           {/* Бегущие проценты загрузки */}
-          <div className="flex flex-col items-center justify-center gap-1.5 mt-2">
+          <div className="flex flex-col items-center justify-center gap-1.5 mt-2 font-semibold">
             <span className="text-[10px] text-textSecondary font-bold tracking-widest uppercase">Загрузка платформы</span>
             <span className="text-sm font-bold text-white font-mono">{progress}%</span>
           </div>
