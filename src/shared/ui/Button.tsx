@@ -20,13 +20,13 @@ export const Button: React.FC<ButtonProps> = ({
   onClick,
   ...props
 }) => {
-  // Базовые стили с изящной кривой Безье для анимации подъема (Lift & Scale)
-  const baseStyles = 'inline-flex items-center justify-center font-semibold transition-all duration-300 outline-none select-none active:scale-[0.97] active:translate-y-0 disabled:opacity-40 disabled:pointer-events-none whitespace-nowrap';
+  // Базовые стили с изящной кривой Безье для плавной анимации (Lift & Scale)
+  const baseStyles = 'inline-flex items-center justify-center font-bold transition-all duration-300 outline-none select-none active:scale-[0.97] active:translate-y-0 disabled:opacity-40 disabled:pointer-events-none whitespace-nowrap';
 
-  // Люксовые цветовые схемы из гайдлайна
+  // Люксовые цветовые схемы строго из золотого гайдлайна (без фиолетового цвета)
   const variantStyles = {
-    // Неоновый фиолетово-розовый градиент с выразительным свечением (Purple Glow)
-    primary: 'bg-accent-gradient text-white shadow-glow-purple hover:shadow-[0_0_30px_rgba(124,58,237,0.5),0_0_50px_rgba(192,38,211,0.25)] hover:-translate-y-[1.5px] hover:scale-[1.01]',
+    // Золотой премиум-градиент со сверкающим золотым свечением (Glow Gold) и темным текстом
+    primary: 'bg-gold-gradient text-bgMain shadow-glow-gold hover:shadow-[0_0_30px_rgba(246,196,83,0.5),0_0_50px_rgba(212,175,55,0.25)] hover:-translate-y-[1.5px] hover:scale-[1.01]',
     
     // Полупрозрачная стеклянная кнопка со слабым внутренним свечением
     secondary: 'bg-white/[0.04] text-textPrimary border border-white/10 hover:bg-white/[0.08] hover:-translate-y-[1px]',
@@ -41,7 +41,7 @@ export const Button: React.FC<ButtonProps> = ({
     danger: 'bg-gradient-to-r from-error to-error/90 text-white shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:bg-error/95',
   };
 
-  // Размеры кнопок строго под мобильные зоны безопасности
+  // Размеры кнопок под мобильные стандарты
   const sizeStyles = {
     sm: 'px-4 py-2 text-xs h-[38px] rounded-app-xs',       // Малые кнопки внутри карточек
     md: 'px-5 py-2.5 text-xs h-[46px] rounded-app-xs',     // Средние кнопки
@@ -70,12 +70,12 @@ export const Button: React.FC<ButtonProps> = ({
     >
       {isLoading ? (
         <div className="flex items-center justify-center gap-8">
-          {/* Кастомный минималистичный премиум-лоадер вместо дешевых спиннеров */}
+          {/* Минималистичный премиум-лоадер */}
           <div className="relative w-4 h-4">
-            <div className="absolute inset-0 rounded-full border-2 border-white/20"></div>
-            <div className="absolute inset-0 rounded-full border-2 border-t-white animate-spin"></div>
+            <div className="absolute inset-0 rounded-full border-2 border-bgMain/20"></div>
+            <div className="absolute inset-0 rounded-full border-2 border-t-bgMain animate-spin"></div>
           </div>
-          <span className="text-xs text-white/90">Пожалуйста, подождите...</span>
+          <span className="text-xs text-bgMain/90">Пожалуйста, подождите...</span>
         </div>
       ) : (
         children
