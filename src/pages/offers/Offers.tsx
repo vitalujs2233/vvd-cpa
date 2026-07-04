@@ -126,8 +126,7 @@ export const Offers: React.FC = () => {
   }, [searchQuery, activeTab, favorites]);
 
   return (
-    // Заменили внешние отступы с раздутых 64px (p-16) на адаптивные 16px (p-4), а gap-20 на gap-4
-    <div className="flex flex-col gap-4 p-4 select-none pb-24 animate-fade-in">
+    <div className="flex flex-col gap-4 p-4 select-none pb-32 animate-fade-in w-full">
       
       {/* Шапка раздела */}
       <div className="flex flex-col text-left">
@@ -143,7 +142,7 @@ export const Offers: React.FC = () => {
         icon={<Search size={16} />}
       />
 
-      {/* Панель табов (Заменили p-4 на компактный p-2, чтобы кнопки не ломали сетку) */}
+      {/* Панель табов */}
       <div className="flex bg-bgCard/35 backdrop-blur-md border border-white/[0.04] rounded-app-xs p-2 gap-2 shadow-glass-inner">
         <button
           onClick={() => handleTabChange('all')}
@@ -188,8 +187,14 @@ export const Offers: React.FC = () => {
         </button>
       </div>
 
-      {/* Список категорий (Заменили gap-12 на плотный gap-3) */}
-      <div className="flex flex-col gap-3">
+      {/* 
+        Список категорий.
+        ПЕРЕВЕДЕН НА АДАПТИВНУЮ СЕТКУ:
+        - На телефоне: 1 колонка (grid-cols-1)
+        - На планшетах: 2 колонки (md:grid-cols-2)
+        - На компьютерах: 3 колонки (lg:grid-cols-3)
+      */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 w-full">
         {filteredCategories.length > 0 ? (
           filteredCategories.map((category) => {
             const isFav = favorites.includes(category.id);
@@ -197,11 +202,10 @@ export const Offers: React.FC = () => {
               <Card
                 key={category.id}
                 clickable
-                padding="sm" // Заменили жесткий p-16 на адаптивный sm (p-3 = 12px)
+                padding="sm"
                 onClick={() => handleCategoryClick(category.id)}
-                className="flex items-center justify-between hover-lift"
+                className="flex items-center justify-between hover-lift shadow-premium"
               >
-                {/* Заменили gap-16 на gap-3 */}
                 <div className="flex items-center gap-3">
                   <div className={`w-11 h-11 rounded-app-xs border flex items-center justify-center ${category.colorClass}`}>
                     {renderIcon(category.iconName, '')}
@@ -215,13 +219,11 @@ export const Offers: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  {/* Статус Active (Заменили px-8 py-4 на компактный px-2 py-1) */}
                   <div className="flex items-center gap-1.5 px-2 py-1 bg-success/5 border border-success/20 rounded-app-xs">
                     <span className="w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_8px_#22C55E] animate-pulse" />
                     <span className="text-[9px] font-bold text-success uppercase tracking-wider">Active</span>
                   </div>
 
-                  {/* Кнопка Избранное (Заменили p-8 на p-2) */}
                   <button
                     onClick={(e) => toggleFavorite(category.id, e)}
                     className="p-2 text-textSecondary hover:text-white transition-colors duration-150"
@@ -237,7 +239,7 @@ export const Offers: React.FC = () => {
             );
           })
         ) : (
-          <div className="py-32 text-center text-textSecondary text-xs bg-bgCard/35 border border-white/[0.04] rounded-card backdrop-blur-md">
+          <div className="py-32 text-center text-textSecondary text-xs bg-bgCard/35 border border-white/[0.04] rounded-card backdrop-blur-md col-span-full">
             Вертикали не найдены
           </div>
         )}
