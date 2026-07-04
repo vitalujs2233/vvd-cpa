@@ -20,15 +20,65 @@ const AppLayout = () => {
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-transparent text-textPrimary overflow-hidden relative">
+    <div className="flex flex-col h-screen w-full bg-transparent text-textPrimary overflow-hidden relative">
       
-      {/* Контейнер контента со скроллом */}
-      <div className="flex-1 overflow-y-auto scrollable-container relative z-10">
+      {/* === ЛЮКСОВЫЕ НЕОНОВЫЕ ВОЛНЫ (SVG) НА ЗАДНЕМ ПЛАНЕ === */}
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-bgMain">
+        {/* Мягкие размытые фоновые световые пятна ( Radial Spots ) */}
+        <div className="absolute top-[10%] left-[-10%] w-[90%] h-[90%] rounded-full bg-[#784DFF]/[0.04] blur-[130px] pointer-events-none" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[100%] h-[100%] rounded-full bg-[#3B82F6]/[0.03] blur-[140px] pointer-events-none" />
+
+        {/* Векторные парящие неоновые нити из гайдлайна */}
+        <svg className="absolute inset-0 w-full h-full opacity-45" viewBox="0 0 1440 800" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="waveGrad1" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#784DFF" stopOpacity="0" />
+              <stop offset="50%" stopColor="#9D4EDD" stopOpacity="0.55" />
+              <stop offset="100%" stopColor="#C44DFF" stopOpacity="0" />
+            </linearGradient>
+            <linearGradient id="waveGrad2" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#3B82F6" stopOpacity="0" />
+              <stop offset="50%" stopColor="#784DFF" stopOpacity="0.45" />
+              <stop offset="100%" stopColor="#9D4EDD" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          
+          {/* Синяя/Фиолетовая волна 1 */}
+          <path 
+            className="animate-wave-1" 
+            d="M-100 350 C300 480 500 220 900 420 C1300 620 1500 320 1700 470" 
+            fill="none" 
+            stroke="url(#waveGrad1)" 
+            strokeWidth="4" 
+          />
+          {/* Розовая/Фиолетовая волна 2 */}
+          <path 
+            className="animate-wave-2" 
+            d="M-100 400 C200 220 600 520 1000 320 C1300 170 1500 470 1700 370" 
+            fill="none" 
+            stroke="url(#waveGrad2)" 
+            strokeWidth="3" 
+          />
+        </svg>
+        
+        {/* Звездная пыль */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.15)_1px,transparent_1px)] bg-[size:40px_40px] opacity-20" />
+      </div>
+
+      {/* 
+        Контейнер контента со скроллом.
+        Ограничен максимальной шириной 1200px (SaaS Standard) для десктопов и планшетов,
+        но занимает 100% на мобильных телефонах.
+      */}
+      <div className="flex-1 overflow-y-auto scrollable-container relative z-10 w-full max-w-[1200px] mx-auto">
         <Outlet />
       </div>
 
-      {/* Нижняя парящая стеклянная панель навигации (Высота 80px, Золотой активный таб с Glow) */}
-      <nav className="h-[80px] bg-bgCard/60 backdrop-blur-lg border-t border-white/[0.04] flex items-center justify-around px-4 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.5)] z-50 rounded-t-card">
+      {/* 
+        Нижняя парящая стеклянная панель навигации.
+        Ограничена шириной 1200px на десктопах для сохранения монолитного аккуратного вида.
+      */}
+      <nav className="h-[80px] bg-bgCard/60 backdrop-blur-lg border-t border-white/[0.04] flex items-center justify-around px-4 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.5)] z-50 w-full max-w-[1200px] mx-auto rounded-t-card">
         <NavLink
           to="/"
           onClick={handleTabClick}
@@ -109,20 +159,19 @@ const AppLayout = () => {
 };
 
 const App = () => {
-  // Состояние отображения стартового золотого лоадера
+  // Состояние отображения стартового лоадера
   const [isLoading, setIsLoading] = useState(true);
 
   if (isLoading) {
-    // Строгий рендеринг: пока идет загрузка, рендерится ТОЛЬКО лоадер, исключая "мигания"
     return <Loader onComplete={() => setIsLoading(false)} />;
   }
 
   return (
-    // Глобальный мобильный контейнер (max-w-[420px]), фиксирующий верстку от расползания
-    <div className="w-full h-full max-w-[420px] mx-auto relative overflow-hidden bg-transparent">
+    // Убрали жесткое ограничение по ширине, чтобы приложение могло дышать на компьютерах и планшетах
+    <div className="w-full h-full relative overflow-hidden bg-transparent">
       <MemoryRouter>
         <Routes>
-          {/* Обертка Лейаута с парящей нижней панелью навигации */}
+          {/* Обертка Лейаута */}
           <Route path="/" element={<AppLayout />}>
             <Route index element={<Home />} />
             <Route path="offers" element={<Offers />} />
