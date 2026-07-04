@@ -4,7 +4,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Системные переменные дизайн-системы VVD CPA (Gold Premium) */
+/* Системные переменные дизайн-системы VVD CPA (Gold Premium Luxury v1.0) */
 :root {
   font-family: 'Inter', sans-serif;
   color-scheme: dark;
@@ -13,7 +13,11 @@
   --bg-sec: #0D0D0D;           /* Вторичный фоновый черный */
   --bg-card: #111111;          /* Цвет премиальных карточек */
   --border-card: rgba(255, 255, 255, 0.08);
-  --accent-gold: #D4AF37;      /* Фирменный золотой акцент */
+  
+  /* Золотая палитра подсветки по спецификации */
+  --accent-gold: #D4AF37;      /* Основная золотая рамка */
+  --accent-gold-bright: #F6C453; /* Яркое свечение (кнопки, акценты) */
+  --accent-gold-light: #FFE08A;  /* Светлый золотой блик */
 }
 
 /* Настройки монолитного полноэкранного Premium-интерфейса */
@@ -34,9 +38,13 @@ body,
   position: relative;
 }
 
-/* 1. Глубокий градиентный подслой фона с бархатным переливом */
+/* Глубокий градиентный подслой фона с теплым золотым свечением */
 body {
-  background-image: radial-gradient(ellipse at 50% 0%, var(--bg-sec) 0%, var(--bg-main) 100%);
+  background-image: 
+    radial-gradient(circle at 15% 15%, rgba(246, 196, 83, 0.02) 0%, transparent 40%),
+    radial-gradient(circle at 85% 85%, rgba(212, 175, 55, 0.02) 0%, transparent 45%),
+    radial-gradient(circle at 50% 35%, rgba(255, 224, 138, 0.015) 0%, transparent 50%),
+    radial-gradient(circle at 50% 0%, var(--bg-sec) 0%, var(--bg-main) 100%);
   background-attachment: fixed;
 }
 
@@ -57,64 +65,41 @@ body::before {
   animation: starDustPulse 8s infinite ease-in-out;
 }
 
-/* 2. ЛЮКСОВАЯ ЗОЛОТИСТАЯ ГРАДИЕНТНАЯ ПОДСВЕТКА: Левый софит (GPU-ускоренный) */
-body::after {
-  content: '';
-  position: absolute;
-  top: -10%;
-  left: -10%;
-  width: 80%;
-  height: 80%;
-  z-index: 0;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(246, 196, 83, 0.08) 0%, transparent 70%);
-  filter: blur(120px);
-  pointer-events: none;
-  transform-origin: center;
-  will-change: transform, opacity;
-  animation: floatGoldWave1 20s infinite ease-in-out;
-}
-
-/* 3. ЛЮКСОВАЯ ЗОЛОТИСТАЯ ГРАДИЕНТНАЯ ПОДСВЕТКА: Правый софит (GPU-ускоренный) */
-#root::before {
-  content: '';
-  position: absolute;
-  bottom: -15%;
-  right: -10%;
-  width: 90%;
-  height: 90%;
-  z-index: 0;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(212, 175, 55, 0.06) 0%, transparent 70%);
-  filter: blur(130px);
-  pointer-events: none;
-  transform-origin: center;
-  will-change: transform, opacity;
-  animation: floatGoldWave2 24s infinite ease-in-out;
-}
-
 /* === УТИЛИТАРНЫЕ КЛАССЫ PREMIUM DESIGN SYSTEM === */
 
-/* Эффект матового стекла (Оптимизирован: blur 12px) */
+/* 
+  Эффект матового стекла (Glassmorphism) для стандартных карточек.
+  - Толщина золотой рамки: строго 2px по спецификации.
+  - Цвет рамки: благородное полупрозрачное золото.
+  - Внутреннее свечение: сверкающая белая фаска на ребре.
+*/
 .glass-card {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%), rgba(17, 17, 17, 0.55);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--border-card);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 2px solid rgba(212, 175, 55, 0.14); /* Роскошная золотая рамка 2px */
   box-shadow: 
     0 16px 40px -10px rgba(0, 0, 0, 0.85),
     inset 0 1px 1px 0 rgba(255, 255, 255, 0.12); /* Сверкающая фаска */
 }
 
-/* Специальный класс для карточки баланса и важных парящих блоков с золотым свечением */
+/* 
+  Специальный класс для карточки баланса и SmartLink (Glow-эффект).
+  - Толщина рамки: строго 3px по спецификации.
+  - Анимация: медленное органическое «дыхание» золотого свечения (Glow Breath).
+*/
 .glass-card-glow {
-  background: linear-gradient(135deg, rgba(246, 196, 83, 0.08) 0%, rgba(212, 175, 55, 0.02) 50%, rgba(17, 17, 17, 0.7) 100%);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(246, 196, 83, 0.25); /* Светящийся золотой бордюр */
+  background: linear-gradient(135deg, rgba(246, 196, 83, 0.06) 0%, rgba(212, 175, 55, 0.01) 50%, rgba(17, 17, 17, 0.7) 100%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 3px solid rgba(246, 196, 83, 0.28); /* Роскошная золотая рамка 3px */
   box-shadow: 
     0 20px 50px -12px rgba(246, 196, 83, 0.2),
     inset 0 1px 1px 0 rgba(255, 255, 255, 0.15); /* Сверкающая фаска */
+  
+  /* Подключение медленного «дыхания» неоновой рамки и тени */
+  will-change: border-color, box-shadow;
+  animation: goldGlowBreath 6s infinite ease-in-out;
 }
 
 /* Полупрозрачная граница с градиентным эффектом */
@@ -162,16 +147,20 @@ body::after {
 
 /* === АППАРАТНЫЕ АНИМАЦИИ (60 FPS) === */
 
-/* Медленный дрейф золотого левого софита */
-@keyframes floatGoldWave1 {
-  0%, 100% { transform: translate(0px, 0px) scale(1); }
-  50% { transform: translate(40px, 30px) scale(1.1); }
-}
-
-/* Медленный дрейф золотого правого софита */
-@keyframes floatGoldWave2 {
-  0%, 100% { transform: translate(0px, 0px) scale(1); }
-  50% { transform: translate(-30px, -40px) scale(0.95); }
+/* Медленное органическое «дыхание» золотой неоновой рамки и тени (Gold Glow Breath) */
+@keyframes goldGlowBreath {
+  0%, 100% {
+    border-color: rgba(246, 196, 83, 0.25);
+    box-shadow: 
+      0 20px 50px -12px rgba(246, 196, 83, 0.18),
+      inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
+  }
+  50% {
+    border-color: rgba(255, 224, 138, 0.45); /* #FFE08A - Светлый золотой блик */
+    box-shadow: 
+      0 20px 55px -10px rgba(246, 196, 83, 0.32),
+      inset 0 1px 1px 0 rgba(255, 255, 255, 0.22);
+  }
 }
 
 /* Медленное деликатное мерцание звездной пыли в фоне */
