@@ -1,6 +1,9 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wallet, History, ArrowRight, Clock, TrendingUp, Sparkles, Bell, Crown } from 'lucide-react';
+import { 
+  Wallet, History, ArrowRight, Clock, TrendingUp, 
+  Sparkles, Bell, Crown, Heart, Pill, Coins 
+} from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
@@ -25,30 +28,29 @@ export const Home: React.FC = () => {
   };
 
   return (
-    // Заменили внешние отступы с гигантских 64px (p-16) на аккуратные 16px (p-4), а gap-16 на gap-4
     <div className="flex flex-col gap-4 p-4 select-none pb-24 animate-fade-in">
       
-      {/* Люксовый парящий Header (Glass Background, Blur, иконка уведомлений) */}
+      {/* Верхняя панель пользователя (Шапка) */}
       <Card variant="default" padding="sm" className="flex items-center justify-between border-white/5 bg-white/[0.02] backdrop-blur-md rounded-card shadow-glass-inner">
         <div className="flex items-center gap-3">
           {user.photo_url ? (
             <img
               src={user.photo_url}
               alt={user.first_name || 'User'}
-              className="w-11 h-11 rounded-full border border-white/10 object-cover shadow-premium"
+              className="w-10 h-10 rounded-full border border-gray-800 object-cover"
             />
           ) : (
-            <div className="w-11 h-11 rounded-full bg-accent-gradient flex items-center justify-center text-white font-bold text-sm shadow-glow-purple/40">
+            <div className="w-10 h-10 rounded-full bg-accentDark border border-accent/20 flex items-center justify-center text-accent font-semibold text-sm">
               {(user.first_name || 'JD').slice(0, 2).toUpperCase()}
             </div>
           )}
           <div className="flex flex-col text-left">
-            <span className="text-sm font-bold text-textPrimary flex items-center gap-1.5">
+            <span className="text-sm font-bold text-white flex items-center gap-1.5">
               {user.first_name || 'John'} {user.last_name || ''}
-              <Crown size={12} className="text-accentPink animate-pulse" />
+              <Crown size={12} className="text-accentPink" />
             </span>
-            <span className="text-[10px] text-textSecondary font-semibold uppercase tracking-wider mt-0.5">
-              {user.username ? `@${user.username}` : 'CPA Partner'}
+            <span className="text-xs text-textSecondary font-semibold">
+              {user.username ? `@${user.username}` : 'Пользователь CPA'}
             </span>
           </div>
         </div>
@@ -64,38 +66,44 @@ export const Home: React.FC = () => {
         </button>
       </Card>
 
-      {/* Парящая градиентная карта Баланса (gap-20 заменен на gap-5 (20px), убран гигантский раздув) */}
+      {/* Парящая градиентная карта Баланса с отполированной фаской и фоновой короной */}
       <Card variant="glow" padding="lg" className="flex flex-col gap-5 relative overflow-hidden animate-float">
+        {/* Фоновое неоновое свечение */}
         <div className="absolute -right-24 -top-24 w-48 h-48 bg-accent-gradient rounded-full blur-3xl opacity-10 pointer-events-none" />
+        
+        {/* Большая полупрозрачная фоновая корона, заполняющая пустоту по гайдлайну */}
+        <div className="absolute -right-6 -bottom-6 text-accentPurple/5 pointer-events-none select-none z-0">
+          <Crown size={130} className="stroke-[1.5]" />
+        </div>
 
-        <div className="flex justify-between items-start">
+        <div className="flex justify-between items-start z-10">
           <div className="flex flex-col text-left">
             <span className="text-[10px] text-textSecondary font-bold uppercase tracking-wider">Ваш баланс</span>
-            <span className="text-[36px] font-bold text-white bg-clip-text mt-1 font-sans tracking-tight leading-none">
+            <span className="text-[36px] font-bold text-white leading-none mt-1.5 font-sans tracking-tight">
               $154.50
             </span>
           </div>
           
           <div className="bg-accent-gradient/10 border border-accentPink/20 rounded-app-xs px-2.5 py-1 flex items-center gap-1.5">
             <Sparkles size={10} className="text-accentPink animate-spin" style={{ animationDuration: '6s' }} />
-            <span className="text-[9px] font-bold text-textPrimary uppercase tracking-widest">Premium Partner</span>
+            <span className="text-[9px] font-bold text-white uppercase tracking-widest">Premium Partner</span>
           </div>
         </div>
 
-        <div className="h-[1px] bg-white/[0.04] w-full" />
+        <div className="h-[1px] bg-white/[0.04] w-full z-10" />
 
-        {/* Финансовые ячейки (gap-12 заменен на gap-3) */}
-        <div className="grid grid-cols-2 gap-3 text-left">
+        {/* Финансовые ячейки */}
+        <div className="grid grid-cols-2 gap-3 text-left z-10">
           <div className="flex flex-col">
             <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">Hold сегодня</span>
             <span className="text-sm font-bold text-warning mt-1 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-warning animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-warning shadow-[0_0_8px_#F59E0B] animate-pulse" />
               $32.40
             </span>
           </div>
           <div className="flex flex-col">
             <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">Выплачено</span>
-            <span className="text-sm font-bold text-success mt-1 flex items-center gap-1.5">
+            <span className="text-sm font-bold text-textSec mt-1 flex items-center gap-1.5">
               <TrendingUp size={14} className="text-success" />
               $1,234.50
             </span>
@@ -103,7 +111,7 @@ export const Home: React.FC = () => {
         </div>
 
         {/* Кнопки вывода */}
-        <div className="grid grid-cols-2 gap-3 mt-2 shrink-0">
+        <div className="grid grid-cols-2 gap-3 mt-2 shrink-0 z-10">
           <Button variant="primary" size="lg" onClick={handleWithdrawClick} className="w-full">
             <Wallet size={16} className="mr-2" />
             Вывести
@@ -118,7 +126,7 @@ export const Home: React.FC = () => {
       {/* Секция: Последние конверсии */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between px-1">
-          <span className="text-sm font-bold text-textPrimary">Последние конверсии</span>
+          <span className="text-sm font-bold text-white">Последние конверсии</span>
           <button
             onClick={() => { triggerHaptic.lightImpact(); navigate('/stats'); }}
             className="text-xs text-accentPurple hover:text-accentViolet hover:scale-[1.01] flex items-center gap-1 transition-all font-semibold"
@@ -129,10 +137,12 @@ export const Home: React.FC = () => {
         </div>
 
         <Card padding="none" variant="default" className="divide-y divide-white/[0.04] shadow-premium">
+          {/* Конверсия 1: Adult Dating */}
           <div className="flex items-center justify-between p-4 text-left hover-lift cursor-pointer">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-app-xs bg-error/10 border border-error/20 flex items-center justify-center text-error font-bold text-xs">
-                AD
+              {/* Премиальная сияющая иконка сердца */}
+              <div className="w-10 h-10 rounded-full bg-error/10 border border-error/20 flex items-center justify-center text-error shadow-[0_0_10px_rgba(239,68,68,0.15)]">
+                <Heart size={16} className="drop-shadow-[0_0_4px_#EF4444]" />
               </div>
               <div className="flex flex-col">
                 <span className="text-xs font-bold text-textPrimary">Adult Dating</span>
@@ -145,10 +155,12 @@ export const Home: React.FC = () => {
             <span className="text-sm font-bold text-success">+$12.50</span>
           </div>
 
+          {/* Конверсия 2: Nutra Offer */}
           <div className="flex items-center justify-between p-4 text-left hover-lift cursor-pointer">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-app-xs bg-success/10 border border-success/20 flex items-center justify-center text-success font-bold text-xs">
-                NT
+              {/* Премиальная сияющая иконка капсулы */}
+              <div className="w-10 h-10 rounded-full bg-success/10 border border-success/20 flex items-center justify-center text-success shadow-[0_0_10px_rgba(34,197,94,0.15)]">
+                <Pill size={16} className="drop-shadow-[0_0_4px_#22C55E]" />
               </div>
               <div className="flex flex-col">
                 <span className="text-xs font-bold text-textPrimary">Nutra Offer</span>
@@ -161,10 +173,12 @@ export const Home: React.FC = () => {
             <span className="text-sm font-bold text-success">+$8.30</span>
           </div>
 
+          {/* Конверсия 3: Crypto Trading */}
           <div className="flex items-center justify-between p-4 text-left hover-lift cursor-pointer">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-app-xs bg-accent/10 border border-accent/20 flex items-center justify-center text-accentPurple font-bold text-xs">
-                CR
+              {/* Премиальная сияющая иконка золотых монет */}
+              <div className="w-10 h-10 rounded-full bg-accentPurple/10 border border-accentPurple/20 flex items-center justify-center text-accentPurple shadow-[0_0_10px_rgba(124,58,237,0.15)]">
+                <Coins size={16} className="drop-shadow-[0_0_4px_#7C3AED]" />
               </div>
               <div className="flex flex-col">
                 <span className="text-xs font-bold text-textPrimary">Crypto Trading</span>
@@ -193,14 +207,16 @@ export const Home: React.FC = () => {
         </div>
 
         <Card padding="none" variant="default" className="divide-y divide-white/[0.04] shadow-premium">
+          {/* Новый оффер 1 */}
           <div className="flex items-center justify-between p-4 text-left hover-lift cursor-pointer">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-app-xs bg-white/[0.03] border border-white/5 flex items-center justify-center text-textSecondary font-bold text-xs">
-                MD
+              {/* Премиальная сияющая иконка звезд */}
+              <div className="w-10 h-10 rounded-full bg-warning/10 border border-warning/20 flex items-center justify-center text-warning shadow-[0_0_10px_rgba(245,158,11,0.15)]">
+                <Sparkles size={16} className="drop-shadow-[0_0_4px_#F59E0B]" />
               </div>
               <div className="flex flex-col">
                 <span className="text-xs font-bold text-textPrimary">Mainstream Dating</span>
-                <span className="text-[10px] text-textSecondary mt-0.5">Высокая выплата за лид CPL</span>
+                <span className="text-[10px] text-textSecondary mt-0.5">Высокая выплата за регистрацию</span>
               </div>
             </div>
             <div className="flex flex-col items-end">
@@ -209,14 +225,16 @@ export const Home: React.FC = () => {
             </div>
           </div>
 
+          {/* Новый оффер 2 */}
           <div className="flex items-center justify-between p-4 text-left hover-lift cursor-pointer">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-app-xs bg-white/[0.03] border border-white/5 flex items-center justify-center text-textSecondary font-bold text-xs">
-                NU
+              {/* Премиальная сияющая иконка капсулы */}
+              <div className="w-10 h-10 rounded-full bg-accentPink/10 border border-accentPink/20 flex items-center justify-center text-accentPink shadow-[0_0_10px_rgba(192,38,211,0.15)]">
+                <Pill size={16} className="drop-shadow-[0_0_4px_#C026D3]" />
               </div>
               <div className="flex flex-col">
                 <span className="text-xs font-bold text-textPrimary">Nutra Sweepstakes</span>
-                <span className="text-[10px] text-textSecondary mt-0.5">Выплата за СС-Submit (кредитки)</span>
+                <span className="text-[10px] text-textSecondary mt-0.5">Выплата за CC-Submit (кредитки)</span>
               </div>
             </div>
             <div className="flex flex-col items-end">
