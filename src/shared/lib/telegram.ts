@@ -7,14 +7,14 @@ export const tg: TelegramWebApp | undefined =
 // Флаг, указывающий, запущено ли приложение внутри Telegram
 export const isTelegramAvailable = typeof window !== 'undefined' && !!window.Telegram?.WebApp;
 
-// Демо-данные из макета для разработки и тестирования в обычном браузере на компьютере
+// Демонстрационные данные, привязанные строго к вашему ID для бесшовного тестирования на ПК
 const MOCK_USER: TelegramUser = {
-  id: 123456,
-  first_name: 'John',
-  last_name: 'Doe',
-  username: 'johndoe',
+  id: 232682307,        // Ваш реальный Telegram ID
+  first_name: 'Виталий', // Ваше имя из профиля
+  last_name: 'lv',       // Ваша фамилия из профиля
+  username: 'VILITOLU',  // Ваш юзернейм из профиля
   language_code: 'ru',
-  photo_url: '', // Здесь может быть ссылка на аватар пользователя
+  photo_url: '',         // По желанию здесь можно указать ссылку на аватар
 };
 
 /**
