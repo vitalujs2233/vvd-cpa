@@ -16,13 +16,15 @@
   --accent-purple: #7C3AED;
 }
 
-/* 1. Сплошной цвет фона устанавливается ТОЛЬКО для базового слоя html и body */
+/* Сплошной цвет фона устанавливается для базового слоя html и body */
 html,
 body {
   background-color: var(--bg-main);
+  background-image: radial-gradient(ellipse at 50% 0%, var(--bg-sec) 0%, var(--bg-main) 100%);
+  background-attachment: fixed;
 }
 
-/* Настройки монолитного полноэкранного Premium-интерфейса (без фонового цвета для #root) */
+/* Настройки монолитного полноэкранного Premium-интерфейса (без фонового изображения) */
 html,
 body,
 #root {
@@ -37,15 +39,6 @@ body,
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
   position: relative;
-}
-
-/* ПОДКЛЮЧЕНИЕ СТАТИЧНОЙ ПРЕМИУМ КАРТИНКИ НЕОНОВЫХ ВОЛН НА ЗАДНИЙ ФОН */
-body {
-  background-image: url('./bg.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
 }
 
 /* === УТИЛИТАРНЫЕ КЛАССЫ PREMIUM DESIGN SYSTEM === */
