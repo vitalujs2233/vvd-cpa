@@ -20,14 +20,14 @@ export const Card: React.FC<CardProps> = ({
   
   // Дорогие Luxury стили оформления карточек
   const variantStyles = {
-    // Glassmorphism подложка со внутренним свечением и тонкой границей 8%
+    // Glassmorphism подложка с отполированной светящейся фаской (ребром) из index.css
     default: 'glass-card text-textPrimary',
     
     // Премиальный переливающийся градиент VVD CPA
     accent: 'bg-accent-gradient text-white border border-accentPink/30 shadow-premium',
     
-    // Чистая парящая неоновая подложка с мягким фиолетово-розовым свечением
-    glow: 'glass-card text-textPrimary shadow-glow-purple border-accentPurple/20',
+    // Новая парящая неоновая подложка со сверкающей фаской и фиолетово-розовым свечением
+    glow: 'glass-card-glow text-textPrimary',
     
     // Прозрачная карточка с тонкой рамкой для второстепенных списков
     outlined: 'bg-transparent border border-borderCard text-textPrimary shadow-glass-inner',
@@ -36,9 +36,9 @@ export const Card: React.FC<CardProps> = ({
   // Перевели внутренние отступы на стандартную пиксельную сетку Tailwind
   const paddingStyles = {
     none: 'p-0',
-    sm: 'p-3', // Ровно 12px (вместо старых 48px)
-    md: 'p-4', // Ровно 16px (вместо старых 80px)
-    lg: 'p-5', // Ровно 20px (вместо старых 96px)
+    sm: 'p-3', // Ровно 12px 
+    md: 'p-4', // Ровно 16px 
+    lg: 'p-5', // Ровно 20px 
   };
 
   // Высококлассная микро-анимация при касании на мобильном экране (Lift & Scale)
