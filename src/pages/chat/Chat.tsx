@@ -50,6 +50,7 @@ const SUPPORT_CONTACTS: SupportContact[] = [
 
 export const Chat: React.FC = () => {
   const [view, setView] = useState<'contacts' | 'dialogue'>('contacts');
+  
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'msg-1',
@@ -135,49 +136,48 @@ export const Chat: React.FC = () => {
       
       {/* ================= VIEW 1: СПИСОК КОНТАКТОВ ПОДДЕРЖКИ ================= */}
       {view === 'contacts' && (
-        <div className="flex flex-col gap-20 p-16 pb-24 text-left animate-fade-in">
+        // Заменили внешние отступы p-16 (64px) на адаптивные p-4 (16px), а gap-20 на gap-4 (16px)
+        <div className="flex flex-col gap-4 p-4 pb-24 text-left animate-fade-in">
           <div>
             <span className="text-[10px] text-textSecondary font-bold uppercase tracking-wider">Приватная поддержка</span>
             <h1 className="text-2xl font-bold text-white mt-1">Чат саппортов</h1>
           </div>
 
-          {/* Вкладки Мои тикеты / Поддержка (Glassmorphism, Blur) */}
-          <div className="flex bg-bgCard/35 backdrop-blur-md border border-white/[0.04] rounded-app-xs p-4 gap-4 shadow-glass-inner">
-            <button className="flex-1 py-2 text-xs font-semibold rounded-app-xs bg-accent-gradient text-white shadow-glow-purple">
+          {/* Вкладки Мои тикеты / Поддержка */}
+          <div className="flex bg-bgCard/35 backdrop-blur-md border border-white/[0.04] rounded-app-xs p-2 gap-2 shadow-glass-inner">
+            <button className="flex-1 py-1.5 text-xs font-semibold rounded-app-xs bg-accent-gradient text-white shadow-glow-purple">
               Поддержка
             </button>
             <button 
               onClick={handleCreateNewTicket}
-              className="flex-1 py-2 text-xs font-semibold rounded-app-xs text-textSecondary hover:text-textPrimary transition-colors duration-200"
+              className="flex-1 py-1.5 text-xs font-semibold rounded-app-xs text-textSecondary hover:text-textPrimary transition-colors duration-200"
             >
               Мои тикеты
             </button>
           </div>
 
-          {/* Карточки контактов (скругление 24px) */}
-          <div className="flex flex-col gap-12">
+          {/* Карточки контактов (Заменили gap-12 на плотный gap-3) */}
+          <div className="flex flex-col gap-3">
             {SUPPORT_CONTACTS.map((agent) => (
               <Card 
                 key={agent.id} 
                 clickable 
-                padding="sm"
+                padding="sm" // p-3 (12px)
                 onClick={() => handleOpenChat(agent)}
                 className="flex items-center justify-between hover-lift shadow-premium"
               >
-                <div className="flex items-center gap-12">
+                <div className="flex items-center gap-3">
                   <div className="relative">
-                    {/* Круглая люксовая иконка саппорта */}
                     <div className="w-11 h-11 rounded-full bg-accentPurple/10 border border-accentPurple/20 flex items-center justify-center text-accentPurple shadow-[0_0_10px_rgba(124,58,237,0.1)]">
                       <User size={18} />
                     </div>
-                    {/* Точка статуса с неоновым свечением */}
                     <span className={`absolute bottom-0.5 right-0.5 w-3 h-3 rounded-full border-2 border-bgCard ${
                       agent.status === 'online' ? 'bg-success shadow-[0_0_6px_#22C55E]' : 'bg-gray-500'
                     }`} />
                   </div>
 
                   <div className="flex flex-col">
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-1.5">
                       <span className="text-sm font-bold text-white">{agent.name}</span>
                       <span className={`text-[8px] px-2 py-0.5 rounded-app-xs font-bold border uppercase tracking-wider ${
                         agent.status === 'online' 
@@ -191,19 +191,19 @@ export const Chat: React.FC = () => {
                   </div>
                 </div>
 
-                <ChevronRight size={16} className="text-gray-600 mr-2" />
+                <ChevronRight size={16} className="text-gray-600 mr-1" />
               </Card>
             ))}
           </div>
 
-          {/* Крупная кнопка "Создать тикет" (высота 54px, 18px скругление, Glow) */}
+          {/* Кнопка "Создать тикет" */}
           <Button 
             variant="primary" 
             size="lg" 
             onClick={handleCreateNewTicket}
-            className="h-12 mt-8 shadow-glow-purple"
+            className="h-12 mt-4 shadow-glow-purple"
           >
-            <PlusCircle size={16} className="mr-8" />
+            <PlusCircle size={16} className="mr-2" />
             Создать тикет
           </Button>
         </div>
@@ -213,15 +213,15 @@ export const Chat: React.FC = () => {
       {view === 'dialogue' && selectedAgent && (
         <div className="flex flex-col h-[calc(100vh-80px)] bg-bgMain animate-fade-in">
           
-          {/* Стеклянный Header диалога (Glass Background, Blur, Иконка Назад) */}
-          <div className="flex items-center gap-12 p-16 border-b border-white/[0.04] bg-bgCard/40 backdrop-blur-md text-left shrink-0 shadow-glass-inner">
+          {/* Стеклянный Header диалога (Заменили p-16 на p-3 (12px), а gap-12 на gap-3) */}
+          <div className="flex items-center gap-3 p-3 border-b border-white/[0.04] bg-bgCard/40 backdrop-blur-md text-left shrink-0 shadow-glass-inner">
             <button 
               onClick={handleBackToContacts}
               className="w-10 h-10 rounded-full bg-bgMain border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform"
             >
               <ArrowLeft size={16} />
             </button>
-            <div className="flex items-center gap-12">
+            <div className="flex items-center gap-3">
               <div className="relative">
                 <div className="w-10 h-10 rounded-full bg-accentPurple/10 border border-accentPurple/20 flex items-center justify-center text-accentPurple shadow-[0_0_10px_rgba(124,58,237,0.1)]">
                   <User size={16} />
@@ -237,8 +237,8 @@ export const Chat: React.FC = () => {
             </div>
           </div>
 
-          {/* Область сообщений (Скроллируемый контейнер с премиальным скроллбаром) */}
-          <div className="flex-1 overflow-y-auto p-16 scrollable-container flex flex-col gap-16">
+          {/* Область сообщений (Заменили gap-16 на gap-4 (16px)) */}
+          <div className="flex-1 overflow-y-auto p-4 scrollable-container flex flex-col gap-4">
             {messages.map((msg) => {
               const isUser = msg.sender === 'user';
               return (
@@ -246,8 +246,8 @@ export const Chat: React.FC = () => {
                   key={msg.id}
                   className={`flex flex-col max-w-[78%] ${isUser ? 'self-end items-end' : 'self-start items-start'}`}
                 >
-                  {/* Облака сообщений по гайдлайну (Glassmorphism vs Gradient) */}
-                  <div className={`p-12 text-sm text-left leading-relaxed shadow-premium ${
+                  {/* Облака сообщений (Заменили гигантские p-12 (48px) на аккуратные p-3 (12px)) */}
+                  <div className={`p-3 text-sm text-left leading-relaxed shadow-premium ${
                     isUser 
                       ? 'bg-accent-gradient text-white rounded-card rounded-br-none border border-accentPink/20 shadow-glow-purple/20' 
                       : 'glass-card text-textPrimary rounded-card rounded-bl-none'
@@ -255,8 +255,8 @@ export const Chat: React.FC = () => {
                     {msg.text}
                   </div>
                   
-                  {/* Время отправки и светящиеся двойные галочки прочтения */}
-                  <div className="flex items-center gap-4 mt-2 px-2">
+                  {/* Время отправки */}
+                  <div className="flex items-center gap-1 mt-1.5 px-2">
                     <span className="text-[8px] text-textSecondary font-bold uppercase tracking-wider">{msg.time}</span>
                     {isUser && <CheckCheck size={10} className="text-accentPurple drop-shadow-[0_0_4px_#7C3AED]" />}
                   </div>
@@ -264,9 +264,9 @@ export const Chat: React.FC = () => {
               );
             })}
 
-            {/* Мягкий анимированный статус набора текста саппортом */}
+            {/* Статус набора текста */}
             {isTyping && (
-              <div className="self-start flex items-center gap-8 bg-bgCard/30 backdrop-blur-sm border border-white/[0.04] p-12 rounded-card rounded-bl-none text-[10px] text-textSecondary font-semibold animate-pulse">
+              <div className="self-start flex items-center gap-2 bg-bgCard/30 backdrop-blur-sm border border-white/[0.04] p-3 rounded-card rounded-bl-none text-[10px] text-textSecondary font-semibold animate-pulse">
                 <Sparkles size={10} className="text-accentPurple animate-spin" style={{ animationDuration: '4s' }} />
                 <span>Менеджер {selectedAgent.name} печатает ответ...</span>
               </div>
@@ -275,8 +275,8 @@ export const Chat: React.FC = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Плавающая стеклянная панель ввода внизу (Glass Navigation, Floating, Safe Areas) */}
-          <div className="p-16 border-t border-white/[0.04] bg-bgCard/50 backdrop-blur-md flex items-center gap-12 shrink-0 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.37)] z-50">
+          {/* Нижняя панель ввода сообщения (Заменили p-16 на p-3 (12px), а gap-12 на gap-3) */}
+          <div className="p-3 border-t border-white/[0.04] bg-bgCard/50 backdrop-blur-md flex items-center gap-3 shrink-0 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.37)] z-50">
             <Input 
               placeholder="Введите ваше сообщение..."
               value={inputValue}
@@ -284,7 +284,6 @@ export const Chat: React.FC = () => {
               onKeyDown={handleKeyPress}
               className="flex-1 h-11 border-white/5 bg-white/[0.01]"
             />
-            {/* Круглая градиентная кнопка отправки (Glow, Lift) */}
             <Button 
               variant="primary" 
               size="md" 
