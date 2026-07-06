@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { MemoryRouter, Routes, Route, NavLink, Outlet } from 'react-router-dom';
-import { Home as HomeIcon, Grid, BarChart3, MessageSquare, User } from 'lucide-react';
+import { Home as HomeIcon, Grid, BarChart3, Flame, User } from 'lucide-react';
 import { triggerHaptic } from '@/shared/lib/telegram';
 import { Home } from '@/pages/home/Home';
 import { Offers } from '@/pages/offers/Offers';
 import { OfferDetail } from '@/pages/offers/OfferDetail';
 import { Withdrawal } from '@/pages/withdrawal/Withdrawal';
 import { Stats } from '@/pages/stats/Stats';
-import { Chat } from '@/pages/chat/Chat';
+import { Dvizh } from '@/pages/dvizh/Dvizh';
 import { Profile } from '@/pages/profile/Profile';
 import { Admin } from '@/pages/admin/Admin';
+// Импортируем наш личный тикет-чат как SupportChat
+import { Chat as SupportChat } from '@/pages/chat/Chat';
 import { Loader } from '@/shared/ui/Loader';
 
 // Импортируем методы сетевого API и хелперы токенов
@@ -23,7 +25,7 @@ const AppLayout = () => {
   };
 
   return (
-    // Прозрачный каркас, сквозь который насквозь светится наша картинка-фон
+    // bg-bgMain заменен на bg-transparent для открытия видимости неоновых волн и картинки bg.png на фоне
     <div className="flex flex-col h-screen w-full bg-transparent text-textPrimary overflow-hidden relative">
       
       {/* Контейнер контента со скроллом */}
@@ -31,7 +33,7 @@ const AppLayout = () => {
         <Outlet />
       </div>
 
-      {/* Нижняя парящая стеклянная панель навигации */}
+      {/* Нижняя парящая стеклянная панель навигации (🔥 Движ восстановлен на своем месте!) */}
       <nav className="h-[80px] bg-bgCard/60 backdrop-blur-lg border-t border-white/[0.04] flex items-center justify-around px-4 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.5)] z-50 w-full max-w-[1200px] mx-auto rounded-t-card">
         <NavLink
           to="/"
@@ -78,8 +80,9 @@ const AppLayout = () => {
           <span className="text-[10px] mt-1.5 font-bold uppercase tracking-wider scale-90">Анализ</span>
         </NavLink>
 
+        {/* Восстановленная люксовая вкладка «Движ» */}
         <NavLink
-          to="/chat"
+          to="/dvizh"
           onClick={handleTabClick}
           className={({ isActive }) =>
             `flex flex-col items-center justify-center flex-1 py-3 transition-all duration-300 ease-out origin-center ${
@@ -89,8 +92,8 @@ const AppLayout = () => {
             }`
           }
         >
-          <MessageSquare size={20} />
-          <span className="text-[10px] mt-1.5 font-bold uppercase tracking-wider scale-90">Чат</span>
+          <Flame size={20} />
+          <span className="text-[10px] mt-1.5 font-bold uppercase tracking-wider scale-90">Движ</span>
         </NavLink>
 
         <NavLink
@@ -160,7 +163,8 @@ const App = () => {
             <Route index element={<Home />} />
             <Route path="offers" element={<Offers />} />
             <Route path="stats" element={<Stats />} />
-            <Route path="chat" element={<Chat />} />
+            {/* Наш роут для вкладки «Движ» восстановлен */}
+            <Route path="dvizh" element={<Dvizh />} />
             <Route path="profile" element={<Profile />} />
           </Route>
 
@@ -169,6 +173,9 @@ const App = () => {
 
           {/* Вложенный экран финансов и выплат без нижнего меню */}
           <Route path="/withdrawal" element={<Withdrawal />} />
+
+          {/* Вложенный экран личного тикет-чата тех-поддержки (SupportChat) без нижнего меню */}
+          <Route path="/support" element={<SupportChat />} />
 
           {/* Вложенный экран админ-панели без нижнего меню */}
           <Route path="/admin" element={<Admin />} />
