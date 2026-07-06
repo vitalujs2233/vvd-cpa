@@ -1,3 +1,4 @@
+# Добавили импорт стандартной асинхронной библиотеки
 import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
