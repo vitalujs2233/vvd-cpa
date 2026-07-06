@@ -36,10 +36,10 @@ export const apiRequest = async <T>(
   const url = `${API_BASE_URL}${endpoint}`;
   const token = getAuthToken();
 
-  // Настраиваем базовые заголовки запроса
-  const headers: HeadersInit = {
+  // Оптимизировано: Объявили заголовки как Record<string, string> для строгого и безопасного маппинга в TS
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(options.headers || {}),
+    ...((options.headers as Record<string, string>) || {}),
   };
 
   // Если в памяти браузера сохранен JWT-токен сессии,
