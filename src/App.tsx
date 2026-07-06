@@ -23,7 +23,7 @@ const AppLayout = () => {
   };
 
   return (
-    // Прозрачный каркас, сквозь который насквозь светится ваша картинка-фон
+    // Прозрачный каркас, сквозь который насквозь светится наша картинка-фон
     <div className="flex flex-col h-screen w-full bg-transparent text-textPrimary overflow-hidden relative">
       
       {/* Контейнер контента со скроллом */}
@@ -123,8 +123,8 @@ const App = () => {
         // 1. Извлекаем сырую строку initData из нативного Telegram SDK
         const initData = window.Telegram?.WebApp?.initData || '';
         
-        // Если запуск идет в Telegram (или локально на ПК с моковыми данными в режиме DEBUG)
-        if (initData || process.env.NODE_ENV === 'development') {
+        // Оптимизировано: проверка запуска в Telegram или на локальном хосте через Vite-переменную DEV
+        if (initData || import.meta.env.DEV) {
           // 2. Отправляем сетевой POST-запрос на наш FastAPI бэкенд
           const response = await loginViaTelegramApi(initData);
           
