@@ -1,4 +1,5 @@
-import type { TelegramUser, TelegramWebApp } from '@/types/telegram';
+// Мы полностью убрали неверный импорт из первой строки. 
+// Все типы автоматически и без ошибок подгружаются из глобального файла telegram.d.ts
 
 // Безопасный доступ к Telegram WebApp API
 export const tg: TelegramWebApp | undefined = 
