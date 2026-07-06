@@ -6,6 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Импортируем глобальные настройки конфигуратора
 from backend.config import settings
+print("=" * 80)
+print("DATABASE_URL =", settings.DATABASE_URL)
+print("=" * 80)
 
 # Импортируем все созданные роутеры из структуры API
 from backend.api import auth
