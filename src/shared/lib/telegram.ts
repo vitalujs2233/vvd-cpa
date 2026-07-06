@@ -1,4 +1,4 @@
-// Мы убрали строчку импорта типов, так как они глобально видны из telegram.d.ts
+import type { TelegramUser, TelegramWebApp } from '@/types/telegram';
 
 // Безопасный доступ к Telegram WebApp API
 export const tg: TelegramWebApp | undefined = 
@@ -14,71 +14,30 @@ const MOCK_USER: TelegramUser = {
   last_name: 'lv',       // Ваша фамилия из профиля
   username: 'VILITOLU',  // Ваш юзернейм из профиля
   language_code: 'ru',
-  photo_url: '',         // По желанию здесь можно указать ссылку на аватар
+  photo_url: '',         
 };
 
 /**
- * Возвращает реального пользователя из Telegram WebApp API,
- * либо возвращает демонстрационного John Doe при локальной разработке.
+ * Возвращает проверенные данные пользователя из базы данных Supabase (сохраненные в localStorage бэкендом),
+ * либо извлекает сырые данные из Telegram WebApp API,
+ * либо возвращает демонстрационного Виталия при локальной разработке.
  */
 export const getTelegramUser = (): TelegramUser => {
+  // В первую очередь пытаемся получить реальные проверенные данные из базы Supabase через localStorage
+  const savedUser = typeof window !== 'undefined' ? localStorage.getItem('vvd_cpa_user_data') : null;
+  if (savedUser) {
+    try {
+      return JSON.parse(savedUser);
+    } catch (error) {
+      console.error("Ошибка парсинга сохраненных данных пользователя из БД:", error);
+    }
+  }
+
+  // Если проверенных данных в базе еще нет, возвращаем сырые данные Telegram SDK
   if (tg?.initDataUnsafe?.user) {
     return tg.initDataUnsafe.user;
   }
+  
+  // Возврат моковых данных при локальном тестировании
   return MOCK_USER;
-};
-
-/**
- * Первичная инициализация WebApp приложения:
- * сообщает Telegram о готовности, разворачивает приложение во весь экран
- * и фиксирует темный цвет шапки и фона в соответствии с дизайн-макетом.
- */
-export const initTelegramWebApp = (): void => {
-  if (!tg) return;
-  try {
-    tg.ready();
-    tg.expand();
-    
-    // Пытаемся установить цвет верхней панели и фона под макет (#0B0E14)
-    if (typeof tg.setHeaderColor === 'function') {
-      tg.setHeaderColor('#0B0E14');
-    }
-    if (typeof tg.setBackgroundColor === 'function') {
-      tg.setBackgroundColor('#0B0E14');
-    }
-  } catch (error) {
-    console.warn('Telegram WebApp инициализирован с предупреждением:', error);
-  }
-};
-
-/**
- * Утилита для безопасного вызова вибрации устройства при действиях пользователя.
- * Если приложение запущено вне Telegram, вызовы будут проигнорированы без ошибок.
- */
-export const triggerHaptic = {
-  success: (): void => {
-    if (tg?.HapticFeedback) {
-      tg.HapticFeedback.notificationOccurred('success');
-    }
-  },
-  error: (): void => {
-    if (tg?.HapticFeedback) {
-      tg.HapticFeedback.notificationOccurred('error');
-    }
-  },
-  warning: (): void => {
-    if (tg?.HapticFeedback) {
-      tg.HapticFeedback.notificationOccurred('warning');
-    }
-  },
-  lightImpact: (): void => {
-    if (tg?.HapticFeedback) {
-      tg.HapticFeedback.impactOccurred('light');
-    }
-  },
-  mediumImpact: (): void => {
-    if (tg?.HapticFeedback) {
-      tg.HapticFeedback.impactOccurred('medium');
-    }
-  }
 };
