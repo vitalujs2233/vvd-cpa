@@ -1,18 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MemoryRouter, Routes, Route, NavLink, Outlet } from 'react-router-dom';
-import { Home as HomeIcon, Grid, BarChart3, Flame, User } from 'lucide-react';
+import { Home as HomeIcon, Grid, BarChart3, MessageSquare, User } from 'lucide-react';
 import { triggerHaptic } from '@/shared/lib/telegram';
 import { Home } from '@/pages/home/Home';
 import { Offers } from '@/pages/offers/Offers';
 import { OfferDetail } from '@/pages/offers/OfferDetail';
 import { Withdrawal } from '@/pages/withdrawal/Withdrawal';
 import { Stats } from '@/pages/stats/Stats';
-import { Dvizh } from '@/pages/dvizh/Dvizh';
+import { Chat } from '@/pages/chat/Chat';
 import { Profile } from '@/pages/profile/Profile';
 import { Admin } from '@/pages/admin/Admin';
-// Импортируем наш личный тикет-чат как SupportChat
-import { Chat as SupportChat } from '@/pages/chat/Chat';
 import { Loader } from '@/shared/ui/Loader';
+
+// Импортируем методы сетевого API и хелперы токенов
+import { loginViaTelegramApi, saveAuthToken } from '@/shared/lib/api';
 
 // Главный Лейаут приложения, фиксирующий Bottom Menu
 const AppLayout = () => {
@@ -22,78 +23,15 @@ const AppLayout = () => {
   };
 
   return (
+    // Прозрачный каркас, сквозь который насквозь светится ваша картинка-фон
     <div className="flex flex-col h-screen w-full bg-transparent text-textPrimary overflow-hidden relative">
       
-      {/* === ЛЮКСОВЫЕ ЗОЛОТЫЕ НЕОНОВЫЕ ВОЛНЫ (SVG) НА ЗАДНЕМ ПЛАНЕ === */}
-      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-bgMain">
-        {/* Мягкие размытые фоновые световые пятна ( Radial Spots ) */}
-        <div className="absolute top-[10%] left-[-10%] w-[90%] h-[90%] rounded-full bg-[#D4AF37]/[0.02] blur-[130px] pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[100%] h-[100%] rounded-full bg-[#FFE08A]/[0.015] blur-[140px] pointer-events-none" />
-
-        {/* Векторные парящие неоновые нити */}
-        <svg className="absolute inset-0 w-full h-full opacity-45" viewBox="0 0 1440 800" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="waveGradGold1" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#D4AF37" stopOpacity="0" />
-              <stop offset="50%" stopColor="#FFE08A" stopOpacity="0.45" />
-              <stop offset="100%" stopColor="#F6C453" stopOpacity="0" />
-            </linearGradient>
-            <linearGradient id="waveGradGold2" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#F6C453" stopOpacity="0" />
-              <stop offset="50%" stopColor="#D4AF37" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="#FFE08A" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          
-          {/* ВОЛНА 1: Внутренний широкий светящийся ореол */}
-          <path 
-            className="animate-wave-1" 
-            d="M-100 350 C300 480 500 220 900 420 C1300 620 1500 320 1700 470" 
-            fill="none" 
-            stroke="url(#waveGradGold1)" 
-            strokeWidth="16" 
-            opacity="0.25"
-          />
-          {/* ВОЛНА 1: Тонкая яркая золотая центральная нить */}
-          <path 
-            className="animate-wave-1" 
-            d="M-100 350 C300 480 500 220 900 420 C1300 620 1500 320 1700 470" 
-            fill="none" 
-            stroke="url(#waveGradGold1)" 
-            strokeWidth="2.5" 
-            opacity="0.85"
-          />
-
-          {/* ВОЛНА 2: Внутренний широкий светящийся ореол */}
-          <path 
-            className="animate-wave-2" 
-            d="M-100 400 C200 220 600 520 1000 320 C1300 170 1500 470 1700 370" 
-            fill="none" 
-            stroke="url(#waveGradGold2)" 
-            strokeWidth="14" 
-            opacity="0.22"
-          />
-          {/* ВОЛНА 2: Тонкая яркая золотая центральная нить */}
-          <path 
-            className="animate-wave-2" 
-            d="M-100 400 C200 220 600 520 1000 320 C1300 170 1500 470 1700 370" 
-            fill="none" 
-            stroke="url(#waveGradGold2)" 
-            strokeWidth="2.5" 
-            opacity="0.85"
-          />
-        </svg>
-        
-        {/* Звездная пыль */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.15)_1px,transparent_1px)] bg-[size:40px_40px] opacity-20" />
-      </div>
-
       {/* Контейнер контента со скроллом */}
       <div className="flex-1 overflow-y-auto scrollable-container relative z-10 w-full max-w-[1200px] mx-auto">
         <Outlet />
       </div>
 
-      {/* Нижняя парящая стеклянная панель навигации (Заменили "Чат" на новую вкладку "Движ" с иконкой Flame) */}
+      {/* Нижняя парящая стеклянная панель навигации */}
       <nav className="h-[80px] bg-bgCard/60 backdrop-blur-lg border-t border-white/[0.04] flex items-center justify-around px-4 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.5)] z-50 w-full max-w-[1200px] mx-auto rounded-t-card">
         <NavLink
           to="/"
@@ -140,9 +78,8 @@ const AppLayout = () => {
           <span className="text-[10px] mt-1.5 font-bold uppercase tracking-wider scale-90">Анализ</span>
         </NavLink>
 
-        {/* Новая вкладка «Движ» на месте старого чата поддержки */}
         <NavLink
-          to="/dvizh"
+          to="/chat"
           onClick={handleTabClick}
           className={({ isActive }) =>
             `flex flex-col items-center justify-center flex-1 py-3 transition-all duration-300 ease-out origin-center ${
@@ -152,8 +89,8 @@ const AppLayout = () => {
             }`
           }
         >
-          <Flame size={20} />
-          <span className="text-[10px] mt-1.5 font-bold uppercase tracking-wider scale-90">Движ</span>
+          <MessageSquare size={20} />
+          <span className="text-[10px] mt-1.5 font-bold uppercase tracking-wider scale-90">Чат</span>
         </NavLink>
 
         <NavLink
@@ -179,7 +116,36 @@ const App = () => {
   // Состояние отображения стартового золотого лоадера
   const [isLoading, setIsLoading] = useState(true);
 
+  // Боевой асинхронный хук авторизации
+  useEffect(() => {
+    const authenticateUser = async () => {
+      try {
+        // 1. Извлекаем сырую строку initData из нативного Telegram SDK
+        const initData = window.Telegram?.WebApp?.initData || '';
+        
+        // Если запуск идет в Telegram (или локально на ПК с моковыми данными в режиме DEBUG)
+        if (initData || process.env.NODE_ENV === 'development') {
+          // 2. Отправляем сетевой POST-запрос на наш FastAPI бэкенд
+          const response = await loginViaTelegramApi(initData);
+          
+          // 3. Сохраняем полученный боевой JWT-токен доступа в localStorage
+          saveAuthToken(response.access_token);
+          
+          // 4. Записываем профиль пользователя из Supabase в локальную память для сквозного отображения
+          localStorage.setItem('vvd_cpa_user_data', JSON.stringify(response.user));
+          
+          console.log("Авторизация на бэкенде VVD CPA пройдена успешно!");
+        }
+      } catch (error) {
+        console.error("Сбой автоматической авторизации на бэкенде:", error);
+      }
+    };
+
+    authenticateUser();
+  }, []);
+
   if (isLoading) {
+    // Рендерим золотую заставку
     return <Loader onComplete={() => setIsLoading(false)} />;
   }
 
@@ -192,8 +158,7 @@ const App = () => {
             <Route index element={<Home />} />
             <Route path="offers" element={<Offers />} />
             <Route path="stats" element={<Stats />} />
-            {/* Добавили маршрут для новой вкладки «Движ» */}
-            <Route path="dvizh" element={<Dvizh />} />
+            <Route path="chat" element={<Chat />} />
             <Route path="profile" element={<Profile />} />
           </Route>
 
@@ -202,9 +167,6 @@ const App = () => {
 
           {/* Вложенный экран финансов и выплат без нижнего меню */}
           <Route path="/withdrawal" element={<Withdrawal />} />
-
-          {/* Вложенный экран личного тикет-чата тех-поддержки (SupportChat) без нижнего меню */}
-          <Route path="/support" element={<SupportChat />} />
 
           {/* Вложенный экран админ-панели без нижнего меню */}
           <Route path="/admin" element={<Admin />} />
