@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,13 +18,25 @@ from backend.api import withdraw
 from backend.api import notifications
 from backend.api import admin
 
+# Импортируем инстансы бота и диспетчера для фонового запуска
+from backend.bot import bot, dp
 
-# Управление жизненным циклом асинхронного сервера (Lifespan)
+
+# Асинхронное управление жизненным циклом сервера (Lifespan)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Действия при запуске бэкенда (например, проверка пинга базы данных)
+    # === ИНТЕГРАЦИЯ БОТА ===
+    # Запускаем поллинг Telegram-бота в качестве фоновой асинхронной задачи в цикле событий FastAPI
+    loop = asyncio.get_event_loop()
+    bot_task = loop.create_task(dp.start_polling(bot))
+    print("=== Telegram-бот VVD CPA успешно запущен в фоновом режиме вместе с FastAPI ===")
+    
     yield
-    # Действия при остановке сервера (например, закрытие пула соединений)
+    
+    # Действия при остановке сервера: корректно закрываем сессию бота и отменяем задачу
+    await bot.session.close()
+    bot_task.cancel()
+    print("=== Работа сервера и бота корректно завершена ===")
 
 
 # Инициализируем FastAPI с метаданными для интерактивной документации
