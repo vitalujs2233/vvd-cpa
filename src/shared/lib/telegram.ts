@@ -41,3 +41,58 @@ export const getTelegramUser = (): TelegramUser => {
   // Возврат моковых данных при локальном тестировании
   return MOCK_USER;
 };
+
+/**
+ * Первичная инициализация WebApp приложения:
+ * сообщает Telegram о готовности, разворачивает приложение во весь экран
+ * и фиксирует темный цвет шапки и фона в соответствии с дизайн-макетом.
+ */
+export const initTelegramWebApp = (): void => {
+  if (!tg) return;
+  try {
+    tg.ready();
+    tg.expand();
+    
+    // Пытаемся установить цвет верхней панели и фона под макет (#0B0E14)
+    if (typeof tg.setHeaderColor === 'function') {
+      tg.setHeaderColor('#0B0E14');
+    }
+    if (typeof tg.setBackgroundColor === 'function') {
+      tg.setBackgroundColor('#0B0E14');
+    }
+  } catch (error) {
+    console.warn('Telegram WebApp инициализирован с предупреждением:', error);
+  }
+};
+
+/**
+ * Утилита для безопасного вызова вибрации устройства при действиях пользователя.
+ * Если приложение запущено вне Telegram, вызовы будут проигнорированы без ошибок.
+ */
+export const triggerHaptic = {
+  success: (): void => {
+    if (tg?.HapticFeedback) {
+      tg.HapticFeedback.notificationOccurred('success');
+    }
+  },
+  error: (): void => {
+    if (tg?.HapticFeedback) {
+      tg.HapticFeedback.notificationOccurred('error');
+    }
+  },
+  warning: (): void => {
+    if (tg?.HapticFeedback) {
+      tg.HapticFeedback.notificationOccurred('warning');
+    }
+  },
+  lightImpact: (): void => {
+    if (tg?.HapticFeedback) {
+      tg.HapticFeedback.impactOccurred('light');
+    }
+  },
+  mediumImpact: (): void => {
+    if (tg?.HapticFeedback) {
+      tg.HapticFeedback.impactOccurred('medium');
+    }
+  }
+};
