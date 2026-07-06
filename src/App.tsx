@@ -125,6 +125,8 @@ const App = () => {
       try {
         // 1. Извлекаем сырую строку initData из нативного Telegram SDK
         const initData = window.Telegram?.WebApp?.initData || '';
+        console.log("INIT DATA:", initData);
+console.log("Telegram:", window.Telegram?.WebApp);
         
         // Исправлено: Привели import.meta к типу any для обхода проверки компилятора TypeScript
         const isDevMode = (import.meta as any).env?.DEV;
