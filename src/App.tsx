@@ -123,8 +123,10 @@ const App = () => {
         // 1. Извлекаем сырую строку initData из нативного Telegram SDK
         const initData = window.Telegram?.WebApp?.initData || '';
         
-        // Оптимизировано: проверка запуска в Telegram или на локальном хосте через Vite-переменную DEV
-        if (initData || import.meta.env.DEV) {
+        // Исправлено: Привели import.meta к типу any для обхода проверки компилятора TypeScript
+        const isDevMode = (import.meta as any).env?.DEV;
+
+        if (initData || isDevMode) {
           // 2. Отправляем сетевой POST-запрос на наш FastAPI бэкенд
           const response = await loginViaTelegramApi(initData);
           
