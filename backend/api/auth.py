@@ -112,6 +112,8 @@ async def login_via_telegram(
     payload: TelegramAuthRequest, 
     db: AsyncSession = Depends(get_db)
 ):
+    print(">>> login_via_telegram ВЫЗВАН")
+print(">>> init_data =", payload.init_data)
     """
     Боевой эндпоинт авторизации.
     Принимает initData, криптографически проверяет её, находит или автоматически
