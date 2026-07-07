@@ -104,7 +104,6 @@ async def get_smartlink(telegram_id: int):
     partner_code = user.partner_code
 
     smartlink = (
-        f"smartlink = (
     f"https://tone.affomelody.com/click?pid=12519&offer_id=25&sub1={partner_code}"
     )
 
