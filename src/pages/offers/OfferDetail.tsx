@@ -100,7 +100,7 @@ export const OfferDetail: React.FC = () => {
     navigate('/offers');
   };
 
- const handleGenerateLink = async () => {
+ const handleGenerateLink = async () => {console.log("Кнопка нажата");
   triggerHaptic.mediumImpact();
   setIsGenerating(true);
 
