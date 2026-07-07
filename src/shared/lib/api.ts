@@ -89,9 +89,19 @@ export interface AuthResponse {
  * Сетевой POST-запрос авторизации:
  * Отправляет initData в FastAPI бэкенд для проверки подписи и регистрации.
  */
-export const loginViaTelegramApi = async (initData: string): Promise<AuthResponse> => {
+import { getTelegramUser } from './telegram';
+
+export const loginViaTelegramApi = async (): Promise<AuthResponse> => {
+  const user = getTelegramUser();
+
   return apiRequest<AuthResponse>('/auth', {
     method: 'POST',
-    body: JSON.stringify({ init_data: initData }),
+    body: JSON.stringify({
+      telegram_id: user.id,
+      first_name: user.first_name,
+      last_name: user.last_name || "",
+      username: user.username || "",
+      photo_url: user.photo_url || "",
+    }),
   });
 };
