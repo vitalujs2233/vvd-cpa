@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from database import check_database, save_user
 
@@ -6,7 +7,17 @@ app = FastAPI(
     title="VVD CPA Backend V2",
     version="2.0"
 )
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://vitalujs2233.github.io",
+        "https://vitalujs2233.github.io/vvd-cpa",
+        "https://web.telegram.org"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 async def root():
