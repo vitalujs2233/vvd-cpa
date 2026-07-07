@@ -1,5 +1,5 @@
 // Мы заменили локальный адрес http://localhost:8000 на ваш реальный живой адрес бэкенда на Render
-const API_BASE_URL = 'https://vvd-cpa.onrender.com/api/v1';
+const API_BASE_URL = 'https://vvd-cpa-v2.onrender.com';
 
 /**
  * Безопасное сохранение JWT-токена сессии в локальную память браузера.
@@ -90,7 +90,7 @@ export interface AuthResponse {
  * Отправляет initData в FastAPI бэкенд для проверки подписи и регистрации.
  */
 export const loginViaTelegramApi = async (initData: string): Promise<AuthResponse> => {
-  return apiRequest<AuthResponse>('/auth/telegram', {
+  return apiRequest<AuthResponse>('/auth', {
     method: 'POST',
     body: JSON.stringify({ init_data: initData }),
   });
