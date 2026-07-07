@@ -81,8 +81,8 @@ async def auth(user: TelegramUser):
     }
 
 
-@app.get("/smartlink/{telegram_id}")
-async def get_smartlink(telegram_id: int):
+@app.get("/smartlink/{telegram_id}/{vertical}")
+async def get_smartlink(telegram_id: int, vertical: str):
 
     with engine.connect() as conn:
 
@@ -103,9 +103,34 @@ async def get_smartlink(telegram_id: int):
 
     partner_code = user.partner_code
 
-    smartlink = (
-    f"https://tone.affomelody.com/click?pid=12519&offer_id=25&sub1={partner_code}"
-    )
+    links = {
+
+        "adult":
+        f"https://tone.affomelody.com/click?pid=12519&offer_id=25&sub1={partner_code}",
+
+        "mainstream":
+        f"https://MAINSTREAM_LINK&sub1={partner_code}",
+
+        "nutra":
+        f"https://NUTRA_LINK&sub1={partner_code}",
+
+        "crypto":
+        f"https://CRYPTO_LINK&sub1={partner_code}",
+
+        "gaming":
+        f"https://GAMING_LINK&sub1={partner_code}",
+
+        "utilities":
+        f"https://UTILITIES_LINK&sub1={partner_code}",
+    }
+
+    smartlink = links.get(vertical)
+
+    if not smartlink:
+        return {
+            "success": False,
+            "message": "Unknown vertical"
+        }
 
     return {
         "success": True,
