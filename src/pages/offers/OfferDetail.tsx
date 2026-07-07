@@ -115,9 +115,20 @@ const telegramId =
 
 console.log("Telegram ID:", telegramId);
 
-    const response = await fetch(
-      `https://vvd-cpa-v2.onrender.com/smartlink/${telegramId}`
-    );
+   const verticalMap: Record<string, string> = {
+  "adult-dating": "adult",
+  "mainstream-dating": "mainstream",
+  "nutra": "nutra",
+  "crypto": "crypto",
+  "gaming": "gaming",
+  "utilities": "utilities",
+};
+
+const vertical = verticalMap[id || "adult-dating"];
+
+const response = await fetch(
+  `https://vvd-cpa-v2.onrender.com/smartlink/${telegramId}/${vertical}`
+);
 
     const result = await response.json();
 
