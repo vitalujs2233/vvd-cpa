@@ -43,6 +43,7 @@ def save_user(
                 last_name,
                 username,
                 photo_url,
+                partner_code,
                 balance,
                 hold,
                 withdrawn,
@@ -55,6 +56,7 @@ def save_user(
                 :last_name,
                 :username,
                 :photo_url,
+                :partner_code,
                 0,
                 0,
                 0,
@@ -74,5 +76,6 @@ def save_user(
                 "last_name": last_name,
                 "username": username,
                 "photo_url": photo_url,
+                "partner_code": generate_partner_code(),
             }
         )
