@@ -133,7 +133,7 @@ console.log("Telegram:", window.Telegram?.WebApp);
 
         if (initData || isDevMode) {
           // 2. Отправляем сетевой POST-запрос на наш FastAPI бэкенд
-          const response = await loginViaTelegramApi(initData);
+         const response = await loginViaTelegramApi();
           
           // 3. Сохраняем полученный боевой JWT-токен доступа в localStorage
           saveAuthToken(response.access_token);
