@@ -103,17 +103,11 @@ def create_access_token(user_id: int, role: str) -> str:
     return encoded_jwt
 
 
-# Дополнительные модули хэширования, необходимые для работы криптографии
-import hashlib
-import hmac
-
 @router.post("/telegram", response_model=TokenResponse)
 async def login_via_telegram(
     payload: TelegramAuthRequest, 
     db: AsyncSession = Depends(get_db)
 ):
-    print(">>> login_via_telegram ВЫЗВАН")
-print(">>> init_data =", payload.init_data)
     """
     Боевой эндпоинт авторизации.
     Принимает initData, криптографически проверяет её, находит или автоматически
@@ -168,7 +162,7 @@ print(">>> init_data =", payload.init_data)
             )
             db.add(user)
             
-            # Автоматически создаем для него индивидуальные настройки по умолчанию
+            # Автоматически создаем для него настройки по умолчанию
             user_settings = UserSettings(
                 user_id=telegram_id,
                 push_enabled=True,
@@ -198,7 +192,7 @@ print(">>> init_data =", payload.init_data)
         user.photo_url = photo_url
         await db.commit()
 
-    # Шаг 4: Генерируем реальный JWT-токен доступа на основе его роли
+    # Шаг 4: Генерируем реальный JWT-токен доступа
     token = create_access_token(user_id=user.telegram_id, role=user.role)
 
     # Возвращаем токен и данные пользователя фронтенду
