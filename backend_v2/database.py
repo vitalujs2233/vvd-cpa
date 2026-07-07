@@ -1,8 +1,25 @@
 from sqlalchemy import create_engine, text
+import random
+import string
 from config import settings
 
 engine = create_engine(settings.DATABASE_URL)
+def generate_partner_code():
+    while True:
+        code = "VVD" + "".join(random.choices(string.digits, k=6))
 
+        with engine.connect() as conn:
+            exists = conn.execute(
+                text("""
+                    SELECT 1
+                    FROM users
+                    WHERE partner_code = :code
+                """),
+                {"code": code},
+            ).fetchone()
+
+        if not exists:
+            return code
 
 def check_database():
     with engine.connect() as conn:
