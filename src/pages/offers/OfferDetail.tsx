@@ -105,8 +105,15 @@ export const OfferDetail: React.FC = () => {
   setIsGenerating(true);
 
   try {
-    const telegramUser = getTelegramUser();
-const telegramId = telegramUser.id;
+ const telegramUser = getTelegramUser();
+
+console.log("Telegram User:", telegramUser);
+
+const telegramId =
+  (telegramUser as any).telegram_id ??
+  (telegramUser as any).id;
+
+console.log("Telegram ID:", telegramId);
 
     const response = await fetch(
       `https://vvd-cpa-v2.onrender.com/smartlink/${telegramId}`
