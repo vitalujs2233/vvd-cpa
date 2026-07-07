@@ -1,23 +1,10 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
+from sqlalchemy import create_engine, text
 from config import settings
 
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,
-)
-
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine,
-)
+engine = create_engine(settings.DATABASE_URL)
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+def check_database():
+    with engine.connect() as conn:
+        conn.execute(text("SELECT 1"))
+        return True
