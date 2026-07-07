@@ -55,6 +55,15 @@ async def auth(user: TelegramUser):
     )
 
     return {
-        "success": True,
-        "message": "Пользователь сохранён"
+        "access_token": "telegram_auth",
+        "token_type": "bearer",
+        "user": {
+            "telegram_id": user.telegram_id,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "username": user.username,
+            "photo_url": user.photo_url,
+            "role": "user",
+            "status": "active"
+        }
     }
