@@ -1,5 +1,6 @@
 from fastapi import FastAPI
-from database import check_database
+from pydantic import BaseModel
+from database import check_database, save_user
 
 app = FastAPI(
     title="VVD CPA Backend V2",
@@ -34,3 +35,26 @@ async def db():
             "database": "error",
             "details": str(e)
         }
+        
+class TelegramUser(BaseModel):
+    telegram_id: int
+    first_name: str
+    last_name: str | None = None
+    username: str | None = None
+    photo_url: str | None = None
+
+
+@app.post("/auth")
+async def auth(user: TelegramUser):
+    save_user(
+        telegram_id=user.telegram_id,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        username=user.username,
+        photo_url=user.photo_url,
+    )
+
+    return {
+        "success": True,
+        "message": "Пользователь сохранён"
+    }
