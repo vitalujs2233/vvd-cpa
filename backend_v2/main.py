@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from database import check_database
 
 app = FastAPI(
     title="VVD CPA Backend V2",
@@ -19,3 +20,17 @@ async def health():
     return {
         "status": "healthy"
     }
+
+
+@app.get("/db")
+async def db():
+    try:
+        check_database()
+        return {
+            "database": "connected"
+        }
+    except Exception as e:
+        return {
+            "database": "error",
+            "details": str(e)
+        }
