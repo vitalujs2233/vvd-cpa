@@ -100,16 +100,30 @@ export const OfferDetail: React.FC = () => {
     navigate('/offers');
   };
 
-  const handleGenerateLink = () => {
-    triggerHaptic.mediumImpact();
-    setIsGenerating(true);
-    
-    setTimeout(() => {
-      setGeneratedLink(`https://demo.vvdcpa.link/${data.smartlinkSuffix}`);
-      setIsGenerating(false);
+ const handleGenerateLink = async () => {
+  triggerHaptic.mediumImpact();
+  setIsGenerating(true);
+
+  try {
+    // Пока временно используем твой Telegram ID для проверки
+    const telegramId = 232682307;
+
+    const response = await fetch(
+      `https://vvd-cpa-v2.onrender.com/smartlink/${telegramId}`
+    );
+
+    const result = await response.json();
+
+    if (result.success) {
+      setGeneratedLink(result.smartlink);
       triggerHaptic.success();
-    }, 1000);
-  };
+    }
+  } catch (error) {
+    console.error(error);
+  }
+
+  setIsGenerating(false);
+};
 
   const handleCopyLink = () => {
     if (!generatedLink) return;
