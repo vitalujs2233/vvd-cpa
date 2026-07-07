@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from database import check_database, save_user
+from sqlalchemy import text
+from database import check_database, save_user, engine
 
 app = FastAPI(
     title="VVD CPA Backend V2",
@@ -64,7 +65,7 @@ async def auth(user: TelegramUser):
         username=user.username,
         photo_url=user.photo_url,
     )
-
+    
     return {
         "access_token": "telegram_auth",
         "token_type": "bearer",
@@ -77,4 +78,38 @@ async def auth(user: TelegramUser):
             "role": "user",
             "status": "active"
         }
+    }
+
+
+@app.get("/smartlink/{telegram_id}")
+async def get_smartlink(telegram_id: int):
+
+    with engine.connect() as conn:
+
+        user = conn.execute(
+            text("""
+                SELECT partner_code
+                FROM users
+                WHERE telegram_id = :telegram_id
+            """),
+            {"telegram_id": telegram_id},
+        ).fetchone()
+
+    if not user:
+        return {
+            "success": False,
+            "message": "User not found"
+        }
+
+    partner_code = user.partner_code
+
+    smartlink = (
+        f"smartlink = (
+    f"https://tone.affomelody.com/click?pid=12519&offer_id=25&sub1={partner_code}"
+    )
+
+    return {
+        "success": True,
+        "partner_code": partner_code,
+        "smartlink": smartlink
     }
