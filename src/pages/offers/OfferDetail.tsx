@@ -7,7 +7,7 @@ import {
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { Input } from '@/shared/ui/Input';
-import { triggerHaptic } from '@/shared/lib/telegram';
+import { triggerHaptic, getTelegramUser } from '@/shared/lib/telegram';
 
 interface DetailData {
   title: string;
@@ -105,8 +105,8 @@ export const OfferDetail: React.FC = () => {
   setIsGenerating(true);
 
   try {
-    // Пока временно используем твой Telegram ID для проверки
-    const telegramId = 232682307;
+    const telegramUser = getTelegramUser();
+const telegramId = telegramUser.id;
 
     const response = await fetch(
       `https://vvd-cpa-v2.onrender.com/smartlink/${telegramId}`
