@@ -203,6 +203,22 @@ async def postback_adult(
 
     telegram_id = user.telegram_id
 
+        conversion = conn.execute(
+        text("""
+            SELECT id
+            FROM conversions
+            WHERE transaction_id = :transaction_id
+        """),
+        {
+            "transaction_id": transaction_id
+        }
+    ).fetchone()
+
+    if conversion:
+        return {
+            "success": True,
+            "message": "Conversion already exists"
+        }
     return {
         "success": True,
         "partner_code": partner_code,
