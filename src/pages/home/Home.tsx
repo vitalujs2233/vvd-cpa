@@ -80,8 +80,8 @@ export const Home: React.FC = () => {
           <div className="flex flex-col text-left">
             <span className="text-[10px] text-textSecondary font-bold uppercase tracking-wider">Ваш баланс</span>
             <span className="text-[36px] font-bold text-white leading-none mt-1.5 font-sans tracking-tight">
-              $154.50
-            </span>
+  $0.00
+</span>
           </div>
           
           <div className="bg-white/[0.02] border border-white/10 rounded-app-xs px-2.5 py-1 flex items-center gap-1.5 shadow-glass-inner">
@@ -93,22 +93,51 @@ export const Home: React.FC = () => {
         <div className="h-[1px] bg-white/[0.04] w-full z-10" />
 
         {/* Финансовые ячейки */}
-        <div className="grid grid-cols-2 gap-3 text-left z-10">
-          <div className="flex flex-col">
-            <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">Hold сегодня</span>
-            <span className="text-sm font-bold text-warning mt-1 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-warning shadow-[0_0_8px_#F59E0B] animate-pulse" />
-              $32.40
-            </span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">Выплачено</span>
-            <span className="text-sm font-bold text-textSec mt-1 flex items-center gap-1.5">
-              <TrendingUp size={14} className="text-success" />
-              $1,234.50
-            </span>
-          </div>
-        </div>
+        <div className="grid grid-cols-3 gap-3 text-left z-10">
+
+  <div className="flex flex-col">
+    <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">
+      Доступно
+    </span>
+
+    <span className="text-sm font-bold text-success mt-1">
+      $0.00
+    </span>
+
+    <span className="text-[9px] text-textSecondary mt-1">
+      Средства подтверждены
+    </span>
+  </div>
+
+  <div className="flex flex-col">
+    <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">
+      В холде
+    </span>
+
+    <span className="text-sm font-bold text-warning mt-1">
+      $0.00
+    </span>
+
+    <span className="text-[9px] text-textSecondary mt-1">
+      Ожидают подтверждения
+    </span>
+  </div>
+
+  <div className="flex flex-col">
+    <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">
+      Выплачено
+    </span>
+
+    <span className="text-sm font-bold text-white mt-1">
+      $0.00
+    </span>
+
+    <span className="text-[9px] text-textSecondary mt-1">
+      Получено партнёром
+    </span>
+  </div>
+
+</div>
 
         {/* Кнопки вывода */}
         <div className="grid grid-cols-2 gap-3 mt-2 shrink-0 z-10">
