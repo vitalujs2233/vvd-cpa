@@ -156,7 +156,7 @@ useEffect(() => {
 
    <span className="text-sm font-bold text-white mt-1">
   ${balance.paid.toFixed(2)}
-</span
+</span>
 
     <span className="text-[9px] text-textSecondary mt-1">
       Получено партнёром
