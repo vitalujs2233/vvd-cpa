@@ -219,6 +219,42 @@ async def postback_adult(
             "success": True,
             "message": "Conversion already exists"
         }
+    conn.execute(
+        text("""
+            INSERT INTO conversions (
+                user_id,
+                click_id,
+                offer_id,
+                payout_gross,
+                payout_net,
+                status,
+                transaction_id,
+                created_at
+            )
+            VALUES (
+                :user_id,
+                :click_id,
+                :offer_id,
+                :payout_gross,
+                :payout_net,
+                :status,
+                :transaction_id,
+                NOW()
+            )
+        """),
+        {
+            "user_id": telegram_id,
+            "click_id": click_id,
+            "offer_id": offer_id,
+            "payout_gross": payout,
+            "payout_net": payout,
+            "status": str(status),
+            "transaction_id": transaction_id
+        }
+    )
+
+    conn.commit()
+
     return {
         "success": True,
         "partner_code": partner_code,
