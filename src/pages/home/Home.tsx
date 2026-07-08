@@ -18,8 +18,6 @@ useEffect(() => {
   const loadBalance = async () => {
     try {
       const res = await fetch(`https://vvd-cpa-v2.onrender.com/balance/${user.id}`)
-      );
-
       const data = await res.json();
 
       setBalance({
