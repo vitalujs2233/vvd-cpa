@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Wallet, History, ArrowRight, Clock, TrendingUp, Sparkles, Bell, Crown, Heart, Pill, Coins } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
@@ -8,7 +8,33 @@ import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
 export const Home: React.FC = () => {
   const navigate = useNavigate();
   const user = getTelegramUser();
+const [balance, setBalance] = useState({
+  available: 0,
+  hold: 0,
+  paid: 0,
+});
 
+useEffect(() => {
+  const loadBalance = async () => {
+    try {
+      const res = await fetch(
+        `https://vvd-cpa-v2.onrender.com/balance/${user.telegram_id}`
+      );
+
+      const data = await res.json();
+
+      setBalance({
+        available: data.available || 0,
+        hold: data.hold || 0,
+        paid: data.paid || 0,
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  loadBalance();
+}, []);
   const handleWithdrawClick = () => {
     // Средний по силе виброотклик при открытии формы вывода
     triggerHaptic.mediumImpact();
@@ -80,7 +106,7 @@ export const Home: React.FC = () => {
           <div className="flex flex-col text-left">
             <span className="text-[10px] text-textSecondary font-bold uppercase tracking-wider">Ваш баланс</span>
             <span className="text-[36px] font-bold text-white leading-none mt-1.5 font-sans tracking-tight">
-  $0.00
+  ${balance.available.toFixed(2)}
 </span>
           </div>
           
@@ -101,8 +127,8 @@ export const Home: React.FC = () => {
     </span>
 
     <span className="text-sm font-bold text-success mt-1">
-      $0.00
-    </span>
+  ${balance.available.toFixed(2)}
+</span>
 
     <span className="text-[9px] text-textSecondary mt-1">
       Средства подтверждены
@@ -114,9 +140,9 @@ export const Home: React.FC = () => {
       В холде
     </span>
 
-    <span className="text-sm font-bold text-warning mt-1">
-      $0.00
-    </span>
+   <span className="text-sm font-bold text-warning mt-1">
+  ${balance.hold.toFixed(2)}
+</span>
 
     <span className="text-[9px] text-textSecondary mt-1">
       Ожидают подтверждения
@@ -128,9 +154,9 @@ export const Home: React.FC = () => {
       Выплачено
     </span>
 
-    <span className="text-sm font-bold text-white mt-1">
-      $0.00
-    </span>
+   <span className="text-sm font-bold text-white mt-1">
+  ${balance.paid.toFixed(2)}
+</span
 
     <span className="text-[9px] text-textSecondary mt-1">
       Получено партнёром
