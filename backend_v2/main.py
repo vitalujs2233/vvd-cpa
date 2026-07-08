@@ -169,7 +169,7 @@ async def get_balance(telegram_id: int):
         "hold": float(hold),
         "paid": float(paid)
     }
-@app.get("/postback/adult")
+    @app.get("/postback/adult")
 async def postback_adult(
 
     partner_code: str,
@@ -182,6 +182,7 @@ async def postback_adult(
     date: str = ""
 
 ):
+
     with engine.connect() as conn:
 
         user = conn.execute(
@@ -195,63 +196,66 @@ async def postback_adult(
             }
         ).fetchone()
 
-    if not user:
-        return {
-            "success": False,
-            "message": "Partner not found"
-        }
-telegram_id = user.telegram_id
-conversion = conn.execute(
-        text("""
-            SELECT id
-            FROM conversions
-            WHERE transaction_id = :transaction_id
-        """),
-        {
-            "transaction_id": transaction_id
-        }
-    ).fetchone()
+        if not user:
+            return {
+                "success": False,
+                "message": "Partner not found"
+            }
 
-    if conversion:
-        return {
-            "success": True,
-            "message": "Conversion already exists"
-        }
-    conn.execute(
-        text("""
-            INSERT INTO conversions (
-                user_id,
-                click_id,
-                offer_id,
-                payout_gross,
-                payout_net,
-                status,
-                transaction_id,
-                created_at
-            )
-            VALUES (
-                :user_id,
-                :click_id,
-                :offer_id,
-                :payout_gross,
-                :payout_net,
-                :status,
-                :transaction_id,
-                NOW()
-            )
-        """),
-        {
-            "user_id": telegram_id,
-            "click_id": click_id,
-            "offer_id": offer_id,
-            "payout_gross": payout,
-            "payout_net": payout,
-            "status": str(status),
-            "transaction_id": transaction_id
-        }
-    )
+        telegram_id = user.telegram_id
 
-    conn.commit()
+        conversion = conn.execute(
+            text("""
+                SELECT id
+                FROM conversions
+                WHERE transaction_id = :transaction_id
+            """),
+            {
+                "transaction_id": transaction_id
+            }
+        ).fetchone()
+
+        if conversion:
+            return {
+                "success": True,
+                "message": "Conversion already exists"
+            }
+
+        conn.execute(
+            text("""
+                INSERT INTO conversions (
+                    user_id,
+                    click_id,
+                    offer_id,
+                    payout_gross,
+                    payout_net,
+                    status,
+                    transaction_id,
+                    created_at
+                )
+                VALUES (
+                    :user_id,
+                    :click_id,
+                    :offer_id,
+                    :payout_gross,
+                    :payout_net,
+                    :status,
+                    :transaction_id,
+                    NOW()
+                )
+            """),
+            {
+                "user_id": telegram_id,
+                "click_id": click_id,
+                "offer_id": offer_id,
+                "payout_gross": payout,
+                "payout_net": payout,
+                "status": str(status),
+                "transaction_id": transaction_id
+            }
+        )
+
+        conn.commit()
 
     return {
         "success": True,
