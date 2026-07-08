@@ -171,6 +171,7 @@ async def get_balance(telegram_id: int):
     }
 @app.get("/postback/adult")
 async def postback_adult(
+    
     partner_code: str,
     click_id: str = "",
     offer_id: str = "",
@@ -180,9 +181,30 @@ async def postback_adult(
     transaction_id: str = "",
     date: str = ""
 ):
+   with engine.connect() as conn:
+
+    user = conn.execute(
+        text("""
+            SELECT telegram_id
+            FROM users
+            WHERE partner_code = :partner_code
+        """),
+        {
+            "partner_code": partner_code
+        }
+    ).fetchone()
+
+if not user:
+    return {
+        "success": False,
+        "message": "Partner not found"
+    }
+
+telegram_id = user.telegram_id
     return {
         "success": True,
         "partner_code": partner_code,
+        "telegram_id": telegram_id,
         "click_id": click_id,
         "offer_id": offer_id,
         "offer_name": offer_name,
