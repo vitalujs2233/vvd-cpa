@@ -169,3 +169,26 @@ async def get_balance(telegram_id: int):
         "hold": float(hold),
         "paid": float(paid)
     }
+@app.get("/postback/adult")
+async def postback_adult(
+    partner_code: str,
+    click_id: str = "",
+    offer_id: str = "",
+    offer_name: str = "",
+    payout: float = 0,
+    status: int = 0,
+    transaction_id: str = "",
+    date: str = ""
+):
+    return {
+        "success": True,
+        "partner_code": partner_code,
+        "click_id": click_id,
+        "offer_id": offer_id,
+        "offer_name": offer_name,
+        "payout": payout,
+        "status": status,
+        "transaction_id": transaction_id,
+        "date": date
+    }
+
