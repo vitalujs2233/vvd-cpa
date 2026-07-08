@@ -202,8 +202,7 @@ async def postback_adult(
         }
 
     telegram_id = user.telegram_id
-
-        conversion = conn.execute(
+conversion = conn.execute(
         text("""
             SELECT id
             FROM conversions
