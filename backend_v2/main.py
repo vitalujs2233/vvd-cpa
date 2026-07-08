@@ -137,3 +137,35 @@ async def get_smartlink(telegram_id: int, vertical: str):
         "partner_code": partner_code,
         "smartlink": smartlink
     }
+
+@app.get("/balance/{telegram_id}")
+async def get_balance(telegram_id: int):
+
+    with engine.connect() as conn:
+
+        available = conn.execute(text("""
+            SELECT COALESCE(SUM(payout_net),0)
+            FROM conversions
+            WHERE user_id = :telegram_id
+            AND status = 'approved'
+        """), {"telegram_id": telegram_id}).scalar()
+
+        hold = conn.execute(text("""
+            SELECT COALESCE(SUM(payout_net),0)
+            FROM conversions
+            WHERE user_id = :telegram_id
+            AND status = 'pending'
+        """), {"telegram_id": telegram_id}).scalar()
+
+        paid = conn.execute(text("""
+            SELECT COALESCE(SUM(payout_net),0)
+            FROM conversions
+            WHERE user_id = :telegram_id
+            AND status = 'paid'
+        """), {"telegram_id": telegram_id}).scalar()
+
+    return {
+        "available": float(available),
+        "hold": float(hold),
+        "paid": float(paid)
+    }
