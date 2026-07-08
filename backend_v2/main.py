@@ -200,8 +200,7 @@ async def postback_adult(
             "success": False,
             "message": "Partner not found"
         }
-
-    telegram_id = user.telegram_id
+telegram_id = user.telegram_id
 conversion = conn.execute(
         text("""
             SELECT id
