@@ -27,12 +27,21 @@ export const getTelegramUser = (): TelegramUser => {
   // В первую очередь пытаемся получить реальные проверенные данные из базы Supabase через localStorage
   const savedUser = typeof window !== 'undefined' ? localStorage.getItem('vvd_cpa_user_data') : null;
   if (savedUser) {
-    try {
-      return JSON.parse(savedUser);
-    } catch (error) {
-      console.error("Ошибка парсинга сохраненных данных пользователя из БД:", error);
-    }
+  try {
+    const user = JSON.parse(savedUser);
+
+    return {
+      id: user.telegram_id,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      username: user.username,
+      language_code: "ru",
+      photo_url: user.photo_url,
+    };
+  } catch (error) {
+    console.error("Ошибка парсинга сохраненных данных пользователя из БД:", error);
   }
+}
 
   // Если проверенных данных в базе еще нет, возвращаем сырые данные Telegram SDK
   if (tg?.initDataUnsafe?.user) {
