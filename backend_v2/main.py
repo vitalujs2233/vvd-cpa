@@ -143,31 +143,30 @@ async def get_balance(telegram_id: int):
 
     with engine.connect() as conn:
 
-        available = conn.execute(text("""
-            SELECT COALESCE(SUM(payout_net),0)
-            FROM conversions
-            WHERE user_id = :telegram_id
-            AND status = 'approved'
-        """), {"telegram_id": telegram_id}).scalar()
+        user = conn.execute(
+            text("""
+                SELECT
+                    balance,
+                    hold,
+                    withdrawn
+                FROM users
+                WHERE telegram_id = :telegram_id
+            """),
+            {
+                "telegram_id": telegram_id
+            }
+        ).fetchone()
 
-        hold = conn.execute(text("""
-            SELECT COALESCE(SUM(payout_net),0)
-            FROM conversions
-            WHERE user_id = :telegram_id
-            AND status = 'pending'
-        """), {"telegram_id": telegram_id}).scalar()
-
-        paid = conn.execute(text("""
-            SELECT COALESCE(SUM(payout_net),0)
-            FROM conversions
-            WHERE user_id = :telegram_id
-            AND status = 'paid'
-        """), {"telegram_id": telegram_id}).scalar()
+    if not user:
+        return {
+            "success": False,
+            "message": "User not found"
+        }
 
     return {
-        "available": float(available),
-        "hold": float(hold),
-        "paid": float(paid)
+        "available": float(user.balance),
+        "hold": float(user.hold),
+        "paid": float(user.withdrawn)
     }
     
 @app.get("/postback/adult")
