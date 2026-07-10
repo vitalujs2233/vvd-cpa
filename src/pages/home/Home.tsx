@@ -8,6 +8,7 @@ import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
 export const Home: React.FC = () => {
   const navigate = useNavigate();
   const user = getTelegramUser();
+  console.log("Telegram User:", user);
 const [balance, setBalance] = useState({
   available: 0,
   hold: 0,
