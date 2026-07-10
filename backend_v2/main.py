@@ -311,7 +311,19 @@ async def postback_adult(
                     "income": payout
                 }
             )
-        
+        if status == 1:
+            conn.execute(
+                text("""
+                    UPDATE users
+                    SET
+                        balance = balance + :amount
+                    WHERE telegram_id = :user_id
+                """),
+                {
+                    "amount": payout,
+                    "user_id": telegram_id
+                }
+            )
         conn.commit()
 
     return {
