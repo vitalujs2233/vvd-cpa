@@ -255,7 +255,63 @@ async def postback_adult(
                 "transaction_id": transaction_id
             }
         )
+        stats = conn.execute(
+            text("""
+                SELECT id
+                FROM statistics
+                WHERE user_id = :user_id
+                AND date = CURRENT_DATE
+            """),
+            {
+                "user_id": telegram_id
+            }
+        ).fetchone()
 
+        if stats:
+
+            conn.execute(
+                text("""
+                    UPDATE statistics
+                    SET
+                        conversions = conversions + 1,
+                        income = income + :income
+                    WHERE
+                        user_id = :user_id
+                        AND date = CURRENT_DATE
+                """),
+                {
+                    "user_id": telegram_id,
+                    "income": payout
+                }
+            )
+
+        else:
+
+            conn.execute(
+                text("""
+                    INSERT INTO statistics
+                    (
+                        user_id,
+                        date,
+                        clicks,
+                        conversions,
+                        income
+                    )
+                    VALUES
+                    (
+                        :user_id,
+                        CURRENT_DATE,
+                        0,
+                        1,
+                        :income
+                    )
+                """),
+                {
+                    "user_id": telegram_id,
+                    "income": payout
+                }
+            )
+        
         conn.commit()
 
     return {
