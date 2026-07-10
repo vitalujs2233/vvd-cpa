@@ -18,7 +18,8 @@ const [balance, setBalance] = useState({
 useEffect(() => {
   const loadBalance = async () => {
     try {
-      const res = await fetch(`https://vvd-cpa-v2.onrender.com/balance/${user.telegram_id}`
+const res = await fetch(
+  `https://vvd-cpa-v2.onrender.com/balance/${user.telegram_id}`
 )
       const data = await res.json();
 
