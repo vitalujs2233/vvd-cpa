@@ -331,7 +331,6 @@ async def get_balance(telegram_id: int):
     
 @app.get("/postback/adult")
 async def postback_adult(
-
     partner_code: str,
     click_id: str = "",
     offer_id: str = "",
@@ -341,8 +340,13 @@ async def postback_adult(
     transaction_id: str = "",
     date: str = "",
     geo: str = ""
-
 ):
+
+    if not transaction_id:
+        return {
+            "success": False,
+            "message": "transaction_id is required"
+        }
 
     with engine.connect() as conn:
 
@@ -352,9 +356,7 @@ async def postback_adult(
                 FROM users
                 WHERE partner_code = :partner_code
             """),
-            {
-                "partner_code": partner_code
-            }
+            {"partner_code": partner_code}
         ).fetchone()
 
         if not user:
@@ -365,195 +367,200 @@ async def postback_adult(
 
         telegram_id = user.telegram_id
 
-        conversion = conn.execute(
+        existing = conn.execute(
             text("""
-                SELECT id
+                SELECT id, status, payout_net
                 FROM conversions
                 WHERE transaction_id = :transaction_id
             """),
-            {
-                "transaction_id": transaction_id
-            }
+            {"transaction_id": transaction_id}
         ).fetchone()
 
-        if conversion:
-            return {
-                "success": True,
-                "message": "Conversion already exists"
-            }
+        old_status = int(existing.status) if existing else 0
+        old_payout = float(existing.payout_net or 0) if existing else 0.0
 
-        conn.execute(
-            text("""
-                INSERT INTO conversions (
-                    user_id,
-                    click_id,
-                    offer_id,
-                    payout_gross,
-                    payout_net,
-                    status,
-                    transaction_id,
-                    created_at
-                )
-                VALUES (
-                    :user_id,
-                    :click_id,
-                    :offer_id,
-                    :payout_gross,
-                    :payout_net,
-                    :status,
-                    :transaction_id,
-                    NOW()
-                )
-            """),
-            {
-                "user_id": telegram_id,
-                "click_id": click_id,
-                "offer_id": offer_id,
-                "payout_gross": payout,
-                "payout_net": payout,
-                "status": str(status),
-                "transaction_id": transaction_id
-            }
+        old_confirmed_income = old_payout if old_status == 1 else 0.0
+        new_confirmed_income = payout if status == 1 else 0.0
+
+        conversion_delta = (
+            (1 if status == 1 else 0)
+            - (1 if old_status == 1 else 0)
         )
-        stats = conn.execute(
-            text("""
-                SELECT id
-                FROM statistics
-                WHERE user_id = :user_id
-                AND date = CURRENT_DATE
-            """),
-            {
-                "user_id": telegram_id
-            }
-        ).fetchone()
+        income_delta = new_confirmed_income - old_confirmed_income
 
-        if stats:
-
+        if existing:
             conn.execute(
                 text("""
-                    UPDATE statistics
+                    UPDATE conversions
                     SET
-                        conversions = conversions + 1,
-                        income = income + :income
-                    WHERE
-                        user_id = :user_id
-                        AND date = CURRENT_DATE
+                        user_id = :user_id,
+                        click_id = :click_id,
+                        offer_id = :offer_id,
+                        payout_gross = :payout_gross,
+                        payout_net = :payout_net,
+                        status = :status
+                    WHERE transaction_id = :transaction_id
                 """),
                 {
                     "user_id": telegram_id,
-                    "income": payout
+                    "click_id": click_id,
+                    "offer_id": offer_id,
+                    "payout_gross": payout,
+                    "payout_net": payout,
+                    "status": str(status),
+                    "transaction_id": transaction_id
                 }
             )
-
         else:
-
             conn.execute(
                 text("""
-                    INSERT INTO statistics
-                    (
+                    INSERT INTO conversions (
                         user_id,
-                        date,
-                        clicks,
-                        conversions,
-                        income
+                        click_id,
+                        offer_id,
+                        payout_gross,
+                        payout_net,
+                        status,
+                        transaction_id,
+                        created_at
                     )
-                    VALUES
-                    (
+                    VALUES (
                         :user_id,
-                        CURRENT_DATE,
-                        0,
-                        1,
-                        :income
+                        :click_id,
+                        :offer_id,
+                        :payout_gross,
+                        :payout_net,
+                        :status,
+                        :transaction_id,
+                        NOW()
                     )
                 """),
                 {
                     "user_id": telegram_id,
-                    "income": payout
+                    "click_id": click_id,
+                    "offer_id": offer_id,
+                    "payout_gross": payout,
+                    "payout_net": payout,
+                    "status": str(status),
+                    "transaction_id": transaction_id
                 }
             )
-        geo_value = (geo or "").strip()
 
-        if geo_value:
-            country_stat = conn.execute(
+        if conversion_delta != 0 or income_delta != 0:
+            stats = conn.execute(
                 text("""
-                    SELECT country_code, country_name
-                    FROM country_statistics
+                    SELECT id
+                    FROM statistics
                     WHERE user_id = :user_id
                     AND date = CURRENT_DATE
-                    AND (
-                        UPPER(country_code) = UPPER(:geo)
-                        OR LOWER(country_name) = LOWER(:geo)
-                    )
-                    LIMIT 1
                 """),
-                {
-                    "user_id": telegram_id,
-                    "geo": geo_value
-                }
+                {"user_id": telegram_id}
             ).fetchone()
 
-            if country_stat:
+            if stats:
                 conn.execute(
                     text("""
-                        UPDATE country_statistics
+                        UPDATE statistics
                         SET
-                            conversions = conversions + 1,
-                            income = income + :income
+                            conversions = GREATEST(0, conversions + :conversion_delta),
+                            income = GREATEST(0, income + :income_delta)
                         WHERE user_id = :user_id
                         AND date = CURRENT_DATE
-                        AND country_code = :country_code
                     """),
                     {
                         "user_id": telegram_id,
-                        "country_code": country_stat.country_code,
-                        "income": payout
+                        "conversion_delta": conversion_delta,
+                        "income_delta": income_delta
                     }
                 )
             else:
                 conn.execute(
                     text("""
-                        INSERT INTO country_statistics
-                        (
-                            user_id,
-                            country_code,
-                            country_name,
-                            date,
-                            clicks,
-                            conversions,
-                            income
-                        )
+                        INSERT INTO statistics
+                        (user_id, date, clicks, conversions, income)
                         VALUES
-                        (
-                            :user_id,
-                            :country_code,
-                            :country_name,
-                            CURRENT_DATE,
-                            0,
-                            1,
-                            :income
-                        )
+                        (:user_id, CURRENT_DATE, 0, :conversions, :income)
                     """),
                     {
                         "user_id": telegram_id,
-                        "country_code": geo_value,
-                        "country_name": geo_value,
-                        "income": payout
+                        "conversions": max(0, conversion_delta),
+                        "income": max(0, income_delta)
                     }
                 )
 
-        if status == 1:
+            geo_value = (geo or "").strip()
+
+            if geo_value:
+                country_stat = conn.execute(
+                    text("""
+                        SELECT country_code
+                        FROM country_statistics
+                        WHERE user_id = :user_id
+                        AND date = CURRENT_DATE
+                        AND (
+                            UPPER(country_code) = UPPER(:geo)
+                            OR LOWER(country_name) = LOWER(:geo)
+                        )
+                        LIMIT 1
+                    """),
+                    {
+                        "user_id": telegram_id,
+                        "geo": geo_value
+                    }
+                ).fetchone()
+
+                if country_stat:
+                    conn.execute(
+                        text("""
+                            UPDATE country_statistics
+                            SET
+                                conversions = GREATEST(0, conversions + :conversion_delta),
+                                income = GREATEST(0, income + :income_delta)
+                            WHERE user_id = :user_id
+                            AND date = CURRENT_DATE
+                            AND country_code = :country_code
+                        """),
+                        {
+                            "user_id": telegram_id,
+                            "country_code": country_stat.country_code,
+                            "conversion_delta": conversion_delta,
+                            "income_delta": income_delta
+                        }
+                    )
+                elif status == 1:
+                    conn.execute(
+                        text("""
+                            INSERT INTO country_statistics
+                            (
+                                user_id, country_code, country_name,
+                                date, clicks, conversions, income
+                            )
+                            VALUES
+                            (
+                                :user_id, :country_code, :country_name,
+                                CURRENT_DATE, 0, 1, :income
+                            )
+                        """),
+                        {
+                            "user_id": telegram_id,
+                            "country_code": geo_value,
+                            "country_name": geo_value,
+                            "income": payout
+                        }
+                    )
+
             conn.execute(
                 text("""
                     UPDATE users
-                    SET
-                        balance = balance + :amount
+                    SET balance = GREATEST(0, balance + :income_delta)
                     WHERE telegram_id = :user_id
                 """),
                 {
-                    "amount": payout,
-                    "user_id": telegram_id
+                    "user_id": telegram_id,
+                    "income_delta": income_delta
                 }
             )
+
         conn.commit()
 
     return {
@@ -567,8 +574,11 @@ async def postback_adult(
         "status": status,
         "transaction_id": transaction_id,
         "date": date,
-        "geo": geo
+        "geo": geo,
+        "conversion_delta": conversion_delta,
+        "income_delta": income_delta
     }
+
 
 @app.get("/statistics/{telegram_id}")
 async def get_statistics(telegram_id: int):
