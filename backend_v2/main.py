@@ -1,71 +1,31 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from sqlalchemy import text
-from database import check_database, save_user, engine
+from fastapi import FastAPI from fastapi.middleware.cors import
+CORSMiddleware from pydantic import BaseModel from sqlalchemy import
+text from database import check_database, save_user, engine
 
-app = FastAPI(
-    title="VVD CPA Backend V2",
-    version="2.0"
-)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "https://vitalujs2233.github.io",
-        "https://vitalujs2233.github.io/vvd-cpa",
-        "https://web.telegram.org"
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app = FastAPI( title=“VVD CPA Backend V2”, version=“2.0” )
+app.add_middleware( CORSMiddleware, allow_origins=[
+“https://vitalujs2233.github.io”,
+“https://vitalujs2233.github.io/vvd-cpa”, “https://web.telegram.org” ],
+allow_credentials=True, allow_methods=[“*”], allow_headers=[“*”], )
 
-@app.get("/")
-async def root():
-    return {
-        "status": "ok",
-        "message": "Backend V2 работает"
-    }
+@app.get(“/”) async def root(): return { “status”: “ok”, “message”:
+“Backend V2 работает” }
 
+@app.get(“/health”) async def health(): return { “status”: “healthy” }
 
-@app.get("/health")
-async def health():
-    return {
-        "status": "healthy"
-    }
+@app.get(“/db”) async def db(): try: check_database() return {
+“database”: “connected” } except Exception as e: return { “database”:
+“error”, “details”: str(e) }
 
+class TelegramUser(BaseModel): telegram_id: int first_name: str
+last_name: str | None = None username: str | None = None photo_url: str
+| None = None
 
-@app.get("/db")
-async def db():
-    try:
-        check_database()
-        return {
-            "database": "connected"
-        }
-    except Exception as e:
-        return {
-            "database": "error",
-            "details": str(e)
-        }
-        
-class TelegramUser(BaseModel):
-    telegram_id: int
-    first_name: str
-    last_name: str | None = None
-    username: str | None = None
-    photo_url: str | None = None
+@app.post(“/auth”) async def auth(user: TelegramUser): save_user(
+telegram_id=user.telegram_id, first_name=user.first_name,
+last_name=user.last_name, username=user.username,
+photo_url=user.photo_url, )
 
-
-@app.post("/auth")
-async def auth(user: TelegramUser):
-    save_user(
-        telegram_id=user.telegram_id,
-        first_name=user.first_name,
-        last_name=user.last_name,
-        username=user.username,
-        photo_url=user.photo_url,
-    )
-    
     return {
         "access_token": "telegram_auth",
         "token_type": "bearer",
@@ -80,9 +40,8 @@ async def auth(user: TelegramUser):
         }
     }
 
-
-@app.get("/smartlink/{telegram_id}/{vertical}")
-async def get_smartlink(telegram_id: int, vertical: str):
+@app.get(“/smartlink/{telegram_id}/{vertical}”) async def
+get_smartlink(telegram_id: int, vertical: str):
 
     with engine.connect() as conn:
 
@@ -138,8 +97,8 @@ async def get_smartlink(telegram_id: int, vertical: str):
         "smartlink": smartlink
     }
 
-@app.get("/balance/{telegram_id}")
-async def get_balance(telegram_id: int):
+@app.get(“/balance/{telegram_id}”) async def get_balance(telegram_id:
+int):
 
     with engine.connect() as conn:
 
@@ -168,9 +127,8 @@ async def get_balance(telegram_id: int):
         "hold": float(user.hold),
         "paid": float(user.withdrawn)
     }
-    
-@app.get("/postback/adult")
-async def postback_adult(
+
+@app.get(“/postback/adult”) async def postback_adult(
 
     partner_code: str,
     click_id: str = "",
@@ -338,8 +296,8 @@ async def postback_adult(
         "date": date
     }
 
-@app.get("/statistics/{telegram_id}")
-async def get_statistics(telegram_id: int):
+@app.get(“/statistics/{telegram_id}”) async def
+get_statistics(telegram_id: int):
 
     with engine.connect() as conn:
 
@@ -371,23 +329,24 @@ async def get_statistics(telegram_id: int):
             for row in stats
         ]
     }
-@app.get("/statistics/{telegram_id}/countries")
-async def get_country_statistics(telegram_id: int):
+
+@app.get(“/statistics/{telegram_id}/countries”) async def
+get_country_statistics(telegram_id: int):
 
     with engine.connect() as conn:
 
         countries = conn.execute(
             text("""
                 SELECT
+                    date,
                     country_code,
                     country_name,
-                    SUM(clicks) AS clicks,
-                    SUM(conversions) AS conversions,
-                    SUM(income) AS income
+                    clicks,
+                    conversions,
+                    income
                 FROM country_statistics
                 WHERE user_id = :telegram_id
-                GROUP BY country_code, country_name
-                ORDER BY income DESC
+                ORDER BY date ASC, income DESC
             """),
             {
                 "telegram_id": telegram_id
@@ -398,6 +357,7 @@ async def get_country_statistics(telegram_id: int):
         "success": True,
         "countries": [
             {
+                "date": str(row.date),
                 "country_code": row.country_code,
                 "country_name": row.country_name,
                 "clicks": int(row.clicks or 0),
