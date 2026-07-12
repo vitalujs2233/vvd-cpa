@@ -488,7 +488,25 @@ async def postback_adult(
                     }
                 )
 
-            geo_value = (geo or "").strip()
+            geo_value = (geo or "").strip().upper()
+
+            country_names = {
+                "DE": "Германия",
+                "LV": "Латвия",
+                "LT": "Литва",
+                "EE": "Эстония",
+                "PL": "Польша",
+                "FR": "Франция",
+                "ES": "Испания",
+                "IT": "Италия",
+                "GB": "Великобритания",
+                "UK": "Великобритания",
+                "US": "США",
+                "UA": "Украина",
+                "KZ": "Казахстан",
+                "GE": "Грузия"
+            }
+            country_name = country_names.get(geo_value, geo_value)
 
             if geo_value:
                 country_stat = conn.execute(
@@ -544,7 +562,7 @@ async def postback_adult(
                         {
                             "user_id": telegram_id,
                             "country_code": geo_value,
-                            "country_name": geo_value,
+                            "country_name": country_name,
                             "income": payout
                         }
                     )
