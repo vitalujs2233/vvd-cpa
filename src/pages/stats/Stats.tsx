@@ -1,120 +1,113 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { BarChart2, Coins, Eye, RefreshCw, ShieldAlert } from 'lucide-react';
-import { Card } from '@/shared/ui/Card';
-import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
+import React, { useCallback, useEffect, useMemo, useState } from
+‘react’; import { BarChart2, Coins, Eye, RefreshCw, ShieldAlert } from
+‘lucide-react’; import { Card } from ‘@/shared/ui/Card’; import {
+getTelegramUser, triggerHaptic } from ‘@/shared/lib/telegram’;
 
-type Filter = 'today' | 'yesterday' | '7days' | '30days' | 'all';
-type Stat = { date: string; clicks: number; conversions: number; income: number };
-type Country = { country_code: string; country_name: string; clicks: number; conversions: number; income: number };
+type Filter = ‘today’ | ‘yesterday’ | ‘7days’ | ‘30days’ | ‘all’; type
+Stat = { date: string; clicks: number; conversions: number; income:
+number }; type Country = { date: string; country_code: string;
+country_name: string; clicks: number; conversions: number; income:
+number };
 
-const API = 'https://vvd-cpa-v2.onrender.com';
+const API = ‘https://vvd-cpa-v2.onrender.com’;
 
-const inPeriod = (value: string, filter: Filter) => {
-  if (filter === 'all') return true;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const [y, m, d] = value.split('-').map(Number);
-  const date = new Date(y, m - 1, d); date.setHours(0, 0, 0, 0);
-  if (filter === 'today') return date.getTime() === today.getTime();
-  if (filter === 'yesterday') {
-    const x = new Date(today); x.setDate(x.getDate() - 1);
-    return date.getTime() === x.getTime();
-  }
-  const days = filter === '7days' ? 7 : 30;
-  const from = new Date(today); from.setDate(from.getDate() - days + 1);
-  return date >= from && date <= today;
-};
+const inPeriod = (value: string, filter: Filter) => { if (filter ===
+‘all’) return true; const today = new Date(); today.setHours(0, 0, 0,
+0); const [y, m, d] = value.split(‘-’).map(Number); const date = new
+Date(y, m - 1, d); date.setHours(0, 0, 0, 0); if (filter === ‘today’)
+return date.getTime() === today.getTime(); if (filter === ‘yesterday’) {
+const x = new Date(today); x.setDate(x.getDate() - 1); return
+date.getTime() === x.getTime(); } const days = filter === ‘7days’ ? 7 :
+30; const from = new Date(today); from.setDate(from.getDate() - days +
+1); return date >= from && date <= today; };
 
-const chartPaths = (rows: Stat[]) => {
-  const grouped = new Map<string, number>();
-  rows.forEach(r => grouped.set(r.date, (grouped.get(r.date) || 0) + r.income));
-  const values = [...grouped.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, v]) => v);
-  if (!values.length) return { line: 'M 0 130 L 400 130', area: 'M 0 130 L 400 130 L 400 150 L 0 150 Z' };
-  const max = Math.max(...values, 1);
-  const pts = values.map((v, i) => ({
-    x: values.length === 1 ? 200 : i / (values.length - 1) * 400,
-    y: 130 - v / max * 120
-  }));
-  const line = pts.length === 1
-    ? `M 0 ${pts[0].y} L 400 ${pts[0].y}`
-    : pts.map((p, i) => `${i ? 'L' : 'M'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ');
-  return { line, area: `${line} L 400 150 L 0 150 Z` };
-};
+const chartPaths = (rows: Stat[]) => { const grouped = new Map<string,
+number>(); rows.forEach(r => grouped.set(r.date, (grouped.get(r.date) ||
+0) + r.income)); const values = […grouped.entries()].sort(([a], [b]) =>
+a.localeCompare(b)).map(([, v]) => v); if (!values.length) return {
+line: ‘M 0 130 L 400 130’, area: ‘M 0 130 L 400 130 L 400 150 L 0 150 Z’
+}; const max = Math.max(…values, 1); const pts = values.map((v, i) => ({
+x: values.length === 1 ? 200 : i / (values.length - 1) * 400, y: 130 - v
+/ max * 120 })); const line = pts.length === 1 ?
+M 0 ${pts[0].y} L 400 ${pts[0].y} : pts.map((p, i) =>
+${i ? 'L' : 'M'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}).join(’ ’); return
+{ line, area: ${line} L 400 150 L 0 150 Z }; };
 
-export const Stats: React.FC = () => {
-  const [filter, setFilter] = useState<Filter>('today');
-  const [stats, setStats] = useState<Stat[]>([]);
-  const [countries, setCountries] = useState<Country[]>([]);
-  const [selectedCountry, setSelectedCountry] = useState<string>('all');
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export const Stats: React.FC = () => { const [filter, setFilter] =
+useState(‘today’); const [stats, setStats] = useState<Stat[]>([]); const
+[countries, setCountries] = useState<Country[]>([]); const
+[selectedCountry, setSelectedCountry] = useState(‘all’); const [loading,
+setLoading] = useState(true); const [refreshing, setRefreshing] =
+useState(false); const [error, setError] = useState<string |
+null>(null);
 
-  const load = useCallback(async (refresh = false) => {
-    refresh ? setRefreshing(true) : setLoading(true);
-    setError(null);
-    if (refresh) triggerHaptic.mediumImpact();
-    try {
-      const id = Number(getTelegramUser().id);
-      if (!id) throw new Error('Не удалось определить Telegram ID');
-      const [s, c] = await Promise.all([
-        fetch(`${API}/statistics/${id}`, { cache: 'no-store' }),
-        fetch(`${API}/statistics/${id}/countries`, { cache: 'no-store' })
-      ]);
-      if (!s.ok || !c.ok) throw new Error(`Ошибка API: statistics ${s.status}, countries ${c.status}`);
-      const sd = await s.json();
-      const cd = await c.json();
-      if (!sd.success || !cd.success) throw new Error('Backend вернул ошибку статистики');
-      setStats((sd.statistics || []).map((r: Stat) => ({
-        date: r.date, clicks: Number(r.clicks || 0), conversions: Number(r.conversions || 0), income: Number(r.income || 0)
-      })));
-      setCountries((cd.countries || []).map((r: Country) => ({
-        country_code: r.country_code, country_name: r.country_name, clicks: Number(r.clicks || 0),
-        conversions: Number(r.conversions || 0), income: Number(r.income || 0)
-      })));
-      if (refresh) triggerHaptic.success();
-    } catch (e) {
-      console.error(e);
-      setError(e instanceof Error ? e.message : 'Ошибка загрузки аналитики');
-      if (refresh) triggerHaptic.error();
-    } finally {
-      setLoading(false); setRefreshing(false);
-    }
-  }, []);
+const load = useCallback(async (refresh = false) => { refresh ?
+setRefreshing(true) : setLoading(true); setError(null); if (refresh)
+triggerHaptic.mediumImpact(); try { const id =
+Number(getTelegramUser().id); if (!id) throw new Error(‘Не удалось
+определить Telegram ID’); const [s, c] = await Promise.all([
+fetch(${API}/statistics/${id}, { cache: ‘no-store’ }),
+fetch(${API}/statistics/${id}/countries, { cache: ‘no-store’ }) ]); if
+(!s.ok || !c.ok) throw new
+Error(Ошибка API: statistics ${s.status}, countries ${c.status}); const
+sd = await s.json(); const cd = await c.json(); if (!sd.success ||
+!cd.success) throw new Error(‘Backend вернул ошибку статистики’);
+setStats((sd.statistics || []).map((r: Stat) => ({ date: r.date, clicks:
+Number(r.clicks || 0), conversions: Number(r.conversions || 0), income:
+Number(r.income || 0) }))); setCountries((cd.countries || []).map((r:
+Country) => ({ date: r.date, country_code: r.country_code, country_name:
+r.country_name, clicks: Number(r.clicks || 0), conversions:
+Number(r.conversions || 0), income: Number(r.income || 0) }))); if
+(refresh) triggerHaptic.success(); } catch (e) { console.error(e);
+setError(e instanceof Error ? e.message : ‘Ошибка загрузки аналитики’);
+if (refresh) triggerHaptic.error(); } finally { setLoading(false);
+setRefreshing(false); } }, []);
 
-  useEffect(() => { void load(); }, [load]);
+useEffect(() => { void load(); }, [load]);
 
-  const rows = useMemo(() => stats.filter(r => inPeriod(r.date, filter)), [stats, filter]);
-  const selectedCountryData = useMemo(
-    () => countries.find(c => c.country_code === selectedCountry),
-    [countries, selectedCountry]
-  );
+const rows = useMemo(() => stats.filter(r => inPeriod(r.date, filter)),
+[stats, filter]); const countryRows = useMemo( () => countries.filter(r
+=> inPeriod(r.date, filter)), [countries, filter] );
 
-  const data = useMemo(() => {
-    const periodClicks = rows.reduce((a, r) => a + r.clicks, 0);
-    const periodConversions = rows.reduce((a, r) => a + r.conversions, 0);
-    const periodIncome = rows.reduce((a, r) => a + r.income, 0);
+const countryTotals = useMemo(() => { const grouped = new Map<string,
+Country>(); countryRows.forEach(r => { const key = r.country_code ||
+‘UNKNOWN’; const current = grouped.get(key); if (current) {
+current.clicks += r.clicks; current.conversions += r.conversions;
+current.income += r.income; } else { grouped.set(key, { …r }); } });
+return […grouped.values()]; }, [countryRows]);
 
-    const clicks = selectedCountryData ? selectedCountryData.clicks : periodClicks;
-    const conversions = selectedCountryData ? selectedCountryData.conversions : periodConversions;
-    const income = selectedCountryData ? selectedCountryData.income : periodIncome;
+const selectedRows = useMemo( () => selectedCountry === ‘all’ ?
+countryRows : countryRows.filter(r => r.country_code ===
+selectedCountry), [countryRows, selectedCountry] );
+
+const data = useMemo(() => { const clicks = selectedRows.reduce((a, r)
+=> a + r.clicks, 0); const conversions = selectedRows.reduce((a, r) =>
+a + r.conversions, 0); const income = selectedRows.reduce((a, r) => a +
+r.income, 0);
+
+    const chartRows: Stat[] = selectedRows.map(r => ({
+      date: r.date,
+      clicks: r.clicks,
+      conversions: r.conversions,
+      income: r.income
+    }));
 
     return {
       clicks, conversions, income,
       cr: clicks ? conversions / clicks * 100 : 0,
       epc: clicks ? income / clicks : 0,
-      ...chartPaths(rows)
+      ...chartPaths(chartRows)
     };
-  }, [rows, selectedCountryData]);
 
-  const filters: { key: Filter; label: string }[] = [
-    { key: 'today', label: 'Сегодня' }, { key: 'yesterday', label: 'Вчера' },
-    { key: '7days', label: '7 дней' }, { key: '30days', label: '30 дней' },
-    { key: 'all', label: 'Все время' }
-  ];
+}, [selectedRows]);
 
-  const metric = (title: string, value: React.ReactNode, icon: React.ReactNode, sub?: string) => (
-    <Card padding="sm" className="flex flex-col justify-between gap-3 min-h-[106px] border-white/5 shadow-glass-inner">
-      <div className="flex items-center justify-between text-textSecondary">
+const filters: { key: Filter; label: string }[] = [ { key: ‘today’,
+label: ‘Сегодня’ }, { key: ‘yesterday’, label: ‘Вчера’ }, { key:
+‘7days’, label: ‘7 дней’ }, { key: ‘30days’, label: ‘30 дней’ }, { key:
+‘all’, label: ‘Все время’ } ];
+
+const metric = (title: string, value: React.ReactNode, icon:
+React.ReactNode, sub?: string) => (
         <span className="text-[10px] font-bold uppercase tracking-wider">{title}</span>
         <div className="w-7 h-7 rounded-full bg-accentPurple/10 border border-accentPurple/20 flex items-center justify-center text-accentPurple">{icon}</div>
       </div>
@@ -123,10 +116,10 @@ export const Stats: React.FC = () => {
         {sub && <span className="text-[9px] text-textSecondary font-semibold mt-0.5">{sub}</span>}
       </div>
     </Card>
-  );
 
-  return (
-    <div className="flex flex-col gap-4 p-4 select-none pb-32 animate-fade-in">
+);
+
+return (
       <div className="flex items-center justify-between text-left">
         <div className="flex flex-col">
           <span className="text-[10px] text-textSecondary font-bold uppercase tracking-wider">Платформа VVD CPA</span>
@@ -161,7 +154,7 @@ export const Stats: React.FC = () => {
           >
             Все страны
           </button>
-          {countries.map(c => (
+          {countryTotals.map(c => (
             <button
               key={c.country_code}
               onClick={() => { triggerHaptic.lightImpact(); setSelectedCountry(c.country_code); }}
@@ -176,7 +169,7 @@ export const Stats: React.FC = () => {
       <Card variant="default" padding="none" className="relative flex flex-col p-4 overflow-hidden h-[230px] justify-between shadow-premium">
         <div className="flex items-center justify-between text-left">
           <span className="text-xs font-bold text-white">Динамика прибыли</span>
-          <span className="text-[10px] text-textSecondary">{loading ? 'Загрузка...' : `${rows.length} записей`}</span>
+          <span className="text-[10px] text-textSecondary">{loading ? 'Загрузка...' : `${selectedRows.length} записей`}</span>
         </div>
         <div className="w-full h-[120px] relative mt-4">
           <svg className="w-full h-full" viewBox="0 0 400 150" preserveAspectRatio="none">
@@ -206,11 +199,11 @@ export const Stats: React.FC = () => {
       <div className="flex flex-col gap-3 text-left">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold text-white">Страны</h2>
-          <span className="text-[10px] text-textSecondary">{countries.length} стран</span>
+          <span className="text-[10px] text-textSecondary">{countryTotals.length} стран</span>
         </div>
         <Card padding="none" className="overflow-hidden border-white/5 shadow-glass-inner">
-          {!countries.length ? <div className="p-4 text-xs text-textSecondary">Статистика по странам пока отсутствует</div> :
-            [...countries].sort((a, b) => b.income - a.income).map((c, i) => {
+          {!countryTotals.length ? <div className="p-4 text-xs text-textSecondary">Статистика по странам пока отсутствует</div> :
+            [...countryTotals].sort((a, b) => b.income - a.income).map((c, i) => {
               const cr = c.clicks ? c.conversions / c.clicks * 100 : 0;
               return <button
                 key={`${c.country_code}-${i}`}
@@ -230,5 +223,5 @@ export const Stats: React.FC = () => {
         </Card>
       </div>
     </div>
-  );
-};
+
+); };
