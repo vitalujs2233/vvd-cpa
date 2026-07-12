@@ -337,3 +337,37 @@ async def postback_adult(
         "transaction_id": transaction_id,
         "date": date
     }
+
+@app.get("/statistics/{telegram_id}")
+async def get_statistics(telegram_id: int):
+
+    with engine.connect() as conn:
+
+        stats = conn.execute(
+            text("""
+                SELECT
+                    date,
+                    clicks,
+                    conversions,
+                    income
+                FROM statistics
+                WHERE user_id = :telegram_id
+                ORDER BY date ASC
+            """),
+            {
+                "telegram_id": telegram_id
+            }
+        ).fetchall()
+
+    return {
+        "success": True,
+        "statistics": [
+            {
+                "date": str(row.date),
+                "clicks": int(row.clicks or 0),
+                "conversions": int(row.conversions or 0),
+                "income": float(row.income or 0)
+            }
+            for row in stats
+        ]
+    }
