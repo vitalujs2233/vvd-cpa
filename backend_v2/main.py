@@ -339,7 +339,8 @@ async def postback_adult(
     payout: float = 0,
     status: int = 0,
     transaction_id: str = "",
-    date: str = ""
+    date: str = "",
+    geo: str = ""
 
 ):
 
@@ -470,6 +471,76 @@ async def postback_adult(
                     "income": payout
                 }
             )
+        geo_value = (geo or "").strip()
+
+        if geo_value:
+            country_stat = conn.execute(
+                text("""
+                    SELECT country_code, country_name
+                    FROM country_statistics
+                    WHERE user_id = :user_id
+                    AND date = CURRENT_DATE
+                    AND (
+                        UPPER(country_code) = UPPER(:geo)
+                        OR LOWER(country_name) = LOWER(:geo)
+                    )
+                    LIMIT 1
+                """),
+                {
+                    "user_id": telegram_id,
+                    "geo": geo_value
+                }
+            ).fetchone()
+
+            if country_stat:
+                conn.execute(
+                    text("""
+                        UPDATE country_statistics
+                        SET
+                            conversions = conversions + 1,
+                            income = income + :income
+                        WHERE user_id = :user_id
+                        AND date = CURRENT_DATE
+                        AND country_code = :country_code
+                    """),
+                    {
+                        "user_id": telegram_id,
+                        "country_code": country_stat.country_code,
+                        "income": payout
+                    }
+                )
+            else:
+                conn.execute(
+                    text("""
+                        INSERT INTO country_statistics
+                        (
+                            user_id,
+                            country_code,
+                            country_name,
+                            date,
+                            clicks,
+                            conversions,
+                            income
+                        )
+                        VALUES
+                        (
+                            :user_id,
+                            :country_code,
+                            :country_name,
+                            CURRENT_DATE,
+                            0,
+                            1,
+                            :income
+                        )
+                    """),
+                    {
+                        "user_id": telegram_id,
+                        "country_code": geo_value,
+                        "country_name": geo_value,
+                        "income": payout
+                    }
+                )
+
         if status == 1:
             conn.execute(
                 text("""
@@ -495,7 +566,8 @@ async def postback_adult(
         "payout": payout,
         "status": status,
         "transaction_id": transaction_id,
-        "date": date
+        "date": date,
+        "geo": geo
     }
 
 @app.get("/statistics/{telegram_id}")
