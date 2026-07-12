@@ -44,6 +44,7 @@ export const Stats: React.FC = () => {
   const [filter, setFilter] = useState<Filter>('today');
   const [stats, setStats] = useState<Stat[]>([]);
   const [countries, setCountries] = useState<Country[]>([]);
+  const [selectedCountry, setSelectedCountry] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,17 +84,27 @@ export const Stats: React.FC = () => {
   useEffect(() => { void load(); }, [load]);
 
   const rows = useMemo(() => stats.filter(r => inPeriod(r.date, filter)), [stats, filter]);
+  const selectedCountryData = useMemo(
+    () => countries.find(c => c.country_code === selectedCountry),
+    [countries, selectedCountry]
+  );
+
   const data = useMemo(() => {
-    const clicks = rows.reduce((a, r) => a + r.clicks, 0);
-    const conversions = rows.reduce((a, r) => a + r.conversions, 0);
-    const income = rows.reduce((a, r) => a + r.income, 0);
+    const periodClicks = rows.reduce((a, r) => a + r.clicks, 0);
+    const periodConversions = rows.reduce((a, r) => a + r.conversions, 0);
+    const periodIncome = rows.reduce((a, r) => a + r.income, 0);
+
+    const clicks = selectedCountryData ? selectedCountryData.clicks : periodClicks;
+    const conversions = selectedCountryData ? selectedCountryData.conversions : periodConversions;
+    const income = selectedCountryData ? selectedCountryData.income : periodIncome;
+
     return {
       clicks, conversions, income,
       cr: clicks ? conversions / clicks * 100 : 0,
       epc: clicks ? income / clicks : 0,
       ...chartPaths(rows)
     };
-  }, [rows]);
+  }, [rows, selectedCountryData]);
 
   const filters: { key: Filter; label: string }[] = [
     { key: 'today', label: 'Сегодня' }, { key: 'yesterday', label: 'Вчера' },
@@ -136,6 +147,32 @@ export const Stats: React.FC = () => {
         </button>)}
       </div>
 
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-[10px] text-textSecondary font-bold uppercase tracking-wider">География</span>
+          {selectedCountry !== 'all' && (
+            <span className="text-[9px] text-accentPurple">Данные выбранной страны</span>
+          )}
+        </div>
+        <div className="flex bg-bgCard/35 backdrop-blur-md border border-white/[0.04] rounded-app-xs p-2 gap-2 overflow-x-auto no-scrollbar scrollable-container shadow-glass-inner">
+          <button
+            onClick={() => { triggerHaptic.lightImpact(); setSelectedCountry('all'); }}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-app-xs transition-all whitespace-nowrap shrink-0 ${selectedCountry === 'all' ? 'bg-accent-gradient text-white shadow-glow-purple' : 'text-textSecondary hover:text-textPrimary'}`}
+          >
+            Все страны
+          </button>
+          {countries.map(c => (
+            <button
+              key={c.country_code}
+              onClick={() => { triggerHaptic.lightImpact(); setSelectedCountry(c.country_code); }}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-app-xs transition-all whitespace-nowrap shrink-0 ${selectedCountry === c.country_code ? 'bg-accent-gradient text-white shadow-glow-purple' : 'text-textSecondary hover:text-textPrimary'}`}
+            >
+              {c.country_name || c.country_code}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <Card variant="default" padding="none" className="relative flex flex-col p-4 overflow-hidden h-[230px] justify-between shadow-premium">
         <div className="flex items-center justify-between text-left">
           <span className="text-xs font-bold text-white">Динамика прибыли</span>
@@ -173,9 +210,13 @@ export const Stats: React.FC = () => {
         </div>
         <Card padding="none" className="overflow-hidden border-white/5 shadow-glass-inner">
           {!countries.length ? <div className="p-4 text-xs text-textSecondary">Статистика по странам пока отсутствует</div> :
-            countries.map((c, i) => {
+            [...countries].sort((a, b) => b.income - a.income).map((c, i) => {
               const cr = c.clicks ? c.conversions / c.clicks * 100 : 0;
-              return <div key={`${c.country_code}-${i}`} className="flex items-center justify-between p-4 border-b border-white/[0.04] last:border-b-0">
+              return <button
+                key={`${c.country_code}-${i}`}
+                onClick={() => { triggerHaptic.lightImpact(); setSelectedCountry(c.country_code); }}
+                className={`w-full flex items-center justify-between p-4 border-b border-white/[0.04] last:border-b-0 text-left transition-all ${selectedCountry === c.country_code ? 'bg-accentPurple/10' : 'active:bg-white/[0.03]'}`}
+              >
                 <div className="flex flex-col">
                   <span className="text-sm font-bold text-white">{c.country_name || c.country_code}</span>
                   <span className="text-[10px] text-textSecondary mt-1">{c.country_code} · {c.clicks.toLocaleString('ru-RU')} кликов · CR {cr.toFixed(2)}%</span>
@@ -184,7 +225,7 @@ export const Stats: React.FC = () => {
                   <span className="text-sm font-bold text-success">${c.income.toFixed(2)}</span>
                   <span className="text-[10px] text-textSecondary mt-1">{c.conversions} конв.</span>
                 </div>
-              </div>;
+              </button>;
             })}
         </Card>
       </div>
