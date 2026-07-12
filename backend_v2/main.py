@@ -111,7 +111,7 @@ async def get_smartlink(telegram_id: int, vertical: str):
     links = {
 
         "adult":
-        f"https://vvd-cpa-v2.onrender.com/go/{telegram_id}/adult",
+        f"https://vvd-cpa-v2.onrender.com/go/{partner_code}/adult",
 
         "mainstream":
         f"https://MAINSTREAM_LINK&sub1={partner_code}",
@@ -144,22 +144,23 @@ async def get_smartlink(telegram_id: int, vertical: str):
     }
 
 
-@app.get("/go/{telegram_id}/{vertical}")
-async def track_click(telegram_id: int, vertical: str, request: Request):
+@app.get("/go/{partner_code}/{vertical}")
+async def track_click(partner_code: str, vertical: str, request: Request):
 
     with engine.connect() as conn:
         user = conn.execute(
             text("""
-                SELECT partner_code
+                SELECT telegram_id, partner_code
                 FROM users
-                WHERE telegram_id = :telegram_id
+                WHERE partner_code = :partner_code
             """),
-            {"telegram_id": telegram_id}
+            {"partner_code": partner_code}
         ).fetchone()
 
         if not user:
-            return {"success": False, "message": "User not found"}
+            return {"success": False, "message": "Partner not found"}
 
+        telegram_id = user.telegram_id
         partner_code = user.partner_code
         click_id = str(uuid.uuid4())
 
