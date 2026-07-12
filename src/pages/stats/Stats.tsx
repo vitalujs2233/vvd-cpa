@@ -1,322 +1,191 @@
-import React, { useState, useMemo } from 'react';
-import { 
-  TrendingUp, BarChart2, Eye, ShieldAlert, 
-  Coins, ArrowUpRight, ArrowDownRight, RefreshCw 
-} from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { BarChart2, Coins, Eye, RefreshCw, ShieldAlert } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
-import { triggerHaptic } from '@/shared/lib/telegram';
+import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
 
-interface StatsPeriodData {
-  clicks: number;
-  clicksTrend: number;
-  conversions: number;
-  conversionsTrend: number;
-  cr: string; // Conversion Rate (%)
-  income: number;
-  incomeTrend: number;
-  epc: number;
-  epcTrend: number;
-  chartPath: string; // Путь для SVG линии
-  chartAreaPath: string; // Путь для SVG заливки под линией
-}
+type Filter = 'today' | 'yesterday' | '7days' | '30days' | 'all';
+type Stat = { date: string; clicks: number; conversions: number; income: number };
+type Country = { country_code: string; country_name: string; clicks: number; conversions: number; income: number };
 
-const STATS_DATA_MAP: Record<'today' | 'yesterday' | '7days' | '30days' | 'all', StatsPeriodData> = {
-  today: {
-    clicks: 1234,
-    clicksTrend: 12.5,
-    conversions: 56,
-    conversionsTrend: 8.2,
-    cr: '4.54%',
-    income: 23.45,
-    incomeTrend: 12.5,
-    epc: 0.10,
-    epcTrend: 6.1,
-    chartPath: 'M 0 110 Q 50 120 100 80 T 200 110 T 300 50 T 400 30',
-    chartAreaPath: 'M 0 110 Q 50 120 100 80 T 200 110 T 300 50 T 400 30 L 400 150 L 0 150 Z',
-  },
-  yesterday: {
-    clicks: 980,
-    clicksTrend: -4.2,
-    conversions: 42,
-    conversionsTrend: -2.1,
-    cr: '4.28%',
-    income: 18.20,
-    incomeTrend: -5.3,
-    epc: 0.09,
-    epcTrend: -1.5,
-    chartPath: 'M 0 90 Q 50 60 100 110 T 200 80 T 300 120 T 400 100',
-    chartAreaPath: 'M 0 90 Q 50 60 100 110 T 200 80 T 300 120 T 400 100 L 400 150 L 0 150 Z',
-  },
-  '7days': {
-    clicks: 8750,
-    clicksTrend: 14.8,
-    conversions: 380,
-    conversionsTrend: 11.2,
-    cr: '4.34%',
-    income: 162.40,
-    incomeTrend: 15.1,
-    epc: 0.12,
-    epcTrend: 8.4,
-    chartPath: 'M 0 120 Q 50 90 100 60 T 200 90 T 300 40 T 400 15',
-    chartAreaPath: 'M 0 120 Q 50 90 100 60 T 200 90 T 300 40 T 400 15 L 400 150 L 0 150 Z',
-  },
-  '30days': {
-    clicks: 35600,
-    clicksTrend: 18.9,
-    conversions: 1490,
-    conversionsTrend: 15.6,
-    cr: '4.18%',
-    income: 650.10,
-    incomeTrend: 19.4,
-    epc: 0.11,
-    epcTrend: 10.2,
-    chartPath: 'M 0 130 Q 50 110 100 50 T 200 70 T 300 30 T 400 10',
-    chartAreaPath: 'M 0 130 Q 50 110 100 50 T 200 70 T 300 30 T 400 10 L 400 150 L 0 150 Z',
-  },
-  all: {
-    clicks: 120400,
-    clicksTrend: 22.1,
-    conversions: 4890,
-    conversionsTrend: 19.8,
-    cr: '4.06%',
-    income: 2120.50,
-    incomeTrend: 24.3,
-    epc: 0.10,
-    epcTrend: 11.5,
-    chartPath: 'M 0 100 Q 50 80 100 40 T 200 60 T 300 20 T 400 5',
-    chartAreaPath: 'M 0 100 Q 50 80 100 40 T 200 60 T 300 20 T 400 5 L 400 150 L 0 150 Z',
-  },
+const API = 'https://vvd-cpa-v2.onrender.com';
+
+const inPeriod = (value: string, filter: Filter) => {
+  if (filter === 'all') return true;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const [y, m, d] = value.split('-').map(Number);
+  const date = new Date(y, m - 1, d); date.setHours(0, 0, 0, 0);
+  if (filter === 'today') return date.getTime() === today.getTime();
+  if (filter === 'yesterday') {
+    const x = new Date(today); x.setDate(x.getDate() - 1);
+    return date.getTime() === x.getTime();
+  }
+  const days = filter === '7days' ? 7 : 30;
+  const from = new Date(today); from.setDate(from.getDate() - days + 1);
+  return date >= from && date <= today;
+};
+
+const chartPaths = (rows: Stat[]) => {
+  const grouped = new Map<string, number>();
+  rows.forEach(r => grouped.set(r.date, (grouped.get(r.date) || 0) + r.income));
+  const values = [...grouped.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, v]) => v);
+  if (!values.length) return { line: 'M 0 130 L 400 130', area: 'M 0 130 L 400 130 L 400 150 L 0 150 Z' };
+  const max = Math.max(...values, 1);
+  const pts = values.map((v, i) => ({
+    x: values.length === 1 ? 200 : i / (values.length - 1) * 400,
+    y: 130 - v / max * 120
+  }));
+  const line = pts.length === 1
+    ? `M 0 ${pts[0].y} L 400 ${pts[0].y}`
+    : pts.map((p, i) => `${i ? 'L' : 'M'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ');
+  return { line, area: `${line} L 400 150 L 0 150 Z` };
 };
 
 export const Stats: React.FC = () => {
-  const [activeFilter, setActiveFilter] = useState<'today' | 'yesterday' | '7days' | '30days' | 'all'>('today');
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [filter, setFilter] = useState<Filter>('today');
+  const [stats, setStats] = useState<Stat[]>([]);
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const currentData = useMemo(() => {
-    return STATS_DATA_MAP[activeFilter];
-  }, [activeFilter]);
+  const load = useCallback(async (refresh = false) => {
+    refresh ? setRefreshing(true) : setLoading(true);
+    setError(null);
+    if (refresh) triggerHaptic.mediumImpact();
+    try {
+      const id = Number(getTelegramUser().id);
+      if (!id) throw new Error('Не удалось определить Telegram ID');
+      const [s, c] = await Promise.all([
+        fetch(`${API}/statistics/${id}`, { cache: 'no-store' }),
+        fetch(`${API}/statistics/${id}/countries`, { cache: 'no-store' })
+      ]);
+      if (!s.ok || !c.ok) throw new Error(`Ошибка API: statistics ${s.status}, countries ${c.status}`);
+      const sd = await s.json();
+      const cd = await c.json();
+      if (!sd.success || !cd.success) throw new Error('Backend вернул ошибку статистики');
+      setStats((sd.statistics || []).map((r: Stat) => ({
+        date: r.date, clicks: Number(r.clicks || 0), conversions: Number(r.conversions || 0), income: Number(r.income || 0)
+      })));
+      setCountries((cd.countries || []).map((r: Country) => ({
+        country_code: r.country_code, country_name: r.country_name, clicks: Number(r.clicks || 0),
+        conversions: Number(r.conversions || 0), income: Number(r.income || 0)
+      })));
+      if (refresh) triggerHaptic.success();
+    } catch (e) {
+      console.error(e);
+      setError(e instanceof Error ? e.message : 'Ошибка загрузки аналитики');
+      if (refresh) triggerHaptic.error();
+    } finally {
+      setLoading(false); setRefreshing(false);
+    }
+  }, []);
 
-  const handleFilterChange = (filter: 'today' | 'yesterday' | '7days' | '30days' | 'all') => {
-    triggerHaptic.lightImpact();
-    setActiveFilter(filter);
-  };
+  useEffect(() => { void load(); }, [load]);
 
-  const handleRefresh = () => {
-    triggerHaptic.mediumImpact();
-    setIsRefreshing(true);
-    
-    setTimeout(() => {
-      setIsRefreshing(false);
-      triggerHaptic.success();
-    }, 800);
-  };
+  const rows = useMemo(() => stats.filter(r => inPeriod(r.date, filter)), [stats, filter]);
+  const data = useMemo(() => {
+    const clicks = rows.reduce((a, r) => a + r.clicks, 0);
+    const conversions = rows.reduce((a, r) => a + r.conversions, 0);
+    const income = rows.reduce((a, r) => a + r.income, 0);
+    return {
+      clicks, conversions, income,
+      cr: clicks ? conversions / clicks * 100 : 0,
+      epc: clicks ? income / clicks : 0,
+      ...chartPaths(rows)
+    };
+  }, [rows]);
 
-  const renderTrend = (value: number) => {
-    const isPositive = value >= 0;
-    return (
-      <span className={`inline-flex items-center text-[9px] font-bold px-2 py-0.5 rounded-app-xs gap-1.5 shrink-0 border ${
-        isPositive 
-          ? 'text-success bg-success/10 border-success/20 shadow-[0_0_10px_rgba(34,197,94,0.15)]' 
-          : 'text-error bg-error/10 border-error/20 shadow-[0_0_10px_rgba(239,68,68,0.15)]'
-      }`}>
-        {isPositive ? <ArrowUpRight size={10} className="drop-shadow-[0_0_4px_#22C55E]" /> : <ArrowDownRight size={10} className="drop-shadow-[0_0_4px_#EF4444]" />}
-        {isPositive ? '+' : ''}{value}%
-      </span>
-    );
-  };
+  const filters: { key: Filter; label: string }[] = [
+    { key: 'today', label: 'Сегодня' }, { key: 'yesterday', label: 'Вчера' },
+    { key: '7days', label: '7 дней' }, { key: '30days', label: '30 дней' },
+    { key: 'all', label: 'Все время' }
+  ];
+
+  const metric = (title: string, value: React.ReactNode, icon: React.ReactNode, sub?: string) => (
+    <Card padding="sm" className="flex flex-col justify-between gap-3 min-h-[106px] border-white/5 shadow-glass-inner">
+      <div className="flex items-center justify-between text-textSecondary">
+        <span className="text-[10px] font-bold uppercase tracking-wider">{title}</span>
+        <div className="w-7 h-7 rounded-full bg-accentPurple/10 border border-accentPurple/20 flex items-center justify-center text-accentPurple">{icon}</div>
+      </div>
+      <div className="flex flex-col">
+        <span className="text-lg font-bold text-white tracking-tight">{value}</span>
+        {sub && <span className="text-[9px] text-textSecondary font-semibold mt-0.5">{sub}</span>}
+      </div>
+    </Card>
+  );
 
   return (
-    // Заменили внешние отступы p-16 (64px) на адаптивные p-4 (16px), а gap-20 на gap-4
     <div className="flex flex-col gap-4 p-4 select-none pb-32 animate-fade-in">
-      
-      {/* Шапка раздела */}
       <div className="flex items-center justify-between text-left">
         <div className="flex flex-col">
           <span className="text-[10px] text-textSecondary font-bold uppercase tracking-wider">Платформа VVD CPA</span>
           <h1 className="text-2xl font-bold text-white mt-1">Анализ трафика</h1>
         </div>
-        
-        {/* Кнопка обновления */}
-        <button 
-          onClick={handleRefresh}
-          className={`w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary active:scale-95 transition-all duration-200 shadow-glass-inner ${
-            isRefreshing ? 'animate-spin text-accentPurple' : 'hover:text-textPrimary'
-          }`}
-        >
-          <RefreshCw size={16} />
+        <button onClick={() => void load(true)} disabled={refreshing}
+          className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary active:scale-95 transition-all shadow-glass-inner">
+          <RefreshCw size={16} className={refreshing ? 'animate-spin text-accentPurple' : ''} />
         </button>
       </div>
 
-      {/* Горизонтальные вкладки дат */}
+      {error && <Card padding="sm" className="border-error/30"><p className="text-xs text-error">{error}</p></Card>}
+
       <div className="flex bg-bgCard/35 backdrop-blur-md border border-white/[0.04] rounded-app-xs p-2 gap-2 overflow-x-auto no-scrollbar scrollable-container shadow-glass-inner">
-        <button
-          onClick={() => handleFilterChange('today')}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-app-xs transition-all duration-300 whitespace-nowrap shrink-0 ${
-            activeFilter === 'today' ? 'bg-accent-gradient text-white shadow-glow-purple' : 'text-textSecondary hover:text-textPrimary'
-          }`}
-        >
-          Сегодня
-        </button>
-        <button
-          onClick={() => handleFilterChange('yesterday')}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-app-xs transition-all duration-300 whitespace-nowrap shrink-0 ${
-            activeFilter === 'yesterday' ? 'bg-accent-gradient text-white shadow-glow-purple' : 'text-textSecondary hover:text-textPrimary'
-          }`}
-        >
-          Вчера
-        </button>
-        <button
-          onClick={() => handleFilterChange('7days')}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-app-xs transition-all duration-300 whitespace-nowrap shrink-0 ${
-            activeFilter === '7days' ? 'bg-accent-gradient text-white shadow-glow-purple' : 'text-textSecondary hover:text-textPrimary'
-          }`}
-        >
-          7 дней
-        </button>
-        <button
-          onClick={() => handleFilterChange('30days')}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-app-xs transition-all duration-300 whitespace-nowrap shrink-0 ${
-            activeFilter === '30days' ? 'bg-accent-gradient text-white shadow-glow-purple' : 'text-textSecondary hover:text-textPrimary'
-          }`}
-        >
-          30 дней
-        </button>
-        <button
-          onClick={() => handleFilterChange('all')}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-app-xs transition-all duration-300 whitespace-nowrap shrink-0 ${
-            activeFilter === 'all' ? 'bg-accent-gradient text-white shadow-glow-purple' : 'text-textSecondary hover:text-textPrimary'
-          }`}
-        >
-          Все время
-        </button>
+        {filters.map(x => <button key={x.key} onClick={() => { triggerHaptic.lightImpact(); setFilter(x.key); }}
+          className={`px-3 py-1.5 text-xs font-semibold rounded-app-xs transition-all whitespace-nowrap shrink-0 ${filter === x.key ? 'bg-accent-gradient text-white shadow-glow-purple' : 'text-textSecondary hover:text-textPrimary'}`}>
+          {x.label}
+        </button>)}
       </div>
 
-      {/* Векторный график (Заменили внутренние отступы с 64px до 16px) */}
       <Card variant="default" padding="none" className="relative flex flex-col p-4 overflow-hidden h-[230px] justify-between shadow-premium">
         <div className="flex items-center justify-between text-left">
           <span className="text-xs font-bold text-white">Динамика прибыли</span>
-          <span className="text-[10px] text-textSecondary">Интервал: {activeFilter === 'today' ? '24 часа' : 'Динамика периода'}</span>
+          <span className="text-[10px] text-textSecondary">{loading ? 'Загрузка...' : `${rows.length} записей`}</span>
         </div>
-
-        {/* Тело SVG графика (Заменили mt-16 на mt-4) */}
         <div className="w-full h-[120px] relative mt-4">
           <svg className="w-full h-full" viewBox="0 0 400 150" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#7C3AED" stopOpacity="0.25" />
-                <stop offset="100%" stopColor="#7C3AED" stopOpacity="0.0" />
-              </linearGradient>
-
-              <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="5" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-
+            <defs><linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#7C3AED" stopOpacity="0.25" /><stop offset="100%" stopColor="#7C3AED" stopOpacity="0" />
+            </linearGradient></defs>
             <line x1="0" y1="35" x2="400" y2="35" stroke="#374151" strokeOpacity="0.15" strokeDasharray="4" />
             <line x1="0" y1="75" x2="400" y2="75" stroke="#374151" strokeOpacity="0.15" strokeDasharray="4" />
             <line x1="0" y1="115" x2="400" y2="115" stroke="#374151" strokeOpacity="0.15" strokeDasharray="4" />
-
-            <path
-              d={currentData.chartAreaPath}
-              fill="url(#chartGradient)"
-              className="transition-all duration-500 ease-in-out"
-            />
-
-            <path
-              d={currentData.chartPath}
-              fill="none"
-              stroke="#9D4EDD"
-              strokeWidth="4"
-              strokeLinecap="round"
-              filter="url(#neonGlow)"
-              opacity="0.6"
-              className="transition-all duration-500 ease-in-out"
-            />
-
-            <path
-              d={currentData.chartPath}
-              fill="none"
-              stroke="#F8FAFC"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              className="transition-all duration-500 ease-in-out"
-            />
+            <path d={data.area} fill="url(#chartGradient)" />
+            <path d={data.line} fill="none" stroke="#9D4EDD" strokeWidth="4" strokeLinecap="round" opacity="0.6" />
+            <path d={data.line} fill="none" stroke="#F8FAFC" strokeWidth="2.5" strokeLinecap="round" />
           </svg>
         </div>
-
-        {/* Шкала оси X (Заменили pt-12 и mt-4 на pt-3 и mt-1) */}
         <div className="flex justify-between text-[10px] text-textSecondary/80 px-2 border-t border-white/[0.04] pt-3 mt-1 font-semibold">
-          <span>00:00</span>
-          <span>06:00</span>
-          <span>12:00</span>
-          <span>18:00</span>
-          <span>24:00</span>
+          <span>Начало</span><span>25%</span><span>50%</span><span>75%</span><span>Сейчас</span>
         </div>
       </Card>
 
-      {/* Сетка карточек метрик (Заменили gap-12 на gap-3) */}
       <div className="grid grid-cols-2 gap-3 text-left">
-        {/* Клики (Заменили gap-16 на gap-3) */}
-        <Card padding="sm" className="flex flex-col justify-between gap-3 min-h-[106px] border-white/5 shadow-glass-inner">
-          <div className="flex items-center justify-between text-textSecondary">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Клики</span>
-            <div className="w-7 h-7 rounded-full bg-accentPurple/10 border border-accentPurple/20 flex items-center justify-center text-accentPurple shadow-[0_0_10px_rgba(124,58,237,0.1)]">
-              <Eye size={12} />
-            </div>
-          </div>
-          <div className="flex justify-between items-end">
-            <span className="text-lg font-bold text-white tracking-tight">{currentData.clicks.toLocaleString('ru-RU')}</span>
-            {renderTrend(currentData.clicksTrend)}
-          </div>
-        </Card>
+        {metric('Клики', data.clicks.toLocaleString('ru-RU'), <Eye size={12} />)}
+        {metric('Конверсии', data.conversions, <ShieldAlert size={12} />, `CR: ${data.cr.toFixed(2)}%`)}
+        {metric('Доход', `$${data.income.toFixed(2)}`, <Coins size={12} />)}
+        {metric('EPC', `$${data.epc.toFixed(2)}`, <BarChart2 size={12} />)}
+      </div>
 
-        {/* Конверсии / CR (Заменили gap-16 на gap-3) */}
-        <Card padding="sm" className="flex flex-col justify-between gap-3 min-h-[106px] border-white/5 shadow-glass-inner">
-          <div className="flex items-center justify-between text-textSecondary">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Конверсии</span>
-            <div className="w-7 h-7 rounded-full bg-accentPurple/10 border border-accentPurple/20 flex items-center justify-center text-accentPurple shadow-[0_0_10px_rgba(124,58,237,0.1)]">
-              <ShieldAlert size={12} />
-            </div>
-          </div>
-          <div className="flex justify-between items-end">
-            <div className="flex flex-col">
-              <span className="text-lg font-bold text-white tracking-tight">{currentData.conversions}</span>
-              <span className="text-[9px] text-textSecondary font-semibold mt-0.5">CR: {currentData.cr}</span>
-            </div>
-            {renderTrend(currentData.conversionsTrend)}
-          </div>
-        </Card>
-
-        {/* Доход (gap-16 на gap-3) */}
-        <Card padding="sm" className="flex flex-col justify-between gap-3 min-h-[106px] border-white/5 shadow-glass-inner">
-          <div className="flex items-center justify-between text-textSecondary">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Доход</span>
-            <div className="w-7 h-7 rounded-full bg-success/10 border border-success/20 flex items-center justify-center text-success shadow-[0_0_10px_rgba(34,197,94,0.1)]">
-              <Coins size={12} />
-            </div>
-          </div>
-          <div className="flex justify-between items-end">
-            <span className="text-lg font-bold text-white tracking-tight">${currentData.income.toLocaleString('ru-RU', { minimumFractionDigits: 2 })}</span>
-            {renderTrend(currentData.incomeTrend)}
-          </div>
-        </Card>
-
-        {/* EPC (gap-16 на gap-3) */}
-        <Card padding="sm" className="flex flex-col justify-between gap-16 min-h-[106px] border-white/5 shadow-glass-inner">
-          <div className="flex items-center justify-between text-textSecondary">
-            <span className="text-[10px] font-bold uppercase tracking-wider">EPC</span>
-            <div className="w-7 h-7 rounded-full bg-accentPurple/10 border border-accentPurple/20 flex items-center justify-center text-accentPurple shadow-[0_0_10px_rgba(124,58,237,0.1)]">
-              <BarChart2 size={12} />
-            </div>
-          </div>
-          <div className="flex justify-between items-end">
-            <span className="text-lg font-bold text-white tracking-tight">${currentData.epc.toFixed(2)}</span>
-            {renderTrend(currentData.epcTrend)}
-          </div>
+      <div className="flex flex-col gap-3 text-left">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-white">Страны</h2>
+          <span className="text-[10px] text-textSecondary">{countries.length} стран</span>
+        </div>
+        <Card padding="none" className="overflow-hidden border-white/5 shadow-glass-inner">
+          {!countries.length ? <div className="p-4 text-xs text-textSecondary">Статистика по странам пока отсутствует</div> :
+            countries.map((c, i) => {
+              const cr = c.clicks ? c.conversions / c.clicks * 100 : 0;
+              return <div key={`${c.country_code}-${i}`} className="flex items-center justify-between p-4 border-b border-white/[0.04] last:border-b-0">
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold text-white">{c.country_name || c.country_code}</span>
+                  <span className="text-[10px] text-textSecondary mt-1">{c.country_code} · {c.clicks.toLocaleString('ru-RU')} кликов · CR {cr.toFixed(2)}%</span>
+                </div>
+                <div className="flex flex-col items-end">
+                  <span className="text-sm font-bold text-success">${c.income.toFixed(2)}</span>
+                  <span className="text-[10px] text-textSecondary mt-1">{c.conversions} конв.</span>
+                </div>
+              </div>;
+            })}
         </Card>
       </div>
     </div>
