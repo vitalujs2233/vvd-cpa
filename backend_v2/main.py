@@ -1,8 +1,13 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy import text
 from database import check_database, save_user, engine
+
+import json
+import urllib.request
+import uuid
 
 app = FastAPI(
     title="VVD CPA Backend V2",
@@ -106,7 +111,7 @@ async def get_smartlink(telegram_id: int, vertical: str):
     links = {
 
         "adult":
-        f"https://tone.affomelody.com/click?pid=12519&offer_id=25&sub1={partner_code}",
+        f"https://vvd-cpa-v2.onrender.com/go/{telegram_id}/adult",
 
         "mainstream":
         f"https://MAINSTREAM_LINK&sub1={partner_code}",
@@ -137,6 +142,160 @@ async def get_smartlink(telegram_id: int, vertical: str):
         "partner_code": partner_code,
         "smartlink": smartlink
     }
+
+
+@app.get("/go/{telegram_id}/{vertical}")
+async def track_click(telegram_id: int, vertical: str, request: Request):
+
+    with engine.connect() as conn:
+        user = conn.execute(
+            text("""
+                SELECT partner_code
+                FROM users
+                WHERE telegram_id = :telegram_id
+            """),
+            {"telegram_id": telegram_id}
+        ).fetchone()
+
+        if not user:
+            return {"success": False, "message": "User not found"}
+
+        partner_code = user.partner_code
+        click_id = str(uuid.uuid4())
+
+        forwarded_for = request.headers.get("x-forwarded-for")
+        ip_address = (
+            forwarded_for.split(",")[0].strip()
+            if forwarded_for
+            else (request.client.host if request.client else "")
+        )
+
+        country_code = "UNKNOWN"
+        country_name = "Неизвестно"
+
+        try:
+            with urllib.request.urlopen(
+                f"https://ipwho.is/{ip_address}",
+                timeout=3
+            ) as response:
+                geo_data = json.loads(response.read().decode("utf-8"))
+
+            if geo_data.get("success"):
+                country_code = geo_data.get("country_code") or "UNKNOWN"
+                country_name = geo_data.get("country") or "Неизвестно"
+        except Exception as geo_error:
+            print("GEO detection error:", geo_error)
+
+        country_row = conn.execute(
+            text("""
+                SELECT country_code
+                FROM country_statistics
+                WHERE user_id = :user_id
+                AND country_code = :country_code
+                AND date = CURRENT_DATE
+            """),
+            {
+                "user_id": telegram_id,
+                "country_code": country_code
+            }
+        ).fetchone()
+
+        if country_row:
+            conn.execute(
+                text("""
+                    UPDATE country_statistics
+                    SET clicks = clicks + 1,
+                        country_name = :country_name
+                    WHERE user_id = :user_id
+                    AND country_code = :country_code
+                    AND date = CURRENT_DATE
+                """),
+                {
+                    "user_id": telegram_id,
+                    "country_code": country_code,
+                    "country_name": country_name
+                }
+            )
+        else:
+            conn.execute(
+                text("""
+                    INSERT INTO country_statistics
+                    (
+                        user_id, country_code, country_name,
+                        date, clicks, conversions, income
+                    )
+                    VALUES
+                    (
+                        :user_id, :country_code, :country_name,
+                        CURRENT_DATE, 1, 0, 0
+                    )
+                """),
+                {
+                    "user_id": telegram_id,
+                    "country_code": country_code,
+                    "country_name": country_name
+                }
+            )
+
+        stats = conn.execute(
+            text("""
+                SELECT id
+                FROM statistics
+                WHERE user_id = :user_id
+                AND date = CURRENT_DATE
+            """),
+            {"user_id": telegram_id}
+        ).fetchone()
+
+        if stats:
+            conn.execute(
+                text("""
+                    UPDATE statistics
+                    SET clicks = clicks + 1
+                    WHERE user_id = :user_id
+                    AND date = CURRENT_DATE
+                """),
+                {"user_id": telegram_id}
+            )
+        else:
+            conn.execute(
+                text("""
+                    INSERT INTO statistics
+                    (user_id, date, clicks, conversions, income)
+                    VALUES (:user_id, CURRENT_DATE, 1, 0, 0)
+                """),
+                {"user_id": telegram_id}
+            )
+
+        conn.commit()
+
+    links = {
+        "adult":
+        f"https://tone.affomelody.com/click?pid=12519&offer_id=25&sub1={partner_code}&sub2={click_id}",
+
+        "mainstream":
+        f"https://MAINSTREAM_LINK&sub1={partner_code}&sub2={click_id}",
+
+        "nutra":
+        f"https://NUTRA_LINK&sub1={partner_code}&sub2={click_id}",
+
+        "crypto":
+        f"https://CRYPTO_LINK&sub1={partner_code}&sub2={click_id}",
+
+        "gaming":
+        f"https://GAMING_LINK&sub1={partner_code}&sub2={click_id}",
+
+        "utilities":
+        f"https://UTILITIES_LINK&sub1={partner_code}&sub2={click_id}",
+    }
+
+    target_url = links.get(vertical)
+
+    if not target_url:
+        return {"success": False, "message": "Unknown vertical"}
+
+    return RedirectResponse(url=target_url, status_code=302)
+
 
 @app.get("/balance/{telegram_id}")
 async def get_balance(telegram_id: int):
