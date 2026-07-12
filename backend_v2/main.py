@@ -371,3 +371,39 @@ async def get_statistics(telegram_id: int):
             for row in stats
         ]
     }
+@app.get("/statistics/{telegram_id}/countries")
+async def get_country_statistics(telegram_id: int):
+
+    with engine.connect() as conn:
+
+        countries = conn.execute(
+            text("""
+                SELECT
+                    country_code,
+                    country_name,
+                    SUM(clicks) AS clicks,
+                    SUM(conversions) AS conversions,
+                    SUM(income) AS income
+                FROM country_statistics
+                WHERE user_id = :telegram_id
+                GROUP BY country_code, country_name
+                ORDER BY income DESC
+            """),
+            {
+                "telegram_id": telegram_id
+            }
+        ).fetchall()
+
+    return {
+        "success": True,
+        "countries": [
+            {
+                "country_code": row.country_code,
+                "country_name": row.country_name,
+                "clicks": int(row.clicks or 0),
+                "conversions": int(row.conversions or 0),
+                "income": float(row.income or 0)
+            }
+            for row in countries
+        ]
+    }
