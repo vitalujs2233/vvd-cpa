@@ -348,6 +348,22 @@ async def postback_adult(
             "message": "transaction_id is required"
         }
 
+    # Traforce:
+    # 1 = Принято
+    # 2 = В обработке
+    # 3 = Отклонено
+    # 5 = Холд
+    if status not in (1, 2, 3, 5):
+        return {
+            "success": False,
+            "message": f"Unknown Traforce status: {status}"
+        }
+
+    SERVICE_FEE_RATE = 0.20
+    payout_gross = round(float(payout or 0), 2)
+    service_fee = round(payout_gross * SERVICE_FEE_RATE, 2)
+    payout_net = round(payout_gross - service_fee, 2)
+
     with engine.connect() as conn:
 
         user = conn.execute(
@@ -376,22 +392,29 @@ async def postback_adult(
             {"transaction_id": transaction_id}
         ).fetchone()
 
-        SERVICE_FEE_RATE = 0.20
-        payout_gross = round(float(payout or 0), 2)
-        service_fee = round(payout_gross * SERVICE_FEE_RATE, 2)
-        payout_net = round(payout_gross - service_fee, 2)
-
         old_status = int(existing.status) if existing else 0
-        old_payout = float(existing.payout_net or 0) if existing else 0.0
+        old_payout_net = round(float(existing.payout_net or 0), 2) if existing else 0.0
 
-        old_confirmed_income = old_payout if old_status == 1 else 0.0
+        # Сколько старая версия конверсии занимала в HOLD/BALANCE
+        old_hold_amount = old_payout_net if old_status == 5 else 0.0
+        old_balance_amount = old_payout_net if old_status == 1 else 0.0
+
+        # Сколько новая версия конверсии должна занимать в HOLD/BALANCE
+        new_hold_amount = payout_net if status == 5 else 0.0
+        new_balance_amount = payout_net if status == 1 else 0.0
+
+        hold_delta = round(new_hold_amount - old_hold_amount, 2)
+        balance_delta = round(new_balance_amount - old_balance_amount, 2)
+
+        # В статистике доход и конверсия считаются только после status=1.
+        old_confirmed_income = old_payout_net if old_status == 1 else 0.0
         new_confirmed_income = payout_net if status == 1 else 0.0
 
         conversion_delta = (
             (1 if status == 1 else 0)
             - (1 if old_status == 1 else 0)
         )
-        income_delta = new_confirmed_income - old_confirmed_income
+        income_delta = round(new_confirmed_income - old_confirmed_income, 2)
 
         if existing:
             conn.execute(
@@ -448,6 +471,24 @@ async def postback_adult(
                     "payout_net": payout_net,
                     "status": str(status),
                     "transaction_id": transaction_id
+                }
+            )
+
+        # Главная финансовая логика.
+        # Повторный одинаковый postback ничего второй раз не начислит.
+        if hold_delta != 0 or balance_delta != 0:
+            conn.execute(
+                text("""
+                    UPDATE users
+                    SET
+                        hold = GREATEST(0, COALESCE(hold, 0) + :hold_delta),
+                        balance = GREATEST(0, COALESCE(balance, 0) + :balance_delta)
+                    WHERE telegram_id = :user_id
+                """),
+                {
+                    "user_id": telegram_id,
+                    "hold_delta": hold_delta,
+                    "balance_delta": balance_delta
                 }
             )
 
@@ -572,18 +613,6 @@ async def postback_adult(
                         }
                     )
 
-            conn.execute(
-                text("""
-                    UPDATE users
-                    SET balance = GREATEST(0, balance + :income_delta)
-                    WHERE telegram_id = :user_id
-                """),
-                {
-                    "user_id": telegram_id,
-                    "income_delta": income_delta
-                }
-            )
-
         conn.commit()
 
     return {
@@ -601,6 +630,9 @@ async def postback_adult(
         "transaction_id": transaction_id,
         "date": date,
         "geo": geo,
+        "old_status": old_status,
+        "hold_delta": hold_delta,
+        "balance_delta": balance_delta,
         "conversion_delta": conversion_delta,
         "income_delta": income_delta
     }
