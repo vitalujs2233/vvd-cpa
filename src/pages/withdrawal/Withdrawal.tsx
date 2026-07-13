@@ -120,6 +120,12 @@ export const Withdrawal: React.FC = () => {
 
   const handleBackToMain = () => {
     triggerHaptic.lightImpact();
+
+    if (activeSubView === 'history') {
+      handleSubViewChange('withdraw');
+      return;
+    }
+
     navigate('/');
   };
 
@@ -271,7 +277,7 @@ export const Withdrawal: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-4 p-4 select-none pb-32 animate-fade-in">
+    <div className="flex flex-col gap-4 p-4 select-none pb-[45vh] min-h-screen overflow-y-auto overscroll-contain touch-pan-y animate-fade-in">
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 text-left">
@@ -401,6 +407,14 @@ export const Withdrawal: React.FC = () => {
               placeholder="50.00"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
+              onFocus={(e) => {
+                window.setTimeout(() => {
+                  e.currentTarget.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center',
+                  });
+                }, 300);
+              }}
               error={formErrors.amount}
               type="number"
             />
@@ -410,6 +424,14 @@ export const Withdrawal: React.FC = () => {
               placeholder="Введите T-адрес кошелька"
               value={wallet}
               onChange={(e) => setWallet(e.target.value)}
+              onFocus={(e) => {
+                window.setTimeout(() => {
+                  e.currentTarget.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center',
+                  });
+                }, 300);
+              }}
               error={formErrors.wallet}
             />
 
