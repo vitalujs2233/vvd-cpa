@@ -23,14 +23,6 @@ interface AdminUser {
   cr: number;
 }
 
-interface CountryStat {
-  country_code: string;
-  country_name: string;
-  clicks: number;
-  conversions: number;
-  income: number;
-}
-
 export const Admin: React.FC = () => {
   const navigate = useNavigate();
   const currentUser = getTelegramUser();
@@ -38,13 +30,10 @@ export const Admin: React.FC = () => {
   // Привязка прав администратора строго к вашему Telegram ID: 232682307
   const isAdmin = currentUser.id === 232682307;
 
-  const [subView, setSubView] = useState<'menu' | 'users' | 'user'>('menu');
+  const [subView, setSubView] = useState<'menu' | 'users'>('menu');
   const [searchQuery, setSearchQuery] = useState('');
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
-  const [countryStats, setCountryStats] = useState<CountryStat[]>([]);
-  const [userStatsLoading, setUserStatsLoading] = useState(false);
 
   useEffect(() => {
     if (subView !== 'users') return;
@@ -73,39 +62,6 @@ export const Admin: React.FC = () => {
   const handleSubViewChange = (view: 'menu' | 'users') => {
     triggerHaptic.lightImpact();
     setSubView(view);
-  };
-
-  const openUser = async (user: AdminUser) => {
-    triggerHaptic.lightImpact();
-    setSelectedUser(user);
-    setSubView('user');
-    setCountryStats([]);
-    setUserStatsLoading(true);
-
-    try {
-      const [usersResponse, countriesResponse] = await Promise.all([
-        fetch('https://vvd-cpa-v2.onrender.com/admin/users'),
-        fetch(`https://vvd-cpa-v2.onrender.com/statistics/${user.telegram_id}/countries`)
-      ]);
-
-      const usersData = await usersResponse.json();
-      const countriesData = await countriesResponse.json();
-
-      if (usersData.success && Array.isArray(usersData.users)) {
-        const freshUser = usersData.users.find(
-          (item: AdminUser) => item.telegram_id === user.telegram_id
-        );
-        if (freshUser) setSelectedUser(freshUser);
-      }
-
-      if (countriesData.success && Array.isArray(countriesData.countries)) {
-        setCountryStats(countriesData.countries);
-      }
-    } catch (error) {
-      console.error('Ошибка загрузки статистики партнёра:', error);
-    } finally {
-      setUserStatsLoading(false);
-    }
   };
 
   const filteredUsers = useMemo(() => {
@@ -146,7 +102,7 @@ export const Admin: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-4 select-none pb-32 animate-fade-in">
+    <div className="fixed inset-0 z-50 h-[100dvh] min-h-0 overflow-hidden flex flex-col gap-4 p-4 select-none animate-fade-in bg-bgDark">
       
       {/* ================= VIEW 1: ГЛАВНОЕ МЕНЮ АДМИНКИ ================= */}
       {subView === 'menu' && (
@@ -244,7 +200,7 @@ export const Admin: React.FC = () => {
 
       {/* ================= VIEW 2: СПИСОК ПОЛЬЗОВАТЕЛЕЙ ================= */}
       {subView === 'users' && (
-        <div className="flex flex-col gap-4 animate-fade-in">
+        <div className="flex flex-1 min-h-0 flex-col gap-4 animate-fade-in overflow-hidden">
           {/* Шапка */}
           <div className="flex items-center gap-3 text-left">
             <button 
@@ -268,19 +224,14 @@ export const Admin: React.FC = () => {
           />
 
           {/* Таблица пользователей */}
-          <div className="flex flex-col gap-3">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y flex flex-col gap-3 pb-32 pr-1 [-webkit-overflow-scrolling:touch]">
             {usersLoading && adminUsers.length === 0 ? (
               <div className="py-32 text-center text-textSecondary text-xs bg-bgCard/35 border border-white/[0.04] rounded-card backdrop-blur-md">
                 Загрузка пользователей...
               </div>
             ) : filteredUsers.length > 0 ? (
               filteredUsers.map((user) => (
-                <Card
-                  key={user.telegram_id}
-                  padding="sm"
-                  className="flex flex-col gap-3 text-left hover-lift cursor-pointer active:scale-[0.99] transition-transform"
-                  onClick={() => openUser(user)}
-                >
+                <Card key={user.telegram_id} padding="sm" className="flex flex-col gap-3 text-left hover-lift">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-10 h-10 rounded-full bg-accentPurple/10 border border-accentPurple/25 flex items-center justify-center text-accentPurple shrink-0">
@@ -313,97 +264,6 @@ export const Admin: React.FC = () => {
             ) : (
               <div className="py-32 text-center text-textSecondary text-xs bg-bgCard/35 border border-white/[0.04] rounded-card backdrop-blur-md">
                 Пользователи не найдены
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ================= VIEW 3: КАРТОЧКА ПАРТНЁРА ================= */}
-      {subView === 'user' && selectedUser && (
-        <div className="flex flex-col gap-4 animate-fade-in">
-          <div className="flex items-center gap-3 text-left">
-            <button
-              onClick={() => { triggerHaptic.lightImpact(); setSubView('users'); }}
-              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform shadow-glass-inner"
-            >
-              <ArrowLeft size={18} />
-            </button>
-            <div className="flex flex-col">
-              <span className="text-[10px] text-accentPurple font-bold uppercase tracking-wider">Партнёр</span>
-              <h1 className="text-xl font-bold text-white leading-none mt-0.5">
-                {`${selectedUser.first_name || ''} ${selectedUser.last_name || ''}`.trim() || 'Без имени'}
-              </h1>
-            </div>
-          </div>
-
-          <Card padding="md" className="flex flex-col gap-3 text-left border-accentPurple/10">
-            <div>
-              <span className="text-[9px] text-textSecondary uppercase block">Partner / SUB1</span>
-              <span className="text-lg font-bold text-accentPurple">{selectedUser.partner_code || 'Код не присвоен'}</span>
-            </div>
-            <div className="grid grid-cols-2 gap-3 border-t border-white/[0.05] pt-3">
-              <div>
-                <span className="text-[8px] text-textSecondary uppercase block">Telegram ID</span>
-                <span className="text-xs font-bold text-white">{selectedUser.telegram_id}</span>
-              </div>
-              <div>
-                <span className="text-[8px] text-textSecondary uppercase block">Username</span>
-                <span className="text-xs font-bold text-white">{selectedUser.username ? `@${selectedUser.username}` : '—'}</span>
-              </div>
-            </div>
-          </Card>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Card padding="sm" className="text-left">
-              <span className="text-[8px] text-textSecondary uppercase block">Клики</span>
-              <span className="text-xl font-bold text-white">{selectedUser.clicks}</span>
-            </Card>
-            <Card padding="sm" className="text-left">
-              <span className="text-[8px] text-textSecondary uppercase block">Конверсии</span>
-              <span className="text-xl font-bold text-white">{selectedUser.conversions}</span>
-            </Card>
-            <Card padding="sm" className="text-left">
-              <span className="text-[8px] text-textSecondary uppercase block">Доход</span>
-              <span className="text-xl font-bold text-success">${selectedUser.income.toFixed(2)}</span>
-            </Card>
-            <Card padding="sm" className="text-left">
-              <span className="text-[8px] text-textSecondary uppercase block">CR</span>
-              <span className="text-xl font-bold text-white">{selectedUser.cr.toFixed(2)}%</span>
-            </Card>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between px-1">
-              <span className="text-xs font-bold text-white">География трафика</span>
-              <span className="text-[9px] text-textSecondary">{countryStats.length} стран</span>
-            </div>
-
-            {userStatsLoading ? (
-              <div className="py-16 text-center text-textSecondary text-xs">Загрузка статистики...</div>
-            ) : countryStats.length > 0 ? (
-              countryStats.map((country) => {
-                const cr = country.clicks > 0 ? (country.conversions / country.clicks) * 100 : 0;
-                return (
-                  <Card key={`${country.country_code}-${country.country_name}`} padding="sm" className="text-left">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-white">{country.country_name || country.country_code}</span>
-                        <span className="text-[9px] text-textSecondary">{country.country_code}</span>
-                      </div>
-                      <span className="text-xs font-bold text-success">${country.income.toFixed(2)}</span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 border-t border-white/[0.05] pt-3 mt-3">
-                      <div><span className="text-[8px] text-textSecondary uppercase block">Клики</span><span className="text-xs font-bold text-white">{country.clicks}</span></div>
-                      <div><span className="text-[8px] text-textSecondary uppercase block">Конверсии</span><span className="text-xs font-bold text-white">{country.conversions}</span></div>
-                      <div><span className="text-[8px] text-textSecondary uppercase block">CR</span><span className="text-xs font-bold text-white">{cr.toFixed(2)}%</span></div>
-                    </div>
-                  </Card>
-                );
-              })
-            ) : (
-              <div className="py-16 text-center text-textSecondary text-xs bg-bgCard/35 border border-white/[0.04] rounded-card">
-                У партнёра пока нет географической статистики
               </div>
             )}
           </div>
