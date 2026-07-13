@@ -61,6 +61,13 @@ class TelegramUser(BaseModel):
     photo_url: str | None = None
 
 
+class WithdrawalRequest(BaseModel):
+    telegram_id: int
+    amount: float
+    payment_method: str
+    wallet: str
+
+
 @app.post("/auth")
 async def auth(user: TelegramUser):
     save_user(
@@ -793,3 +800,170 @@ async def admin_users():
             for row in users
         ]
     }
+
+# ==================== WITHDRAWALS ====================
+
+@app.post("/withdrawals")
+async def create_withdrawal(data: WithdrawalRequest):
+    amount = round(float(data.amount or 0), 2)
+    method = data.payment_method.strip()
+    wallet = data.wallet.strip()
+
+    if amount <= 0:
+        return {"success": False, "message": "Amount must be greater than 0"}
+    if not method or not wallet:
+        return {"success": False, "message": "Payment method and wallet are required"}
+
+    with engine.begin() as conn:
+        user = conn.execute(text("""
+            SELECT telegram_id, balance FROM users
+            WHERE telegram_id = :id FOR UPDATE
+        """), {"id": data.telegram_id}).fetchone()
+
+        if not user:
+            return {"success": False, "message": "User not found"}
+
+        available = round(float(user.balance or 0), 2)
+        if amount > available:
+            return {"success": False, "message": "Insufficient available balance", "available": available}
+
+        row = conn.execute(text("""
+            INSERT INTO withdrawals
+            (user_id, amount, payment_method, wallet, status, created_at)
+            VALUES (:uid, :amount, :method, :wallet, 'pending', NOW())
+            RETURNING id, created_at
+        """), {
+            "uid": data.telegram_id,
+            "amount": amount,
+            "method": method,
+            "wallet": wallet
+        }).fetchone()
+
+        conn.execute(text("""
+            UPDATE users SET balance = balance - :amount
+            WHERE telegram_id = :uid
+        """), {"amount": amount, "uid": data.telegram_id})
+
+    return {
+        "success": True,
+        "withdrawal_id": int(row.id),
+        "amount": amount,
+        "status": "pending",
+        "created_at": str(row.created_at)
+    }
+
+
+@app.get("/withdrawals/{telegram_id}")
+async def get_withdrawals(telegram_id: int):
+    with engine.connect() as conn:
+        rows = conn.execute(text("""
+            SELECT id, amount, payment_method, wallet,
+                   status, created_at, processed_at
+            FROM withdrawals
+            WHERE user_id = :uid
+            ORDER BY created_at DESC
+        """), {"uid": telegram_id}).fetchall()
+
+    return {
+        "success": True,
+        "withdrawals": [{
+            "id": int(r.id),
+            "amount": float(r.amount or 0),
+            "payment_method": r.payment_method,
+            "wallet": r.wallet,
+            "status": r.status,
+            "created_at": str(r.created_at),
+            "processed_at": str(r.processed_at) if r.processed_at else None
+        } for r in rows]
+    }
+
+
+@app.get("/admin/withdrawals")
+async def admin_withdrawals(status: str | None = None):
+    with engine.connect() as conn:
+        rows = conn.execute(text("""
+            SELECT w.id, w.user_id, w.amount, w.payment_method,
+                   w.wallet, w.status, w.created_at, w.processed_at,
+                   u.partner_code, u.first_name, u.last_name, u.username
+            FROM withdrawals w
+            LEFT JOIN users u ON u.telegram_id = w.user_id
+            WHERE (:status IS NULL OR w.status = :status)
+            ORDER BY CASE WHEN w.status = 'pending' THEN 0 ELSE 1 END,
+                     w.created_at ASC
+        """), {"status": status}).fetchall()
+
+    return {
+        "success": True,
+        "withdrawals": [{
+            "id": int(r.id),
+            "telegram_id": int(r.user_id),
+            "partner_code": r.partner_code,
+            "first_name": r.first_name,
+            "last_name": r.last_name,
+            "username": r.username,
+            "amount": float(r.amount or 0),
+            "payment_method": r.payment_method,
+            "wallet": r.wallet,
+            "status": r.status,
+            "created_at": str(r.created_at),
+            "processed_at": str(r.processed_at) if r.processed_at else None
+        } for r in rows]
+    }
+
+
+@app.post("/admin/withdrawals/{withdrawal_id}/paid")
+async def mark_withdrawal_paid(withdrawal_id: int):
+    with engine.begin() as conn:
+        row = conn.execute(text("""
+            SELECT id, user_id, amount, status
+            FROM withdrawals WHERE id = :id FOR UPDATE
+        """), {"id": withdrawal_id}).fetchone()
+
+        if not row:
+            return {"success": False, "message": "Withdrawal not found"}
+        if row.status != "pending":
+            return {"success": False, "message": f"Already processed: {row.status}"}
+
+        conn.execute(text("""
+            UPDATE withdrawals
+            SET status = 'paid', processed_at = NOW()
+            WHERE id = :id
+        """), {"id": withdrawal_id})
+
+        conn.execute(text("""
+            UPDATE users
+            SET withdrawn = COALESCE(withdrawn, 0) + :amount
+            WHERE telegram_id = :uid
+        """), {"amount": row.amount, "uid": row.user_id})
+
+    return {"success": True, "withdrawal_id": withdrawal_id,
+            "status": "paid", "amount": float(row.amount or 0)}
+
+
+@app.post("/admin/withdrawals/{withdrawal_id}/reject")
+async def reject_withdrawal(withdrawal_id: int):
+    with engine.begin() as conn:
+        row = conn.execute(text("""
+            SELECT id, user_id, amount, status
+            FROM withdrawals WHERE id = :id FOR UPDATE
+        """), {"id": withdrawal_id}).fetchone()
+
+        if not row:
+            return {"success": False, "message": "Withdrawal not found"}
+        if row.status != "pending":
+            return {"success": False, "message": f"Already processed: {row.status}"}
+
+        conn.execute(text("""
+            UPDATE withdrawals
+            SET status = 'rejected', processed_at = NOW()
+            WHERE id = :id
+        """), {"id": withdrawal_id})
+
+        conn.execute(text("""
+            UPDATE users
+            SET balance = COALESCE(balance, 0) + :amount
+            WHERE telegram_id = :uid
+        """), {"amount": row.amount, "uid": row.user_id})
+
+    return {"success": True, "withdrawal_id": withdrawal_id,
+            "status": "rejected", "amount_returned": float(row.amount or 0)}
