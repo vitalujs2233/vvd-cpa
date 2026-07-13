@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Search, Heart, Sparkles, Pill, Coins, Gamepad2, 
+  Search, Heart, Sparkles, Video, Coins, Gamepad2, 
   Smartphone, ChevronRight, Star 
+   
 } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Input } from '@/shared/ui/Input';
@@ -12,7 +13,7 @@ interface OfferCategory {
   id: string;
   title: string;
   offersCount: number;
-  iconName: 'heart' | 'sparkles' | 'pill' | 'coins' | 'gamepad' | 'smartphone';
+  iconName: 'heart' | 'sparkles' | 'video' | 'coins' | 'gamepad' | 'smartphone';
   isTop: boolean;
   isNew: boolean;
   colorClass: string;
@@ -38,14 +39,14 @@ const CATEGORIES_DATA: OfferCategory[] = [
     colorClass: 'text-warning bg-warning/10 border-warning/25 shadow-[0_0_15px_rgba(245,158,11,0.15)]',
   },
   {
-    id: 'nutra',
-    title: 'Nutra',
-    offersCount: 80,
-    iconName: 'pill',
-    isTop: true,
-    isNew: false,
-    colorClass: 'text-success bg-success/10 border-success/25 shadow-[0_0_15px_rgba(34,197,94,0.15)]',
-  },
+  id: 'webcam',
+  title: 'Web Cam',
+  offersCount: 80,
+  iconName: 'video',
+  isTop: true,
+  isNew: false,
+  colorClass: 'text-success bg-success/10 border-success/25 shadow-[0_0_15px_rgba(34,197,94,0.15)]',
+},
   {
     id: 'crypto',
     title: 'Crypto',
@@ -94,7 +95,7 @@ export const Offers: React.FC = () => {
     switch (name) {
       case 'heart': return <Heart {...iconProps} />;
       case 'sparkles': return <Sparkles {...iconProps} />;
-      case 'pill': return <Pill {...iconProps} />;
+      case 'video': return <Video {...iconProps} />;
       case 'coins': return <Coins {...iconProps} />;
       case 'gamepad': return <Gamepad2 {...iconProps} />;
       case 'smartphone': return <Smartphone {...iconProps} />;
