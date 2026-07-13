@@ -277,7 +277,13 @@ export const Withdrawal: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-4 p-4 select-none pb-[45vh] min-h-screen overflow-y-auto overscroll-contain touch-pan-y animate-fade-in">
+    <div
+      className="flex flex-col gap-4 p-4 select-none pb-[45vh] h-[100dvh] min-h-0 overflow-y-scroll overscroll-contain touch-pan-y animate-fade-in"
+      style={{
+        WebkitOverflowScrolling: 'touch',
+        overflowAnchor: 'none',
+      }}
+    >
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 text-left">
