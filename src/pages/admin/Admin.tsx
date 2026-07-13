@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Users, Layers, CreditCard, Newspaper, 
@@ -11,17 +11,19 @@ import { Input } from '@/shared/ui/Input';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
 
 interface AdminUser {
-  id: string;
-  name: string;
-  status: 'active' | 'inactive';
+  telegram_id: number;
+  partner_code: string | null;
+  first_name: string;
+  last_name: string;
+  username: string;
+  status: string;
+  clicks: number;
+  conversions: number;
+  income: number;
+  cr: number;
 }
 
-const ADMIN_USERS_MOCK: AdminUser[] = [
-  { id: '232682307', name: 'Виталий lv', status: 'active' }, // Обновили демо-данные под ваш ID
-  { id: '12E457', name: 'Jane Smith', status: 'active' },
-  { id: '123458', name: 'Mike Johnson', status: 'active' },
-  { id: '123459', name: 'Sarah Wilson', status: 'active' },
-];
+
 
 export const Admin: React.FC = () => {
   const navigate = useNavigate();
@@ -32,6 +34,38 @@ export const Admin: React.FC = () => {
 
   const [subView, setSubView] = useState<'menu' | 'users'>('menu');
   const [searchQuery, setSearchQuery] = useState('');
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+const [usersLoading, setUsersLoading] = useState(false);
+
+useEffect(() => {
+  if (subView !== 'users') return;
+
+  const loadUsers = async () => {
+    try {
+      setUsersLoading(true);
+
+      const response = await fetch(
+        'https://vvd-cpa-v2.onrender.com/admin/users'
+      );
+
+      const data = await response.json();
+
+      if (data.success && Array.isArray(data.users)) {
+        setAdminUsers(data.users);
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки пользователей:', error);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  loadUsers();
+
+  const interval = window.setInterval(loadUsers, 10000);
+
+  return () => window.clearInterval(interval);
+}, [subView]);
 
   const handleBackToProfile = () => {
     triggerHaptic.lightImpact();
@@ -44,11 +78,22 @@ export const Admin: React.FC = () => {
   };
 
   const filteredUsers = useMemo(() => {
-    return ADMIN_USERS_MOCK.filter(user => 
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      user.id.toLowerCase().includes(searchQuery.toLowerCase())
+  const query = searchQuery.toLowerCase().trim();
+
+  return adminUsers.filter(user => {
+    const fullName = `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
+    const partnerCode = (user.partner_code || '').toLowerCase();
+    const username = (user.username || '').toLowerCase();
+    const telegramId = String(user.telegram_id);
+
+    return (
+      fullName.includes(query) ||
+      partnerCode.includes(query) ||
+      username.includes(query) ||
+      telegramId.includes(query)
     );
-  }, [searchQuery]);
+  });
+}, [adminUsers, searchQuery]);
 
   if (!isAdmin) {
     return (
