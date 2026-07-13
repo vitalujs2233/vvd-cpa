@@ -146,7 +146,18 @@ export const Admin: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-4 select-none pb-32 animate-fade-in">
+    <div
+      className="flex flex-col gap-4 p-4 select-none pb-32 animate-fade-in"
+      style={{
+        height: '100dvh',
+        minHeight: 0,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch',
+        touchAction: 'pan-y',
+        overscrollBehaviorY: 'contain',
+      }}
+    >
       
       {/* ================= VIEW 1: ГЛАВНОЕ МЕНЮ АДМИНКИ ================= */}
       {subView === 'menu' && (
