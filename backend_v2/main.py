@@ -139,7 +139,7 @@ async def get_smartlink(telegram_id: int, vertical: str):
         f"https://vvd-cpa-v2.onrender.com/go/{partner_code}/adult",
 
         "mainstream":
-        f"https://MAINSTREAM_LINK&sub1={partner_code}",
+        f"https://vvd-cpa-v2.onrender.com/go/{partner_code}/mainstream",
 
         "nutra":
         f"https://NUTRA_LINK&sub1={partner_code}",
