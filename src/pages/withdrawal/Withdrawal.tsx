@@ -5,7 +5,6 @@ import {
   History,
   Wallet,
   ChevronRight,
-  ArrowUpRight,
   Coins,
   Clock3,
   CheckCircle2,
@@ -42,6 +41,7 @@ export const Withdrawal: React.FC = () => {
   const [wallet, setWallet] = useState('');
 
   const [available, setAvailable] = useState(0);
+  const [partnerCode, setPartnerCode] = useState('');
   const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -74,16 +74,32 @@ export const Withdrawal: React.FC = () => {
     try {
       setIsLoading(true);
 
-      const [balanceResponse, withdrawalsResponse] =
+      const [balanceResponse, partnerResponse] =
         await Promise.all([
           fetch(`${API_URL}/balance/${telegramId}`),
-          fetch(`${API_URL}/withdrawals/${telegramId}`),
+          fetch(`${API_URL}/smartlink/${telegramId}/adult`),
         ]);
 
       const balanceData = await balanceResponse.json();
-      const withdrawalsData = await withdrawalsResponse.json();
+      const partnerData = await partnerResponse.json();
 
       setAvailable(Number(balanceData.available || 0));
+
+      const resolvedPartnerCode = String(
+        partnerData.partner_code || ''
+      ).trim();
+
+      if (!resolvedPartnerCode) {
+        throw new Error('Не удалось определить партнерский код');
+      }
+
+      setPartnerCode(resolvedPartnerCode);
+
+      const withdrawalsResponse = await fetch(
+        `${API_URL}/withdrawals/${encodeURIComponent(resolvedPartnerCode)}`
+      );
+
+      const withdrawalsData = await withdrawalsResponse.json();
 
       setWithdrawals(
         Array.isArray(withdrawalsData.withdrawals)
@@ -133,8 +149,8 @@ export const Withdrawal: React.FC = () => {
 
     const parsedAmount = Number(amount);
 
-    if (!telegramId) {
-      errors.amount = 'Не удалось определить пользователя Telegram';
+    if (!partnerCode) {
+      errors.amount = 'Не удалось определить партнерский код';
     } else if (
       !Number.isFinite(parsedAmount) ||
       parsedAmount < MIN_WITHDRAWAL
@@ -172,7 +188,7 @@ export const Withdrawal: React.FC = () => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            telegram_id: telegramId,
+            partner_code: partnerCode,
             amount: parsedAmount,
             payment_method: 'USDT TRC20',
             wallet: wallet.trim(),
