@@ -663,6 +663,204 @@ async def postback_adult(
     }
 
 
+@app.get("/postback/traffcore")
+async def postback_traffcore(
+    partner_code: str,
+    click_id: str = "",
+    sum: float = 0,
+    goal: str = "",
+    geo: str = "",
+    transaction_id: str = ""
+):
+    partner_code = (partner_code or "").strip().upper()
+    payout_gross = round(float(sum or 0), 2)
+
+    if not partner_code:
+        return {"success": False, "message": "partner_code is required"}
+
+    if payout_gross <= 0:
+        return {"success": False, "message": "sum must be greater than 0"}
+
+    source_transaction_id = (
+        (transaction_id or "").strip()
+        or (click_id or "").strip()
+    )
+
+    if not source_transaction_id:
+        return {
+            "success": False,
+            "message": "transaction_id or click_id is required"
+        }
+
+    conversion_id = f"traffcore:{source_transaction_id}"
+    SERVICE_FEE_RATE = 0.20
+    service_fee = round(payout_gross * SERVICE_FEE_RATE, 2)
+    payout_net = round(payout_gross - service_fee, 2)
+
+    with engine.begin() as conn:
+        user = conn.execute(
+            text("""
+                SELECT telegram_id
+                FROM users
+                WHERE partner_code = :partner_code
+                FOR UPDATE
+            """),
+            {"partner_code": partner_code}
+        ).fetchone()
+
+        if not user:
+            return {"success": False, "message": "Partner not found"}
+
+        telegram_id = user.telegram_id
+
+        existing = conn.execute(
+            text("""
+                SELECT id
+                FROM conversions
+                WHERE transaction_id = :transaction_id
+            """),
+            {"transaction_id": conversion_id}
+        ).fetchone()
+
+        if existing:
+            return {
+                "success": True,
+                "duplicate": True,
+                "message": "Conversion already processed",
+                "partner_code": partner_code,
+                "transaction_id": conversion_id
+            }
+
+        conn.execute(
+            text("""
+                INSERT INTO conversions (
+                    user_id, click_id, offer_id,
+                    payout_gross, payout_net, status,
+                    transaction_id, created_at
+                )
+                VALUES (
+                    :user_id, :click_id, :offer_id,
+                    :payout_gross, :payout_net, '1',
+                    :transaction_id, NOW()
+                )
+            """),
+            {
+                "user_id": telegram_id,
+                "click_id": click_id,
+                "offer_id": goal,
+                "payout_gross": payout_gross,
+                "payout_net": payout_net,
+                "transaction_id": conversion_id
+            }
+        )
+
+        conn.execute(
+            text("""
+                UPDATE users
+                SET balance = COALESCE(balance, 0) + :payout_net
+                WHERE partner_code = :partner_code
+            """),
+            {"payout_net": payout_net, "partner_code": partner_code}
+        )
+
+        stats = conn.execute(
+            text("""
+                SELECT id FROM statistics
+                WHERE user_id = :user_id AND date = CURRENT_DATE
+            """),
+            {"user_id": telegram_id}
+        ).fetchone()
+
+        if stats:
+            conn.execute(
+                text("""
+                    UPDATE statistics
+                    SET conversions = conversions + 1,
+                        income = income + :payout_net
+                    WHERE user_id = :user_id AND date = CURRENT_DATE
+                """),
+                {"user_id": telegram_id, "payout_net": payout_net}
+            )
+        else:
+            conn.execute(
+                text("""
+                    INSERT INTO statistics
+                    (user_id, date, clicks, conversions, income)
+                    VALUES (:user_id, CURRENT_DATE, 0, 1, :payout_net)
+                """),
+                {"user_id": telegram_id, "payout_net": payout_net}
+            )
+
+        geo_value = (geo or "").strip().upper()
+
+        if geo_value:
+            country_stat = conn.execute(
+                text("""
+                    SELECT country_code
+                    FROM country_statistics
+                    WHERE user_id = :user_id
+                    AND date = CURRENT_DATE
+                    AND UPPER(country_code) = UPPER(:geo)
+                    LIMIT 1
+                """),
+                {"user_id": telegram_id, "geo": geo_value}
+            ).fetchone()
+
+            if country_stat:
+                conn.execute(
+                    text("""
+                        UPDATE country_statistics
+                        SET conversions = conversions + 1,
+                            income = income + :payout_net
+                        WHERE user_id = :user_id
+                        AND date = CURRENT_DATE
+                        AND country_code = :country_code
+                    """),
+                    {
+                        "user_id": telegram_id,
+                        "country_code": country_stat.country_code,
+                        "payout_net": payout_net
+                    }
+                )
+            else:
+                conn.execute(
+                    text("""
+                        INSERT INTO country_statistics
+                        (
+                            user_id, country_code, country_name,
+                            date, clicks, conversions, income
+                        )
+                        VALUES
+                        (
+                            :user_id, :country_code, :country_name,
+                            CURRENT_DATE, 0, 1, :payout_net
+                        )
+                    """),
+                    {
+                        "user_id": telegram_id,
+                        "country_code": geo_value,
+                        "country_name": geo_value,
+                        "payout_net": payout_net
+                    }
+                )
+
+    return {
+        "success": True,
+        "network": "traffcore",
+        "partner_code": partner_code,
+        "telegram_id": telegram_id,
+        "click_id": click_id,
+        "goal": goal,
+        "geo": geo,
+        "payout_gross": payout_gross,
+        "service_fee": service_fee,
+        "payout_net": payout_net,
+        "status": 1,
+        "transaction_id": conversion_id,
+        "credited_to": "balance"
+    }
+
+
 @app.get("/statistics/{telegram_id}")
 async def get_statistics(telegram_id: int):
 
