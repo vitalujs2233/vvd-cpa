@@ -1,426 +1,534 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { 
-  ArrowLeft, History, Wallet, CheckCircle2, XCircle, 
-  ChevronRight, ArrowUpRight, HelpCircle, Coins 
+import {
+  ArrowLeft,
+  History,
+  Wallet,
+  ChevronRight,
+  ArrowUpRight,
+  Coins,
+  Clock3,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
+
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { Input } from '@/shared/ui/Input';
 import { triggerHaptic } from '@/shared/lib/telegram';
 
-interface Transaction {
-  id: string;
-  amount: number;
-  method: string;
-  address: string;
-  txId: string;
-  date: string;
-  status: 'completed' | 'declined';
-}
+const API_URL = 'https://vvd-cpa-v2.onrender.com';
+const MIN_WITHDRAWAL = 50;
 
-const TRANSACTIONS_MOCK: Transaction[] = [
-  {
-    id: 'tx-1',
-    amount: 100.00,
-    method: 'USDT TRC20',
-    address: 'TQDwtZe8F2Jz9nttz2W11m78abc901234',
-    txId: '0x123f99f1a23e5e78',
-    date: '25.05.2024 12:30',
-    status: 'completed',
-  },
-  {
-    id: 'tx-2',
-    amount: 200.00,
-    method: 'USDT TRC20',
-    address: 'TQDwtZe8F2Jz9nttz2W11m78abc901234',
-    txId: '0x456da2...8b99',
-    date: '18.05.2024 18:10',
-    status: 'completed',
-  },
-  {
-    id: 'tx-3',
-    amount: 150.00,
-    method: 'USDT TRC20',
-    address: 'TQDwtZe8F2Jz9nttz2W11m78abc901234',
-    txId: '0x789cb4f1a23e1a23',
-    date: '10.05.2024 15:45',
-    status: 'completed',
-  },
-  {
-    id: 'tx-4',
-    amount: 50.00,
-    method: 'USDT TRC20',
-    address: 'TQDwtZe8F2Jz9nttz2W11m78abc901234',
-    txId: '—',
-    date: '03.05.2024 09:15',
-    status: 'declined',
-  },
-];
+interface WithdrawalItem {
+  id: number;
+  amount: number;
+  payment_method: string;
+  wallet: string;
+  status: 'pending' | 'paid' | 'rejected';
+  created_at: string;
+  processed_at: string | null;
+}
 
 export const Withdrawal: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  
-  const [activeSubView, setActiveSubView] = useState<'withdraw' | 'history' | 'receipt'>('withdraw');
-  
-  const [amount, setAmount] = useState('100.00');
-  const [wallet, setWallet] = useState('TQD9wtZe8F2Jz9nttz2W11m78abc901234');
-  const [formErrors, setFormErrors] = useState<{ amount?: string; wallet?: string }>({});
+
+  const [activeSubView, setActiveSubView] = useState<
+    'withdraw' | 'history'
+  >('withdraw');
+
+  const [amount, setAmount] = useState('');
+  const [wallet, setWallet] = useState('');
+
+  const [available, setAvailable] = useState(0);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>([]);
+
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+
+  const [formErrors, setFormErrors] = useState<{
+    amount?: string;
+    wallet?: string;
+  }>({});
+
+  const telegramId =
+    window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
 
   useEffect(() => {
-    const tabParam = searchParams.get('tab');
-    if (tabParam === 'history') {
+    const tab = searchParams.get('tab');
+
+    if (tab === 'history') {
       setActiveSubView('history');
     } else {
       setActiveSubView('withdraw');
     }
   }, [searchParams]);
 
+  const loadData = async () => {
+    if (!telegramId) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      const [balanceResponse, withdrawalsResponse] =
+        await Promise.all([
+          fetch(`${API_URL}/balance/${telegramId}`),
+          fetch(`${API_URL}/withdrawals/${telegramId}`),
+        ]);
+
+      const balanceData = await balanceResponse.json();
+      const withdrawalsData = await withdrawalsResponse.json();
+
+      setAvailable(Number(balanceData.available || 0));
+
+      setWithdrawals(
+        Array.isArray(withdrawalsData.withdrawals)
+          ? withdrawalsData.withdrawals
+          : []
+      );
+    } catch (error) {
+      console.error('Withdrawal load error:', error);
+      triggerHaptic.error();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [telegramId]);
+
   const handleBackToMain = () => {
     triggerHaptic.lightImpact();
     navigate('/');
   };
 
-  const handleSubViewChange = (view: 'withdraw' | 'history') => {
+  const handleSubViewChange = (
+    view: 'withdraw' | 'history'
+  ) => {
     triggerHaptic.lightImpact();
+
     setActiveSubView(view);
-    setSearchParams(view === 'history' ? { tab: 'history' } : {});
+
+    setSearchParams(
+      view === 'history'
+        ? { tab: 'history' }
+        : {}
+    );
+
+    if (view === 'history') {
+      loadData();
+    }
   };
 
-  const handleWithdrawSubmit = () => {
-    const errors: { amount?: string; wallet?: string } = {};
-    const parsedAmount = parseFloat(amount);
+  const handleWithdrawSubmit = async () => {
+    const errors: {
+      amount?: string;
+      wallet?: string;
+    } = {};
 
-    if (isNaN(parsedAmount) || parsedAmount < 10) {
-      errors.amount = 'Минимальная сумма вывода составляет $10';
-    } else if (parsedAmount > 154.50) {
-      errors.amount = 'Недостаточно средств. Максимальный баланс: $154.50';
+    const parsedAmount = Number(amount);
+
+    if (!telegramId) {
+      errors.amount = 'Не удалось определить пользователя Telegram';
+    } else if (
+      !Number.isFinite(parsedAmount) ||
+      parsedAmount < MIN_WITHDRAWAL
+    ) {
+      errors.amount = `Минимальная сумма вывода $${MIN_WITHDRAWAL}`;
+    } else if (parsedAmount > available) {
+      errors.amount =
+        `Недостаточно средств. Доступно $${available.toFixed(2)}`;
     }
 
-    if (!wallet.startsWith('T') || wallet.length < 30) {
-      errors.wallet = 'Укажите корректный адрес USDT TRC20 (начинается с T)';
+    if (
+      !wallet.startsWith('T') ||
+      wallet.length < 30
+    ) {
+      errors.wallet =
+        'Укажите корректный адрес USDT TRC20';
     }
 
     if (Object.keys(errors).length > 0) {
-      triggerHaptic.error();
       setFormErrors(errors);
+      triggerHaptic.error();
       return;
     }
 
-    setFormErrors({});
-    setIsSubmitting(true);
-    triggerHaptic.mediumImpact();
+    try {
+      setFormErrors({});
+      setIsSubmitting(true);
+      triggerHaptic.mediumImpact();
 
-    setTimeout(() => {
-      setIsSubmitting(false);
+      const response = await fetch(
+        `${API_URL}/withdrawals`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            telegram_id: telegramId,
+            amount: parsedAmount,
+            payment_method: 'USDT TRC20',
+            wallet: wallet.trim(),
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(
+          data.message || 'Ошибка создания заявки'
+        );
+      }
+
       triggerHaptic.success();
-      
-      const newTx: Transaction = {
-        id: `tx-new-${Date.now()}`,
-        amount: parsedAmount,
-        method: 'USDT TRC20',
-        address: wallet,
-        txId: '0x' + Math.random().toString(16).slice(2, 10) + 'f1a23e' + Math.random().toString(16).slice(2, 6),
-        date: new Date().toLocaleString('ru-RU', { hour12: false }).replace(',', ''),
-        status: 'completed',
+
+      setAmount('');
+
+      await loadData();
+
+      setActiveSubView('history');
+      setSearchParams({ tab: 'history' });
+    } catch (error) {
+      console.error('Withdrawal submit error:', error);
+
+      triggerHaptic.error();
+
+      setFormErrors({
+        amount:
+          error instanceof Error
+            ? error.message
+            : 'Ошибка создания заявки',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const formatDate = (date: string) => {
+    if (!date) return '—';
+
+    const parsedDate = new Date(date);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return date;
+    }
+
+    return parsedDate.toLocaleString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getStatus = (status: WithdrawalItem['status']) => {
+    if (status === 'paid') {
+      return {
+        label: 'Выплачено',
+        className: 'text-success',
+        icon: <CheckCircle2 size={16} />,
       };
-      
-      setSelectedTx(newTx);
-      setActiveSubView('receipt');
-    }, 1500);
-  };
+    }
 
-  const handleSelectTransaction = (tx: Transaction) => {
-    triggerHaptic.lightImpact();
-    setSelectedTx(tx);
-    setActiveSubView('receipt');
-  };
+    if (status === 'rejected') {
+      return {
+        label: 'Отклонено',
+        className: 'text-error',
+        icon: <XCircle size={16} />,
+      };
+    }
 
-  const handleCloseReceipt = () => {
-    triggerHaptic.lightImpact();
-    setSelectedTx(null);
-    setActiveSubView('history');
+    return {
+      label: 'Ожидает выплаты',
+      className: 'text-accentPurple',
+      icon: <Clock3 size={16} />,
+    };
   };
 
   return (
-    // Заменили внешние отступы p-16 (64px) на адаптивные p-4 (16px), а gap-20 на gap-4
     <div className="flex flex-col gap-4 p-4 select-none pb-32 animate-fade-in">
-      
-      {/* Шапка раздела с переключателями */}
-      {activeSubView !== 'receipt' ? (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 text-left">
-            <button 
-              onClick={handleBackToMain}
-              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform shadow-glass-inner"
-            >
-              <ArrowLeft size={18} />
-            </button>
-            <div className="flex flex-col">
-              <span className="text-[10px] text-accentPurple font-bold uppercase tracking-wider">Финансы</span>
-              <h1 className="text-xl font-bold text-white leading-none mt-0.5">Выплаты</h1>
-            </div>
-          </div>
 
-          {/* Табы переключения */}
-          <div className="flex bg-bgCard/35 backdrop-blur-md border border-white/[0.04] rounded-app-xs p-2 gap-2 h-11 items-center shadow-glass-inner">
-            <button 
-              onClick={() => handleSubViewChange('withdraw')}
-              className={`p-2 rounded-app-xs transition-all duration-200 ${
-                activeSubView === 'withdraw' 
-                  ? 'bg-accent-gradient text-white shadow-glow-purple/40 scale-105' 
-                  : 'text-textSecondary hover:text-textPrimary'
-              }`}
-            >
-              <Wallet size={16} />
-            </button>
-            <button 
-              onClick={() => handleSubViewChange('history')}
-              className={`p-2 rounded-app-xs transition-all duration-200 ${
-                activeSubView === 'history' 
-                  ? 'bg-accent-gradient text-white shadow-glow-purple/40 scale-105' 
-                  : 'text-textSecondary hover:text-textPrimary'
-              }`}
-            >
-              <History size={16} />
-            </button>
-          </div>
-        </div>
-      ) : (
-        /* Шапка для Экрана Чека (Квитанции) */
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 text-left">
-          <button 
-            onClick={handleCloseReceipt}
-            className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform shadow-glass-inner"
+
+          <button
+            onClick={handleBackToMain}
+            className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary active:scale-95 transition-transform"
           >
             <ArrowLeft size={18} />
           </button>
+
           <div className="flex flex-col">
-            <span className="text-[10px] text-accentPurple font-bold uppercase tracking-wider">Квитанция</span>
-            <h1 className="text-xl font-bold text-white leading-none mt-0.5">Детали выплаты</h1>
+            <span className="text-[10px] text-accentPurple font-bold uppercase tracking-wider">
+              Финансы
+            </span>
+
+            <h1 className="text-xl font-bold text-white leading-none mt-0.5">
+              Выплаты
+            </h1>
           </div>
         </div>
-      )}
 
-      {/* ================= VIEW 1: ФОРМА ВЫВОДА ================= */}
+        <div className="flex bg-bgCard/35 border border-white/[0.04] rounded-app-xs p-2 gap-2 h-11 items-center">
+
+          <button
+            onClick={() => handleSubViewChange('withdraw')}
+            className={`p-2 rounded-app-xs ${
+              activeSubView === 'withdraw'
+                ? 'bg-accent-gradient text-white'
+                : 'text-textSecondary'
+            }`}
+          >
+            <Wallet size={16} />
+          </button>
+
+          <button
+            onClick={() => handleSubViewChange('history')}
+            className={`p-2 rounded-app-xs ${
+              activeSubView === 'history'
+                ? 'bg-accent-gradient text-white'
+                : 'text-textSecondary'
+            }`}
+          >
+            <History size={16} />
+          </button>
+
+        </div>
+      </div>
+
       {activeSubView === 'withdraw' && (
-        // Заменили gap-16 (64px) на плотный gap-4 (16px)
         <div className="flex flex-col gap-4 animate-fade-in">
-          {/* Сводка балансов */}
-          <Card padding="md" className="text-left flex flex-col gap-3 border-white/5 shadow-glass-inner bg-white/[0.01]">
+
+          <Card
+            padding="md"
+            className="text-left flex flex-col gap-3 border-white/5 bg-white/[0.01]"
+          >
             <div className="flex justify-between items-center text-xs">
-              <span className="text-textSecondary font-semibold uppercase tracking-wider">Доступно к выводу</span>
-              <span className="font-bold text-success">$154.50</span>
+
+              <span className="text-textSecondary font-semibold uppercase tracking-wider">
+                Доступно к выводу
+              </span>
+
+              <span className="font-bold text-success">
+                {isLoading
+                  ? '...'
+                  : `$${available.toFixed(2)}`}
+              </span>
+
             </div>
+
             <div className="h-[1px] bg-gray-800/40 w-full" />
+
             <div className="flex justify-between items-center text-xs">
-              <span className="text-textSecondary font-semibold">Минимальная сумма</span>
-              <span className="font-bold text-white">$10.00</span>
+
+              <span className="text-textSecondary font-semibold">
+                Минимальная сумма
+              </span>
+
+              <span className="font-bold text-white">
+                ${MIN_WITHDRAWAL.toFixed(2)}
+              </span>
+
             </div>
           </Card>
 
-          {/* Платежный шлюз */}
           <div className="text-left flex flex-col gap-2">
-            <span className="text-xs font-bold text-white px-2">Платежный шлюз</span>
-            <Card padding="md" className="flex items-center justify-between border-success/20 bg-success/[0.02] shadow-[0_0_15px_rgba(34,197,94,0.05)]">
+
+            <span className="text-xs font-bold text-white px-2">
+              Платежный шлюз
+            </span>
+
+            <Card
+              padding="md"
+              className="flex items-center justify-between border-success/20 bg-success/[0.02]"
+            >
+
               <div className="flex items-center gap-3">
+
                 <div className="w-10 h-10 rounded-app-xs bg-success/10 border border-success/20 flex items-center justify-center text-success">
                   <Coins size={18} />
                 </div>
+
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-white">USDT TRC20</span>
-                  <span className="text-[9px] text-textSecondary font-semibold mt-0.5">Криптовалютный протокол TRON</span>
+
+                  <span className="text-xs font-bold text-white">
+                    USDT TRC20
+                  </span>
+
+                  <span className="text-[9px] text-textSecondary font-semibold mt-0.5">
+                    Криптовалютный протокол TRON
+                  </span>
+
                 </div>
               </div>
-              <span className="text-[9px] text-success font-bold uppercase tracking-widest px-2 py-0.5 bg-success/10 border border-success/20 rounded-app-xs">Сеть активна</span>
+
+              <span className="text-[9px] text-success font-bold uppercase tracking-widest px-2 py-0.5 bg-success/10 border border-success/20 rounded-app-xs">
+                Сеть активна
+              </span>
+
             </Card>
           </div>
 
-          {/* Поля ввода (Заменили gap-12 на gap-3) */}
           <div className="flex flex-col gap-3">
-            <Input 
+
+            <Input
               label="Сумма вывода ($)"
-              placeholder="100.00"
+              placeholder="50.00"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               error={formErrors.amount}
               type="number"
             />
 
-            <Input 
+            <Input
               label="Адрес кошелька (USDT TRC20)"
               placeholder="Введите T-адрес кошелька"
               value={wallet}
               onChange={(e) => setWallet(e.target.value)}
               error={formErrors.wallet}
             />
+
           </div>
 
-          {/* Прозрачный расчет комиссии */}
-          <Card padding="md" className="flex flex-col gap-2 text-left bg-white/[0.01] border-white/5 shadow-glass-inner">
+          <Card
+            padding="md"
+            className="flex flex-col gap-2 text-left bg-white/[0.01] border-white/5"
+          >
+
             <div className="flex justify-between items-center text-xs">
-              <span className="text-textSecondary">Итого к зачислению</span>
-              <span className="font-bold text-white">{amount || '0.00'} USDT</span>
+
+              <span className="text-textSecondary">
+                Сумма заявки
+              </span>
+
+              <span className="font-bold text-white">
+                {amount || '0.00'} USDT
+              </span>
+
             </div>
+
             <div className="flex justify-between items-center text-xs">
-              <span className="text-textSecondary">Системная комиссия</span>
-              <span className="font-bold text-success">0 USDT (Бесплатно)</span>
+
+              <span className="text-textSecondary">
+                Системная комиссия
+              </span>
+
+              <span className="font-bold text-success">
+                0 USDT
+              </span>
+
             </div>
+
           </Card>
 
-          {/* Большая успешная кнопка */}
-          <Button 
-            variant="success" 
-            size="lg" 
+          <Button
+            variant="success"
+            size="lg"
             isLoading={isSubmitting}
             onClick={handleWithdrawSubmit}
           >
-            Подтвердить перевод
+            Подать заявку на выплату
           </Button>
-          
+
           <span className="text-[10px] text-textSecondary/60 leading-relaxed text-center">
-            Обработка транзакции занимает до 24 часов. Средства отправляются нативно по блокчейн-сети.
+            Заявки на выплату обрабатываются один раз в неделю.
+            После подачи заявки сумма резервируется с доступного баланса.
           </span>
+
         </div>
       )}
 
-      {/* ================= VIEW 2: ИСТОРИЯ ВЫПЛАТ ================= */}
       {activeSubView === 'history' && (
-        // Заменили gap-12 на плотный gap-3
         <div className="flex flex-col gap-3 animate-fade-in">
-          {TRANSACTIONS_MOCK.map((tx) => (
-            <Card 
-              key={tx.id} 
-              clickable 
-              padding="sm"
-              onClick={() => handleSelectTransaction(tx)}
-              className="flex items-center justify-between text-left hover-lift"
-            >
-              <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center border ${
-                  tx.status === 'completed' 
-                    ? 'text-success bg-success/10 border-success/20 shadow-[0_0_10px_rgba(34,197,94,0.1)]' 
-                    : 'text-error bg-error/10 border-error/20 shadow-[0_0_10px_rgba(239,68,68,0.1)]'
-                }`}>
-                  <ArrowUpRight size={16} />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-white">{tx.method}</span>
-                  <span className="text-[9px] text-textSecondary mt-1">{tx.date}</span>
-                </div>
-              </div>
 
-              <div className="flex items-center gap-3">
-                <div className="flex flex-col items-end">
-                  <span className={`text-xs font-bold ${tx.status === 'completed' ? 'text-success' : 'text-error'}`}>
-                    {tx.status === 'completed' ? '+' : '-'}${tx.amount.toFixed(2)}
-                  </span>
-                  <span className={`text-[8px] font-bold uppercase tracking-wider mt-0.5 ${
-                    tx.status === 'completed' ? 'text-success/80' : 'text-error/80'
-                  }`}>
-                    {tx.status === 'completed' ? 'Завершено' : 'Отклонено'}
-                  </span>
-                </div>
-                <ChevronRight size={16} className="text-gray-600" />
-              </div>
-            </Card>
-          ))}
+          {isLoading && (
+            <div className="text-xs text-textSecondary text-center py-10">
+              Загрузка выплат...
+            </div>
+          )}
+
+          {!isLoading && withdrawals.length === 0 && (
+            <div className="text-xs text-textSecondary text-center py-10">
+              История выплат пока пуста
+            </div>
+          )}
+
+          {!isLoading &&
+            withdrawals.map((tx) => {
+              const status = getStatus(tx.status);
+
+              return (
+                <Card
+                  key={tx.id}
+                  padding="sm"
+                  className="flex items-center justify-between text-left"
+                >
+
+                  <div className="flex items-center gap-3">
+
+                    <div
+                      className={`w-9 h-9 rounded-full flex items-center justify-center border border-white/10 ${status.className}`}
+                    >
+                      {status.icon}
+                    </div>
+
+                    <div className="flex flex-col">
+
+                      <span className="text-xs font-bold text-white">
+                        {tx.payment_method}
+                      </span>
+
+                      <span className="text-[9px] text-textSecondary mt-1">
+                        {formatDate(tx.created_at)}
+                      </span>
+
+                      <span className="text-[8px] text-textSecondary mt-0.5 truncate max-w-[180px]">
+                        {tx.wallet}
+                      </span>
+
+                    </div>
+
+                  </div>
+
+                  <div className="flex items-center gap-3">
+
+                    <div className="flex flex-col items-end">
+
+                      <span className="text-xs font-bold text-white">
+                        ${tx.amount.toFixed(2)}
+                      </span>
+
+                      <span
+                        className={`text-[8px] font-bold uppercase tracking-wider mt-0.5 ${status.className}`}
+                      >
+                        {status.label}
+                      </span>
+
+                    </div>
+
+                    <ChevronRight
+                      size={16}
+                      className="text-gray-600"
+                    />
+
+                  </div>
+
+                </Card>
+              );
+            })}
+
         </div>
       )}
 
-      {/* ================= VIEW 3: ДЕТАЛИ ВЫПЛАТЫ (ЧЕК) ================= */}
-      {activeSubView === 'receipt' && selectedTx && (
-        // Заменили gap-16 на gap-4
-        <div className="flex flex-col gap-4 animate-fade-in">
-          
-          {/* Статус чека */}
-          <Card padding="lg" className="flex flex-col items-center justify-center text-center gap-3 border-success/15 bg-success/[0.01] relative overflow-hidden">
-            <div className="absolute inset-0 bg-success/5 blur-3xl rounded-full pointer-events-none" />
-            
-            {selectedTx.status === 'completed' ? (
-              <>
-                <div className="w-16 h-16 rounded-full bg-success/10 border border-success/30 flex items-center justify-center text-success drop-shadow-[0_0_12px_#22C55E] animate-neon-pulse">
-                  <CheckCircle2 size={32} />
-                </div>
-                <div className="flex flex-col z-10 gap-1">
-                  <h2 className="text-lg font-bold text-white leading-tight">Выплата отправлена</h2>
-                  <p className="text-xs text-textSecondary mt-1">Транзакция успешно подтверждена и обработана шлюзом.</p>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="w-16 h-16 rounded-full bg-error/10 border border-error/30 flex items-center justify-center text-error drop-shadow-[0_0_12px_#EF4444] animate-pulse">
-                  <XCircle size={32} />
-                </div>
-                <div className="flex flex-col z-10 gap-1">
-                  <h2 className="text-lg font-bold text-white leading-tight">Выплата отклонена</h2>
-                  <p className="text-xs text-textSecondary mt-1">Пожалуйста, свяжитесь с поддержкой платформы.</p>
-                </div>
-              </>
-            )}
-          </Card>
-
-          {/* Параметры квитанции (Заменили gap-12 на gap-3) */}
-          <Card padding="md" variant="default" className="flex flex-col gap-3 text-left shadow-premium">
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-textSecondary">Сумма транзакции</span>
-              <span className="font-bold text-white">{selectedTx.amount.toFixed(2)} USDT</span>
-            </div>
-            <div className="h-[1px] bg-white/[0.04] w-full" />
-
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-textSecondary">Метод перевода</span>
-              <span className="font-bold text-white">{selectedTx.method}</span>
-            </div>
-            <div className="h-[1px] bg-white/[0.04] w-full" />
-
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-textSecondary">Адрес кошелька</span>
-              <span className="font-mono text-[10px] text-textPrimary select-text truncate max-w-[180px]">
-                {selectedTx.address}
-              </span>
-            </div>
-            <div className="h-[1px] bg-white/[0.04] w-full" />
-
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-textSecondary">TxID хеш блокчейна</span>
-              <span className="font-mono text-[10px] text-accentPurple select-text truncate max-w-[180px] drop-shadow-[0_0_2px_rgba(124,58,237,0.3)]">
-                {selectedTx.txId}
-              </span>
-            </div>
-            <div className="h-[1px] bg-white/[0.04] w-full" />
-
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-textSecondary">Дата создания</span>
-              <span className="font-bold text-white">{selectedTx.date}</span>
-            </div>
-          </Card>
-
-          {/* Кнопки возврата и поддержки (Заменили gap-8 на gap-2) */}
-          <div className="flex flex-col gap-2">
-            <Button 
-              variant="secondary" 
-              size="lg" 
-              onClick={() => { triggerHaptic.lightImpact(); navigate('/chat'); }}
-            >
-              <HelpCircle size={16} className="mr-2 text-textSecondary" />
-              Поддержка транзакции
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              size="md" 
-              onClick={handleCloseReceipt}
-              className="text-xs text-textSecondary"
-            >
-              Вернуться назад
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
