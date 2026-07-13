@@ -141,8 +141,8 @@ async def get_smartlink(telegram_id: int, vertical: str):
         "mainstream":
         f"https://vvd-cpa-v2.onrender.com/go/{partner_code}/mainstream",
 
-        "nutra":
-        f"https://NUTRA_LINK&sub1={partner_code}",
+        "webcam":
+        f"https://vvd-cpa-v2.onrender.com/go/{partner_code}/webcam",
 
         "crypto":
         f"https://CRYPTO_LINK&sub1={partner_code}",
@@ -302,8 +302,9 @@ async def track_click(partner_code: str, vertical: str, request: Request):
         "mainstream":
         f"https://bringsomelove.com/m1xtn8p3?aid=xcPScZTVF&kid=TSYhTYVVY&sub1={partner_code}&sub2={partner_code}&sub3={click_id}",
 
-        "nutra":
-        f"https://NUTRA_LINK&sub1={partner_code}&sub2={click_id}",
+        "webcam":
+        f"https://hotplayhubs.me/q6ZyXz95?aid=xcPScZTVF&kid=TSYSxTFTx&sub1={partner_code}&sub2={partner_code}&sub3={click_id}",
+        
 
         "crypto":
         f"https://CRYPTO_LINK&sub1={partner_code}&sub2={click_id}",
