@@ -300,7 +300,7 @@ async def track_click(partner_code: str, vertical: str, request: Request):
         f"https://tone.affomelody.com/click?pid=12519&offer_id=25&sub1={partner_code}&sub2={click_id}",
 
         "mainstream":
-        f"https://MAINSTREAM_LINK&sub1={partner_code}&sub2={click_id}",
+        f"https://bringsomelove.com/m1xtn8p3?aid=xcPScZTVF&kid=TSYhTYVVY&sub1={partner_code}&sub2={click_id}",
 
         "nutra":
         f"https://NUTRA_LINK&sub1={partner_code}&sub2={click_id}",
