@@ -157,7 +157,7 @@ export const Admin: React.FC = () => {
       setProcessingWithdrawalId(withdrawalId);
 
       const response = await fetch(
-        `https://vvd-cpa-v2.onrender.com/admin/withdrawals/${withdrawalId}/${action}`,
+        `https://vvd-cpa-v2.onrender.com/admin/withdrawals/${withdrawalId}/${action === 'pay' ? 'paid' : 'reject'}`,
         { method: 'POST' }
       );
       const data = await response.json();
