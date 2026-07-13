@@ -376,11 +376,16 @@ async def postback_adult(
             {"transaction_id": transaction_id}
         ).fetchone()
 
+        SERVICE_FEE_RATE = 0.20
+        payout_gross = round(float(payout or 0), 2)
+        service_fee = round(payout_gross * SERVICE_FEE_RATE, 2)
+        payout_net = round(payout_gross - service_fee, 2)
+
         old_status = int(existing.status) if existing else 0
         old_payout = float(existing.payout_net or 0) if existing else 0.0
 
         old_confirmed_income = old_payout if old_status == 1 else 0.0
-        new_confirmed_income = payout if status == 1 else 0.0
+        new_confirmed_income = payout_net if status == 1 else 0.0
 
         conversion_delta = (
             (1 if status == 1 else 0)
@@ -405,8 +410,8 @@ async def postback_adult(
                     "user_id": telegram_id,
                     "click_id": click_id,
                     "offer_id": offer_id,
-                    "payout_gross": payout,
-                    "payout_net": payout,
+                    "payout_gross": payout_gross,
+                    "payout_net": payout_net,
                     "status": str(status),
                     "transaction_id": transaction_id
                 }
@@ -439,8 +444,8 @@ async def postback_adult(
                     "user_id": telegram_id,
                     "click_id": click_id,
                     "offer_id": offer_id,
-                    "payout_gross": payout,
-                    "payout_net": payout,
+                    "payout_gross": payout_gross,
+                    "payout_net": payout_net,
                     "status": str(status),
                     "transaction_id": transaction_id
                 }
@@ -563,7 +568,7 @@ async def postback_adult(
                             "user_id": telegram_id,
                             "country_code": geo_value,
                             "country_name": country_name,
-                            "income": payout
+                            "income": payout_net
                         }
                     )
 
@@ -588,7 +593,10 @@ async def postback_adult(
         "click_id": click_id,
         "offer_id": offer_id,
         "offer_name": offer_name,
-        "payout": payout,
+        "payout": payout_gross,
+        "payout_gross": payout_gross,
+        "service_fee": service_fee,
+        "payout_net": payout_net,
         "status": status,
         "transaction_id": transaction_id,
         "date": date,
