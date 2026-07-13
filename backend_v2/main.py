@@ -677,6 +677,38 @@ async def get_country_statistics(telegram_id: int):
     }
 
 
+@app.get("/admin/finance")
+async def admin_finance():
+
+    with engine.connect() as conn:
+        finance = conn.execute(
+            text("""
+                SELECT
+                    COALESCE(SUM(
+                        CASE WHEN CAST(status AS TEXT) = '1'
+                        THEN payout_gross ELSE 0 END
+                    ), 0) AS gross_income,
+                    COALESCE(SUM(
+                        CASE WHEN CAST(status AS TEXT) = '1'
+                        THEN payout_net ELSE 0 END
+                    ), 0) AS partner_income
+                FROM conversions
+            """)
+        ).fetchone()
+
+    gross_income = round(float(finance.gross_income or 0), 2)
+    partner_income = round(float(finance.partner_income or 0), 2)
+    service_income = round(gross_income - partner_income, 2)
+
+    return {
+        "success": True,
+        "gross_income": gross_income,
+        "partner_income": partner_income,
+        "service_income": service_income,
+        "service_fee_percent": 20
+    }
+
+
 @app.get("/admin/users")
 async def admin_users():
 
