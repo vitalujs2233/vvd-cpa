@@ -1112,6 +1112,14 @@ async def reject_withdrawal(withdrawal_id: int):
             SET balance = COALESCE(balance, 0) + :amount
             WHERE telegram_id = :uid
         """), {"amount": row.amount, "uid": row.user_id})
+            await send_partner_notification(
+        int(row.user_id),
+        (
+            "❌ <b>Заявка на выплату отклонена</b>\n\n"
+            f"Сумма: <b>${float(row.amount or 0):.2f}</b>\n"
+            "Средства возвращены на ваш баланс."
+        )
+    )
 
     return {"success": True, "withdrawal_id": withdrawal_id,
             "status": "rejected", "amount_returned": float(row.amount or 0)}
