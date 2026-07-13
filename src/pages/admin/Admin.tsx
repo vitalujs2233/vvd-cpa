@@ -31,6 +31,13 @@ interface CountryStat {
   income: number;
 }
 
+interface FinanceStat {
+  gross_income: number;
+  partner_income: number;
+  service_income: number;
+  service_fee_percent: number;
+}
+
 export const Admin: React.FC = () => {
   const navigate = useNavigate();
   const currentUser = getTelegramUser();
@@ -45,6 +52,36 @@ export const Admin: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [countryStats, setCountryStats] = useState<CountryStat[]>([]);
   const [userStatsLoading, setUserStatsLoading] = useState(false);
+  const [finance, setFinance] = useState<FinanceStat | null>(null);
+  const [financeLoading, setFinanceLoading] = useState(false);
+
+  useEffect(() => {
+    if (subView !== 'menu') return;
+
+    const loadFinance = async () => {
+      try {
+        setFinanceLoading(true);
+        const response = await fetch('https://vvd-cpa-v2.onrender.com/admin/finance');
+        const data = await response.json();
+        if (data.success) {
+          setFinance({
+            gross_income: Number(data.gross_income || 0),
+            partner_income: Number(data.partner_income || 0),
+            service_income: Number(data.service_income || 0),
+            service_fee_percent: Number(data.service_fee_percent || 20),
+          });
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки финансов VVD:', error);
+      } finally {
+        setFinanceLoading(false);
+      }
+    };
+
+    loadFinance();
+    const interval = window.setInterval(loadFinance, 10000);
+    return () => window.clearInterval(interval);
+  }, [subView]);
 
   useEffect(() => {
     if (subView !== 'users') return;
@@ -185,6 +222,40 @@ export const Admin: React.FC = () => {
               <span className="text-xs font-bold text-white">Администратор: {currentUser.first_name}</span>
               <span className="text-[10px] text-textSecondary mt-0.5">У вас есть полный доступ ко всем функциям управления.</span>
             </div>
+          </Card>
+
+          {/* Финансы VVD */}
+          <Card padding="md" className="flex flex-col gap-3 text-left border-accentPurple/10 bg-accentPurple/[0.02] shadow-premium">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col">
+                <span className="text-[10px] text-accentPurple font-bold uppercase tracking-wider">Финансы VVD</span>
+                <span className="text-xs font-bold text-white mt-0.5">Доход платформы</span>
+              </div>
+              <span className="text-[10px] text-textSecondary font-semibold">
+                Комиссия {finance?.service_fee_percent ?? 20}%
+              </span>
+            </div>
+
+            {financeLoading && !finance ? (
+              <div className="py-5 text-center text-textSecondary text-xs">
+                Загрузка финансов...
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2 border-t border-white/[0.05] pt-3">
+                <div>
+                  <span className="text-[8px] text-textSecondary uppercase block">Traforce Gross</span>
+                  <span className="text-sm font-bold text-white">${(finance?.gross_income ?? 0).toFixed(2)}</span>
+                </div>
+                <div>
+                  <span className="text-[8px] text-textSecondary uppercase block">Партнёрам</span>
+                  <span className="text-sm font-bold text-white">${(finance?.partner_income ?? 0).toFixed(2)}</span>
+                </div>
+                <div>
+                  <span className="text-[8px] text-textSecondary uppercase block">Доход VVD</span>
+                  <span className="text-sm font-bold text-success">${(finance?.service_income ?? 0).toFixed(2)}</span>
+                </div>
+              </div>
+            )}
           </Card>
 
           {/* Навигационная сетка управления */}
