@@ -1,48 +1,62 @@
-import React, { useState, useMemo, useEffect } from 'react'; import {
-useNavigate } from 'react-router-dom'; import { ArrowLeft, Users,
-Layers, CreditCard, Newspaper, BarChart2, Settings, LogOut, Search,
-ShieldAlert, UserCheck } from 'lucide-react'; import { Card } from
-'@/shared/ui/Card'; import { Button } from '@/shared/ui/Button'; import
-{ Input } from '@/shared/ui/Input'; import { getTelegramUser,
-triggerHaptic } from '@/shared/lib/telegram';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { 
+  ArrowLeft, Users, Layers, CreditCard, Newspaper, 
+  BarChart2, Settings, LogOut, Search, ShieldAlert, 
+  UserCheck 
+} from 'lucide-react';
+import { Card } from '@/shared/ui/Card';
+import { Button } from '@/shared/ui/Button';
+import { Input } from '@/shared/ui/Input';
+import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
 
-interface AdminUser { telegram_id: number; partner_code: string | null;
-first_name: string; last_name: string; username: string; status: string;
-clicks: number; conversions: number; income: number; cr: number; }
+interface AdminUser {
+  telegram_id: number;
+  partner_code: string | null;
+  first_name: string;
+  last_name: string;
+  username: string;
+  status: string;
+  clicks: number;
+  conversions: number;
+  income: number;
+  cr: number;
+}
 
-interface CountryStat { country_code: string; country_name: string;
-clicks: number; conversions: number; income: number; }
+interface CountryStat {
+  country_code: string;
+  country_name: string;
+  clicks: number;
+  conversions: number;
+  income: number;
+}
 
-interface FinanceStat { gross_income: number; partner_income: number;
-service_income: number; service_fee_percent: number; }
+interface FinanceStat {
+  gross_income: number;
+  partner_income: number;
+  service_income: number;
+  service_fee_percent: number;
+}
 
-interface Withdrawal { id: number; user_id?: number; partner_code:
-string | null; amount: number; payment_method: string; wallet: string;
-status: string; created_at: string; processed_at: string | null;
-first_name?: string; last_name?: string; username?: string; }
+export const Admin: React.FC = () => {
+  const navigate = useNavigate();
+  const currentUser = getTelegramUser();
 
-export const Admin: React.FC = () => { const navigate = useNavigate();
-const currentUser = getTelegramUser();
+  // Привязка прав администратора строго к вашему Telegram ID: 232682307
+  const isAdmin = currentUser.id === 232682307;
 
-// Привязка прав администратора строго к вашему Telegram ID: 232682307
-const isAdmin = currentUser.id === 232682307;
+  const [subView, setSubView] = useState<'menu' | 'users' | 'user'>('menu');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  const [countryStats, setCountryStats] = useState<CountryStat[]>([]);
+  const [userStatsLoading, setUserStatsLoading] = useState(false);
+  const [finance, setFinance] = useState<FinanceStat | null>(null);
+  const [financeLoading, setFinanceLoading] = useState(false);
 
-const [subView, setSubView] = useState<'menu' | 'users' | 'user' | 'withdrawals'>('menu');
-const [searchQuery, setSearchQuery] = useState('');
-const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
-const [usersLoading, setUsersLoading] = useState(false);
-const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
-const [countryStats, setCountryStats] = useState<CountryStat[]>([]);
-const [userStatsLoading, setUserStatsLoading] = useState(false);
-const [finance, setFinance] = useState<FinanceStat | null>(null);
-const [financeLoading, setFinanceLoading] = useState(false);
-const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
-const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
-const [withdrawalFilter, setWithdrawalFilter] = useState<'all' | 'pending' | 'paid' | 'rejected'>('all');
-const [withdrawalSearch, setWithdrawalSearch] = useState('');
-const [processingWithdrawalId, setProcessingWithdrawalId] = useState<number | null>(null);
-
-useEffect(() => { if (subView !== 'menu') return;
+  useEffect(() => {
+    if (subView !== 'menu') return;
 
     const loadFinance = async () => {
       try {
@@ -67,106 +81,43 @@ useEffect(() => { if (subView !== 'menu') return;
     loadFinance();
     const interval = window.setInterval(loadFinance, 10000);
     return () => window.clearInterval(interval);
+  }, [subView]);
 
-}, [subView]);
-
-useEffect(() => { if (subView !== 'users') return; const loadUsers =
-async () => { try { setUsersLoading(true); const response = await
-fetch('https://vvd-cpa-v2.onrender.com/admin/users'); const data = await
-response.json(); if (data.success && Array.isArray(data.users))
-setAdminUsers(data.users); } catch (error) { console.error('Ошибка
-загрузки пользователей:', error); } finally { setUsersLoading(false); }
-}; loadUsers(); const interval = window.setInterval(loadUsers, 10000);
-return () => window.clearInterval(interval); }, [subView]);
-
-useEffect(() => { if (subView !== 'withdrawals') return;
-
-    const loadWithdrawals = async () => {
+  useEffect(() => {
+    if (subView !== 'users') return;
+    const loadUsers = async () => {
       try {
-        setWithdrawalsLoading(true);
-        const response = await fetch('https://vvd-cpa-v2.onrender.com/admin/withdrawals');
+        setUsersLoading(true);
+        const response = await fetch('https://vvd-cpa-v2.onrender.com/admin/users');
         const data = await response.json();
-        if (data.success && Array.isArray(data.withdrawals)) {
-          setWithdrawals(data.withdrawals);
-        }
+        if (data.success && Array.isArray(data.users)) setAdminUsers(data.users);
       } catch (error) {
-        console.error('Ошибка загрузки выплат:', error);
+        console.error('Ошибка загрузки пользователей:', error);
       } finally {
-        setWithdrawalsLoading(false);
+        setUsersLoading(false);
       }
     };
-
-    loadWithdrawals();
-    const interval = window.setInterval(loadWithdrawals, 10000);
+    loadUsers();
+    const interval = window.setInterval(loadUsers, 10000);
     return () => window.clearInterval(interval);
+  }, [subView]);
 
-}, [subView]);
+  const handleBackToProfile = () => {
+    triggerHaptic.lightImpact();
+    navigate('/profile');
+  };
 
-const processWithdrawal = async (withdrawalId: number, action: 'pay' |
-'reject') => { triggerHaptic.lightImpact();
+  const handleSubViewChange = (view: 'menu' | 'users') => {
+    triggerHaptic.lightImpact();
+    setSubView(view);
+  };
 
-    if (!window.confirm(action === 'pay' ? 'Подтвердить выплату?' : 'Отклонить заявку и вернуть средства?')) {
-      return;
-    }
-
-    try {
-      setProcessingWithdrawalId(withdrawalId);
-      const response = await fetch(
-        `https://vvd-cpa-v2.onrender.com/admin/withdrawals/${withdrawalId}/${action}`,
-        { method: 'POST' }
-      );
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || 'Ошибка обработки заявки');
-      }
-
-      setWithdrawals(prev =>
-        prev.map(item =>
-          item.id === withdrawalId
-            ? {
-                ...item,
-                status: action === 'pay' ? 'paid' : 'rejected',
-                processed_at: new Date().toISOString(),
-              }
-            : item
-        )
-      );
-    } catch (error) {
-      console.error('Ошибка обработки выплаты:', error);
-      window.alert(error instanceof Error ? error.message : 'Ошибка обработки заявки');
-    } finally {
-      setProcessingWithdrawalId(null);
-    }
-
-};
-
-const filteredWithdrawals = useMemo(() => { const query =
-withdrawalSearch.toLowerCase().trim();
-
-    return withdrawals.filter(item => {
-      const matchesStatus = withdrawalFilter === 'all' || item.status === withdrawalFilter;
-      const searchable = [
-        item.partner_code || '',
-        item.wallet || '',
-        item.payment_method || '',
-        String(item.id),
-      ].join(' ').toLowerCase();
-
-      return matchesStatus && searchable.includes(query);
-    });
-
-}, [withdrawals, withdrawalFilter, withdrawalSearch]);
-
-const handleBackToProfile = () => { triggerHaptic.lightImpact();
-navigate('/profile'); };
-
-const handleSubViewChange = (view: 'menu' | 'users' | 'withdrawals') =>
-{ triggerHaptic.lightImpact(); setSubView(view); };
-
-const openUser = async (user: AdminUser) => {
-triggerHaptic.lightImpact(); setSelectedUser(user); setSubView('user');
-setCountryStats([]); setUserStatsLoading(true);
+  const openUser = async (user: AdminUser) => {
+    triggerHaptic.lightImpact();
+    setSelectedUser(user);
+    setSubView('user');
+    setCountryStats([]);
+    setUserStatsLoading(true);
 
     try {
       const [usersResponse, countriesResponse] = await Promise.all([
@@ -192,20 +143,22 @@ setCountryStats([]); setUserStatsLoading(true);
     } finally {
       setUserStatsLoading(false);
     }
+  };
 
-};
+  const filteredUsers = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+    return adminUsers.filter(user => {
+      const fullName = `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
+      return fullName.includes(query) ||
+        (user.partner_code || '').toLowerCase().includes(query) ||
+        (user.username || '').toLowerCase().includes(query) ||
+        String(user.telegram_id).includes(query);
+    });
+  }, [adminUsers, searchQuery]);
 
-const filteredUsers = useMemo(() => { const query =
-searchQuery.toLowerCase().trim(); return adminUsers.filter(user => {
-const fullName =
-${user.first_name || ''} ${user.last_name || ''}.toLowerCase(); return
-fullName.includes(query) || (user.partner_code ||
-'').toLowerCase().includes(query) || (user.username
-||'').toLowerCase().includes(query) ||
-String(user.telegram_id).includes(query); }); }, [adminUsers,
-searchQuery]);
-
-if (!isAdmin) { return (
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center p-4 h-screen bg-bgDark select-none">
         <Card padding="lg" className="flex flex-col items-center gap-4 border-error/15 bg-error/[0.01]">
           <div className="w-16 h-16 rounded-full bg-error/10 border border-error/20 flex items-center justify-center text-error">
             <ShieldAlert size={32} />
@@ -227,14 +180,22 @@ if (!isAdmin) { return (
         </Card>
       </div>
     );
+  }
 
-}
-
-return ( <div className="flex flex-col gap-4 p-4 select-none pb-32
-animate-fade-in" style={{ height: '100dvh', minHeight: 0, overflowY:
-'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch',
-touchAction: 'pan-y', overscrollBehaviorY: 'contain', }} >
-
+  return (
+    <div
+      className="flex flex-col gap-4 p-4 select-none pb-32 animate-fade-in"
+      style={{
+        height: '100dvh',
+        minHeight: 0,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch',
+        touchAction: 'pan-y',
+        overscrollBehaviorY: 'contain',
+      }}
+    >
+      
       {/* ================= VIEW 1: ГЛАВНОЕ МЕНЮ АДМИНКИ ================= */}
       {subView === 'menu' && (
         <div className="flex flex-col gap-4">
@@ -322,15 +283,12 @@ touchAction: 'pan-y', overscrollBehaviorY: 'contain', }} >
               </div>
 
               {/* Управление выплатами */}
-              <div
-                onClick={() => handleSubViewChange('withdrawals')}
-                className="flex items-center justify-between p-4 hover:bg-white/[0.01] active:bg-white/[0.02] cursor-pointer transition-colors"
-              >
+              <div className="flex items-center justify-between p-4 opacity-40 pointer-events-none">
                 <div className="flex items-center gap-3">
                   <CreditCard size={16} className="text-accentPurple" />
                   <span className="text-xs font-semibold text-white">Выплаты</span>
                 </div>
-                <span className="text-[10px] text-accentPurple font-bold uppercase tracking-wider">Управление</span>
+                <span className="text-[10px] text-textSecondary font-medium">В разработке</span>
               </div>
 
               {/* Управление новостями */}
@@ -362,152 +320,6 @@ touchAction: 'pan-y', overscrollBehaviorY: 'contain', }} >
                 <span className="text-xs font-bold text-error uppercase tracking-wider">Выход из админ панели</span>
               </div>
             </Card>
-          </div>
-        </div>
-      )}
-
-      {/* ================= VIEW: ВЫПЛАТЫ ================= */}
-      {subView === 'withdrawals' && (
-        <div className="flex flex-col gap-4 animate-fade-in">
-          <div className="flex items-center gap-3 text-left">
-            <button
-              onClick={() => handleSubViewChange('menu')}
-              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform shadow-glass-inner"
-            >
-              <ArrowLeft size={18} />
-            </button>
-            <div className="flex flex-col">
-              <span className="text-[10px] text-accentPurple font-bold uppercase tracking-wider">Админ панель</span>
-              <h1 className="text-xl font-bold text-white leading-none mt-0.5">Выплаты</h1>
-            </div>
-          </div>
-
-          <Input
-            placeholder="Partner Code, кошелёк или ID..."
-            value={withdrawalSearch}
-            onChange={(e) => setWithdrawalSearch(e.target.value)}
-            icon={<Search size={16} />}
-          />
-
-          <div className="grid grid-cols-4 gap-2">
-            {([
-              ['all', 'Все'],
-              ['pending', 'Ожидают'],
-              ['paid', 'Выплачены'],
-              ['rejected', 'Отклонены'],
-            ] as const).map(([value, label]) => (
-              <button
-                key={value}
-                onClick={() => {
-                  triggerHaptic.lightImpact();
-                  setWithdrawalFilter(value);
-                }}
-                className={`min-h-10 px-2 rounded-xl border text-[9px] font-bold transition-colors ${
-                  withdrawalFilter === value
-                    ? 'border-accentPurple/40 bg-accentPurple/10 text-accentPurple'
-                    : 'border-white/[0.06] bg-bgCard/40 text-textSecondary'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex flex-col gap-3">
-            {withdrawalsLoading && withdrawals.length === 0 ? (
-              <div className="py-32 text-center text-textSecondary text-xs">
-                Загрузка выплат...
-              </div>
-            ) : filteredWithdrawals.length > 0 ? (
-              filteredWithdrawals.map((withdrawal) => {
-                const statusLabel =
-                  withdrawal.status === 'paid'
-                    ? 'Выплачено'
-                    : withdrawal.status === 'rejected'
-                      ? 'Отклонено'
-                      : 'Ожидает выплаты';
-
-                const statusClass =
-                  withdrawal.status === 'paid'
-                    ? 'text-success'
-                    : withdrawal.status === 'rejected'
-                      ? 'text-error'
-                      : 'text-yellow-400';
-
-                return (
-                  <Card
-                    key={withdrawal.id}
-                    padding="md"
-                    className="flex flex-col gap-3 text-left border-accentPurple/10 shadow-premium"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-[9px] text-textSecondary uppercase">Partner / SUB1</span>
-                        <span className="text-lg font-bold text-accentPurple">
-                          {withdrawal.partner_code || 'Код не указан'}
-                        </span>
-                        <span className="text-[9px] text-textSecondary mt-1">
-                          Заявка #{withdrawal.id}
-                        </span>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span className="text-xl font-bold text-white">
-                          ${Number(withdrawal.amount || 0).toFixed(2)}
-                        </span>
-                        <span className={`text-[9px] font-bold uppercase block mt-1 ${statusClass}`}>
-                          {statusLabel}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="border-t border-white/[0.05] pt-3 flex flex-col gap-2">
-                      <div className="flex justify-between gap-3">
-                        <span className="text-[9px] text-textSecondary">Метод</span>
-                        <span className="text-[10px] font-bold text-white">{withdrawal.payment_method}</span>
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[9px] text-textSecondary">Кошелёк</span>
-                        <span className="text-[10px] font-semibold text-white break-all select-text">
-                          {withdrawal.wallet}
-                        </span>
-                      </div>
-                      <div className="flex justify-between gap-3">
-                        <span className="text-[9px] text-textSecondary">Создана</span>
-                        <span className="text-[9px] text-white">
-                          {withdrawal.created_at ? new Date(withdrawal.created_at).toLocaleString('ru-RU') : '-'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {withdrawal.status === 'pending' && (
-                      <div className="grid grid-cols-2 gap-2 border-t border-white/[0.05] pt-3">
-                        <Button
-                          variant="outline"
-                          size="md"
-                          disabled={processingWithdrawalId === withdrawal.id}
-                          onClick={() => processWithdrawal(withdrawal.id, 'reject')}
-                          className="h-11 border-error/30 text-error"
-                        >
-                          Отклонить
-                        </Button>
-                        <Button
-                          size="md"
-                          disabled={processingWithdrawalId === withdrawal.id}
-                          onClick={() => processWithdrawal(withdrawal.id, 'pay')}
-                          className="h-11"
-                        >
-                          {processingWithdrawalId === withdrawal.id ? 'Обработка...' : 'Выплатить'}
-                        </Button>
-                      </div>
-                    )}
-                  </Card>
-                );
-              })
-            ) : (
-              <div className="py-32 text-center text-textSecondary text-xs bg-bgCard/35 border border-white/[0.04] rounded-card">
-                Заявки не найдены
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -619,7 +431,7 @@ touchAction: 'pan-y', overscrollBehaviorY: 'contain', }} >
               </div>
               <div>
                 <span className="text-[8px] text-textSecondary uppercase block">Username</span>
-                <span className="text-xs font-bold text-white">{selectedUser.username ? `@${selectedUser.username}` : '-'}</span>
+                <span className="text-xs font-bold text-white">{selectedUser.username ? `@${selectedUser.username}` : '—'}</span>
               </div>
             </div>
           </Card>
@@ -680,5 +492,5 @@ touchAction: 'pan-y', overscrollBehaviorY: 'contain', }} >
         </div>
       )}
     </div>
-
-); };
+  );
+};
