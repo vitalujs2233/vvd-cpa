@@ -38,6 +38,18 @@ interface FinanceStat {
   service_fee_percent: number;
 }
 
+interface Withdrawal {
+  id: number;
+  partner_code?: string | null;
+  telegram_id?: number | null;
+  amount: number;
+  payment_method?: string | null;
+  wallet?: string | null;
+  status: string;
+  created_at?: string | null;
+  processed_at?: string | null;
+}
+
 export const Admin: React.FC = () => {
   const navigate = useNavigate();
   const currentUser = getTelegramUser();
@@ -45,7 +57,7 @@ export const Admin: React.FC = () => {
   // Привязка прав администратора строго к вашему Telegram ID: 232682307
   const isAdmin = currentUser.id === 232682307;
 
-  const [subView, setSubView] = useState<'menu' | 'users' | 'user'>('menu');
+  const [subView, setSubView] = useState<'menu' | 'users' | 'user' | 'withdrawals'>('menu');
   const [searchQuery, setSearchQuery] = useState('');
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -54,6 +66,11 @@ export const Admin: React.FC = () => {
   const [userStatsLoading, setUserStatsLoading] = useState(false);
   const [finance, setFinance] = useState<FinanceStat | null>(null);
   const [financeLoading, setFinanceLoading] = useState(false);
+  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
+  const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
+  const [withdrawalFilter, setWithdrawalFilter] = useState<'all' | 'pending' | 'paid' | 'rejected'>('all');
+  const [withdrawalSearch, setWithdrawalSearch] = useState('');
+  const [processingWithdrawalId, setProcessingWithdrawalId] = useState<number | null>(null);
 
   useEffect(() => {
     if (subView !== 'menu') return;
@@ -102,12 +119,93 @@ export const Admin: React.FC = () => {
     return () => window.clearInterval(interval);
   }, [subView]);
 
+  useEffect(() => {
+    if (subView !== 'withdrawals') return;
+
+    const loadWithdrawals = async () => {
+      try {
+        setWithdrawalsLoading(true);
+        const response = await fetch('https://vvd-cpa-v2.onrender.com/admin/withdrawals');
+        const data = await response.json();
+
+        if (response.ok && data.success && Array.isArray(data.withdrawals)) {
+          setWithdrawals(data.withdrawals);
+        } else {
+          console.error('Ошибка загрузки выплат:', data);
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки выплат:', error);
+      } finally {
+        setWithdrawalsLoading(false);
+      }
+    };
+
+    loadWithdrawals();
+    const interval = window.setInterval(loadWithdrawals, 10000);
+    return () => window.clearInterval(interval);
+  }, [subView]);
+
+  const processWithdrawal = async (withdrawalId: number, action: 'pay' | 'reject') => {
+    const question = action === 'pay'
+      ? 'Подтвердить выплату?'
+      : 'Отклонить заявку и вернуть средства?';
+
+    if (!window.confirm(question)) return;
+
+    try {
+      triggerHaptic.lightImpact();
+      setProcessingWithdrawalId(withdrawalId);
+
+      const response = await fetch(
+        `https://vvd-cpa-v2.onrender.com/admin/withdrawals/${withdrawalId}/${action}`,
+        { method: 'POST' }
+      );
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || data.detail || 'Ошибка обработки заявки');
+      }
+
+      setWithdrawals(prev =>
+        prev.map(item =>
+          item.id === withdrawalId
+            ? {
+                ...item,
+                status: action === 'pay' ? 'paid' : 'rejected',
+                processed_at: new Date().toISOString(),
+              }
+            : item
+        )
+      );
+    } catch (error) {
+      console.error('Ошибка обработки выплаты:', error);
+      window.alert(error instanceof Error ? error.message : 'Ошибка обработки выплаты');
+    } finally {
+      setProcessingWithdrawalId(null);
+    }
+  };
+
+  const filteredWithdrawals = useMemo(() => {
+    const query = withdrawalSearch.toLowerCase().trim();
+
+    return withdrawals.filter(item => {
+      const matchesFilter = withdrawalFilter === 'all' || item.status === withdrawalFilter;
+      const matchesSearch =
+        !query ||
+        String(item.partner_code || '').toLowerCase().includes(query) ||
+        String(item.telegram_id || '').includes(query) ||
+        String(item.wallet || '').toLowerCase().includes(query);
+
+      return matchesFilter && matchesSearch;
+    });
+  }, [withdrawals, withdrawalFilter, withdrawalSearch]);
+
   const handleBackToProfile = () => {
     triggerHaptic.lightImpact();
     navigate('/profile');
   };
 
-  const handleSubViewChange = (view: 'menu' | 'users') => {
+  const handleSubViewChange = (view: 'menu' | 'users' | 'withdrawals') => {
     triggerHaptic.lightImpact();
     setSubView(view);
   };
@@ -283,12 +381,15 @@ export const Admin: React.FC = () => {
               </div>
 
               {/* Управление выплатами */}
-              <div className="flex items-center justify-between p-4 opacity-40 pointer-events-none">
+              <div
+                onClick={() => handleSubViewChange('withdrawals')}
+                className="flex items-center justify-between p-4 hover:bg-white/[0.01] active:bg-white/[0.02] cursor-pointer transition-colors"
+              >
                 <div className="flex items-center gap-3">
                   <CreditCard size={16} className="text-accentPurple" />
                   <span className="text-xs font-semibold text-white">Выплаты</span>
                 </div>
-                <span className="text-[10px] text-textSecondary font-medium">В разработке</span>
+                <span className="text-[10px] text-accentPurple font-bold uppercase tracking-wider">Управление</span>
               </div>
 
               {/* Управление новостями */}
@@ -395,6 +496,132 @@ export const Admin: React.FC = () => {
             ) : (
               <div className="py-32 text-center text-textSecondary text-xs bg-bgCard/35 border border-white/[0.04] rounded-card backdrop-blur-md">
                 Пользователи не найдены
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ================= VIEW 3: ВЫПЛАТЫ ================= */}
+      {subView === 'withdrawals' && (
+        <div className="flex flex-col gap-4 animate-fade-in">
+          <div className="flex items-center gap-3 text-left">
+            <button
+              onClick={() => handleSubViewChange('menu')}
+              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform shadow-glass-inner"
+            >
+              <ArrowLeft size={18} />
+            </button>
+            <div className="flex flex-col">
+              <span className="text-[10px] text-accentPurple font-bold uppercase tracking-wider">Админ панель</span>
+              <h1 className="text-xl font-bold text-white leading-none mt-0.5">Выплаты</h1>
+            </div>
+          </div>
+
+          <Input
+            placeholder="Partner Code, кошелёк или Telegram ID..."
+            value={withdrawalSearch}
+            onChange={(e) => setWithdrawalSearch(e.target.value)}
+            icon={<Search size={16} />}
+          />
+
+          <div className="grid grid-cols-4 gap-2">
+            {([
+              ['all', 'Все'],
+              ['pending', 'Ожидают'],
+              ['paid', 'Выплачены'],
+              ['rejected', 'Отклонены'],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => setWithdrawalFilter(value)}
+                className={`min-h-10 rounded-xl border px-2 text-[9px] font-bold transition-colors ${
+                  withdrawalFilter === value
+                    ? 'bg-accentPurple/15 border-accentPurple/40 text-accentPurple'
+                    : 'bg-bgCard/40 border-white/[0.06] text-textSecondary'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {withdrawalsLoading && withdrawals.length === 0 ? (
+              <div className="py-24 text-center text-textSecondary text-xs">
+                Загрузка выплат...
+              </div>
+            ) : filteredWithdrawals.length > 0 ? (
+              filteredWithdrawals.map((item) => (
+                <Card key={item.id} padding="md" className="flex flex-col gap-3 text-left">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-bold text-white">
+                        {item.partner_code || `Telegram ID: ${item.telegram_id || '—'}`}
+                      </span>
+                      <span className="text-[9px] text-textSecondary mt-1">
+                        {item.payment_method || 'USDT TRC20'}
+                      </span>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="text-base font-bold text-white">
+                        ${Number(item.amount || 0).toFixed(2)}
+                      </span>
+                      <span className={`block text-[8px] font-bold uppercase mt-1 ${
+                        item.status === 'paid'
+                          ? 'text-success'
+                          : item.status === 'rejected'
+                            ? 'text-error'
+                            : 'text-accentPurple'
+                      }`}>
+                        {item.status === 'paid'
+                          ? 'Выплачено'
+                          : item.status === 'rejected'
+                            ? 'Отклонено'
+                            : 'Ожидает выплаты'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-white/[0.05] pt-3">
+                    <span className="text-[8px] text-textSecondary uppercase block">Кошелёк</span>
+                    <span className="text-[10px] font-semibold text-white break-all">
+                      {item.wallet || '—'}
+                    </span>
+                  </div>
+
+                  {item.created_at && (
+                    <span className="text-[9px] text-textSecondary">
+                      Создано: {new Date(item.created_at).toLocaleString('ru-RU')}
+                    </span>
+                  )}
+
+                  {item.status === 'pending' && (
+                    <div className="grid grid-cols-2 gap-2 border-t border-white/[0.05] pt-3">
+                      <Button
+                        size="md"
+                        onClick={() => processWithdrawal(item.id, 'pay')}
+                        disabled={processingWithdrawalId === item.id}
+                        className="w-full"
+                      >
+                        {processingWithdrawalId === item.id ? 'Обработка...' : 'Выплачено'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="md"
+                        onClick={() => processWithdrawal(item.id, 'reject')}
+                        disabled={processingWithdrawalId === item.id}
+                        className="w-full border-error/30 text-error"
+                      >
+                        Отклонить
+                      </Button>
+                    </div>
+                  )}
+                </Card>
+              ))
+            ) : (
+              <div className="py-24 text-center text-textSecondary text-xs bg-bgCard/35 border border-white/[0.04] rounded-card">
+                Заявки на выплату не найдены
               </div>
             )}
           </div>
