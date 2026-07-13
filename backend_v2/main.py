@@ -1093,13 +1093,19 @@ async def reject_withdrawal(withdrawal_id: int):
     with engine.begin() as conn:
         row = conn.execute(text("""
             SELECT id, user_id, amount, status
-            FROM withdrawals WHERE id = :id FOR UPDATE
+            FROM withdrawals
+            WHERE id = :id
+            FOR UPDATE
         """), {"id": withdrawal_id}).fetchone()
 
         if not row:
             return {"success": False, "message": "Withdrawal not found"}
+
         if row.status != "pending":
-            return {"success": False, "message": f"Already processed: {row.status}"}
+            return {
+                "success": False,
+                "message": f"Already processed: {row.status}"
+            }
 
         conn.execute(text("""
             UPDATE withdrawals
@@ -1111,8 +1117,12 @@ async def reject_withdrawal(withdrawal_id: int):
             UPDATE users
             SET balance = COALESCE(balance, 0) + :amount
             WHERE telegram_id = :uid
-        """), {"amount": row.amount, "uid": row.user_id})
-            await send_partner_notification(
+        """), {
+            "amount": row.amount,
+            "uid": row.user_id
+        })
+
+    await send_partner_notification(
         int(row.user_id),
         (
             "❌ <b>Заявка на выплату отклонена</b>\n\n"
@@ -1121,5 +1131,9 @@ async def reject_withdrawal(withdrawal_id: int):
         )
     )
 
-    return {"success": True, "withdrawal_id": withdrawal_id,
-            "status": "rejected", "amount_returned": float(row.amount or 0)}
+    return {
+        "success": True,
+        "withdrawal_id": withdrawal_id,
+        "status": "rejected",
+        "amount_returned": float(row.amount or 0)
+    }
