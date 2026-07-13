@@ -911,28 +911,63 @@ async def create_withdrawal(data: WithdrawalRequest):
     }
 
 
-@app.get("/withdrawals/{telegram_id}")
-async def get_withdrawals(telegram_id: int):
+@app.get("/withdrawals/{partner_code}")
+async def get_withdrawals(partner_code: str):
+
     with engine.connect() as conn:
-        rows = conn.execute(text("""
-            SELECT id, amount, payment_method, wallet,
-                   status, created_at, processed_at
-            FROM withdrawals
-            WHERE user_id = :uid
-            ORDER BY created_at DESC
-        """), {"uid": telegram_id}).fetchall()
+
+        user = conn.execute(
+            text("""
+                SELECT telegram_id
+                FROM users
+                WHERE partner_code = :partner_code
+            """),
+            {
+                "partner_code": partner_code
+            }
+        ).fetchone()
+
+        if not user:
+            return {
+                "success": False,
+                "message": "Partner not found"
+            }
+
+        rows = conn.execute(
+            text("""
+                SELECT
+                    id,
+                    partner_code,
+                    amount,
+                    payment_method,
+                    wallet,
+                    status,
+                    created_at,
+                    processed_at
+                FROM withdrawals
+                WHERE partner_code = :partner_code
+                ORDER BY created_at DESC
+            """),
+            {
+                "partner_code": partner_code
+            }
+        ).fetchall()
 
     return {
         "success": True,
-        "withdrawals": [{
-            "id": int(r.id),
-            "amount": float(r.amount or 0),
-            "payment_method": r.payment_method,
-            "wallet": r.wallet,
-            "status": r.status,
-            "created_at": str(r.created_at),
-            "processed_at": str(r.processed_at) if r.processed_at else None
-        } for r in rows]
+        "withdrawals": [
+            {
+                "id": int(r.id),
+                "partner_code": r.partner_code,
+                "amount": float(r.amount),
+                "payment_method": r.payment_method,
+                "wallet": r.wallet,
+                "status": r.status,
+                "created_at": str(r.created_at),
+                "processed_at": str(r.processed_at) if r.processed_at else None
+            }
+            for r in rows
+        ]
     }
 
 
