@@ -27,22 +27,20 @@ const currentUser = getTelegramUser();
 // Привязка прав администратора строго к вашему Telegram ID: 232682307
 const isAdmin = currentUser.id === 232682307;
 
-const [subView, setSubView] = useState<'menu' | 'users' | 'user' |
-'withdrawals'>('menu'); const [searchQuery, setSearchQuery] =
-useState(''); const [adminUsers, setAdminUsers] =
-useState<AdminUser[]>([]); const [usersLoading, setUsersLoading] =
-useState(false); const [selectedUser, setSelectedUser] =
-useState<AdminUser | null>(null); const [countryStats, setCountryStats]
-= useState<CountryStat[]>([]); const [userStatsLoading,
-setUserStatsLoading] = useState(false); const [finance, setFinance] =
-useState<FinanceStat | null>(null); const [financeLoading,
-setFinanceLoading] = useState(false); const [withdrawals,
-setWithdrawals] = useState<Withdrawal[]>([]); const [withdrawalsLoading,
-setWithdrawalsLoading] = useState(false); const [withdrawalFilter,
-setWithdrawalFilter] = useState<'all' | 'pending' | 'paid' |
-'rejected'>('all'); const [withdrawalSearch, setWithdrawalSearch] =
-useState(''); const [processingWithdrawalId, setProcessingWithdrawalId]
-= useState<number | null>(null);
+const [subView, setSubView] = useState<'menu' | 'users' | 'user' | 'withdrawals'>('menu');
+const [searchQuery, setSearchQuery] = useState('');
+const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+const [usersLoading, setUsersLoading] = useState(false);
+const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+const [countryStats, setCountryStats] = useState<CountryStat[]>([]);
+const [userStatsLoading, setUserStatsLoading] = useState(false);
+const [finance, setFinance] = useState<FinanceStat | null>(null);
+const [financeLoading, setFinanceLoading] = useState(false);
+const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
+const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
+const [withdrawalFilter, setWithdrawalFilter] = useState<'all' | 'pending' | 'paid' | 'rejected'>('all');
+const [withdrawalSearch, setWithdrawalSearch] = useState('');
+const [processingWithdrawalId, setProcessingWithdrawalId] = useState<number | null>(null);
 
 useEffect(() => { if (subView !== 'menu') return;
 
