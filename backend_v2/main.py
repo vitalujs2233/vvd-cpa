@@ -300,7 +300,7 @@ async def track_click(partner_code: str, vertical: str, request: Request):
         f"https://tone.affomelody.com/click?pid=12519&offer_id=25&sub1={partner_code}&sub2={click_id}",
 
         "mainstream":
-        f"https://bringsomelove.com/m1xtn8p3?aid=xcPScZTVF&kid=TSYhTYVVY&sub1={partner_code}&sub2={click_id}",
+        f"https://bringsomelove.com/m1xtn8p3?aid=xcPScZTVF&kid=TSYhTYVVY&sub1={partner_code}&sub2={partner_code}&sub3={click_id}",
 
         "nutra":
         f"https://NUTRA_LINK&sub1={partner_code}&sub2={click_id}",
@@ -665,31 +665,35 @@ async def postback_adult(
 
 @app.get("/postback/traffcore")
 async def postback_traffcore(
-    partner_code: str,
+    sub2: str = "",
+    sub3: str = "",
     click_id: str = "",
     sum: float = 0,
     goal: str = "",
     geo: str = "",
     transaction_id: str = ""
 ):
-    partner_code = (partner_code or "").strip().upper()
+    partner_code = (sub2 or "").strip().upper()
+    internal_click_id = (sub3 or "").strip()
+    traffcore_click_id = (click_id or "").strip()
     payout_gross = round(float(sum or 0), 2)
 
     if not partner_code:
-        return {"success": False, "message": "partner_code is required"}
+        return {"success": False, "message": "sub2 partner_code is required"}
 
     if payout_gross <= 0:
         return {"success": False, "message": "sum must be greater than 0"}
 
     source_transaction_id = (
         (transaction_id or "").strip()
-        or (click_id or "").strip()
+        or traffcore_click_id
+        or internal_click_id
     )
 
     if not source_transaction_id:
         return {
             "success": False,
-            "message": "transaction_id or click_id is required"
+            "message": "transaction_id, click_id or sub3 is required"
         }
 
     conversion_id = f"traffcore:{source_transaction_id}"
@@ -746,7 +750,7 @@ async def postback_traffcore(
             """),
             {
                 "user_id": telegram_id,
-                "click_id": click_id,
+                "click_id": internal_click_id or traffcore_click_id,
                 "offer_id": goal,
                 "payout_gross": payout_gross,
                 "payout_net": payout_net,
@@ -849,7 +853,8 @@ async def postback_traffcore(
         "network": "traffcore",
         "partner_code": partner_code,
         "telegram_id": telegram_id,
-        "click_id": click_id,
+        "click_id": traffcore_click_id,
+        "internal_click_id": internal_click_id,
         "goal": goal,
         "geo": geo,
         "payout_gross": payout_gross,
