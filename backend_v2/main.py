@@ -667,3 +667,57 @@ async def get_country_statistics(telegram_id: int):
             for row in countries
         ]
     }
+
+
+@app.get("/admin/users")
+async def admin_users():
+
+    with engine.connect() as conn:
+
+        users = conn.execute(
+            text("""
+                SELECT
+                    u.telegram_id,
+                    u.partner_code,
+                    u.first_name,
+                    u.last_name,
+                    u.username,
+                    u.status,
+                    COALESCE(SUM(s.clicks), 0) AS clicks,
+                    COALESCE(SUM(s.conversions), 0) AS conversions,
+                    COALESCE(SUM(s.income), 0) AS income
+                FROM users u
+                LEFT JOIN statistics s
+                    ON s.user_id = u.telegram_id
+                GROUP BY
+                    u.telegram_id,
+                    u.partner_code,
+                    u.first_name,
+                    u.last_name,
+                    u.username,
+                    u.status
+                ORDER BY income DESC, clicks DESC
+            """)
+        ).fetchall()
+
+    return {
+        "success": True,
+        "users": [
+            {
+                "telegram_id": int(row.telegram_id),
+                "partner_code": row.partner_code,
+                "first_name": row.first_name,
+                "last_name": row.last_name,
+                "username": row.username,
+                "status": row.status,
+                "clicks": int(row.clicks or 0),
+                "conversions": int(row.conversions or 0),
+                "income": float(row.income or 0),
+                "cr": round(
+                    (int(row.conversions or 0) / int(row.clicks or 0)) * 100,
+                    2
+                ) if int(row.clicks or 0) > 0 else 0
+            }
+            for row in users
+        ]
+    }
