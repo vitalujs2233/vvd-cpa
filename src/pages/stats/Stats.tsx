@@ -81,7 +81,17 @@ export const Stats: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+  void load();
+
+  const interval = window.setInterval(() => {
+    void load();
+  }, 10000);
+
+  return () => {
+    window.clearInterval(interval);
+  };
+}, [load]);
 
   const rows = useMemo(() => stats.filter(r => inPeriod(r.date, filter)), [stats, filter]);
   const selectedCountryData = useMemo(
