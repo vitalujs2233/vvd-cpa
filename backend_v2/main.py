@@ -62,7 +62,7 @@ class TelegramUser(BaseModel):
 
 
 class WithdrawalRequest(BaseModel):
-    telegram_id: int
+    partner_code: str
     amount: float
     payment_method: str
     wallet: str
@@ -806,47 +806,105 @@ async def admin_users():
 @app.post("/withdrawals")
 async def create_withdrawal(data: WithdrawalRequest):
     amount = round(float(data.amount or 0), 2)
+    partner_code = data.partner_code.strip()
     method = data.payment_method.strip()
     wallet = data.wallet.strip()
 
-    if amount <= 0:
-        return {"success": False, "message": "Amount must be greater than 0"}
+    if amount < 50:
+        return {
+            "success": False,
+            "message": "Minimum withdrawal amount is $50"
+        }
+
+    if not partner_code:
+        return {
+            "success": False,
+            "message": "Partner code is required"
+        }
+
     if not method or not wallet:
-        return {"success": False, "message": "Payment method and wallet are required"}
+        return {
+            "success": False,
+            "message": "Payment method and wallet are required"
+        }
 
     with engine.begin() as conn:
-        user = conn.execute(text("""
-            SELECT telegram_id, balance FROM users
-            WHERE telegram_id = :id FOR UPDATE
-        """), {"id": data.telegram_id}).fetchone()
+        user = conn.execute(
+            text("""
+                SELECT telegram_id, partner_code, balance
+                FROM users
+                WHERE partner_code = :partner_code
+                FOR UPDATE
+            """),
+            {
+                "partner_code": partner_code
+            }
+        ).fetchone()
 
         if not user:
-            return {"success": False, "message": "User not found"}
+            return {
+                "success": False,
+                "message": "Partner not found"
+            }
 
         available = round(float(user.balance or 0), 2)
+
         if amount > available:
-            return {"success": False, "message": "Insufficient available balance", "available": available}
+            return {
+                "success": False,
+                "message": "Insufficient available balance",
+                "available": available
+            }
 
-        row = conn.execute(text("""
-            INSERT INTO withdrawals
-            (user_id, amount, payment_method, wallet, status, created_at)
-            VALUES (:uid, :amount, :method, :wallet, 'pending', NOW())
-            RETURNING id, created_at
-        """), {
-            "uid": data.telegram_id,
-            "amount": amount,
-            "method": method,
-            "wallet": wallet
-        }).fetchone()
+        row = conn.execute(
+            text("""
+                INSERT INTO withdrawals
+                (
+                    user_id,
+                    partner_code,
+                    amount,
+                    payment_method,
+                    wallet,
+                    status,
+                    created_at
+                )
+                VALUES
+                (
+                    :user_id,
+                    :partner_code,
+                    :amount,
+                    :method,
+                    :wallet,
+                    'pending',
+                    NOW()
+                )
+                RETURNING id, created_at
+            """),
+            {
+                "user_id": user.telegram_id,
+                "partner_code": user.partner_code,
+                "amount": amount,
+                "method": method,
+                "wallet": wallet
+            }
+        ).fetchone()
 
-        conn.execute(text("""
-            UPDATE users SET balance = balance - :amount
-            WHERE telegram_id = :uid
-        """), {"amount": amount, "uid": data.telegram_id})
+        conn.execute(
+            text("""
+                UPDATE users
+                SET balance = balance - :amount
+                WHERE partner_code = :partner_code
+            """),
+            {
+                "amount": amount,
+                "partner_code": partner_code
+            }
+        )
 
     return {
         "success": True,
         "withdrawal_id": int(row.id),
+        "partner_code": partner_code,
         "amount": amount,
         "status": "pending",
         "created_at": str(row.created_at)
