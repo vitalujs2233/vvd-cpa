@@ -8,6 +8,8 @@ from database import check_database, save_user, engine
 import json
 import urllib.request
 import uuid
+import asyncio
+from bot import start_bot
 
 app = FastAPI(
     title="VVD CPA Backend V2",
@@ -24,7 +26,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+@app.on_event("startup")
+async def startup_bot():
+    app.state.bot_task = asyncio.create_task(start_bot())
 
+
+@app.on_event("shutdown")
+async def shutdown_bot():
+    bot_task = getattr(app.state, "bot_task", None)
+
+    if bot_task:
+        bot_task.cancel()
+
+        try:
+            await bot_task
+        except asyncio.CancelledError:
+            pass
 @app.get("/")
 async def root():
     return {
