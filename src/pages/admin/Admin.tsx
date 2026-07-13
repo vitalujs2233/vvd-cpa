@@ -23,8 +23,6 @@ interface AdminUser {
   cr: number;
 }
 
-
-
 export const Admin: React.FC = () => {
   const navigate = useNavigate();
   const currentUser = getTelegramUser();
@@ -35,37 +33,26 @@ export const Admin: React.FC = () => {
   const [subView, setSubView] = useState<'menu' | 'users'>('menu');
   const [searchQuery, setSearchQuery] = useState('');
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
-const [usersLoading, setUsersLoading] = useState(false);
+  const [usersLoading, setUsersLoading] = useState(false);
 
-useEffect(() => {
-  if (subView !== 'users') return;
-
-  const loadUsers = async () => {
-    try {
-      setUsersLoading(true);
-
-      const response = await fetch(
-        'https://vvd-cpa-v2.onrender.com/admin/users'
-      );
-
-      const data = await response.json();
-
-      if (data.success && Array.isArray(data.users)) {
-        setAdminUsers(data.users);
+  useEffect(() => {
+    if (subView !== 'users') return;
+    const loadUsers = async () => {
+      try {
+        setUsersLoading(true);
+        const response = await fetch('https://vvd-cpa-v2.onrender.com/admin/users');
+        const data = await response.json();
+        if (data.success && Array.isArray(data.users)) setAdminUsers(data.users);
+      } catch (error) {
+        console.error('Ошибка загрузки пользователей:', error);
+      } finally {
+        setUsersLoading(false);
       }
-    } catch (error) {
-      console.error('Ошибка загрузки пользователей:', error);
-    } finally {
-      setUsersLoading(false);
-    }
-  };
-
-  loadUsers();
-
-  const interval = window.setInterval(loadUsers, 10000);
-
-  return () => window.clearInterval(interval);
-}, [subView]);
+    };
+    loadUsers();
+    const interval = window.setInterval(loadUsers, 10000);
+    return () => window.clearInterval(interval);
+  }, [subView]);
 
   const handleBackToProfile = () => {
     triggerHaptic.lightImpact();
@@ -78,22 +65,15 @@ useEffect(() => {
   };
 
   const filteredUsers = useMemo(() => {
-  const query = searchQuery.toLowerCase().trim();
-
-  return adminUsers.filter(user => {
-    const fullName = `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
-    const partnerCode = (user.partner_code || '').toLowerCase();
-    const username = (user.username || '').toLowerCase();
-    const telegramId = String(user.telegram_id);
-
-    return (
-      fullName.includes(query) ||
-      partnerCode.includes(query) ||
-      username.includes(query) ||
-      telegramId.includes(query)
-    );
-  });
-}, [adminUsers, searchQuery]);
+    const query = searchQuery.toLowerCase().trim();
+    return adminUsers.filter(user => {
+      const fullName = `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
+      return fullName.includes(query) ||
+        (user.partner_code || '').toLowerCase().includes(query) ||
+        (user.username || '').toLowerCase().includes(query) ||
+        String(user.telegram_id).includes(query);
+    });
+  }, [adminUsers, searchQuery]);
 
   if (!isAdmin) {
     return (
@@ -245,28 +225,39 @@ useEffect(() => {
 
           {/* Таблица пользователей */}
           <div className="flex flex-col gap-3">
-            {filteredUsers.length > 0 ? (
+            {usersLoading && adminUsers.length === 0 ? (
+              <div className="py-32 text-center text-textSecondary text-xs bg-bgCard/35 border border-white/[0.04] rounded-card backdrop-blur-md">
+                Загрузка пользователей...
+              </div>
+            ) : filteredUsers.length > 0 ? (
               filteredUsers.map((user) => (
-                <Card 
-                  key={user.id} 
-                  padding="sm"
-                  className="flex items-center justify-between text-left hover-lift"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-accentPurple/10 border border-accentPurple/25 flex items-center justify-center text-accentPurple shrink-0">
-                      <Users size={18} />
+                <Card key={user.telegram_id} padding="sm" className="flex flex-col gap-3 text-left hover-lift">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-accentPurple/10 border border-accentPurple/25 flex items-center justify-center text-accentPurple shrink-0">
+                        <Users size={18} />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-bold text-white truncate">
+                          {`${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Без имени'}
+                        </span>
+                        <span className="text-[10px] text-accentPurple font-bold mt-0.5">{user.partner_code || 'Код не присвоен'}</span>
+                        <span className="text-[9px] text-textSecondary font-semibold mt-0.5">Telegram ID: {user.telegram_id}</span>
+                        {user.username && <span className="text-[9px] text-textSecondary mt-0.5">@{user.username}</span>}
+                      </div>
                     </div>
-                    
-                    <div className="flex flex-col">
-                      <span className="text-xs font-bold text-white">{user.name}</span>
-                      <span className="text-[9px] text-textSecondary font-semibold mt-0.5">ID: {user.id}</span>
+                    <div className="flex items-center gap-1.5 pr-1 shrink-0">
+                      <span className={`w-1.5 h-1.5 rounded-full ${user.status === 'active' ? 'bg-success shadow-[0_0_8px_#22C55E]' : 'bg-error'}`} />
+                      <span className={`text-[9px] font-bold uppercase tracking-wider ${user.status === 'active' ? 'text-success' : 'text-error'}`}>
+                        {user.status === 'active' ? 'Активен' : 'Неактивен'}
+                      </span>
                     </div>
                   </div>
-
-                  {/* Статус */}
-                  <div className="flex items-center gap-1.5 pr-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_8px_#22C55E] animate-pulse" />
-                    <span className="text-[9px] font-bold text-success uppercase tracking-wider">Активен</span>
+                  <div className="grid grid-cols-4 gap-2 border-t border-white/[0.05] pt-3">
+                    <div><span className="text-[8px] text-textSecondary uppercase block">Клики</span><span className="text-xs font-bold text-white">{user.clicks}</span></div>
+                    <div><span className="text-[8px] text-textSecondary uppercase block">Конверсии</span><span className="text-xs font-bold text-white">{user.conversions}</span></div>
+                    <div><span className="text-[8px] text-textSecondary uppercase block">Доход</span><span className="text-xs font-bold text-success">${user.income.toFixed(2)}</span></div>
+                    <div><span className="text-[8px] text-textSecondary uppercase block">CR</span><span className="text-xs font-bold text-white">{user.cr.toFixed(2)}%</span></div>
                   </div>
                 </Card>
               ))
