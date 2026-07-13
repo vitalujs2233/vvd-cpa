@@ -7,3 +7,4 @@ pydantic-settings
 PyJWT
 python-multipart
 httpx
+aiogram==3.13.1
