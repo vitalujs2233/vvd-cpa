@@ -1,10 +1,10 @@
-import React, { useState, useMemo, useEffect } from ‘react’; import {
-useNavigate } from ‘react-router-dom’; import { ArrowLeft, Users,
+import React, { useState, useMemo, useEffect } from 'react'; import {
+useNavigate } from 'react-router-dom'; import { ArrowLeft, Users,
 Layers, CreditCard, Newspaper, BarChart2, Settings, LogOut, Search,
-ShieldAlert, UserCheck } from ‘lucide-react’; import { Card } from
-‘@/shared/ui/Card’; import { Button } from ‘@/shared/ui/Button’; import
-{ Input } from ‘@/shared/ui/Input’; import { getTelegramUser,
-triggerHaptic } from ‘@/shared/lib/telegram’;
+ShieldAlert, UserCheck } from 'lucide-react'; import { Card } from
+'@/shared/ui/Card'; import { Button } from '@/shared/ui/Button'; import
+{ Input } from '@/shared/ui/Input'; import { getTelegramUser,
+triggerHaptic } from '@/shared/lib/telegram';
 
 interface AdminUser { telegram_id: number; partner_code: string | null;
 first_name: string; last_name: string; username: string; status: string;
@@ -27,9 +27,9 @@ const currentUser = getTelegramUser();
 // Привязка прав администратора строго к вашему Telegram ID: 232682307
 const isAdmin = currentUser.id === 232682307;
 
-const [subView, setSubView] = useState<‘menu’ | ‘users’ | ‘user’ |
-‘withdrawals’>(‘menu’); const [searchQuery, setSearchQuery] =
-useState(’‘); const [adminUsers, setAdminUsers] =
+const [subView, setSubView] = useState<'menu' | 'users' | 'user' |
+'withdrawals'>('menu'); const [searchQuery, setSearchQuery] =
+useState(''); const [adminUsers, setAdminUsers] =
 useState<AdminUser[]>([]); const [usersLoading, setUsersLoading] =
 useState(false); const [selectedUser, setSelectedUser] =
 useState<AdminUser | null>(null); const [countryStats, setCountryStats]
@@ -39,12 +39,12 @@ useState<FinanceStat | null>(null); const [financeLoading,
 setFinanceLoading] = useState(false); const [withdrawals,
 setWithdrawals] = useState<Withdrawal[]>([]); const [withdrawalsLoading,
 setWithdrawalsLoading] = useState(false); const [withdrawalFilter,
-setWithdrawalFilter] = useState<’all’ | ‘pending’ | ‘paid’ |
-‘rejected’>(‘all’); const [withdrawalSearch, setWithdrawalSearch] =
-useState(’’); const [processingWithdrawalId, setProcessingWithdrawalId]
+setWithdrawalFilter] = useState<'all' | 'pending' | 'paid' |
+'rejected'>('all'); const [withdrawalSearch, setWithdrawalSearch] =
+useState(''); const [processingWithdrawalId, setProcessingWithdrawalId]
 = useState<number | null>(null);
 
-useEffect(() => { if (subView !== ‘menu’) return;
+useEffect(() => { if (subView !== 'menu') return;
 
     const loadFinance = async () => {
       try {
@@ -72,16 +72,16 @@ useEffect(() => { if (subView !== ‘menu’) return;
 
 }, [subView]);
 
-useEffect(() => { if (subView !== ‘users’) return; const loadUsers =
+useEffect(() => { if (subView !== 'users') return; const loadUsers =
 async () => { try { setUsersLoading(true); const response = await
-fetch(‘https://vvd-cpa-v2.onrender.com/admin/users’); const data = await
+fetch('https://vvd-cpa-v2.onrender.com/admin/users'); const data = await
 response.json(); if (data.success && Array.isArray(data.users))
-setAdminUsers(data.users); } catch (error) { console.error(‘Ошибка
-загрузки пользователей:’, error); } finally { setUsersLoading(false); }
+setAdminUsers(data.users); } catch (error) { console.error('Ошибка
+загрузки пользователей:', error); } finally { setUsersLoading(false); }
 }; loadUsers(); const interval = window.setInterval(loadUsers, 10000);
 return () => window.clearInterval(interval); }, [subView]);
 
-useEffect(() => { if (subView !== ‘withdrawals’) return;
+useEffect(() => { if (subView !== 'withdrawals') return;
 
     const loadWithdrawals = async () => {
       try {
@@ -104,8 +104,8 @@ useEffect(() => { if (subView !== ‘withdrawals’) return;
 
 }, [subView]);
 
-const processWithdrawal = async (withdrawalId: number, action: ‘pay’ |
-‘reject’) => { triggerHaptic.lightImpact();
+const processWithdrawal = async (withdrawalId: number, action: 'pay' |
+'reject') => { triggerHaptic.lightImpact();
 
     if (!window.confirm(action === 'pay' ? 'Подтвердить выплату?' : 'Отклонить заявку и вернуть средства?')) {
       return;
@@ -161,13 +161,13 @@ withdrawalSearch.toLowerCase().trim();
 }, [withdrawals, withdrawalFilter, withdrawalSearch]);
 
 const handleBackToProfile = () => { triggerHaptic.lightImpact();
-navigate(‘/profile’); };
+navigate('/profile'); };
 
-const handleSubViewChange = (view: ‘menu’ | ‘users’ | ‘withdrawals’) =>
+const handleSubViewChange = (view: 'menu' | 'users' | 'withdrawals') =>
 { triggerHaptic.lightImpact(); setSubView(view); };
 
 const openUser = async (user: AdminUser) => {
-triggerHaptic.lightImpact(); setSelectedUser(user); setSubView(‘user’);
+triggerHaptic.lightImpact(); setSelectedUser(user); setSubView('user');
 setCountryStats([]); setUserStatsLoading(true);
 
     try {
@@ -202,8 +202,8 @@ searchQuery.toLowerCase().trim(); return adminUsers.filter(user => {
 const fullName =
 ${user.first_name || ''} ${user.last_name || ''}.toLowerCase(); return
 fullName.includes(query) || (user.partner_code ||
-’‘).toLowerCase().includes(query) || (user.username
-||’’).toLowerCase().includes(query) ||
+'').toLowerCase().includes(query) || (user.username
+||'').toLowerCase().includes(query) ||
 String(user.telegram_id).includes(query); }); }, [adminUsers,
 searchQuery]);
 
@@ -232,10 +232,10 @@ if (!isAdmin) { return (
 
 }
 
-return ( <div className=“flex flex-col gap-4 p-4 select-none pb-32
-animate-fade-in” style={{ height: ‘100dvh’, minHeight: 0, overflowY:
-‘auto’, overflowX: ‘hidden’, WebkitOverflowScrolling: ‘touch’,
-touchAction: ‘pan-y’, overscrollBehaviorY: ‘contain’, }} >
+return ( <div className="flex flex-col gap-4 p-4 select-none pb-32
+animate-fade-in" style={{ height: '100dvh', minHeight: 0, overflowY:
+'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch',
+touchAction: 'pan-y', overscrollBehaviorY: 'contain', }} >
 
       {/* ================= VIEW 1: ГЛАВНОЕ МЕНЮ АДМИНКИ ================= */}
       {subView === 'menu' && (
@@ -476,7 +476,7 @@ touchAction: ‘pan-y’, overscrollBehaviorY: ‘contain’, }} >
                       <div className="flex justify-between gap-3">
                         <span className="text-[9px] text-textSecondary">Создана</span>
                         <span className="text-[9px] text-white">
-                          {withdrawal.created_at ? new Date(withdrawal.created_at).toLocaleString('ru-RU') : '—'}
+                          {withdrawal.created_at ? new Date(withdrawal.created_at).toLocaleString('ru-RU') : '-'}
                         </span>
                       </div>
                     </div>
@@ -621,7 +621,7 @@ touchAction: ‘pan-y’, overscrollBehaviorY: ‘contain’, }} >
               </div>
               <div>
                 <span className="text-[8px] text-textSecondary uppercase block">Username</span>
-                <span className="text-xs font-bold text-white">{selectedUser.username ? `@${selectedUser.username}` : '—'}</span>
+                <span className="text-xs font-bold text-white">{selectedUser.username ? `@${selectedUser.username}` : '-'}</span>
               </div>
             </div>
           </Card>
