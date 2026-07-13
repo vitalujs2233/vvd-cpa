@@ -9,6 +9,7 @@ import json
 import urllib.request
 import uuid
 import asyncio
+import os
 from bot import start_bot
 
 app = FastAPI(
@@ -1021,11 +1022,38 @@ async def admin_withdrawals(status: str | None = None):
     }
 
 
+async def send_partner_notification(telegram_id: int, message: str):
+    bot_token = os.getenv("BOT_TOKEN")
+
+    if not bot_token:
+        print("BOT_TOKEN not found. Telegram notification skipped.")
+        return
+
+    try:
+        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        payload = json.dumps({
+            "chat_id": telegram_id,
+            "text": message,
+            "parse_mode": "HTML"
+        }).encode("utf-8")
+
+        request = urllib.request.Request(
+            url,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
+
+        await asyncio.to_thread(urllib.request.urlopen, request, timeout=10)
+    except Exception as error:
+        print("Telegram notification error:", error)
+
+
 @app.post("/admin/withdrawals/{withdrawal_id}/paid")
 async def mark_withdrawal_paid(withdrawal_id: int):
     with engine.begin() as conn:
         row = conn.execute(text("""
-            SELECT id, user_id, amount, status
+            SELECT id, user_id, amount, payment_method, status
             FROM withdrawals WHERE id = :id FOR UPDATE
         """), {"id": withdrawal_id}).fetchone()
 
@@ -1045,6 +1073,16 @@ async def mark_withdrawal_paid(withdrawal_id: int):
             SET withdrawn = COALESCE(withdrawn, 0) + :amount
             WHERE telegram_id = :uid
         """), {"amount": row.amount, "uid": row.user_id})
+
+    await send_partner_notification(
+        int(row.user_id),
+        (
+            "💸 <b>Выплата подтверждена</b>\n\n"
+            f"Сумма: <b>${float(row.amount or 0):.2f}</b>\n"
+            f"Метод: <b>{row.payment_method}</b>\n"
+            "Статус: <b>Выплачено ✅</b>"
+        )
+    )
 
     return {"success": True, "withdrawal_id": withdrawal_id,
             "status": "paid", "amount": float(row.amount or 0)}
