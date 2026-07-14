@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Users, Layers, CreditCard, Newspaper, 
   BarChart2, Settings, LogOut, Search, ShieldAlert, 
-  UserCheck 
+  UserCheck, Megaphone 
 } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
@@ -50,6 +50,15 @@ interface Withdrawal {
   processed_at?: string | null;
 }
 
+interface ChatBanner {
+  id: number;
+  title: string;
+  text: string;
+  button_text: string;
+  button_url: string;
+  is_active: boolean;
+}
+
 export const Admin: React.FC = () => {
   const navigate = useNavigate();
   const currentUser = getTelegramUser();
@@ -57,7 +66,7 @@ export const Admin: React.FC = () => {
   // Привязка прав администратора строго к вашему Telegram ID: 232682307
   const isAdmin = currentUser.id === 232682307;
 
-  const [subView, setSubView] = useState<'menu' | 'users' | 'user' | 'withdrawals'>('menu');
+  const [subView, setSubView] = useState<'menu' | 'users' | 'user' | 'withdrawals' | 'banner'>('menu');
   const [searchQuery, setSearchQuery] = useState('');
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -71,6 +80,9 @@ export const Admin: React.FC = () => {
   const [withdrawalFilter, setWithdrawalFilter] = useState<'all' | 'pending' | 'paid' | 'rejected'>('all');
   const [withdrawalSearch, setWithdrawalSearch] = useState('');
   const [processingWithdrawalId, setProcessingWithdrawalId] = useState<number | null>(null);
+  const [chatBanner, setChatBanner] = useState<ChatBanner | null>(null);
+  const [bannerLoading, setBannerLoading] = useState(false);
+  const [bannerSaving, setBannerSaving] = useState(false);
 
   useEffect(() => {
     if (subView !== 'menu') return;
@@ -145,6 +157,84 @@ export const Admin: React.FC = () => {
     return () => window.clearInterval(interval);
   }, [subView]);
 
+useEffect(() => {
+  if (subView !== 'banner') return;
+
+  const loadBanner = async () => {
+    try {
+      setBannerLoading(true);
+
+      const response = await fetch(
+        'https://vvd-cpa-v2.onrender.com/chat/banner',
+        { cache: 'no-store' }
+      );
+
+      const data = await response.json();
+
+      if (data.success && data.banner) {
+        setChatBanner({
+          id: Number(data.banner.id),
+          title: data.banner.title || '',
+          text: data.banner.text || '',
+          button_text: data.banner.button_text || '',
+          button_url: data.banner.button_url || '',
+          is_active: Boolean(data.banner.is_active),
+        });
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки рекламы Движ:', error);
+    } finally {
+      setBannerLoading(false);
+    }
+  };
+
+  loadBanner();
+}, [subView]);
+
+const saveChatBanner = async () => {
+  if (!chatBanner) return;
+
+  try {
+    triggerHaptic.lightImpact();
+    setBannerSaving(true);
+
+    const response = await fetch(
+      'https://vvd-cpa-v2.onrender.com/admin/chat/banner',
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: chatBanner.title,
+          text: chatBanner.text,
+          button_text: chatBanner.button_text,
+          button_url: chatBanner.button_url,
+          is_active: chatBanner.is_active,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || data.detail || 'Ошибка сохранения рекламы');
+    }
+
+    triggerHaptic.success();
+    window.alert('Реклама Движ сохранена');
+  } catch (error) {
+    console.error('Ошибка сохранения рекламы Движ:', error);
+    window.alert(
+      error instanceof Error
+        ? error.message
+        : 'Ошибка сохранения рекламы'
+    );
+  } finally {
+    setBannerSaving(false);
+  }
+};
+  
   const processWithdrawal = async (withdrawalId: number, action: 'pay' | 'reject') => {
     const question = action === 'pay'
       ? 'Подтвердить выплату?'
@@ -205,7 +295,7 @@ export const Admin: React.FC = () => {
     navigate('/profile');
   };
 
-  const handleSubViewChange = (view: 'menu' | 'users' | 'withdrawals') => {
+  const handleSubViewChange = (view: 'menu' | 'users' | 'withdrawals' | 'banner') => {
     triggerHaptic.lightImpact();
     setSubView(view);
   };
@@ -392,6 +482,22 @@ export const Admin: React.FC = () => {
                 <span className="text-[10px] text-accentPurple font-bold uppercase tracking-wider">Управление</span>
               </div>
 
+              {/* Реклама в Движ */}
+<div
+  onClick={() => handleSubViewChange('banner')}
+  className="flex items-center justify-between p-4 hover:bg-white/[0.01] active:bg-white/[0.02] cursor-pointer transition-colors"
+>
+  <div className="flex items-center gap-3">
+    <Megaphone size={16} className="text-accentGold" />
+    <span className="text-xs font-semibold text-white">
+      Реклама в Движ
+    </span>
+  </div>
+
+  <span className="text-[10px] text-accentGold font-bold uppercase tracking-wider">
+    Управление
+  </span>
+</div>
               {/* Управление новостями */}
               <div className="flex items-center justify-between p-4 opacity-40 pointer-events-none">
                 <div className="flex items-center gap-3">
@@ -424,7 +530,138 @@ export const Admin: React.FC = () => {
           </div>
         </div>
       )}
+{/* ================= РЕКЛАМА В ДВИЖ ================= */}
+{subView === 'banner' && (
+  <div className="flex flex-col gap-4 animate-fade-in">
 
+    <div className="flex items-center gap-3 text-left">
+      <button
+        onClick={() => handleSubViewChange('menu')}
+        className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform shadow-glass-inner"
+      >
+        <ArrowLeft size={18} />
+      </button>
+
+      <div className="flex flex-col">
+        <span className="text-[10px] text-accentGold font-bold uppercase tracking-wider">
+          Движ
+        </span>
+        <h1 className="text-xl font-bold text-white leading-none mt-0.5">
+          Реклама в чате
+        </h1>
+      </div>
+    </div>
+
+    {bannerLoading || !chatBanner ? (
+      <div className="py-24 text-center text-textSecondary text-xs">
+        Загрузка рекламы...
+      </div>
+    ) : (
+      <Card padding="md" className="flex flex-col gap-4 text-left">
+
+        <div>
+          <span className="text-[9px] text-textSecondary uppercase block mb-2">
+            Заголовок
+          </span>
+
+          <Input
+            value={chatBanner.title}
+            onChange={(e) =>
+              setChatBanner(prev =>
+                prev ? { ...prev, title: e.target.value } : prev
+              )
+            }
+            placeholder="VVD CPA"
+          />
+        </div>
+
+        <div>
+          <span className="text-[9px] text-textSecondary uppercase block mb-2">
+            Текст рекламы
+          </span>
+
+          <textarea
+            value={chatBanner.text}
+            onChange={(e) =>
+              setChatBanner(prev =>
+                prev ? { ...prev, text: e.target.value } : prev
+              )
+            }
+            placeholder="Текст рекламы..."
+            className="w-full min-h-28 rounded-xl bg-bgCard/60 border border-white/10 p-3 text-xs text-white outline-none resize-none"
+          />
+        </div>
+
+        <div>
+          <span className="text-[9px] text-textSecondary uppercase block mb-2">
+            Текст кнопки
+          </span>
+
+          <Input
+            value={chatBanner.button_text}
+            onChange={(e) =>
+              setChatBanner(prev =>
+                prev ? { ...prev, button_text: e.target.value } : prev
+              )
+            }
+            placeholder="Подробнее"
+          />
+        </div>
+
+        <div>
+          <span className="text-[9px] text-textSecondary uppercase block mb-2">
+            Ссылка
+          </span>
+
+          <Input
+            value={chatBanner.button_url}
+            onChange={(e) =>
+              setChatBanner(prev =>
+                prev ? { ...prev, button_url: e.target.value } : prev
+              )
+            }
+            placeholder="https://..."
+          />
+        </div>
+
+        <div
+          onClick={() =>
+            setChatBanner(prev =>
+              prev
+                ? { ...prev, is_active: !prev.is_active }
+                : prev
+            )
+          }
+          className="flex items-center justify-between p-4 rounded-xl border border-white/[0.06] bg-bgCard/40 cursor-pointer"
+        >
+          <span className="text-xs font-bold text-white">
+            Показывать рекламу
+          </span>
+
+          <span
+            className={`text-[10px] font-bold uppercase ${
+              chatBanner.is_active
+                ? 'text-success'
+                : 'text-error'
+            }`}
+          >
+            {chatBanner.is_active ? 'Включена' : 'Выключена'}
+          </span>
+        </div>
+
+        <Button
+          size="md"
+          onClick={saveChatBanner}
+          disabled={bannerSaving}
+          className="w-full"
+        >
+          {bannerSaving ? 'Сохранение...' : 'Сохранить рекламу'}
+        </Button>
+
+      </Card>
+    )}
+  </div>
+)}
       {/* ================= VIEW 2: СПИСОК ПОЛЬЗОВАТЕЛЕЙ ================= */}
       {subView === 'users' && (
         <div className="flex flex-col gap-4 animate-fade-in">
