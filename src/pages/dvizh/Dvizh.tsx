@@ -426,12 +426,12 @@ useEffect(() => {
       </div>
 
       {/* Всплывающее стеклянное уведомление при нарушении правил ввода */}
-      {showWarning && (
-        <div className="fixed top-8 left-1/2 transform -translate-x-1/2 z-[10000] w-[calc(100%-32px)] glass-card p-12 border-error/20 flex items-center gap-3 text-xs text-error font-semibold rounded-app-xs animate-fade-in shadow-[0_0_20px_rgba(239,68,68,0.25)]">
-          <ShieldAlert size={16} className="drop-shadow-[0_0_4px_#EF4444]" />
-          <span>Отправка ссылок запрещена правилами VVD CPA.</span>
-        </div>
-      )}
+     {showWarning && (
+  <div className="absolute top-20 left-4 right-4 z-[10000] glass-card p-4 border-error/20 flex items-center justify-center gap-3 text-xs text-error font-semibold rounded-app-xs animate-fade-in shadow-premium">
+    <ShieldAlert size={16} className="drop-shadow-[0_0_4px_#FF4444]" />
+    <span>Отправка ссылок запрещена правилами VVD CPA.</span>
+  </div>
+)}
 
     </div>
   );
