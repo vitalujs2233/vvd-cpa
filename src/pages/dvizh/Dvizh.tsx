@@ -113,37 +113,66 @@ export const Dvizh: React.FC = () => {
     return linkRegex.test(text);
   };
 
-  const handleSendMessage = () => {
-    if (!inputValue.trim()) return;
+  const handleSendMessage = async () => {
+  if (!inputValue.trim()) return;
 
-    if (containsForbiddenLink(inputValue)) {
-      triggerHaptic.error();
-      setShowWarning(true);
-      
-      setTimeout(() => {
-        setShowWarning(false);
-      }, 3000);
-      return;
-    }
+  if (containsForbiddenLink(inputValue)) {
+    triggerHaptic.error();
+    setShowWarning(true);
 
+    setTimeout(() => {
+      setShowWarning(false);
+    }, 3000);
+
+    return;
+  }
+
+  try {
     triggerHaptic.mediumImpact();
 
-    const now = new Date();
-    const timeString = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    const response = await fetch(`${API}/chat/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        sender_id: currentUser.id,
+        sender_name: `${currentUser.first_name} ${currentUser.last_name || ''}`.trim(),
+        avatar_url: currentUser.photo_url || '',
+        text: inputValue.trim(),
+        reactions: {},
+        is_staff: false,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || 'Ошибка отправки сообщения');
+    }
+
+    const msg = data.message;
 
     const newMessage: ChatMessage = {
-      id: `msg-user-${Date.now()}`,
-      senderId: currentUser.id.toString(),
-      senderName: `${currentUser.first_name} ${currentUser.last_name || ''}`.trim(),
-      avatarText: currentUser.first_name.slice(0, 2).toUpperCase(),
-      text: inputValue.trim(),
-      time: timeString,
-      reactions: {},
+      id: String(msg.id),
+      senderId: String(msg.sender_id),
+      senderName: msg.sender_name || 'Партнёр VVD',
+      avatarText: (msg.sender_name || 'VV').slice(0, 2).toUpperCase(),
+      text: msg.text,
+      time: new Date(msg.created_at).toLocaleTimeString('ru-RU', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      reactions: msg.reactions || {},
+      isStaff: Boolean(msg.is_staff),
     };
 
     setMessages(prev => [...prev, newMessage]);
     setInputValue('');
-  };
+  } catch (error) {
+    console.error('Ошибка отправки сообщения:', error);
+  }
+};
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
