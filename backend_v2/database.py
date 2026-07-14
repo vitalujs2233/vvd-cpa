@@ -127,3 +127,10 @@ def create_analytics_tables():
                 ON clicks(click_id)
             """)
         )
+def check_database():
+    with engine.connect() as conn:
+        conn.execute(text("SELECT 1"))
+
+    create_analytics_tables()
+
+    return True
