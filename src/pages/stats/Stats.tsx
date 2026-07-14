@@ -173,6 +173,36 @@ export const Stats: React.FC = () => {
       </div>
 
       <div className="flex flex-col gap-2">
+  <span className="text-[10px] text-textSecondary font-bold uppercase tracking-wider px-1">
+    Вертикаль
+  </span>
+
+  <div className="flex bg-bgCard/35 backdrop-blur-md border border-white/[0.04] rounded-app-xs p-2 gap-2 overflow-x-auto no-scrollbar scrollable-container shadow-glass-inner">
+    {[
+      { key: 'all', label: 'Все' },
+      { key: 'adult', label: 'Adult' },
+      { key: 'mainstream', label: 'Mainstream' },
+      { key: 'webcam', label: 'WebCam' },
+      { key: 'adult_games', label: 'Adult Games' }
+    ].map(item => (
+      <button
+        key={item.key}
+        onClick={() => {
+          triggerHaptic.lightImpact();
+          setVertical(item.key as Vertical);
+        }}
+        className={`px-3 py-1.5 text-xs font-semibold rounded-app-xs transition-all whitespace-nowrap shrink-0 ${
+          vertical === item.key
+            ? 'bg-accent-gradient text-white shadow-glow-purple'
+            : 'text-textSecondary hover:text-textPrimary'
+        }`}
+      >
+        {item.label}
+      </button>
+    ))}
+  </div>
+</div>
+      <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between px-1">
           <span className="text-[10px] text-textSecondary font-bold uppercase tracking-wider">География</span>
           {selectedCountry !== 'all' && (
