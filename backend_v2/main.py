@@ -899,38 +899,53 @@ async def postback_traffcore(
 
 
 @app.get("/statistics/{telegram_id}")
-async def get_statistics(telegram_id: int):
-
+async def get_statistics(
+    telegram_id: int,
+    vertical: str | None = None
+):
     with engine.connect() as conn:
 
-        stats = conn.execute(
-            text("""
-                SELECT
-                    date,
-                    clicks,
-                    conversions,
-                    income
-                FROM statistics
-                WHERE user_id = :telegram_id
-                ORDER BY date ASC
-            """),
-            {
-                "telegram_id": telegram_id
-            }
+        click_query = """
+            SELECT
+                DATE(created_at) AS date,
+                COUNT(*) AS clicks
+            FROM clicks
+            WHERE user_id = :telegram_id
+        """
+
+        params = {
+            "telegram_id": telegram_id
+        }
+
+        if vertical:
+            click_query += " AND vertical = :vertical"
+            params["vertical"] = vertical
+
+        click_query += """
+            GROUP BY DATE(created_at)
+            ORDER BY DATE(created_at) ASC
+        """
+
+        click_rows = conn.execute(
+            text(click_query),
+            params
         ).fetchall()
 
-    return {
-        "success": True,
-        "statistics": [
-            {
+        statistics = []
+
+        for row in click_rows:
+            statistics.append({
                 "date": str(row.date),
                 "clicks": int(row.clicks or 0),
-                "conversions": int(row.conversions or 0),
-                "income": float(row.income or 0)
-            }
-            for row in stats
-        ]
-    }
+                "conversions": 0,
+                "income": 0.0
+            })
+
+        return {
+            "success": True,
+            "vertical": vertical or "all",
+            "statistics": statistics
+        }
 @app.get("/statistics/{telegram_id}/countries")
 async def get_country_statistics(telegram_id: int):
 
