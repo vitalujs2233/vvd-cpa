@@ -20,7 +20,14 @@ interface ChatMessage {
   reactions: Record<string, number>; // Эмодзи -> Количество реакций
   isStaff?: boolean;
 }
-
+interface ChatBanner {
+  id: number;
+  title: string;
+  text: string;
+  button_text: string;
+  button_url: string;
+  is_active: boolean;
+}
 interface SupportContact {
   id: string;
   name: string;
@@ -68,7 +75,27 @@ export const Dvizh: React.FC = () => {
   const [showWarning, setShowWarning] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+const [banner, setBanner] = useState<ChatBanner | null>(null);
 
+useEffect(() => {
+  const loadBanner = async () => {
+    try {
+      const response = await fetch(`${API}/chat/banner`, {
+        cache: 'no-store',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setBanner(data.banner || null);
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки баннера:', error);
+    }
+  };
+
+  void loadBanner();
+}, []);
   useEffect(() => {
   const loadMessages = async () => {
     try {
@@ -251,18 +278,33 @@ export const Dvizh: React.FC = () => {
         </div>
       )}
 
-      {/* Закрепленное сообщение */}
-      <div className="px-4 py-2 shrink-0 z-10">
-        <Card padding="sm" className="flex items-center gap-3 border-accentGold/20 bg-accentGold/[0.02] shadow-[0_4px_15px_rgba(212,175,55,0.05)]">
-          <Pin size={14} className="text-accentGoldBright shrink-0 drop-shadow-[0_0_4px_#D4AF37]" />
-          <div className="flex flex-col text-left overflow-hidden">
-            <span className="text-[8px] text-accentGold font-bold uppercase tracking-widest">Закрепленное сообщение</span>
-            <p className="text-[10px] text-textSecondary truncate pr-2 mt-0.5 font-semibold">
-              Спам и любые внешние ссылки строго запрещены модерацией. Нарушители блокируются навсегда.
-            </p>
+     {/* Рекламный баннер */}
+{banner && banner.is_active && (
+  <div className="px-4 py-2 shrink-0 z-10">
+    <div className="rounded-2xl border border-accentGold/30 bg-gradient-to-r from-accentGold/[0.10] to-bgCard/80 px-4 py-3 shadow-lg">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[10px] text-accentGold font-bold uppercase tracking-widest">
+            {banner.title}
           </div>
-        </Card>
+
+          <div className="text-[12px] text-textSecondary mt-1">
+            {banner.text}
+          </div>
+        </div>
+
+        {banner.button_text && banner.button_url && (
+          <button
+            onClick={() => window.open(banner.button_url, '_blank')}
+            className="shrink-0 px-3 py-2 rounded-xl bg-accentGold text-black text-[11px] font-bold"
+          >
+            {banner.button_text}
+          </button>
+        )}
       </div>
+    </div>
+  </div>
+)}
 
       {/* Контейнер сообщений */}
       <div className="flex-1 overflow-y-auto p-4 scrollable-container flex flex-col gap-4 z-0">
