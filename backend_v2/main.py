@@ -905,12 +905,18 @@ async def get_statistics(
 ):
     with engine.connect() as conn:
 
-        click_query = """
+        query = """
             SELECT
-                DATE(created_at) AS date,
-                COUNT(*) AS clicks
-            FROM clicks
-            WHERE user_id = :telegram_id
+                DATE(c.created_at) AS date,
+                COUNT(DISTINCT c.click_id) AS clicks,
+                COUNT(DISTINCT cv.id) AS conversions,
+                COALESCE(SUM(cv.payout_net), 0) AS income
+            FROM clicks c
+            LEFT JOIN conversions cv
+                ON cv.click_id = c.click_id
+                AND cv.user_id = c.user_id
+                AND cv.status = '1'
+            WHERE c.user_id = :telegram_id
         """
 
         params = {
@@ -918,27 +924,27 @@ async def get_statistics(
         }
 
         if vertical:
-            click_query += " AND vertical = :vertical"
+            query += " AND c.vertical = :vertical"
             params["vertical"] = vertical
 
-        click_query += """
-            GROUP BY DATE(created_at)
-            ORDER BY DATE(created_at) ASC
+        query += """
+            GROUP BY DATE(c.created_at)
+            ORDER BY DATE(c.created_at) ASC
         """
 
-        click_rows = conn.execute(
-            text(click_query),
+        rows = conn.execute(
+            text(query),
             params
         ).fetchall()
 
         statistics = []
 
-        for row in click_rows:
+        for row in rows:
             statistics.append({
                 "date": str(row.date),
                 "clicks": int(row.clicks or 0),
-                "conversions": 0,
-                "income": 0.0
+                "conversions": int(row.conversions or 0),
+                "income": float(row.income or 0)
             })
 
         return {
