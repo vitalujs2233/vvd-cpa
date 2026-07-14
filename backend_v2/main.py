@@ -211,7 +211,37 @@ async def track_click(partner_code: str, vertical: str, request: Request):
                 country_name = geo_data.get("country") or "Неизвестно"
         except Exception as geo_error:
             print("GEO detection error:", geo_error)
-
+            conn.execute(
+            text("""
+                INSERT INTO clicks (
+                    user_id,
+                    partner_code,
+                    click_id,
+                    vertical,
+                    country_code,
+                    country_name,
+                    ip_address
+                )
+                VALUES (
+                    :user_id,
+                    :partner_code,
+                    :click_id,
+                    :vertical,
+                    :country_code,
+                    :country_name,
+                    :ip_address
+                )
+            """),
+            {
+                "user_id": telegram_id,
+                "partner_code": partner_code,
+                "click_id": click_id,
+                "vertical": vertical,
+                "country_code": country_code,
+                "country_name": country_name,
+                "ip_address": ip_address,
+            }
+        )
         country_row = conn.execute(
             text("""
                 SELECT country_code
