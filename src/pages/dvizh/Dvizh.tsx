@@ -52,51 +52,13 @@ const SUPPORT_CONTACTS: SupportContact[] = [
   },
 ];
 
-const INITIAL_MESSAGES: ChatMessage[] = [
-  {
-    id: 'msg-1',
-    senderId: 'admin',
-    senderName: 'VVD CPA Admin',
-    avatarText: 'AD',
-    text: 'Приветствуем всех в приватном комьюнити VVD CPA! Здесь вы можете общаться, делиться связками и опытом. Спам и внешние ссылки строго запрещены модерацией.',
-    time: '12:00',
-    reactions: { '🚀': 12, '😎': 8, '👍': 15 },
-    isStaff: true,
-  },
-  {
-    id: 'msg-2',
-    senderId: 'user-1',
-    senderName: 'Артур_CPA',
-    avatarText: 'АР',
-    text: 'Привет народ! Кто льет на дейтинг, какое ГЕО сейчас лучше всего конвертит на мобильном трафике?',
-    time: '12:35',
-    reactions: { '👍': 4, '🔥': 2 },
-  },
-  {
-    id: 'msg-3',
-    senderId: 'user-2',
-    senderName: 'Spain_Lead',
-    avatarText: 'SL',
-    text: 'Артур_CPA, я лью Испанию и Италию по SmartLink, аппрув держится в районе 68%, EPC около $0.12. Советую потестить.',
-    time: '12:42',
-    reactions: { '🔥': 6, '🚀': 3 },
-  },
-  {
-    id: 'msg-4',
-    senderId: 'user-3',
-    senderName: 'НутраКиг',
-    avatarText: 'НК',
-    text: 'Ребята, выплату за прошлую неделю только что получил на USDT кошелек! Спасибо админам за скорость, всё как обычно на высоте.',
-    time: '13:01',
-    reactions: { '❤️': 8, '🚀': 5, '😎': 2 },
-  },
-];
 
 const AVAILABLE_REACTIONS = ['👍', '❤️', '🔥', '😂', '😎', '🚀'];
 
+const API = 'https://vvd-cpa-v2.onrender.com';
 export const Dvizh: React.FC = () => {
   const currentUser = getTelegramUser();
-  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
