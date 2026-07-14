@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Search, Heart, Sparkles, Video, Coins, Gamepad2, 
+  Search, Heart, Sparkles, Video, Joystick, Gamepad2, 
   Smartphone, ChevronRight, Star 
    
 } from 'lucide-react';
@@ -13,7 +13,7 @@ interface OfferCategory {
   id: string;
   title: string;
   offersCount: number;
-  iconName: 'heart' | 'sparkles' | 'video' | 'coins' | 'gamepad' | 'smartphone';
+  iconName: 'heart' | 'sparkles' | 'video' | 'joystick' | 'gamepad' | 'smartphone';
   isTop: boolean;
   isNew: boolean;
   colorClass: string;
@@ -48,14 +48,15 @@ const CATEGORIES_DATA: OfferCategory[] = [
   colorClass: 'text-success bg-success/10 border-success/25 shadow-[0_0_15px_rgba(34,197,94,0.15)]',
 },
   {
-    id: 'crypto',
-    title: 'Crypto',
-    offersCount: 65,
-    iconName: 'coins',
-    isTop: true,
-    isNew: false,
-    colorClass: 'text-accentPurple bg-accentPurple/10 border-accentPurple/25 shadow-[0_0_15px_rgba(124,58,237,0.15)]',
-  },
+    {
+  id: 'adult-games',
+  title: 'Adult Games',
+  offersCount: 65,
+  iconName: 'joystick',
+  isTop: true,
+  isNew: false,
+  colorClass: 'text-accentPurple bg-accentPurple/10 border-accentPurple/25 shadow-[0_0_15px_rgba(124,58,237,0.15)]',
+},
   {
     id: 'gaming',
     title: 'Gaming',
@@ -96,7 +97,7 @@ export const Offers: React.FC = () => {
       case 'heart': return <Heart {...iconProps} />;
       case 'sparkles': return <Sparkles {...iconProps} />;
       case 'video': return <Video {...iconProps} />;
-      case 'coins': return <Coins {...iconProps} />;
+      case 'joystick': return <Joystick {...iconProps} />;
       case 'gamepad': return <Gamepad2 {...iconProps} />;
       case 'smartphone': return <Smartphone {...iconProps} />;
       default: return <Sparkles {...iconProps} />;
