@@ -201,7 +201,7 @@ const saveChatBanner = async () => {
     const response = await fetch(
       'https://vvd-cpa-v2.onrender.com/admin/chat/banner',
       {
-        method: 'PUT',
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
