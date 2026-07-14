@@ -24,7 +24,10 @@ def generate_partner_code():
 def check_database():
     with engine.connect() as conn:
         conn.execute(text("SELECT 1"))
-        return True
+
+    create_analytics_tables()
+
+    return True
 
 
 def save_user(
