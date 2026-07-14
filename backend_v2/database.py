@@ -79,3 +79,48 @@ def save_user(
                 "partner_code": generate_partner_code(),
             }
         )
+def create_analytics_tables():
+    with engine.begin() as conn:
+        conn.execute(
+            text("""
+                CREATE TABLE IF NOT EXISTS clicks (
+                    id BIGSERIAL PRIMARY KEY,
+                    user_id BIGINT NOT NULL,
+                    partner_code VARCHAR(50) NOT NULL,
+                    click_id VARCHAR(255) NOT NULL UNIQUE,
+                    vertical VARCHAR(100) NOT NULL,
+                    country_code VARCHAR(20),
+                    country_name VARCHAR(255),
+                    ip_address VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+        )
+
+        conn.execute(
+            text("""
+                CREATE INDEX IF NOT EXISTS idx_clicks_user_id
+                ON clicks(user_id)
+            """)
+        )
+
+        conn.execute(
+            text("""
+                CREATE INDEX IF NOT EXISTS idx_clicks_vertical
+                ON clicks(vertical)
+            """)
+        )
+
+        conn.execute(
+            text("""
+                CREATE INDEX IF NOT EXISTS idx_clicks_created_at
+                ON clicks(created_at)
+            """)
+        )
+
+        conn.execute(
+            text("""
+                CREATE INDEX IF NOT EXISTS idx_clicks_click_id
+                ON clicks(click_id)
+            """)
+        )
