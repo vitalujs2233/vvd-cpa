@@ -48,7 +48,6 @@ const CATEGORIES_DATA: OfferCategory[] = [
   colorClass: 'text-success bg-success/10 border-success/25 shadow-[0_0_15px_rgba(34,197,94,0.15)]',
 },
   {
-    {
   id: 'adult-games',
   title: 'Adult Games',
   offersCount: 65,
