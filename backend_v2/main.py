@@ -144,8 +144,8 @@ async def get_smartlink(telegram_id: int, vertical: str):
         "webcam":
         f"https://vvd-cpa-v2.onrender.com/go/{partner_code}/webcam",
 
-        "crypto":
-        f"https://CRYPTO_LINK&sub1={partner_code}",
+        "adult-games":
+        f"https://vvd-cpa-v2.onrender.com/go/{partner_code}/adult-games",
 
         "gaming":
         f"https://GAMING_LINK&sub1={partner_code}",
@@ -306,8 +306,8 @@ async def track_click(partner_code: str, vertical: str, request: Request):
         f"https://hotplayhubs.me/q6ZyXz95?aid=xcPScZTVF&kid=TSYSxTFTx&sub1={partner_code}&sub2={partner_code}&sub3={click_id}",
         
 
-        "crypto":
-        f"https://CRYPTO_LINK&sub1={partner_code}&sub2={click_id}",
+        "adult-games":
+        f"https://hotplayhubs.me/BTTfkJGq?aid=xcPScZTVF&kid=TSYPVxVYx&sub1={partner_code}&sub2={partner_code}&sub3={click_id}",
 
         "gaming":
         f"https://GAMING_LINK&sub1={partner_code}&sub2={click_id}",
