@@ -63,7 +63,10 @@ export const Stats: React.FC = () => {
   `${API}/statistics/${id}${vertical !== 'all' ? `?vertical=${vertical}` : ''}`,
   { cache: 'no-store' }
 ),
-        fetch(`${API}/statistics/${id}/countries`, { cache: 'no-store' })
+        fetch(
+  `${API}/statistics/${id}/countries${vertical !== 'all' ? `?vertical=${vertical}` : ''}`,
+  { cache: 'no-store' }
+)
       ]);
       if (!s.ok || !c.ok) throw new Error(`Ошибка API: statistics ${s.status}, countries ${c.status}`);
       const sd = await s.json();
