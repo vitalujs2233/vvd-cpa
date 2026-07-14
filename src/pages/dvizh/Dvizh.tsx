@@ -69,6 +69,40 @@ export const Dvizh: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+  const loadMessages = async () => {
+    try {
+      const response = await fetch(`${API}/chat/messages`, {
+        cache: 'no-store',
+      });
+
+      const data = await response.json();
+
+      if (!data.success) return;
+
+      const loadedMessages: ChatMessage[] = (data.messages || []).map((msg: any) => ({
+        id: String(msg.id),
+        senderId: String(msg.sender_id),
+        senderName: msg.sender_name || 'Партнёр VVD',
+        avatarText: (msg.sender_name || 'VV').slice(0, 2).toUpperCase(),
+        text: msg.text,
+        time: new Date(msg.created_at).toLocaleTimeString('ru-RU', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+        reactions: msg.reactions || {},
+        isStaff: Boolean(msg.is_staff),
+      }));
+
+      setMessages(loadedMessages);
+    } catch (error) {
+      console.error('Ошибка загрузки сообщений:', error);
+    }
+  };
+
+  void loadMessages();
+}, []);
+
+  useEffect(() => {
     if (messagesEndRef.current && !showSearch) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
