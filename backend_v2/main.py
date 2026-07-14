@@ -953,30 +953,56 @@ async def get_statistics(
             "statistics": statistics
         }
 @app.get("/statistics/{telegram_id}/countries")
-async def get_country_statistics(telegram_id: int):
+async def get_country_statistics(
+    telegram_id: int,
+    vertical: str | None = None
+):
 
     with engine.connect() as conn:
 
+        query = """
+            SELECT
+                c.country_code,
+                c.country_name,
+                COUNT(DISTINCT c.click_id) AS clicks,
+                COUNT(DISTINCT CASE
+                    WHEN CAST(cv.status AS TEXT) = '1'
+                    THEN cv.id
+                END) AS conversions,
+                COALESCE(SUM(
+                    CASE
+                        WHEN CAST(cv.status AS TEXT) = '1'
+                        THEN cv.payout_net
+                        ELSE 0
+                    END
+                ), 0) AS income
+            FROM clicks c
+            LEFT JOIN conversions cv
+                ON cv.click_id = c.click_id
+            WHERE c.user_id = :telegram_id
+        """
+
+        params = {
+            "telegram_id": telegram_id
+        }
+
+        if vertical:
+            query += " AND c.vertical = :vertical"
+            params["vertical"] = vertical
+
+        query += """
+            GROUP BY c.country_code, c.country_name
+            ORDER BY income DESC
+        """
+
         countries = conn.execute(
-            text("""
-                SELECT
-                    country_code,
-                    country_name,
-                    SUM(clicks) AS clicks,
-                    SUM(conversions) AS conversions,
-                    SUM(income) AS income
-                FROM country_statistics
-                WHERE user_id = :telegram_id
-                GROUP BY country_code, country_name
-                ORDER BY income DESC
-            """),
-            {
-                "telegram_id": telegram_id
-            }
+            text(query),
+            params
         ).fetchall()
 
     return {
         "success": True,
+        "vertical": vertical or "all",
         "countries": [
             {
                 "country_code": row.country_code,
