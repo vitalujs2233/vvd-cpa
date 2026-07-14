@@ -1014,7 +1014,120 @@ async def get_country_statistics(
             for row in countries
         ]
     }
+@app.get("/chat/banner")
+async def get_chat_banner():
+    with engine.connect() as conn:
+        banner = conn.execute(
+            text("""
+                SELECT
+                    id,
+                    title,
+                    text,
+                    button_text,
+                    button_url,
+                    is_active,
+                    updated_at
+                FROM chat_banner
+                WHERE is_active = TRUE
+                ORDER BY updated_at DESC
+                LIMIT 1
+            """)
+        ).fetchone()
 
+    if not banner:
+        return {
+            "success": True,
+            "banner": None
+        }
+
+    return {
+        "success": True,
+        "banner": {
+            "id": banner.id,
+            "title": banner.title,
+            "text": banner.text,
+            "button_text": banner.button_text or "",
+            "button_url": banner.button_url or "",
+            "is_active": bool(banner.is_active)
+        }
+    }
+
+
+@app.post("/admin/chat/banner")
+async def update_chat_banner(payload: dict):
+    title = str(payload.get("title") or "").strip()
+    banner_text = str(payload.get("text") or "").strip()
+    button_text = str(payload.get("button_text") or "").strip()
+    button_url = str(payload.get("button_url") or "").strip()
+    is_active = bool(payload.get("is_active", True))
+
+    if not title:
+        return {
+            "success": False,
+            "message": "title is required"
+        }
+
+    with engine.begin() as conn:
+        banner = conn.execute(
+            text("""
+                SELECT id
+                FROM chat_banner
+                ORDER BY updated_at DESC
+                LIMIT 1
+            """)
+        ).fetchone()
+
+        if banner:
+            conn.execute(
+                text("""
+                    UPDATE chat_banner
+                    SET title = :title,
+                        text = :banner_text,
+                        button_text = :button_text,
+                        button_url = :button_url,
+                        is_active = :is_active,
+                        updated_at = NOW()
+                    WHERE id = :id
+                """),
+                {
+                    "id": banner.id,
+                    "title": title,
+                    "banner_text": banner_text,
+                    "button_text": button_text,
+                    "button_url": button_url,
+                    "is_active": is_active
+                }
+            )
+        else:
+            conn.execute(
+                text("""
+                    INSERT INTO chat_banner (
+                        title,
+                        text,
+                        button_text,
+                        button_url,
+                        is_active
+                    )
+                    VALUES (
+                        :title,
+                        :banner_text,
+                        :button_text,
+                        :button_url,
+                        :is_active
+                    )
+                """),
+                {
+                    "title": title,
+                    "banner_text": banner_text,
+                    "button_text": button_text,
+                    "button_url": button_url,
+                    "is_active": is_active
+                }
+            )
+
+    return {
+        "success": True
+    }
 
 @app.get("/admin/finance")
 async def admin_finance():
