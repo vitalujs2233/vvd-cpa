@@ -4,6 +4,7 @@ import { Card } from '@/shared/ui/Card';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
 
 type Filter = 'today' | 'yesterday' | '7days' | '30days' | 'all';
+type Vertical = 'all' | 'adult' | 'mainstream' | 'webcam' | 'adult_games';
 type Stat = { date: string; clicks: number; conversions: number; income: number };
 type Country = { country_code: string; country_name: string; clicks: number; conversions: number; income: number };
 
@@ -42,6 +43,7 @@ const chartPaths = (rows: Stat[]) => {
 
 export const Stats: React.FC = () => {
   const [filter, setFilter] = useState<Filter>('today');
+  const [vertical, setVertical] = useState<Vertical>('all');
   const [stats, setStats] = useState<Stat[]>([]);
   const [countries, setCountries] = useState<Country[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<string>('all');
@@ -57,7 +59,10 @@ export const Stats: React.FC = () => {
       const id = Number(getTelegramUser().id);
       if (!id) throw new Error('Не удалось определить Telegram ID');
       const [s, c] = await Promise.all([
-        fetch(`${API}/statistics/${id}`, { cache: 'no-store' }),
+        fetch(
+  `${API}/statistics/${id}${vertical !== 'all' ? `?vertical=${vertical}` : ''}`,
+  { cache: 'no-store' }
+),
         fetch(`${API}/statistics/${id}/countries`, { cache: 'no-store' })
       ]);
       if (!s.ok || !c.ok) throw new Error(`Ошибка API: statistics ${s.status}, countries ${c.status}`);
@@ -79,7 +84,7 @@ export const Stats: React.FC = () => {
     } finally {
       setLoading(false); setRefreshing(false);
     }
-  }, []);
+  }, [vertical]);
 
   useEffect(() => {
   void load();
