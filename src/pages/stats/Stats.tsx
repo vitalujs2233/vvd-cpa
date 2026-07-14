@@ -105,31 +105,34 @@ export const Stats: React.FC = () => {
   );
 
   const data = useMemo(() => {
-    const periodClicks = rows.reduce((a, r) => a + r.clicks, 0);
-    const periodConversions = rows.reduce((a, r) => a + r.conversions, 0);
-    const periodIncome = rows.reduce((a, r) => a + r.income, 0);
+  const clicks = rows.reduce(
+    (total, row) => total + row.clicks,
+    0
+  );
 
-    const countryClicks = countries.reduce((a, r) => a + r.clicks, 0);
-    const countryConversions = countries.reduce((a, r) => a + r.conversions, 0);
-    const countryIncome = countries.reduce((a, r) => a + r.income, 0);
+  const conversions = rows.reduce(
+    (total, row) => total + row.conversions,
+    0
+  );
 
-    const clicks = selectedCountryData
-      ? selectedCountryData.clicks
-      : countryClicks || periodClicks;
-    const conversions = selectedCountryData
-      ? selectedCountryData.conversions
-      : countryConversions || periodConversions;
-    const income = selectedCountryData
-      ? selectedCountryData.income
-      : countryIncome || periodIncome;
+  const income = rows.reduce(
+    (total, row) => total + row.income,
+    0
+  );
 
-    return {
-      clicks, conversions, income,
-      cr: clicks ? conversions / clicks * 100 : 0,
-      epc: clicks ? income / clicks : 0,
-      ...chartPaths(rows)
-    };
-  }, [rows, countries, selectedCountryData]);
+  return {
+    clicks,
+    conversions,
+    income,
+    cr: clicks > 0
+      ? (conversions / clicks) * 100
+      : 0,
+    epc: clicks > 0
+      ? income / clicks
+      : 0,
+    ...chartPaths(rows)
+  };
+}, [rows]);
 
   const filters: { key: Filter; label: string }[] = [
     { key: 'today', label: 'Сегодня' }, { key: 'yesterday', label: 'Вчера' },
