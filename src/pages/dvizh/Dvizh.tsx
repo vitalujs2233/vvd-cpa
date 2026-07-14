@@ -275,13 +275,21 @@ export const Dvizh: React.FC = () => {
               key={msg.id}
               className={`flex gap-3 max-w-[85%] relative ${isMe ? 'self-end flex-row-reverse' : 'self-start'}`}
             >
-              <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shrink-0 shadow-premium border ${
-                msg.isStaff 
-                  ? 'bg-accent-gradient text-white border-accentPink/20 shadow-glow-purple/20' 
-                  : 'bg-bgCard/60 text-textSecondary border-white/5'
-              }`}>
-                {msg.avatarText}
-              </div>
+              <div className={`w-9 h-9 rounded-full overflow-hidden flex items-center justify-center font-bold text-xs shrink-0 shadow-premium border ${
+  msg.isStaff
+    ? 'bg-accent-gradient text-white border-accentPink/20 shadow-glow-purple/20'
+    : 'bg-bgCard/60 text-textSecondary border-white/5'
+}`}>
+  {msg.avatarUrl ? (
+    <img
+      src={msg.avatarUrl}
+      alt={msg.senderName}
+      className="w-full h-full object-cover"
+    />
+  ) : (
+    msg.avatarText
+  )}
+</div>
 
               <div className="flex flex-col gap-1 relative">
                 <span className={`text-[10px] font-bold px-1 text-left ${
