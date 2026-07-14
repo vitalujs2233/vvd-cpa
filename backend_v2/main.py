@@ -1419,3 +1419,112 @@ async def reject_withdrawal(withdrawal_id: int):
         "status": "rejected",
         "amount_returned": float(row.amount or 0)
     }
+
+@app.get("/chat/messages")
+async def get_chat_messages():
+    with engine.connect() as conn:
+        rows = conn.execute(
+            text("""
+                SELECT
+                    id,
+                    sender_id,
+                    sender_name,
+                    avatar_url,
+                    text,
+                    reactions,
+                    created_at,
+                    is_staff
+                FROM chat_messages
+                ORDER BY created_at ASC
+                LIMIT 500
+            """)
+        ).fetchall()
+
+    return {
+        "success": True,
+        "messages": [
+            {
+                "id": str(row.id),
+                "sender_id": str(row.sender_id),
+                "sender_name": row.sender_name or "Партнёр",
+                "avatar_url": row.avatar_url,
+                "text": row.text,
+                "reactions": row.reactions or {},
+                "created_at": str(row.created_at),
+                "is_staff": bool(row.is_staff),
+            }
+            for row in rows
+        ]
+    }
+
+
+@app.post("/chat/messages")
+async def create_chat_message(payload: dict):
+    sender_id = str(payload.get("sender_id") or "").strip()
+    sender_name = str(payload.get("sender_name") or "Партнёр").strip()
+    avatar_url = payload.get("avatar_url")
+    message_text = str(payload.get("text") or "").strip()
+
+    if not sender_id:
+        return {
+            "success": False,
+            "message": "sender_id is required"
+        }
+
+    if not message_text:
+        return {
+            "success": False,
+            "message": "text is required"
+        }
+
+    with engine.begin() as conn:
+        row = conn.execute(
+            text("""
+                INSERT INTO chat_messages (
+                    sender_id,
+                    sender_name,
+                    avatar_url,
+                    text,
+                    reactions,
+                    is_staff
+                )
+                VALUES (
+                    :sender_id,
+                    :sender_name,
+                    :avatar_url,
+                    :text,
+                    CAST(:reactions AS jsonb),
+                    false
+                )
+                RETURNING
+                    id,
+                    sender_id,
+                    sender_name,
+                    avatar_url,
+                    text,
+                    reactions,
+                    created_at,
+                    is_staff
+            """),
+            {
+                "sender_id": sender_id,
+                "sender_name": sender_name,
+                "avatar_url": avatar_url,
+                "text": message_text,
+                "reactions": "{}",
+            }
+        ).fetchone()
+
+    return {
+        "success": True,
+        "message": {
+            "id": str(row.id),
+            "sender_id": str(row.sender_id),
+            "sender_name": row.sender_name,
+            "avatar_url": row.avatar_url,
+            "text": row.text,
+            "reactions": row.reactions or {},
+            "created_at": str(row.created_at),
+            "is_staff": bool(row.is_staff),
+        }
+    }
