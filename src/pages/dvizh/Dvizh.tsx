@@ -14,6 +14,7 @@ interface ChatMessage {
   senderId: string;
   senderName: string;
   avatarText: string;
+  avatarUrl?: string;
   text: string;
   time: string;
   reactions: Record<string, number>; // Эмодзи -> Количество реакций
@@ -84,6 +85,7 @@ export const Dvizh: React.FC = () => {
         senderId: String(msg.sender_id),
         senderName: msg.sender_name || 'Партнёр VVD',
         avatarText: (msg.sender_name || 'VV').slice(0, 2).toUpperCase(),
+        avatarUrl: msg.avatar_url || '',
         text: msg.text,
         time: new Date(msg.created_at).toLocaleTimeString('ru-RU', {
           hour: '2-digit',
@@ -158,6 +160,7 @@ export const Dvizh: React.FC = () => {
       senderId: String(msg.sender_id),
       senderName: msg.sender_name || 'Партнёр VVD',
       avatarText: (msg.sender_name || 'VV').slice(0, 2).toUpperCase(),
+      avatarUrl: msg.avatar_url || '',
       text: msg.text,
       time: new Date(msg.created_at).toLocaleTimeString('ru-RU', {
         hour: '2-digit',
