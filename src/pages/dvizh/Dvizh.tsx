@@ -249,9 +249,21 @@ const banChatUser = async (msg: ChatMessage) => {
 
     const data = await response.json();
 
-    if (!response.ok || !data.success) {
-      throw new Error(data.message || 'Ошибка отправки сообщения');
-    }
+    if (data.banned) {
+  triggerHaptic.error();
+
+  window.alert(
+    data.message || 'Доступ к чату ограничен модерацией'
+  );
+
+  return;
+}
+
+if (!response.ok || !data.success) {
+  throw new Error(
+    data.message || 'Ошибка отправки сообщения'
+  );
+}
 
     const msg = data.message;
 
