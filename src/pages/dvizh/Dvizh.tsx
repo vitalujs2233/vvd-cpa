@@ -71,6 +71,10 @@ export const Dvizh: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [activeReactionMenu, setActiveReactionMenu] = useState<string | null>(null);
+  const [moderationMenu, setModerationMenu] = useState<string | null>(null);
+
+const ADMIN_ID = '232682307';
+const isAdmin = currentUser.id.toString() === ADMIN_ID;
   const [isTyping, setIsTyping] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
 
