@@ -198,7 +198,7 @@ const banChatUser = async (msg: ChatMessage) => {
       body: JSON.stringify({
         telegram_id: Number(msg.senderId),
         user_name: msg.senderName,
-        banned_by: Number(ADMIN_ID),
+        admin_id: ADMIN_ID,
       }),
     });
 
