@@ -152,8 +152,15 @@ const deleteChatMessage = async (messageId: string) => {
   if (!confirmed) return;
 
   try {
-    const response = await fetch(`${API}/admin/chat/messages/${messageId}`, {
-      method: 'DELETE',
+    const response = await fetch(`${API}/admin/chat/delete-message`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        admin_id: ADMIN_ID,
+        message_id: messageId,
+      }),
     });
 
     const data = await response.json();
@@ -162,7 +169,10 @@ const deleteChatMessage = async (messageId: string) => {
       throw new Error(data.message || data.detail || 'Ошибка удаления');
     }
 
-    setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+    setMessages(prev =>
+      prev.filter(msg => msg.id !== messageId)
+    );
+
     setModerationMenu(null);
   } catch (error) {
     console.error('Ошибка удаления сообщения:', error);
