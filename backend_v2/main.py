@@ -1571,6 +1571,9 @@ async def get_chat_messages():
     }
 
 
+ADMIN_TELEGRAM_ID = "232682307"
+
+
 @app.post("/chat/messages")
 async def create_chat_message(payload: dict):
     sender_id = str(payload.get("sender_id") or "").strip()
@@ -1591,6 +1594,25 @@ async def create_chat_message(payload: dict):
         }
 
     with engine.begin() as conn:
+        banned = conn.execute(
+            text("""
+                SELECT telegram_id
+                FROM chat_bans
+                WHERE telegram_id = :telegram_id
+                LIMIT 1
+            """),
+            {
+                "telegram_id": int(sender_id)
+            }
+        ).fetchone()
+
+        if banned and sender_id != ADMIN_TELEGRAM_ID:
+            return {
+                "success": False,
+                "banned": True,
+                "message": "Доступ к чату ограничен модерацией"
+            }
+
         row = conn.execute(
             text("""
                 INSERT INTO chat_messages (
@@ -1607,7 +1629,7 @@ async def create_chat_message(payload: dict):
                     :avatar_url,
                     :text,
                     CAST(:reactions AS jsonb),
-                    false
+                    :is_staff
                 )
                 RETURNING
                     id,
@@ -1625,6 +1647,7 @@ async def create_chat_message(payload: dict):
                 "avatar_url": avatar_url,
                 "text": message_text,
                 "reactions": "{}",
+                "is_staff": sender_id == ADMIN_TELEGRAM_ID,
             }
         ).fetchone()
 
@@ -1640,4 +1663,147 @@ async def create_chat_message(payload: dict):
             "created_at": str(row.created_at),
             "is_staff": bool(row.is_staff),
         }
+    }
+
+
+@app.post("/admin/chat/delete-message")
+async def admin_delete_chat_message(payload: dict):
+    admin_id = str(payload.get("admin_id") or "").strip()
+    message_id = str(payload.get("message_id") or "").strip()
+
+    if admin_id != ADMIN_TELEGRAM_ID:
+        return {
+            "success": False,
+            "message": "Access denied"
+        }
+
+    if not message_id:
+        return {
+            "success": False,
+            "message": "message_id is required"
+        }
+
+    with engine.begin() as conn:
+        conn.execute(
+            text("""
+                DELETE FROM chat_messages
+                WHERE id = :message_id
+            """),
+            {
+                "message_id": message_id
+            }
+        )
+
+    return {
+        "success": True
+    }
+
+
+@app.post("/admin/chat/ban")
+async def admin_ban_chat_user(payload: dict):
+    admin_id = str(payload.get("admin_id") or "").strip()
+    telegram_id = str(payload.get("telegram_id") or "").strip()
+    user_name = str(payload.get("user_name") or "Партнёр").strip()
+
+    if admin_id != ADMIN_TELEGRAM_ID:
+        return {
+            "success": False,
+            "message": "Access denied"
+        }
+
+    if not telegram_id:
+        return {
+            "success": False,
+            "message": "telegram_id is required"
+        }
+
+    if telegram_id == ADMIN_TELEGRAM_ID:
+        return {
+            "success": False,
+            "message": "Admin cannot be banned"
+        }
+
+    with engine.begin() as conn:
+        conn.execute(
+            text("""
+                INSERT INTO chat_bans (
+                    telegram_id,
+                    user_name,
+                    banned_by
+                )
+                VALUES (
+                    :telegram_id,
+                    :user_name,
+                    :banned_by
+                )
+                ON CONFLICT (telegram_id)
+                DO UPDATE SET
+                    user_name = EXCLUDED.user_name,
+                    banned_by = EXCLUDED.banned_by
+            """),
+            {
+                "telegram_id": int(telegram_id),
+                "user_name": user_name,
+                "banned_by": int(admin_id),
+            }
+        )
+
+    return {
+        "success": True
+    }
+
+
+@app.post("/admin/chat/unban")
+async def admin_unban_chat_user(payload: dict):
+    admin_id = str(payload.get("admin_id") or "").strip()
+    telegram_id = str(payload.get("telegram_id") or "").strip()
+
+    if admin_id != ADMIN_TELEGRAM_ID:
+        return {
+            "success": False,
+            "message": "Access denied"
+        }
+
+    with engine.begin() as conn:
+        conn.execute(
+            text("""
+                DELETE FROM chat_bans
+                WHERE telegram_id = :telegram_id
+            """),
+            {
+                "telegram_id": int(telegram_id)
+            }
+        )
+
+    return {
+        "success": True
+    }
+
+
+@app.get("/admin/chat/bans")
+async def admin_chat_bans():
+    with engine.connect() as conn:
+        rows = conn.execute(
+            text("""
+                SELECT
+                    telegram_id,
+                    user_name,
+                    banned_by,
+                    created_at
+                FROM chat_bans
+                ORDER BY created_at DESC
+            """)
+        ).fetchall()
+
+    return {
+        "success": True,
+        "bans": [
+            {
+                "telegram_id": str(row.telegram_id),
+                "user_name": row.user_name,
+                "banned_by": str(row.banned_by),
+                "created_at": str(row.created_at),
+            }
+            for row in rows
+        ]
     }
