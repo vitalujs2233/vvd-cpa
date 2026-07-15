@@ -145,7 +145,66 @@ useEffect(() => {
     const linkRegex = /(https?:\/\/|t\.me|telegram\.me|bit\.ly|tinyurl|cutt\.ly|vk\.com|instagram|facebook|youtube|discord|[a-zA-Z0-9-]+\.[a-zA-Z]{2,})/gi;
     return linkRegex.test(text);
   };
+const deleteChatMessage = async (messageId: string) => {
+  if (!isAdmin) return;
 
+  const confirmed = window.confirm('Удалить это сообщение?');
+  if (!confirmed) return;
+
+  try {
+    const response = await fetch(`${API}/admin/chat/messages/${messageId}`, {
+      method: 'DELETE',
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || data.detail || 'Ошибка удаления');
+    }
+
+    setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+    setModerationMenu(null);
+  } catch (error) {
+    console.error('Ошибка удаления сообщения:', error);
+    window.alert('Не удалось удалить сообщение');
+  }
+};
+
+const banChatUser = async (msg: ChatMessage) => {
+  if (!isAdmin) return;
+
+  const confirmed = window.confirm(
+    `Заблокировать пользователя ${msg.senderName}?`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const response = await fetch(`${API}/admin/chat/ban`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        telegram_id: Number(msg.senderId),
+        user_name: msg.senderName,
+        banned_by: Number(ADMIN_ID),
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || data.detail || 'Ошибка блокировки');
+    }
+
+    setModerationMenu(null);
+    window.alert(`${msg.senderName} заблокирован`);
+  } catch (error) {
+    console.error('Ошибка блокировки пользователя:', error);
+    window.alert('Не удалось заблокировать пользователя');
+  }
+};
   const handleSendMessage = async () => {
   if (!inputValue.trim()) return;
 
