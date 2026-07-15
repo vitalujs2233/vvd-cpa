@@ -402,7 +402,38 @@ const banChatUser = async (msg: ChatMessage) => {
                 }`}>
                   {msg.senderName}
                 </span>
+{isAdmin && !isMe && (
+  <div className="relative self-start">
+    <button
+      onClick={() =>
+        setModerationMenu(
+          moderationMenu === msg.id ? null : msg.id
+        )
+      }
+      className="w-7 h-7 flex items-center justify-center rounded-full text-textSecondary hover:text-white hover:bg-white/10"
+    >
+      ⋮
+    </button>
 
+    {moderationMenu === msg.id && (
+      <div className="absolute left-0 top-8 z-50 min-w-[170px] rounded-xl border border-white/10 bg-[#111] p-1 shadow-2xl">
+        <button
+          onClick={() => deleteChatMessage(msg.id)}
+          className="w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-white/5 rounded-lg"
+        >
+          Удалить сообщение
+        </button>
+
+        <button
+          onClick={() => banChatUser(msg)}
+          className="w-full px-3 py-2 text-left text-xs text-yellow-400 hover:bg-white/5 rounded-lg"
+        >
+          Заблокировать
+        </button>
+      </div>
+    )}
+  </div>
+)}
                 <div className="relative group">
                   <div className={`p-3 text-sm text-left leading-relaxed shadow-premium ${
                     isMe 
