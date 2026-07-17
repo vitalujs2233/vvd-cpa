@@ -179,7 +179,42 @@ const deleteChatMessage = async (messageId: string) => {
     window.alert('Не удалось удалить сообщение');
   }
 };
+const loadChatBans = async () => {
+  const response = await fetch(
+    `${API_URL}/admin/chat/bans`
+  );
 
+  const data = await response.json();
+
+  if (!data.success) {
+    throw new Error("Не удалось загрузить блокировки");
+  }
+
+  return data.bans;
+};
+  const unbanChatUser = async (telegramId: string) => {
+  const response = await fetch(
+    `${API_URL}/admin/chat/unban`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        admin_id: ADMIN_ID,
+        telegram_id: Number(telegramId),
+      }),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!data.success) {
+    throw new Error(data.message || "Ошибка разблокировки");
+  }
+
+  return true;
+};
 const banChatUser = async (msg: ChatMessage) => {
   if (!isAdmin) return;
 
