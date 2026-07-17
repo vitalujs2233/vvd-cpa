@@ -336,10 +336,18 @@ const saveChatBanner = async () => {
     navigate('/profile');
   };
 
-  const handleSubViewChange = (view: 'menu' | 'users' | 'withdrawals' | 'banner') => {
-    triggerHaptic.lightImpact();
-    setSubView(view);
-  };
+  const handleSubViewChange = (
+  view:
+    | 'menu'
+    | 'users'
+    | 'user'
+    | 'withdrawals'
+    | 'banner'
+    | 'chatBans'
+) => {
+  triggerHaptic.lightImpact();
+  setSubView(view);
+};
 
   const openUser = async (user: AdminUser) => {
     triggerHaptic.lightImpact();
