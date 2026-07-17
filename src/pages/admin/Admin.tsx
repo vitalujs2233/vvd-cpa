@@ -542,17 +542,6 @@ const saveChatBanner = async () => {
       Реклама в Движ
     </span>
   </div>
-{/* Блокировки чата */}
-<div
-  onClick={() => handleSubViewChange('chatBans')}
-  className="flex items-center justify-between p-4 hover:bg-white/[0.01] active:bg-white/[0.02] cursor-pointer transition-colors"
->
-  <div className="flex items-center gap-3">
-    <ShieldAlert size={16} className="text-red-400" />
-    <span className="text-xs font-semibold text-white">
-      Блокировки чата
-    </span>
-  </div>
 
   <span className="text-[10px] text-red-400 font-bold uppercase tracking-wider">
     Управление
@@ -562,6 +551,17 @@ const saveChatBanner = async () => {
     Управление
   </span>
 </div>
+    {/* Блокировки чата */}
+<div
+  onClick={() => handleSubViewChange('chatBans')}
+  className="flex items-center justify-between p-4 hover:bg-white/[0.01] active:bg-white/[0.02] cursor-pointer transition-colors"
+>
+  <div className="flex items-center gap-3">
+    <ShieldAlert size={16} className="text-red-400" />
+    <span className="text-xs font-semibold text-white">
+      Блокировки чата
+    </span>
+  </div>          
               {/* Управление новостями */}
               <div className="flex items-center justify-between p-4 opacity-40 pointer-events-none">
                 <div className="flex items-center gap-3">
