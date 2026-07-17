@@ -181,7 +181,7 @@ const deleteChatMessage = async (messageId: string) => {
 };
 const loadChatBans = async () => {
   const response = await fetch(
-    `${API_URL}/admin/chat/bans`
+    `${API}/admin/chat/bans`
   );
 
   const data = await response.json();
@@ -194,7 +194,7 @@ const loadChatBans = async () => {
 };
   const unbanChatUser = async (telegramId: string) => {
   const response = await fetch(
-    `${API_URL}/admin/chat/unban`,
+    `${API}/admin/chat/unban`,
     {
       method: "POST",
       headers: {
