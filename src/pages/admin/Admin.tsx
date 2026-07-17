@@ -1020,6 +1020,85 @@ const saveChatBanner = async () => {
           </div>
         </div>
       )}
+      {subView === 'chatBans' && (
+  <div className="flex flex-col gap-4 animate-fade-in">
+
+    <div className="flex items-center gap-3">
+      <button
+        onClick={() => handleSubViewChange('menu')}
+        className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center"
+      >
+        <ArrowLeft size={18}/>
+      </button>
+
+      <div>
+        <span className="text-[10px] text-red-400 font-bold uppercase">
+          Модерация
+        </span>
+
+        <h1 className="text-xl font-bold text-white">
+          Блокировки чата
+        </h1>
+      </div>
+    </div>
+
+    {chatBansLoading ? (
+      <div className="py-24 text-center text-textSecondary">
+        Загрузка...
+      </div>
+    ) : chatBans.length === 0 ? (
+      <div className="py-24 text-center text-textSecondary">
+        Нет заблокированных пользователей
+      </div>
+    ) : (
+      chatBans.map((ban) => (
+        <Card
+          key={ban.telegram_id}
+          padding="md"
+          className="flex flex-col gap-3"
+        >
+
+          <div className="flex justify-between items-center">
+            <div>
+              <div className="text-white font-bold">
+                {ban.user_name}
+              </div>
+
+              <div className="text-xs text-textSecondary">
+                {ban.telegram_id}
+              </div>
+            </div>
+
+            <Button
+              variant="outline"
+              onClick={async () => {
+                await fetch("https://vvd-cpa-v2.onrender.com/admin/chat/unban", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    admin_id: currentUser.id,
+                    telegram_id: ban.telegram_id,
+                  }),
+                });
+
+                setChatBans(prev =>
+                  prev.filter(x => x.telegram_id !== ban.telegram_id)
+                );
+              }}
+            >
+              Разбанить
+            </Button>
+
+          </div>
+
+        </Card>
+      ))
+    )}
+
+  </div>
+)}
     </div>
   );
 };
