@@ -547,10 +547,6 @@ const saveChatBanner = async () => {
     Управление
   </span>
 </div>
-  <span className="text-[10px] text-accentGold font-bold uppercase tracking-wider">
-    Управление
-  </span>
-</div>
     {/* Блокировки чата */}
 <div
   onClick={() => handleSubViewChange('chatBans')}
