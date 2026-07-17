@@ -58,7 +58,12 @@ interface ChatBanner {
   button_url: string;
   is_active: boolean;
 }
-
+interface ChatBan {
+  telegram_id: string;
+  user_name: string;
+  banned_by: string;
+  created_at: string;
+}
 export const Admin: React.FC = () => {
   const navigate = useNavigate();
   const currentUser = getTelegramUser();
@@ -90,6 +95,8 @@ export const Admin: React.FC = () => {
   const [chatBanner, setChatBanner] = useState<ChatBanner | null>(null);
   const [bannerLoading, setBannerLoading] = useState(false);
   const [bannerSaving, setBannerSaving] = useState(false);
+  const [chatBans, setChatBans] = useState<ChatBan[]>([]);
+  const [chatBansLoading, setChatBansLoading] = useState(false);
 
   useEffect(() => {
     if (subView !== 'menu') return;
@@ -197,7 +204,34 @@ useEffect(() => {
 
   loadBanner();
 }, [subView]);
+useEffect(() => {
+  if (subView !== 'chatBans') return;
 
+  const loadChatBans = async () => {
+    try {
+      setChatBansLoading(true);
+
+      const response = await fetch(
+        'https://vvd-cpa-v2.onrender.com/admin/chat/bans',
+        {
+          cache: 'no-store',
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success && Array.isArray(data.bans)) {
+        setChatBans(data.bans);
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки блокировок:', error);
+    } finally {
+      setChatBansLoading(false);
+    }
+  };
+
+  loadChatBans();
+}, [subView]);
 const saveChatBanner = async () => {
   if (!chatBanner) return;
 
@@ -500,7 +534,22 @@ const saveChatBanner = async () => {
       Реклама в Движ
     </span>
   </div>
+{/* Блокировки чата */}
+<div
+  onClick={() => handleSubViewChange('chatBans')}
+  className="flex items-center justify-between p-4 hover:bg-white/[0.01] active:bg-white/[0.02] cursor-pointer transition-colors"
+>
+  <div className="flex items-center gap-3">
+    <ShieldAlert size={16} className="text-red-400" />
+    <span className="text-xs font-semibold text-white">
+      Блокировки чата
+    </span>
+  </div>
 
+  <span className="text-[10px] text-red-400 font-bold uppercase tracking-wider">
+    Управление
+  </span>
+</div>
   <span className="text-[10px] text-accentGold font-bold uppercase tracking-wider">
     Управление
   </span>
