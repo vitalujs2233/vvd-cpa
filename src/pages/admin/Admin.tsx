@@ -66,7 +66,14 @@ export const Admin: React.FC = () => {
   // Привязка прав администратора строго к вашему Telegram ID: 232682307
   const isAdmin = currentUser.id === 232682307;
 
-  const [subView, setSubView] = useState<'menu' | 'users' | 'user' | 'withdrawals' | 'banner'>('menu');
+  const [subView, setSubView] = useState<
+  'menu' |
+  'users' |
+  'user' |
+  'withdrawals' |
+  'banner' |
+  'chatBans'
+>('menu');
   const [searchQuery, setSearchQuery] = useState('');
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
