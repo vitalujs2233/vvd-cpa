@@ -562,6 +562,11 @@ const saveChatBanner = async () => {
       Блокировки чата
     </span>
   </div>          
+  <span className="text-[10px] text-red-400 font-bold uppercase tracking-wider">
+  Управление
+</span>
+
+</div>
               {/* Управление новостями */}
               <div className="flex items-center justify-between p-4 opacity-40 pointer-events-none">
                 <div className="flex items-center gap-3">
