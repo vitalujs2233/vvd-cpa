@@ -80,7 +80,7 @@ const isAdmin = currentUser.id.toString() === ADMIN_ID;
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 const [banner, setBanner] = useState<ChatBanner | null>(null);
-
+const [onlineCount, setOnlineCount] = useState(0);
 useEffect(() => {
   const loadBanner = async () => {
     try {
@@ -99,6 +99,65 @@ useEffect(() => {
   };
 
   void loadBanner();
+}, []);
+  useEffect(() => {
+  const heartbeat = async () => {
+    try {
+      await fetch(`${API}/chat/online`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          telegram_id: currentUser.id,
+        }),
+      });
+
+      const response = await fetch(
+        `${API}/chat/online-count`,
+        {
+          cache: 'no-store',
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        setOnlineCount(data.online);
+      }
+    } catch (error) {
+      console.error('Ошибка online:', error);
+    }
+  };
+
+  void heartbeat();
+
+  const heartbeatInterval = setInterval(
+    heartbeat,
+    30000
+  );
+
+  const counterInterval = setInterval(async () => {
+    try {
+      const response = await fetch(
+        `${API}/chat/online-count`,
+        {
+          cache: 'no-store',
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        setOnlineCount(data.online);
+      }
+    } catch {}
+  }, 5000);
+
+  return () => {
+    clearInterval(heartbeatInterval);
+    clearInterval(counterInterval);
+  };
 }, []);
   useEffect(() => {
   const loadMessages = async () => {
@@ -133,6 +192,12 @@ useEffect(() => {
   };
 
   void loadMessages();
+
+  const interval = setInterval(() => {
+    void loadMessages();
+  }, 1000);
+
+  return () => clearInterval(interval);
 }, []);
 
   useEffect(() => {
@@ -366,7 +431,7 @@ if (!response.ok || !data.success) {
             <span className="text-[10px] text-accentGold font-bold uppercase tracking-wider">Приватная соцсеть</span>
             <div className="flex items-center gap-1 bg-success/10 border border-success/20 rounded-full px-2 py-0.5 text-success text-[8px] font-bold">
               <span className="w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_6px_#22C55E] animate-pulse" />
-              214 Онлайн
+              {onlineCount} Онлайн
             </div>
           </div>
           <h1 className="text-xl font-bold text-white mt-0.5 flex items-center gap-1.5">
