@@ -133,6 +133,12 @@ useEffect(() => {
   };
 
   void loadMessages();
+
+  const interval = setInterval(() => {
+    void loadMessages();
+  }, 1000);
+
+  return () => clearInterval(interval);
 }, []);
 
   useEffect(() => {
