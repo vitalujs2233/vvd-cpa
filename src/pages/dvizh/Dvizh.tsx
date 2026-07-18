@@ -372,7 +372,7 @@ if (!response.ok || !data.success) {
             <span className="text-[10px] text-accentGold font-bold uppercase tracking-wider">Приватная соцсеть</span>
             <div className="flex items-center gap-1 bg-success/10 border border-success/20 rounded-full px-2 py-0.5 text-success text-[8px] font-bold">
               <span className="w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_6px_#22C55E] animate-pulse" />
-              {8 onlineCount} Онлайн
+              {onlineCount}8 Онлайн
             </div>
           </div>
           <h1 className="text-xl font-bold text-white mt-0.5 flex items-center gap-1.5">
