@@ -1575,47 +1575,7 @@ ADMIN_TELEGRAM_ID = "232682307"
 
 
 @app.post("/chat/messages")
-async def create_chat_message(payload: dict):
-    sender_id = str(payload.get("sender_id") or "").strip()
-    sender_name = str(payload.get("sender_name") or "Партнёр").strip()
-    avatar_url = payload.get("avatar_url")
-    message_text = str(payload.get("text") or "").strip()
-from datetime import datetime, timedelta
-@app.post("/chat/online")
-async def chat_online(data: dict):
-    telegram_id = int(data["telegram_id"])
 
-    supabase.table("chat_online").upsert(
-        {
-            "telegram_id": telegram_id,
-            "last_seen": datetime.utcnow().isoformat(),
-        }
-    ).execute()
-
-    return {
-        "success": True
-    }
-
-
-@app.get("/chat/online-count")
-async def chat_online_count():
-
-    limit = (
-        datetime.utcnow() - timedelta(seconds=60)
-    ).isoformat()
-
-    result = (
-        supabase
-        .table("chat_online")
-        .select("telegram_id")
-        .gt("last_seen", limit)
-        .execute()
-    )
-
-    return {
-        "success": True,
-        "online": len(result.data or [])
-    }
     if not sender_id:
         return {
             "success": False,
@@ -1699,7 +1659,42 @@ async def chat_online_count():
             "is_staff": bool(row.is_staff),
         }
     }
+from datetime import datetime, timedelta
 
+@app.post("/chat/online")
+async def chat_online(data: dict):
+    telegram_id = int(data["telegram_id"])
+
+    supabase.table("chat_online").upsert(
+        {
+            "telegram_id": telegram_id,
+            "last_seen": datetime.utcnow().isoformat(),
+        }
+    ).execute()
+
+    return {
+        "success": True
+    }
+
+
+@app.get("/chat/online-count")
+async def chat_online_count():
+    limit = (
+        datetime.utcnow() - timedelta(seconds=60)
+    ).isoformat()
+
+    result = (
+        supabase
+        .table("chat_online")
+        .select("telegram_id")
+        .gt("last_seen", limit)
+        .execute()
+    )
+
+    return {
+        "success": True,
+        "online": len(result.data or [])
+    }
 
 @app.post("/admin/chat/delete-message")
 async def admin_delete_chat_message(payload: dict):
