@@ -101,6 +101,65 @@ useEffect(() => {
   void loadBanner();
 }, []);
   useEffect(() => {
+  const heartbeat = async () => {
+    try {
+      await fetch(`${API}/chat/online`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          telegram_id: currentUser.id,
+        }),
+      });
+
+      const response = await fetch(
+        `${API}/chat/online-count`,
+        {
+          cache: 'no-store',
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        setOnlineCount(data.online);
+      }
+    } catch (error) {
+      console.error('Ошибка online:', error);
+    }
+  };
+
+  void heartbeat();
+
+  const heartbeatInterval = setInterval(
+    heartbeat,
+    30000
+  );
+
+  const counterInterval = setInterval(async () => {
+    try {
+      const response = await fetch(
+        `${API}/chat/online-count`,
+        {
+          cache: 'no-store',
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        setOnlineCount(data.online);
+      }
+    } catch {}
+  }, 5000);
+
+  return () => {
+    clearInterval(heartbeatInterval);
+    clearInterval(counterInterval);
+  };
+}, []);
+  useEffect(() => {
   const loadMessages = async () => {
     try {
       const response = await fetch(`${API}/chat/messages`, {
