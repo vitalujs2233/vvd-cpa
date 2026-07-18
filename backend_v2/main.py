@@ -1574,12 +1574,8 @@ async def get_chat_messages():
 
 ADMIN_TELEGRAM_ID = "232682307"
 
+
 @app.post("/chat/messages")
-async def create_chat_message(payload: dict):
-    sender_id = str(payload.get("sender_id") or "").strip()
-    sender_name = str(payload.get("sender_name") or "Партнёр").strip()
-    avatar_url = payload.get("avatar_url")
-    message_text = str(payload.get("text") or "").strip()
 
     if not sender_id:
         return {
