@@ -79,7 +79,9 @@ const isAdmin = currentUser.id.toString() === ADMIN_ID;
   const [showWarning, setShowWarning] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const initialScrollDone = useRef(false);
+  const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
 const [banner, setBanner] = useState<ChatBanner | null>(null);
 const [onlineCount, setOnlineCount] = useState(0);
 useEffect(() => {
@@ -214,6 +216,35 @@ useEffect(() => {
     }, 50);
   }
 }, [messages]);
+  useEffect(() => {
+  const updateViewport = () => {
+    const tg = window.Telegram?.WebApp;
+
+    if (tg?.viewportHeight) {
+      setViewportHeight(tg.viewportHeight);
+    } else if (window.visualViewport) {
+      setViewportHeight(window.visualViewport.height);
+    } else {
+      setViewportHeight(window.innerHeight);
+    }
+  };
+
+  updateViewport();
+
+  window.visualViewport?.addEventListener("resize", updateViewport);
+
+  if (window.Telegram?.WebApp) {
+    window.Telegram.WebApp.onEvent("viewportChanged", updateViewport);
+  }
+
+  return () => {
+    window.visualViewport?.removeEventListener("resize", updateViewport);
+
+    if (window.Telegram?.WebApp) {
+      window.Telegram.WebApp.offEvent("viewportChanged", updateViewport);
+    }
+  };
+}, []);
 
   const containsForbiddenLink = (text: string): boolean => {
     const linkRegex = /(https?:\/\/|t\.me|telegram\.me|bit\.ly|tinyurl|cutt\.ly|vk\.com|instagram|facebook|youtube|discord|[a-zA-Z0-9-]+\.[a-zA-Z]{2,})/gi;
@@ -431,7 +462,12 @@ if (!response.ok || !data.success) {
   }, [messages, searchQuery]);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] bg-bgMain relative select-none">
+    <div
+  className="flex flex-col bg-bgMain relative select-none"
+  style={{
+    height: `${viewportHeight - 80}px`,
+  }}
+>
       
       {/* Шапка раздела */}
       <div className="flex items-center justify-between p-4 border-b border-white/[0.04] bg-bgCard/40 backdrop-blur-md shrink-0 shadow-glass-inner z-20">
@@ -501,7 +537,10 @@ if (!response.ok || !data.success) {
 )}
 
       {/* Контейнер сообщений */}
-      <div className="flex-1 overflow-y-auto p-4 scrollable-container flex flex-col gap-4 z-0">
+      <div
+  ref={chatContainerRef}
+  className="flex-1 overflow-y-auto p-4 scrollable-container flex flex-col gap-4 z-0"
+>
         {filteredMessages.map((msg) => {
           const isMe = msg.senderId === currentUser.id.toString();
           const hasReactions = Object.keys(msg.reactions).length > 0;
