@@ -217,29 +217,31 @@ useEffect(() => {
   }
 }, [messages]);
   useEffect(() => {
-  const updateViewport = () => {
-    const tg = window.Telegram?.WebApp;
+  const tg = window.Telegram?.WebApp;
+  if (!tg) return;
 
-    if (tg?.viewportHeight) {
+  if (tg.isExpanded === false) {
+    tg.expand();
+  }
+
+  const updateViewport = () => {
+    if (tg.viewportHeight) {
       setViewportHeight(tg.viewportHeight);
     } else if (window.visualViewport) {
       setViewportHeight(window.visualViewport.height);
     } else {
       setViewportHeight(window.innerHeight);
     }
+  };
 
-    // Скрываем меню навигации при открытии клавиатуры
-    const navMenu = document.querySelector('nav'); 
-    if (navMenu) {
-      const currentHeight = tg?.viewportHeight || window.innerHeight;
-      if (currentHeight < 550) { 
-        navMenu.style.setProperty('display', 'none', 'important');
-      } else {
-        navMenu.style.setProperty('display', 'flex', 'important');
-      }
-    }
-   };
+  updateViewport();
 
+  window.visualViewport?.addEventListener("resize", updateViewport);
+
+  return () => {
+    window.visualViewport?.removeEventListener("resize", updateViewport);
+  };
+}, []);
   updateViewport();
 
   window.visualViewport?.addEventListener("resize", updateViewport);
