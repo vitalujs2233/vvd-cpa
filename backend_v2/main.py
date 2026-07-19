@@ -1628,6 +1628,43 @@ async def create_chat_message(payload: dict):
             "is_staff": bool(row.is_staff)
         }
     }
+
+@app.get("/chat/messages")
+async def get_chat_messages():
+    with engine.connect() as conn:
+        rows = conn.execute(
+            text("""
+                SELECT
+                    id,
+                    sender_id,
+                    sender_name,
+                    avatar_url,
+                    text,
+                    reactions,
+                    created_at,
+                    is_staff
+                FROM chat_messages
+                ORDER BY created_at ASC
+                LIMIT 500
+            """)
+        ).fetchall()
+
+    return {
+        "success": True,
+        "messages": [
+            {
+                "id": str(row.id),
+                "sender_id": str(row.sender_id),
+                "sender_name": row.sender_name,
+                "avatar_url": row.avatar_url,
+                "text": row.text,
+                "reactions": row.reactions or {},
+                "created_at": str(row.created_at),
+                "is_staff": bool(row.is_staff),
+            }
+            for row in rows
+        ]
+    }
     
 ADMIN_TELEGRAM_ID = "232682307"
 
