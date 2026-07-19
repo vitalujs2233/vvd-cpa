@@ -200,11 +200,17 @@ useEffect(() => {
   return () => clearInterval(interval);
 }, []);
 
-  useEffect(() => {
-    if (messagesEndRef.current && !showSearch) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, showSearch]);
+  const firstLoad = useRef(true);
+
+useEffect(() => {
+  if (firstLoad.current) {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "auto",
+    });
+
+    firstLoad.current = false;
+  }
+}, [messages]);
 
   const containsForbiddenLink = (text: string): boolean => {
     const linkRegex = /(https?:\/\/|t\.me|telegram\.me|bit\.ly|tinyurl|cutt\.ly|vk\.com|instagram|facebook|youtube|discord|[a-zA-Z0-9-]+\.[a-zA-Z]{2,})/gi;
