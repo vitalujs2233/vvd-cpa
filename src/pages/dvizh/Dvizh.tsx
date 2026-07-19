@@ -242,17 +242,6 @@ useEffect(() => {
     window.visualViewport?.removeEventListener("resize", updateViewport);
   };
 }, []);
-  updateViewport();
-
-  window.visualViewport?.addEventListener("resize", updateViewport);
-
-  return () => {
-    window.visualViewport?.removeEventListener("resize", updateViewport);
-    
-    const navMenu = document.querySelector('nav');
-    if (navMenu) navMenu.style.display = 'flex';
-  };
-}, []);
 
 
   const containsForbiddenLink = (text: string): boolean => {
