@@ -26,7 +26,12 @@ const AppLayout = () => {
 
   return (
     // bg-bgMain заменен на bg-transparent для открытия видимости неоновых волн и картинки bg.png на фоне
-    <div className="flex flex-col h-screen w-full bg-transparent text-textPrimary overflow-hidden relative">
+    <div
+  className="flex flex-col w-full bg-transparent text-textPrimary relative"
+  style={{
+    height: "100dvh",
+  }}
+>
       
       {/* Контейнер контента со скроллом */}
       <div className="flex-1 overflow-y-auto scrollable-container relative z-10 w-full max-w-[1200px] mx-auto">
@@ -118,6 +123,21 @@ const AppLayout = () => {
 const App = () => {
   // Состояние отображения стартового золотого лоадера
   const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => {
+  const tg = window.Telegram?.WebApp;
+
+  if (!tg) return;
+
+  tg.ready();
+
+  if (tg.expand) {
+    tg.expand();
+  }
+
+  if (tg.disableVerticalSwipes) {
+    tg.disableVerticalSwipes();
+  }
+}, []);
 
   // Боевой асинхронный хук авторизации
   useEffect(() => {
@@ -157,7 +177,12 @@ console.log("Telegram:", window.Telegram?.WebApp);
   }
 
   return (
-    <div className="w-full h-full relative overflow-hidden bg-transparent">
+    <div
+  className="w-full relative bg-transparent"
+  style={{
+    minHeight: "100dvh",
+  }}
+>
       <MemoryRouter>
         <Routes>
           {/* Обертка Лейаута */}
