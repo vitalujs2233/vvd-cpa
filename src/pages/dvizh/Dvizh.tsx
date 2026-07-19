@@ -238,7 +238,7 @@ useEffect(() => {
         navMenu.style.setProperty('display', 'flex', 'important');
       }
     }
-  };
+   };
 
   updateViewport();
 
@@ -247,21 +247,11 @@ useEffect(() => {
   return () => {
     window.visualViewport?.removeEventListener("resize", updateViewport);
     
-    // Гарантированно возвращаем меню при выходе из чата
     const navMenu = document.querySelector('nav');
     if (navMenu) navMenu.style.display = 'flex';
   };
 }, []);
 
-
-  updateViewport();
-
-  window.visualViewport?.addEventListener("resize", updateViewport);
-
-return () => {
-    window.visualViewport?.removeEventListener("resize", updateViewport);
-  };
-}, []);
 
   const containsForbiddenLink = (text: string): boolean => {
     const linkRegex = /(https?:\/\/|t\.me|telegram\.me|bit\.ly|tinyurl|cutt\.ly|vk\.com|instagram|facebook|youtube|discord|[a-zA-Z0-9-]+\.[a-zA-Z]{2,})/gi;
