@@ -79,6 +79,7 @@ const isAdmin = currentUser.id.toString() === ADMIN_ID;
   const [showWarning, setShowWarning] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const initialScrollDone = useRef(false);
 const [banner, setBanner] = useState<ChatBanner | null>(null);
 const [onlineCount, setOnlineCount] = useState(0);
 useEffect(() => {
@@ -203,12 +204,14 @@ useEffect(() => {
   const firstLoad = useRef(true);
 
 useEffect(() => {
-  if (firstLoad.current) {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: "auto",
-    });
+  if (!initialScrollDone.current && messages.length > 0) {
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({
+        behavior: "auto",
+      });
 
-    firstLoad.current = false;
+      initialScrollDone.current = true;
+    }, 50);
   }
 }, [messages]);
 
