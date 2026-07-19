@@ -1570,7 +1570,9 @@ async def get_chat_messages():
             for row in rows
         ]
     }
-
+@app.post("/chat/messages")
+async def create_chat_message(...):
+    
 ADMIN_TELEGRAM_ID = "232682307"
 
 @app.post("/chat/online")
