@@ -235,6 +235,8 @@ useEffect(() => {
 
 return () => {
     window.visualViewport?.removeEventListener("resize", updateViewport);
+  };
+}, []);
 
     if (window.Telegram?.WebApp) {
   };
