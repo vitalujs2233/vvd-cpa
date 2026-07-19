@@ -132,11 +132,6 @@ const App = () => {
 
   if (tg.expand) {
     tg.expand();
-  }
-
-  if (tg.disableVerticalSwipes) {
-    tg.disableVerticalSwipes();
-  }
 }, []);
 
   // Боевой асинхронный хук авторизации
