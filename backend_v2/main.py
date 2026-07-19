@@ -1595,13 +1595,11 @@ async def chat_online_count():
         datetime.utcnow() - timedelta(seconds=60)
     ).isoformat()
 
-    result = (
-        supabase
-        .table("chat_online")
-        .select("telegram_id")
-        .gt("last_seen", limit)
+    result = supabase \
+        .table("chat_online") \
+        .select("telegram_id") \
+        .gt("last_seen", limit) \
         .execute()
-    )
 
     return {
         "success": True,
