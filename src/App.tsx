@@ -132,7 +132,7 @@ const App = () => {
 
   if (tg.expand) {
     tg.expand();
-}, []);
+  }, []);
   // Боевой асинхронный хук авторизации
   useEffect(() => {
     const authenticateUser = async () => {
