@@ -224,7 +224,16 @@ useEffect(() => {
     tg.expand();
   }
 
+  // Фиксируем body, чтобы iOS не могла подбросить интерфейс вверх
+  document.body.style.position = 'fixed';
+  document.body.style.top = '0';
+  document.body.style.left = '0';
+  document.body.style.width = '100%';
+  document.body.style.height = '100%';
+  document.body.style.overflow = 'hidden';
+
   const updateViewport = () => {
+    // Просто обновляем стейт высоты, но ничего не двигаем и не скрываем
     if (tg.viewportHeight) {
       setViewportHeight(tg.viewportHeight);
     } else if (window.visualViewport) {
@@ -235,11 +244,17 @@ useEffect(() => {
   };
 
   updateViewport();
-
   window.visualViewport?.addEventListener("resize", updateViewport);
 
   return () => {
     window.visualViewport?.removeEventListener("resize", updateViewport);
+    // Возвращаем стандартные стили body при уходе из чата
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.width = '';
+    document.body.style.height = '';
+    document.body.style.overflow = '';
   };
 }, []);
 
