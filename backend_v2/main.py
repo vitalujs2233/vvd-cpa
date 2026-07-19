@@ -1649,19 +1649,18 @@ async def chat_online(data: dict):
 
 @app.get("/chat/online-count")
 async def chat_online_count():
-    limit = (
-        datetime.utcnow() - timedelta(seconds=60)
-    ).isoformat()
-
-    result = supabase \
-        .table("chat_online") \
-        .select("telegram_id") \
-        .gt("last_seen", limit) \
-        .execute()
+    with engine.connect() as conn:
+        count = conn.execute(
+            text("""
+                SELECT COUNT(DISTINCT telegram_id)
+                FROM chat_online
+                WHERE last_seen > NOW() - INTERVAL '60 seconds'
+            """)
+        ).scalar()
 
     return {
         "success": True,
-        "online": len(result.data or [])
+        "online": count or 0
     }
 
 @app.post("/admin/chat/delete-message")
