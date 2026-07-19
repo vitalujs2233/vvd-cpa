@@ -227,7 +227,32 @@ useEffect(() => {
     } else {
       setViewportHeight(window.innerHeight);
     }
+
+    // Скрываем меню навигации при открытии клавиатуры
+    const navMenu = document.querySelector('nav'); 
+    if (navMenu) {
+      const currentHeight = tg?.viewportHeight || window.innerHeight;
+      if (currentHeight < 550) { 
+        navMenu.style.setProperty('display', 'none', 'important');
+      } else {
+        navMenu.style.setProperty('display', 'flex', 'important');
+      }
+    }
   };
+
+  updateViewport();
+
+  window.visualViewport?.addEventListener("resize", updateViewport);
+
+  return () => {
+    window.visualViewport?.removeEventListener("resize", updateViewport);
+    
+    // Гарантированно возвращаем меню при выходе из чата
+    const navMenu = document.querySelector('nav');
+    if (navMenu) navMenu.style.display = 'flex';
+  };
+}, []);
+
 
   updateViewport();
 
@@ -237,9 +262,6 @@ return () => {
     window.visualViewport?.removeEventListener("resize", updateViewport);
   };
 }, []);
-
-    if (window.Telegram?.WebApp) {
-  };
 
   const containsForbiddenLink = (text: string): boolean => {
     const linkRegex = /(https?:\/\/|t\.me|telegram\.me|bit\.ly|tinyurl|cutt\.ly|vk\.com|instagram|facebook|youtube|discord|[a-zA-Z0-9-]+\.[a-zA-Z]{2,})/gi;
