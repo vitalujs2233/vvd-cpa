@@ -233,16 +233,11 @@ useEffect(() => {
 
   window.visualViewport?.addEventListener("resize", updateViewport);
 
-  if (window.Telegram?.WebApp) {
-    window.Telegram.WebApp.onEvent("viewportChanged", updateViewport);
-  }
 
   return () => {
     window.visualViewport?.removeEventListener("resize", updateViewport);
 
     if (window.Telegram?.WebApp) {
-      window.Telegram.WebApp.offEvent("viewportChanged", updateViewport);
-    }
   };
 }, []);
 
