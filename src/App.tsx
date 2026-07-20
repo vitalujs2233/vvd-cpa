@@ -34,12 +34,14 @@ const AppLayout = () => {
 >
       
       {/* Контейнер контента со скроллом */}
-      <div className="flex-1 overflow-y-auto scrollable-container relative z-10 w-full max-w-[1200px] mx-auto">
+      <div className="flex-1 overflow-y-auto scrollable-container relative z-10 w-full max-w-[1200px] mx-auto pb-[80px]">
         <Outlet />
       </div>
 
       {/* Нижняя парящая стеклянная панель навигации (🔥 Движ восстановлен на своем месте!) */}
-      <nav className="h-[80px] bg-bgCard/60 backdrop-blur-lg border-t border-white/[0.04] flex items-center justify-around px-4 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.5)] z-50 w-full max-w-[1200px] mx-auto rounded-t-card">
+      <nav
+  className="fixed bottom-0 left-0 right-0 h-[80px] bg-bgCard/60 backdrop-blur-lg border-t border-white/[0.04] flex items-center justify-around px-4 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.5)] z-[9999] w-full max-w-[1200px] mx-auto rounded-t-card"
+>
         <NavLink
           to="/"
           onClick={handleTabClick}
