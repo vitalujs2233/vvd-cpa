@@ -198,3 +198,7 @@ body::before {
 .animate-slide-up {
   animation: premiumSlideUp 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+html, body {
+  overflow: hidden !important;
+  position: fixed !important;
+}
