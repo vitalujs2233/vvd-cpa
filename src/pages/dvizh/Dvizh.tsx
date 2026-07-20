@@ -220,8 +220,11 @@ useEffect(() => {
   const tg = window.Telegram?.WebApp;
   if (!tg) return;
 
+  if ('virtualKeyboard' in navigator) {
+    (navigator as any).virtualKeyboard.overlaysContent = true;
+  }
+
   const updateViewport = () => {
-    if (tg.viewportHeight) {
       setViewportHeight(tg.viewportHeight);
     } else if (window.visualViewport) {
       setViewportHeight(window.visualViewport.height);
