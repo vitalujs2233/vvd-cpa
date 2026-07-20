@@ -220,20 +220,7 @@ useEffect(() => {
   const tg = window.Telegram?.WebApp;
   if (!tg) return;
 
-  if (tg.isExpanded === false) {
-    tg.expand();
-  }
-
-  // Фиксируем body, чтобы iOS не могла подбросить интерфейс вверх
-  document.body.style.position = 'fixed';
-  document.body.style.top = '0';
-  document.body.style.left = '0';
-  document.body.style.width = '100%';
-  document.body.style.height = '100%';
-  document.body.style.overflow = 'hidden';
-
   const updateViewport = () => {
-    // Просто обновляем стейт высоты, но ничего не двигаем и не скрываем
     if (tg.viewportHeight) {
       setViewportHeight(tg.viewportHeight);
     } else if (window.visualViewport) {
@@ -242,6 +229,15 @@ useEffect(() => {
       setViewportHeight(window.innerHeight);
     }
   };
+
+  updateViewport();
+
+  window.visualViewport?.addEventListener("resize", updateViewport);
+
+  return () => {
+    window.visualViewport?.removeEventListener("resize", updateViewport);
+  };
+}, []);
 
   updateViewport();
   window.visualViewport?.addEventListener("resize", updateViewport);
