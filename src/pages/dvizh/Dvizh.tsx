@@ -239,21 +239,6 @@ useEffect(() => {
   };
 }, []);
 
-  updateViewport();
-  window.visualViewport?.addEventListener("resize", updateViewport);
-
-  return () => {
-    window.visualViewport?.removeEventListener("resize", updateViewport);
-    // Возвращаем стандартные стили body при уходе из чата
-    document.body.style.position = '';
-    document.body.style.top = '';
-    document.body.style.left = '';
-    document.body.style.width = '';
-    document.body.style.height = '';
-    document.body.style.overflow = '';
-  };
-}, []);
-
 
   const containsForbiddenLink = (text: string): boolean => {
     const linkRegex = /(https?:\/\/|t\.me|telegram\.me|bit\.ly|tinyurl|cutt\.ly|vk\.com|instagram|facebook|youtube|discord|[a-zA-Z0-9-]+\.[a-zA-Z]{2,})/gi;
