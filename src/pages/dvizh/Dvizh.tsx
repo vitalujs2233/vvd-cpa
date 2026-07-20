@@ -459,7 +459,7 @@ if (!response.ok || !data.success) {
 
   return (
     <div
-  className="flex flex-col bg-bgMain relative select-none"
+  className="flex flex-col bg-bgMain relative select-none overflow-hidden"
   style={{
     height: `${viewportHeight - 80}px`,
   }}
@@ -535,7 +535,7 @@ if (!response.ok || !data.success) {
       {/* Контейнер сообщений */}
       <div
   ref={chatContainerRef}
-  className="flex-1 overflow-y-auto p-4 scrollable-container flex flex-col gap-4 z-0"
+  className="flex-1 overflow-y-auto p-4 pb-32 scrollable-container flex flex-col gap-4 z-0"
 >
         {filteredMessages.map((msg) => {
           const isMe = msg.senderId === currentUser.id.toString();
@@ -667,7 +667,9 @@ if (!response.ok || !data.success) {
       </div>
 
       {/* Панель ввода сообщения */}
-      <div className="p-3 border-t border-white/[0.08] bg-bgCard/50 backdrop-blur-md flex items-center gap-3 shrink-0 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.37)]">
+      <div
+  className="fixed left-0 right-0 bottom-[80px] p-3 border-t border-white/[0.08] bg-bgCard/70 backdrop-blur-xl flex items-center gap-3 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.37)] z-50"
+>
         <Input 
           placeholder="Напишите в приватный чат..."
           value={inputValue}
