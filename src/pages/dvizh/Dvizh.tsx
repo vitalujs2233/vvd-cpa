@@ -220,6 +220,15 @@ useEffect(() => {
   const tg = window.Telegram?.WebApp;
   if (!tg) return;
 
+  // ОФИЦИАЛЬНАЯ НАСТРОЙКА TELEGRAM: запрещаем менять высоту окна при открытии клавиатуры
+  if (tg.Settings) {
+    tg.Settings.isVerticalScrollEnabled = false;
+  }
+  
+  if (tg.isExpanded === false) {
+    tg.expand();
+  }
+
   const updateViewport = () => {
     if (tg.viewportHeight) {
       setViewportHeight(tg.viewportHeight);
@@ -231,7 +240,6 @@ useEffect(() => {
   };
 
   updateViewport();
-
   window.visualViewport?.addEventListener("resize", updateViewport);
 
   return () => {
