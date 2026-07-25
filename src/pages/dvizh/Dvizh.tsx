@@ -668,7 +668,7 @@ if (!response.ok || !data.success) {
 
       {/* Панель ввода сообщения */}
       <div
-  className="fixed left-0 right-0 bottom-0 md:bottom-[60px] p-3 border-t border-white/[0.08] bg-bgCard/70 backdrop-blur-xl flex items-center gap-3 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.37)] z-10"
+  className="fixed left-0 right-0 bottom-0 md:bottom-[60px] p-3 border-t border-white/[0.08] bg-bgCard/70 backdrop-blur-xl flex items-center gap-3 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.37)] z-[9999]"
 >
         <Input 
           placeholder="Напишите в приватный чат..."
