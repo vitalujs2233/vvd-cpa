@@ -188,7 +188,7 @@ console.log("Telegram:", window.Telegram?.WebApp);
             <Route path="offers" element={<Offers />} />
             <Route path="stats" element={<Stats />} />
             {/* Наш роут для вкладки «Движ» восстановлен */}
-            <Route path="dvizh" element={<Dvizh />} />
+            
             <Route path="profile" element={<Profile />} />
           </Route>
 
@@ -200,7 +200,7 @@ console.log("Telegram:", window.Telegram?.WebApp);
 
           {/* Вложенный экран личного тикет-чата тех-поддержки (SupportChat) без нижнего меню */}
           <Route path="/support" element={<SupportChat />} />
-
+          <Route path="dvizh" element={<Dvizh />} />
           {/* Вложенный экран админ-панели без нижнего меню */}
           <Route path="/admin" element={<Admin />} />
         </Routes>
