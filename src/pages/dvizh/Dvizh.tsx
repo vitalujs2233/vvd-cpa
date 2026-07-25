@@ -461,8 +461,8 @@ if (!response.ok || !data.success) {
     <div
   className="flex flex-col bg-bgMain relative select-none overflow-hidden"
   style={{
-    height: `${viewportHeight - 80}px`,
-  }}
+  height: viewportHeight ? `${viewportHeight}px` : '100vh',
+}}
 >
       
       {/* Шапка раздела */}
