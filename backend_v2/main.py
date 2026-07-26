@@ -388,7 +388,50 @@ async def get_balance(telegram_id: int):
         "hold": float(user.hold),
         "paid": float(user.withdrawn)
     }
-    
+    @app.get("/referral/{telegram_id}")
+async def get_referral(telegram_id: int):
+
+    with engine.connect() as conn:
+
+        user = conn.execute(
+            text("""
+                SELECT
+                    partner_code,
+                    COALESCE(referral_balance,0) AS referral_balance,
+                    COALESCE(referral_earned,0) AS referral_earned
+                FROM users
+                WHERE telegram_id = :telegram_id
+            """),
+            {
+                "telegram_id": telegram_id
+            }
+        ).fetchone()
+
+        if not user:
+            return {
+                "success": False,
+                "message": "User not found"
+            }
+
+        invited = conn.execute(
+            text("""
+                SELECT COUNT(*)
+                FROM users
+                WHERE invited_by = :telegram_id
+            """),
+            {
+                "telegram_id": telegram_id
+            }
+        ).scalar()
+
+    return {
+        "success": True,
+        "referral_code": user.partner_code,
+        "referral_link": f"https://t.me/VVDCPAbot?start={user.partner_code}",
+        "balance": float(user.referral_balance),
+        "earned": float(user.referral_earned),
+        "invited": int(invited or 0)
+    }
 @app.get("/postback/adult")
 async def postback_adult(
     partner_code: str,
