@@ -1,9 +1,3 @@
-<Card padding="lg" className="text-center">
-
-  <div className="text-[11px] uppercase tracking-widest text-accentGold font-bold">
-    Реферальный баланс
-  </div>
-
  {/* Баланс */}
 <Card padding="lg" className="text-center">
 
