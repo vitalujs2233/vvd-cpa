@@ -36,8 +36,25 @@ def save_user(
     last_name,
     username,
     photo_url
+    referral_code=None
 ):
     with engine.begin() as conn:
+        invited_by = None
+
+        if referral_code:
+            inviter = conn.execute(
+                text("""
+                    SELECT telegram_id
+                    FROM users
+                    WHERE partner_code = :partner_code
+                """),
+                {
+                    "partner_code": referral_code
+                }
+            ).fetchone()
+
+            if inviter:
+                invited_by = inviter.telegram_id
         conn.execute(
             text("""
             INSERT INTO users (
@@ -47,6 +64,7 @@ def save_user(
                 username,
                 photo_url,
                 partner_code,
+                invited_by,
                 balance,
                 hold,
                 withdrawn,
@@ -60,6 +78,7 @@ def save_user(
                 :username,
                 :photo_url,
                 :partner_code,
+                :invited_by,
                 0,
                 0,
                 0,
@@ -80,6 +99,7 @@ def save_user(
                 "username": username,
                 "photo_url": photo_url,
                 "partner_code": generate_partner_code(),
+                "invited_by": invited_by,
             }
         )
 def create_analytics_tables():
