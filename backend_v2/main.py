@@ -893,6 +893,36 @@ async def postback_traffcore(
                     }
                 )
             else:
+                inviter = conn.execute(
+            text("""
+                SELECT invited_by
+                FROM users
+                WHERE telegram_id = :telegram_id
+            """),
+            {
+                "telegram_id": telegram_id
+            }
+        ).fetchone()
+
+        if inviter and inviter.invited_by:
+
+            referral_reward = round(payout_net * 0.05, 2)
+
+            conn.execute(
+                text("""
+                    UPDATE users
+                    SET
+                        referral_balance =
+                            COALESCE(referral_balance,0) + :reward,
+                        referral_earned =
+                            COALESCE(referral_earned,0) + :reward
+                    WHERE telegram_id = :invited_by
+                """),
+                {
+                    "reward": referral_reward,
+                    "invited_by": inviter.invited_by
+                }
+            )
                 conn.execute(
                     text("""
                         INSERT INTO country_statistics
