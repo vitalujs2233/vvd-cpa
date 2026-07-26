@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { getTelegramUser } from '@/shared/lib/telegram';
-
-const API_URL = import.meta.env.VITE_API_URL;
+import { apiRequest } from '@/shared/lib/api';
 
 export const Referral: React.FC = () => {
   const navigate = useNavigate();
@@ -18,13 +17,9 @@ export const Referral: React.FC = () => {
       if (!user) return;
 
       try {
-        const response = await fetch(
-          `${API_URL}/referral/${user.id}`
-        );
+       const data = await apiRequest<any>(`/referral/${user.id}`);
 
-        const data = await response.json();
-
-        setReferral(data);
+setReferral(data);
       } catch (e) {
         console.error(e);
       }
