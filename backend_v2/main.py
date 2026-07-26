@@ -78,6 +78,7 @@ class TelegramUser(BaseModel):
     last_name: str | None = None
     username: str | None = None
     photo_url: str | None = None
+    referral_code: str | None = None
 
 
 class WithdrawalRequest(BaseModel):
