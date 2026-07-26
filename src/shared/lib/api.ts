@@ -95,7 +95,7 @@ export const loginViaTelegramApi = async (): Promise<AuthResponse> => {
   const user = getTelegramUser();
   const referralCode =
   window.Telegram?.WebApp?.initDataUnsafe?.start_param || "";
-
+  console.log("START PARAM =", referralCode);
   return apiRequest<AuthResponse>('/auth', {
     method: 'POST',
     body: JSON.stringify({
