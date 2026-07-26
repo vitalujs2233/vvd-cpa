@@ -91,12 +91,13 @@ class WithdrawalRequest(BaseModel):
 @app.post("/auth")
 async def auth(user: TelegramUser):
     save_user(
-        telegram_id=user.telegram_id,
-        first_name=user.first_name,
-        last_name=user.last_name,
-        username=user.username,
-        photo_url=user.photo_url,
-    )
+    telegram_id=user.telegram_id,
+    first_name=user.first_name,
+    last_name=user.last_name,
+    username=user.username,
+    photo_url=user.photo_url,
+    referral_code=user.referral_code,
+)
     
     return {
         "access_token": "telegram_auth",
