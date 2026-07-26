@@ -104,3 +104,6 @@ export const Referral: React.FC = () => {
   </div>
 
 </Card>
+          </div>
+  );
+};
