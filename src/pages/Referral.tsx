@@ -1,10 +1,47 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
+import { getTelegramUser } from '@/shared/lib/telegram';
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 export const Referral: React.FC = () => {
   const navigate = useNavigate();
+
+  const [referral, setReferral] = useState<any>(null);
+
+  useEffect(() => {
+    const loadReferral = async () => {
+      const user = getTelegramUser();
+
+      if (!user) return;
+
+      try {
+        const response = await fetch(
+          `${API_URL}/referral/${user.id}`
+        );
+
+        const data = await response.json();
+
+        setReferral(data);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    loadReferral();
+  }, []);
+
+  const copyReferralLink = async () => {
+    if (!referral?.referral_link) return;
+
+    await navigator.clipboard.writeText(referral.referral_link);
+
+    if (window.Telegram?.WebApp) {
+      window.Telegram.WebApp.showAlert("Ссылка скопирована");
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4 p-4 pb-24 animate-fade-in">
@@ -27,83 +64,86 @@ export const Referral: React.FC = () => {
           </h1>
         </div>
       </div>
+
       <Card padding="lg" className="text-center">
 
-  <div className="text-[11px] uppercase tracking-widest text-accentGold font-bold">
-    Реферальный баланс
-  </div>
+        <div className="text-[11px] uppercase tracking-widest text-accentGold font-bold">
+          Реферальный баланс
+        </div>
 
-  <div className="text-4xl font-extrabold text-white mt-3">
-    $0.00
-  </div>
+        <div className="text-4xl font-extrabold text-white mt-3">
+          ${Number(referral?.balance || 0).toFixed(2)}
+        </div>
 
-  <button
-    className="mt-5 w-full rounded-xl bg-accentGold text-black font-bold py-3 transition hover:opacity-90"
-  >
-    Вывести
-  </button>
+        <button
+          className="mt-5 w-full rounded-xl bg-accentGold text-black font-bold py-3 transition hover:opacity-90"
+        >
+          Вывести
+        </button>
 
-</Card>
+      </Card>
 
-<Card padding="lg">
+      <Card padding="lg">
 
-  <div className="text-[10px] uppercase tracking-widest text-accentGold font-bold">
-    Моя ссылка
-  </div>
+        <div className="text-[10px] uppercase tracking-widest text-accentGold font-bold">
+          Моя ссылка
+        </div>
 
-  <div className="mt-3 text-sm text-white break-all">
-    https://t.me/VVDCPAbot?start=VVD1
-  </div>
+        <div className="mt-3 text-sm text-white break-all">
+          {referral?.referral_link || ""}
+        </div>
 
-  <button
-    className="mt-4 w-full rounded-xl border border-accentGold text-accentGold py-3 font-bold"
-  >
-    Копировать ссылку
-  </button>
+        <button
+          onClick={copyReferralLink}
+          className="mt-4 w-full rounded-xl border border-accentGold text-accentGold py-3 font-bold"
+        >
+          Копировать ссылку
+        </button>
 
-</Card>
+      </Card>
 
-<Card padding="lg">
+      <Card padding="lg">
 
-  <div className="flex justify-between">
+        <div className="flex justify-between">
 
-    <span className="text-textSecondary">
-      Приглашено
-    </span>
+          <span className="text-textSecondary">
+            Приглашено
+          </span>
 
-    <span className="font-bold text-white">
-      0
-    </span>
+          <span className="font-bold text-white">
+            {referral?.invited || 0}
+          </span>
 
-  </div>
+        </div>
 
-  <div className="mt-4 flex justify-between">
+        <div className="mt-4 flex justify-between">
 
-    <span className="text-textSecondary">
-      Доход по рефералам
-    </span>
+          <span className="text-textSecondary">
+            Доход по рефералам
+          </span>
 
-    <span className="font-bold text-accentGold">
-      $0.00
-    </span>
+          <span className="font-bold text-accentGold">
+            ${Number(referral?.earned || 0).toFixed(2)}
+          </span>
 
-  </div>
+        </div>
 
-</Card>
+      </Card>
 
-<Card padding="lg">
+      <Card padding="lg">
 
-  <div className="text-[10px] uppercase tracking-widest text-accentGold font-bold mb-4">
-    Приглашённые
-  </div>
+        <div className="text-[10px] uppercase tracking-widest text-accentGold font-bold mb-4">
+          Приглашённые
+        </div>
 
-  <div className="text-center text-textSecondary">
+        <div className="text-center text-textSecondary">
 
-    Пока никто не зарегистрировался
+          Пока никто не зарегистрировался
 
-  </div>
+        </div>
 
-</Card>
-          </div>
+      </Card>
+
+    </div>
   );
 };
