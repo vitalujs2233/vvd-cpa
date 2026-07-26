@@ -448,7 +448,7 @@ async def get_referral(telegram_id: int):
     return {
         "success": True,
         "referral_code": user.partner_code,
-        "referral_link": f"https://t.me/VVDCPAbot?start={user.partner_code}",
+        "referral_link": f"https://t.me/vvd_cpa_bot?start={user.partner_code}",
         "balance": float(user.referral_balance),
         "earned": float(user.referral_earned),
         "invited": int(invited or 0)
