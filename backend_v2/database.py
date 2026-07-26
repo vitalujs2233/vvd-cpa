@@ -87,6 +87,26 @@ def create_analytics_tables():
     with engine.begin() as conn:
         conn.execute(
             text("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS invited_by BIGINT
+            """)
+        )
+
+        conn.execute(
+            text("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS referral_balance DOUBLE PRECISION DEFAULT 0
+            """)
+        )
+
+        conn.execute(
+            text("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS referral_earned DOUBLE PRECISION DEFAULT 0
+            """)
+        )
+        conn.execute(
+            text("""
                 CREATE TABLE IF NOT EXISTS clicks (
                     id BIGSERIAL PRIMARY KEY,
                     user_id BIGINT NOT NULL,
