@@ -93,6 +93,8 @@ import { getTelegramUser } from './telegram';
 
 export const loginViaTelegramApi = async (): Promise<AuthResponse> => {
   const user = getTelegramUser();
+  const referralCode =
+  window.Telegram?.WebApp?.initDataUnsafe?.start_param || "";
 
   return apiRequest<AuthResponse>('/auth', {
     method: 'POST',
@@ -102,6 +104,7 @@ export const loginViaTelegramApi = async (): Promise<AuthResponse> => {
       last_name: user.last_name || "",
       username: user.username || "",
       photo_url: user.photo_url || "",
+      referral_code: referralCode,
     }),
   });
 };
