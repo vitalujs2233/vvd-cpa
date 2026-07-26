@@ -388,7 +388,7 @@ async def get_balance(telegram_id: int):
         "hold": float(user.hold),
         "paid": float(user.withdrawn)
     }
-    @app.get("/referral/{telegram_id}")
+@app.get("/referral/{telegram_id}")
 async def get_referral(telegram_id: int):
 
     with engine.connect() as conn:
