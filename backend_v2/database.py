@@ -35,36 +35,9 @@ def save_user(
     first_name,
     last_name,
     username,
-    photo_url,
-    referral_code=None
+    photo_url
 ):
     with engine.begin() as conn:
-        existing_user = conn.execute(
-            invited_by = None
-
-        if not existing_user and referral_code:
-            inviter = conn.execute(
-                text("""
-                    SELECT telegram_id
-                    FROM users
-                    WHERE partner_code = :partner_code
-                """),
-                {
-                    "partner_code": referral_code
-                }
-            ).fetchone()
-
-            if inviter:
-                invited_by = inviter.telegram_id
-            text("""
-                SELECT telegram_id
-                FROM users
-                WHERE telegram_id = :telegram_id
-            """),
-            {
-                "telegram_id": telegram_id
-            }
-        ).fetchone()
         conn.execute(
             text("""
             INSERT INTO users (
@@ -74,7 +47,6 @@ def save_user(
                 username,
                 photo_url,
                 partner_code,
-                invited_by,
                 balance,
                 hold,
                 withdrawn,
@@ -88,7 +60,6 @@ def save_user(
                 :username,
                 :photo_url,
                 :partner_code,
-                :invited_by,
                 0,
                 0,
                 0,
@@ -109,31 +80,10 @@ def save_user(
                 "username": username,
                 "photo_url": photo_url,
                 "partner_code": generate_partner_code(),
-                "invited_by": invited_by,
             }
         )
 def create_analytics_tables():
     with engine.begin() as conn:
-        conn.execute(
-            text("""
-                ALTER TABLE users
-                ADD COLUMN IF NOT EXISTS invited_by BIGINT
-            """)
-        )
-
-        conn.execute(
-            text("""
-                ALTER TABLE users
-                ADD COLUMN IF NOT EXISTS referral_balance DOUBLE PRECISION DEFAULT 0
-            """)
-        )
-
-        conn.execute(
-            text("""
-                ALTER TABLE users
-                ADD COLUMN IF NOT EXISTS referral_earned DOUBLE PRECISION DEFAULT 0
-            """)
-        )
         conn.execute(
             text("""
                 CREATE TABLE IF NOT EXISTS clicks (
