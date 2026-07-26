@@ -40,6 +40,22 @@ def save_user(
 ):
     with engine.begin() as conn:
         existing_user = conn.execute(
+            invited_by = None
+
+        if not existing_user and referral_code:
+            inviter = conn.execute(
+                text("""
+                    SELECT telegram_id
+                    FROM users
+                    WHERE partner_code = :partner_code
+                """),
+                {
+                    "partner_code": referral_code
+                }
+            ).fetchone()
+
+            if inviter:
+                invited_by = inviter.telegram_id
             text("""
                 SELECT telegram_id
                 FROM users
