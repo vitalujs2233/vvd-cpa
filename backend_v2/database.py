@@ -35,7 +35,7 @@ def save_user(
     first_name,
     last_name,
     username,
-    photo_url
+    photo_url,
     referral_code=None
 ):
     with engine.begin() as conn:
