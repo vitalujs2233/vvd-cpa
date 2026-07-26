@@ -9,6 +9,7 @@ import { Withdrawal } from '@/pages/withdrawal/Withdrawal';
 import { Stats } from '@/pages/stats/Stats';
 import { Dvizh } from '@/pages/dvizh/Dvizh';
 import { Profile } from '@/pages/profile/Profile';
+import { Referral } from '@/pages/Referral';
 import { Admin } from '@/pages/admin/Admin';
 // Импортируем наш личный тикет-чат как SupportChat
 import { Chat as SupportChat } from '@/pages/chat/Chat';
@@ -190,6 +191,7 @@ console.log("Telegram:", window.Telegram?.WebApp);
             {/* Наш роут для вкладки «Движ» восстановлен */}
             <Route path="dvizh" element={<Dvizh />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="referral" element={<Referral />} />
           </Route>
 
           {/* Вложенный детальный экран оффера без нижнего меню */}
