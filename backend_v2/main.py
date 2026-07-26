@@ -935,18 +935,6 @@ async def postback_traffcore(
                     }
                 )
             else:
-                inviter = conn.execute(
-            text("""
-                SELECT invited_by
-                FROM users
-                WHERE telegram_id = :telegram_id
-            """),
-            {
-                "telegram_id": telegram_id
-            }
-        ).fetchone()
-
-        if inviter and inviter.invited_by:
 
             referral_reward = round(payout_net * 0.05, 2)
 
