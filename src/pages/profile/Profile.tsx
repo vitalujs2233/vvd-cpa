@@ -138,21 +138,40 @@ export const Profile: React.FC = () => {
             </div>
           </Card>
 
-          {/* Финансовая сводка */}
-          <Card padding="sm" className="grid grid-cols-3 gap-3 text-center divide-x divide-white/[0.04] shadow-premium">
-            <div className="flex flex-col items-center justify-center py-2">
-              <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">Баланс</span>
-              <span className="text-xs font-bold text-white mt-1">$154.50</span>
-            </div>
-            <div className="flex flex-col items-center justify-center py-2">
-              <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">Hold</span>
-              <span className="text-xs font-bold text-warning mt-1">$32.40</span>
-            </div>
-            <div className="flex flex-col items-center justify-center py-2">
-              <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">Выплачено</span>
-              <span className="text-xs font-bold text-textSec mt-1">$1,234.50</span>
-            </div>
-          </Card>
+          {/* Реферальная программа */}
+<Card
+  padding="md"
+  onClick={() => navigate('/referral')}
+  className="cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 shadow-premium border border-accentGold/15"
+>
+  <div className="flex items-center justify-between">
+
+    <div className="flex flex-col text-left">
+
+      <span className="text-[10px] uppercase tracking-widest font-bold text-accentGold">
+        Реферальная программа
+      </span>
+
+      <span className="text-lg font-bold text-white mt-1">
+        Баланс
+      </span>
+
+      <span className="text-xl font-extrabold text-accentGoldBright mt-1">
+        $0.00
+      </span>
+
+      <span className="text-[11px] text-textSecondary mt-2">
+        Зарабатывайте 5% от дохода приглашённых партнёров
+      </span>
+
+    </div>
+
+    <div className="text-3xl text-accentGoldBright">
+      →
+    </div>
+
+  </div>
+</Card>
 
           {/* Меню настроек профиля (Добавлен пункт "Связаться с поддержкой") */}
           <div className="flex flex-col gap-3">
