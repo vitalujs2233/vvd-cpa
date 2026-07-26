@@ -672,7 +672,38 @@ async def postback_adult(
                             "income": payout_net
                         }
                     )
+if income_delta > 0:
 
+            inviter = conn.execute(
+                text("""
+                    SELECT invited_by
+                    FROM users
+                    WHERE telegram_id = :telegram_id
+                """),
+                {
+                    "telegram_id": telegram_id
+                }
+            ).fetchone()
+
+            if inviter and inviter.invited_by:
+
+                referral_reward = round(income_delta * 0.05, 2)
+
+                conn.execute(
+                    text("""
+                        UPDATE users
+                        SET
+                            referral_balance =
+                                COALESCE(referral_balance,0) + :reward,
+                            referral_earned =
+                                COALESCE(referral_earned,0) + :reward
+                        WHERE telegram_id = :invited_by
+                    """),
+                    {
+                        "reward": referral_reward,
+                        "invited_by": inviter.invited_by
+                    }
+                )
         conn.commit()
 
     return {
