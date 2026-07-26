@@ -716,8 +716,7 @@ async def postback_adult(
                         }
                     )
 if income_delta > 0:
-
-            inviter = conn.execute(
+    inviter = conn.execute(
                 text("""
                     SELECT invited_by
                     FROM users
