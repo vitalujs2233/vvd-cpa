@@ -39,6 +39,16 @@ def save_user(
     referral_code=None
 ):
     with engine.begin() as conn:
+        existing_user = conn.execute(
+            text("""
+                SELECT telegram_id
+                FROM users
+                WHERE telegram_id = :telegram_id
+            """),
+            {
+                "telegram_id": telegram_id
+            }
+        ).fetchone()
         conn.execute(
             text("""
             INSERT INTO users (
