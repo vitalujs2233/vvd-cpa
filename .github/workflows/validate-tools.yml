@@ -24,5 +24,7 @@ jobs:
           node-version: '20'
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+      - name: Check wallet navigation and placement
+        run: node scripts/check-ui-placements.mjs
       - name: Typecheck and build
         run: npm run build

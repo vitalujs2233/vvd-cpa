@@ -8,6 +8,7 @@ import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { triggerHaptic } from '@/shared/lib/telegram';
 import { useStarsWallet } from '@/shared/lib/StarsWalletContext';
+import { ToolsTopup } from './ToolsTopup';
 
 // Demos remain free until real supplier APIs are available.
 const DemoNotice: React.FC = () => (
@@ -54,6 +55,32 @@ const ToolHeader: React.FC<{ title: string; subtitle: string }> = ({ title, subt
   );
 };
 
+const ToolsBalanceCard: React.FC = () => {
+  const { stars, loading, refresh, error } = useStarsWallet();
+  return (
+    <Card variant="glow" padding="lg" className="relative flex flex-col gap-3 overflow-hidden">
+      <div className="absolute -right-12 -top-16 h-36 w-36 rounded-full bg-gold-gradient opacity-10 blur-3xl pointer-events-none" />
+      <div className="relative flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-2 text-left">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-textSecondary">
+            Баланс инструментов
+          </span>
+          <strong className="text-3xl font-bold tracking-tight text-white">⭐ {stars ?? '—'}</strong>
+          <p className="text-xs leading-4 text-textSecondary">
+            Отдельный кошелёк. CPA-баланс в долларах не затрагивается.
+          </p>
+        </div>
+        <ToolsTopup />
+      </div>
+      <button type="button" className="self-end text-xs font-semibold text-accentBrightGold"
+        onClick={() => void refresh()}>
+        {loading ? 'Обновление…' : 'Обновить баланс'}
+      </button>
+      {error && <p role="status" className="text-xs text-textSecondary">{error}</p>}
+    </Card>
+  );
+};
+
 const toolLinks = [
   { to: '/tools/ai', name: 'AI Модель', detail: 'Выбор модели и токенов', icon: Bot },
   { to: '/tools/numbers', name: 'Виртуальные номера', detail: 'Страны, сервисы и SMS', icon: Phone },
@@ -71,8 +98,8 @@ export const Tools: React.FC = () => (
         <p className="text-xs text-textSecondary">Рабочий центр VVD CPA</p>
       </div>
     </div>
+    <ToolsBalanceCard />
     <DemoNotice />
-    <WalletPreview />
     <div className="grid grid-cols-2 gap-3">
       {toolLinks.map(({ to, name, detail, icon: Icon }, index) => (
         <Link key={to} to={to} onClick={() => triggerHaptic.lightImpact()}
