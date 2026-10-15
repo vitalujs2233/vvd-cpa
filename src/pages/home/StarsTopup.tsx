@@ -9,6 +9,7 @@ const PACKAGES: StarsPackage[] = [50, 100, 250];
 
 export const StarsTopup: React.FC = () => {
   const [balance, setBalance] = useState<number | null>(null);
+  const [enabled, setEnabled] = useState(false);
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<StarsPackage>(50);
   const [busy, setBusy] = useState(false);
@@ -18,9 +19,10 @@ export const StarsTopup: React.FC = () => {
 
   const refresh = useCallback(async () => {
     try {
-      const stars = await getStarsBalance();
-      setBalance(stars);
-      return stars;
+      const data = await getStarsBalance();
+      setBalance(data.stars);
+      setEnabled(data.payments_enabled);
+      return data.stars;
     } catch {
       return null;
     }
@@ -55,7 +57,7 @@ export const StarsTopup: React.FC = () => {
   }, [awaiting, refresh]);
 
   const checkout = async () => {
-    if (busy || awaiting !== null) return;
+    if (busy || awaiting !== null || !enabled) return;
     setError('');
     setMessage('');
     setBusy(true);
@@ -117,9 +119,10 @@ export const StarsTopup: React.FC = () => {
               <span className="text-textSecondary">Ваши кредиты</span>
               <strong className="text-accentBrightGold">⭐ {balance === null ? '—' : balance}</strong>
             </div>
+            {!enabled && <p role="status" className="rounded-app-xs border border-accentGold/20 bg-accentGold/10 p-3 text-xs text-accentBrightGold">Реальные платежи временно отключены до запуска платных сервисов.</p>}
             <div className="grid grid-cols-3 gap-2">
               {PACKAGES.map((stars) => (
-                <button key={stars} type="button" disabled={busy || awaiting !== null}
+                <button key={stars} type="button" disabled={busy || awaiting !== null || !enabled}
                   aria-pressed={selected === stars} onClick={() => setSelected(stars)}
                   className={'rounded-app-xs border px-2 py-4 text-center text-sm font-bold transition-colors ' +
                     (selected === stars ? 'border-accentGold bg-accentGold/15 text-accentBrightGold' : 'border-white/10 bg-white/[0.03] text-textPrimary')}>
@@ -127,8 +130,8 @@ export const StarsTopup: React.FC = () => {
                 </button>
               ))}
             </div>
-            <Button type="button" onClick={() => void checkout()} disabled={busy || awaiting !== null}>
-              {busy || awaiting !== null ? <><Loader2 size={17} className="mr-2 animate-spin" /> Ожидание Telegram…</> : <>Оплатить ⭐ {selected}</>}
+            <Button type="button" onClick={() => void checkout()} disabled={busy || awaiting !== null || !enabled}>
+              {!enabled ? "Пополнение скоро появится" : busy || awaiting !== null ? <><Loader2 size={17} className="mr-2 animate-spin" /> Ожидание Telegram…</> : <>Оплатить ⭐ {selected}</>}
             </Button>
             {message && <p role="status" className="flex items-start gap-2 text-xs leading-5 text-textSecondary">
               {awaiting === null && message.startsWith('Оплата подтверждена') && <CheckCircle2 size={16} className="text-success" />}
