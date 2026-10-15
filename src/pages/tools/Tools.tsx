@@ -22,7 +22,7 @@ const WalletPreview: React.FC = () => {
     <div className="flex flex-col gap-1 rounded-app-xs border border-white/10 bg-white/[0.03] px-4 py-3">
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-2 text-xs text-textSecondary">
-          <Wallet size={15} /> Stars-кошелёк
+          <Wallet size={15} /> Баланс инструментов
         </span>
         <strong className="text-accentBrightGold">⭐ {stars ?? '—'}</strong>
       </div>
