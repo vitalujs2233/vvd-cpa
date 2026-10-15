@@ -4,7 +4,6 @@ import { Wallet, History, ArrowRight, Clock, TrendingUp, Sparkles, Bell, Flame, 
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
-import { StarsTopup } from './StarsTopup';
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -120,7 +119,6 @@ const res = await fetch(
             <span className="text-[36px] font-bold text-white leading-none mt-1.5 font-sans tracking-tight">
   ${balance.available.toFixed(2)}
 </span>
-            <StarsTopup />
           </div>
           
           <div className="bg-white/[0.02] border border-white/10 rounded-app-xs px-2.5 py-1 flex items-center gap-1.5 shadow-glass-inner">
