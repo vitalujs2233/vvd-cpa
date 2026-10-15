@@ -8,7 +8,8 @@ import { OfferDetail } from '@/pages/offers/OfferDetail';
 import { Withdrawal } from '@/pages/withdrawal/Withdrawal';
 import { Stats } from '@/pages/stats/Stats';
 import { Dvizh } from '@/pages/dvizh/Dvizh';
-import { Tools, VirtualNumbers, ProxyService, AiModel, ToolsDemoProvider } from '@/pages/tools/Tools';
+import { Tools, VirtualNumbers, ProxyService, AiModel } from '@/pages/tools/Tools';
+import { StarsWalletProvider } from '@/shared/lib/StarsWalletContext';
 import { Profile } from '@/pages/profile/Profile';
 import { Referral } from '@/pages/Referral';
 import { Admin } from '@/pages/admin/Admin';
@@ -40,7 +41,7 @@ const AppLayout = () => {
         <Outlet />
       </div>
 
-      {/* Нижняя парящая стеклянная панель навигации (🔥 Движ восстановлен на своем месте!) */}
+      {/* Нижняя навигация: «Инструменты» вместо «Движ» */}
       <nav
   className="fixed bottom-0 left-0 right-0 h-[80px] bg-bgCard/60 backdrop-blur-lg border-t border-white/[0.04] flex items-center justify-around px-4 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.5)] z-[9999] w-full max-w-[1200px] mx-auto rounded-t-card"
 >
@@ -89,7 +90,7 @@ const AppLayout = () => {
           <span className="text-[10px] mt-1.5 font-bold uppercase tracking-wider scale-90">Анализ</span>
         </NavLink>
 
-        {/* Восстановленная люксовая вкладка «Движ» */}
+        {/* Инструменты; «Движ» открывается из шапки главной */}
         <NavLink
           to="/tools"
           onClick={handleTabClick}
@@ -182,7 +183,7 @@ console.log("Telegram:", window.Telegram?.WebApp);
     minHeight: "100dvh",
   }}
 >
-      <ToolsDemoProvider>
+      <StarsWalletProvider>
       <MemoryRouter>
         <Routes>
           {/* Обертка Лейаута */}
@@ -190,7 +191,7 @@ console.log("Telegram:", window.Telegram?.WebApp);
             <Route index element={<Home />} />
             <Route path="offers" element={<Offers />} />
             <Route path="stats" element={<Stats />} />
-            {/* Наш роут для вкладки «Движ» восстановлен */}
+            {/* Существующий экран «Движ» сохранён */}
             <Route path="dvizh" element={<Dvizh />} />
             <Route path="tools" element={<Tools />} />
             <Route path="tools/numbers" element={<VirtualNumbers />} />
@@ -212,7 +213,7 @@ console.log("Telegram:", window.Telegram?.WebApp);
           <Route path="/admin" element={<Admin />} />
         </Routes>
       </MemoryRouter>
-      </ToolsDemoProvider>
+      </StarsWalletProvider>
     </div>
   );
 };
