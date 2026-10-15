@@ -65,15 +65,12 @@ class LedgerTests(unittest.TestCase):
             # service intentionally does not install those service roles.
             schema = (Path(__file__).resolve().parents[1] /
                       "migrations/20261015_star_wallets.sql").read_text()
+            schema = "\n".join(line for line in schema.splitlines()
+                               if not line.lstrip().startswith("--"))
             for statement in schema.split(";"):
                 statement = statement.strip()
-                if not statement or statement.startswith("REVOKE"):
-                    continue
-                # Strip leading comment-only lines before executing.
-                lines = [line for line in statement.splitlines()
-                         if not line.lstrip().startswith("--")]
-                if "\n".join(lines).strip():
-                    conn.execute(text("\n".join(lines)))
+                if statement and not statement.startswith("REVOKE"):
+                    conn.execute(text(statement))
             conn.execute(text("""
                 INSERT INTO public.users(telegram_id,first_name)
                 VALUES (:id,'Test') ON CONFLICT DO NOTHING
