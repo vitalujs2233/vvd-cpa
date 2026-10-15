@@ -27,6 +27,34 @@ router = APIRouter(prefix="/payments/stars", tags=["Telegram Stars"])
 PACKAGES = {50: 50, 100: 100, 250: 250}
 MAX_INIT_DATA_AGE = 3600
 
+# No digital supplier integrations are connected yet. No monetary charges may
+# be accepted until a real fulfilment provider has been implemented and tested.
+# This is intentionally code-gated, NOT merely an environment toggle.
+SERVICE_CATALOG = (
+    {"id": "ai", "title": "AI Модель"},
+    {"id": "numbers", "title": "Виртуальные номера"},
+    {"id": "proxy", "title": "Прокси сервис"},
+)
+LIVE_SERVICES: frozenset[str] = frozenset()
+
+
+def purchases_enabled() -> bool:
+    return bool(LIVE_SERVICES) and os.getenv("STARS_PAYMENTS_ENABLED", "false").lower() == "true"
+
+
+@router.get("/catalog")
+def get_catalog():
+    return {
+        "currency": "XTR",
+        "payments_enabled": purchases_enabled(),
+        "services": [
+            {**service, "available": service["id"] in LIVE_SERVICES, "price_stars": None}
+            for service in SERVICE_CATALOG
+        ],
+        "message": "Оплата недоступна до подключения реальных услуг.",
+    }
+
+
 
 def verified_telegram_id(init_data: str, now: int | None = None) -> int:
     """Verify Telegram Mini App HMAC and freshness; never trust initDataUnsafe."""
@@ -79,7 +107,7 @@ def get_star_balance(x_telegram_init_data: str | None = Header(default=None)):
             text("SELECT stars FROM star_wallets WHERE telegram_id = :uid"),
             {"uid": user_id},
         ).fetchone()
-    return {"stars": int(row.stars) if row else 0, "currency": "XTR", "payments_enabled": os.getenv("STARS_PAYMENTS_ENABLED", "false").lower() == "true"}
+    return {"stars": int(row.stars) if row else 0, "currency": "XTR", "payments_enabled": purchases_enabled()}
 
 
 @router.post("/invoice")
@@ -87,7 +115,7 @@ async def create_star_invoice(
     payload: InvoiceRequest, x_telegram_init_data: str | None = Header(default=None)
 ):
     user_id = require_telegram_id(x_telegram_init_data)
-    if os.getenv("STARS_PAYMENTS_ENABLED", "false").lower() != "true":
+    if not purchases_enabled():
         raise HTTPException(status_code=503, detail="Пополнение скоро появится. Платежи пока отключены.")
     stars = PACKAGES.get(payload.stars)
     if stars is None:
@@ -144,7 +172,7 @@ def _parse_order_payload(payload: str) -> uuid.UUID | None:
 
 def check_pre_checkout(payload: str, telegram_id: int, currency: str, amount: int) -> bool:
     order_id = _parse_order_payload(payload)
-    if not order_id or currency != "XTR":
+    if not order_id or currency != "XTR" or not purchases_enabled():
         return False
     with engine.connect() as conn:
         row = conn.execute(

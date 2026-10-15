@@ -21,4 +21,8 @@ The Render `vvd-cpa-v2` service uses the repository's `backend_v2` directory and
 The following flags must remain absent or false before launch:
 - `STARS_PAYMENTS_ENABLED=false`
 
-No Stars-to-USD conversion and no withdrawal of Stars credits are implemented. The separate testing credits currently shown in the Tools section are demo-only and are not connected to this wallet.
+No Stars-to-USD conversion and no withdrawal of Stars credits are implemented. The three Tools screens now show the same verified Stars wallet as the Home top-up panel. Demonstration actions are free and **do not** touch that wallet or create orders. The AI screen has a visibly separate counter of simulated tokens (not purchasable).
+
+The server additionally blocks invoices when no genuine product integration has been registered in `LIVE_SERVICES`, even if `STARS_PAYMENTS_ENABLED` is accidentally set to true. `GET /payments/stars/catalog` lists all three services as unavailable until they are implemented. `pre_checkout_query` also refuses checkout while live purchases are disabled.
+
+Before enabling any charges, integrate real fulfillment and an atomic consumption ledger, test successful/refunded/failed deliveries in Telegram's test environment, and publish support and purchase terms.

@@ -9,12 +9,14 @@ import os
 import sys
 import time
 import unittest
+from unittest.mock import patch
 import uuid
 from pathlib import Path
 from urllib.parse import urlencode
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from sqlalchemy import text
+import stars_payments
 from stars_payments import (engine, verified_telegram_id, check_pre_checkout,
                             credit_successful_payment, reverse_refunded_payment)
 
@@ -93,7 +95,17 @@ class LedgerTests(unittest.TestCase):
         self.assertFalse(check_pre_checkout(payload, TEST_USER, "USD", 50))
         self.assertFalse(check_pre_checkout(payload, TEST_USER + 1, "XTR", 50))
         self.assertFalse(check_pre_checkout(payload, TEST_USER, "XTR", 100))
-        self.assertTrue(check_pre_checkout(payload, TEST_USER, "XTR", 50))
+        # Real purchases are disabled until paid services exist.
+        self.assertFalse(check_pre_checkout(payload, TEST_USER, "XTR", 50))
+        self.assertFalse(stars_payments.purchases_enabled())
+        self.assertTrue(all(
+            not service["available"]
+            for service in stars_payments.get_catalog()["services"]
+        ))
+        # Simulate a connected provider in the isolated test DB only.
+        with patch.object(stars_payments, "LIVE_SERVICES", frozenset({"ai"})):
+            with patch.dict(os.environ, {"STARS_PAYMENTS_ENABLED": "true"}):
+                self.assertTrue(check_pre_checkout(payload, TEST_USER, "XTR", 50))
 
         charge_id = f"test-charge-{uuid.uuid4()}"
         self.assertTrue(credit_successful_payment(payload, TEST_USER, "XTR", 50, charge_id))
