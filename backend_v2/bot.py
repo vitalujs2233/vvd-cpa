@@ -2,11 +2,12 @@ import asyncio
 import logging
 import os
 
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import CommandStart
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 
 from database import save_user
+from stars_payments import check_pre_checkout, credit_successful_payment, reverse_refunded_payment
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -55,16 +56,84 @@ async def cmd_start(message: types.Message):
     )
 
 
-async def start_bot():
-    logger.info("Запуск Telegram-бота VVD CPA")
+@dp.pre_checkout_query()
+async def on_stars_pre_checkout(query: types.PreCheckoutQuery):
+    """Only approve a verified, matching unpaid invoice within Telegram's deadline."""
     try:
-        await bot.delete_webhook(drop_pending_updates=False)
-        await dp.start_polling(bot)
+        accepted = await asyncio.to_thread(
+            check_pre_checkout, query.invoice_payload, query.from_user.id,
+            query.currency, query.total_amount,
+        )
+        await query.answer(
+            ok=accepted,
+            error_message=None if accepted else "Счёт недействителен или устарел. Создайте новый.",
+        )
+    except Exception:
+        logger.exception("Stars pre-checkout validation error")
+        await query.answer(ok=False, error_message="Ошибка проверки оплаты. Попробуйте позже.")
+
+
+@dp.message(F.successful_payment)
+async def on_stars_successful_payment(message: types.Message):
+    payment = message.successful_payment
+    if not payment or not message.from_user:
+        return
+    try:
+        credited = await asyncio.to_thread(
+            credit_successful_payment, payment.invoice_payload,
+            message.from_user.id, payment.currency, payment.total_amount,
+            payment.telegram_payment_charge_id,
+        )
+        if not credited:
+            logger.error("Stars payment requires reconciliation; charge=%s", payment.telegram_payment_charge_id)
+        else:
+            await message.answer("⭐ Оплата подтверждена! Цифровые кредиты добавлены в кошелёк.")
+    except Exception:
+        # IMPORTANT: don't acknowledge settlement as completed on a DB error.
+        # Telegram may retry an update; order ID and charge ID are idempotent.
+        logger.exception("Stars settlement failed; charge=%s", payment.telegram_payment_charge_id)
+
+
+@dp.message(F.refunded_payment)
+async def on_stars_refund(message: types.Message):
+    refund = message.refunded_payment
+    if not refund or not message.from_user or refund.currency != "XTR":
+        return
+    try:
+        await asyncio.to_thread(
+            reverse_refunded_payment, refund.telegram_payment_charge_id,
+            message.from_user.id, refund.total_amount,
+        )
+    except Exception:
+        logger.exception("Stars refund reconciliation failed")
+
+
+
+async def start_bot():
+    """Use a secured webhook when configured; preserve existing polling otherwise."""
+    webhook_url = os.getenv("TELEGRAM_WEBHOOK_URL", "").strip()
+    logger.info("Запуск Telegram-бота VVD CPA (%s)", "webhook" if webhook_url else "polling")
+    try:
+        if webhook_url:
+            secret = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
+            if not secret or len(secret) < 20:
+                raise RuntimeError("Set a strong TELEGRAM_WEBHOOK_SECRET for webhook mode")
+            await bot.set_webhook(
+                url=webhook_url,
+                secret_token=secret,
+                allowed_updates=dp.resolve_used_update_types(),
+                drop_pending_updates=False,
+            )
+            logger.info("Telegram webhook configured")
+        else:
+            await bot.delete_webhook(drop_pending_updates=False)
+            await dp.start_polling(bot)
     except asyncio.CancelledError:
         logger.info("Telegram-бот остановлен")
         raise
     finally:
-        await bot.session.close()
+        if not webhook_url:
+            await bot.session.close()
 
 
 async def send_telegram_message(telegram_id: int, text: str):
