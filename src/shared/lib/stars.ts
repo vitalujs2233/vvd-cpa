@@ -9,12 +9,12 @@ function telegramInitData(): string {
   return data;
 }
 
-export async function getStarsBalance(): Promise<number> {
-  const result = await apiRequest<{ stars: number; currency: 'XTR' }>('/payments/stars/balance', {
+export async function getStarsBalance(): Promise<{ stars: number; payments_enabled: boolean }> {
+  const result = await apiRequest<{ stars: number; currency: 'XTR'; payments_enabled: boolean }>('/payments/stars/balance', {
     headers: { 'X-Telegram-Init-Data': telegramInitData() },
     cache: 'no-store',
   });
-  return result.stars;
+  return { stars: result.stars, payments_enabled: result.payments_enabled };
 }
 
 export async function createStarsInvoice(stars: StarsPackage): Promise<string> {
