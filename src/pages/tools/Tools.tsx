@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, ArrowRight, Bot, CheckCircle2, ChevronRight, Clock3,
@@ -7,39 +7,32 @@ import {
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { triggerHaptic } from '@/shared/lib/telegram';
+import { useStarsWallet } from '@/shared/lib/StarsWalletContext';
 
-// UI prototype only: no API calls, real financial operations, numbers or proxy credentials.
-type DemoWalletValue = { balance: number; spend: (amount: number) => boolean };
-const DemoWallet = createContext<DemoWalletValue | null>(null);
-
-export const ToolsDemoProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [balance, setBalance] = useState(30);
-  const spend = (amount: number) => {
-    if (amount <= 0 || amount > balance) return false;
-    setBalance((current) => Math.round((current - amount) * 100) / 100);
-    return true;
-  };
-  return <DemoWallet.Provider value={{ balance, spend }}>{children}</DemoWallet.Provider>;
-};
-
-const useDemoWallet = () => {
-  const value = useContext(DemoWallet);
-  if (!value) throw new Error('ToolsDemoProvider is required');
-  return value;
-};
-
+// Demos remain free until real supplier APIs are available.
 const DemoNotice: React.FC = () => (
   <p className="rounded-app-xs border border-accentGold/25 bg-accentGold/10 px-3 py-2 text-xs leading-5 text-accentLightGold">
-    Демо-режим: баланс, цены, покупки и выдаваемые данные учебные. Реальных операций нет.
+    Демо бесплатно: реальные AI, SMS и прокси ещё не подключены. Stars-кредиты не списываются.
   </p>
 );
 
 const WalletPreview: React.FC = () => {
-  const { balance } = useDemoWallet();
+  const { stars, loading, error, paymentsEnabled, refresh } = useStarsWallet();
   return (
-    <div className="flex items-center justify-between rounded-app-xs border border-white/10 bg-white/[0.03] px-4 py-3">
-      <span className="flex items-center gap-2 text-xs text-textSecondary"><Wallet size={15} /> Демо-баланс</span>
-      <strong className="text-accentBrightGold">{'$' + balance.toFixed(2)}</strong>
+    <div className="flex flex-col gap-1 rounded-app-xs border border-white/10 bg-white/[0.03] px-4 py-3">
+      <div className="flex items-center justify-between">
+        <span className="flex items-center gap-2 text-xs text-textSecondary">
+          <Wallet size={15} /> Stars-кошелёк
+        </span>
+        <strong className="text-accentBrightGold">⭐ {stars ?? '—'}</strong>
+      </div>
+      <p className="text-[11px] leading-4 text-textSecondary">
+        {error || (loading ? 'Обновляем баланс…' : paymentsEnabled ?
+          'Баланс доступен для подключённых услуг.' :
+          'Платные услуги пока недоступны. Демонстрации бесплатны.')}
+      </p>
+      <button type="button" onClick={() => void refresh()}
+        className="self-end text-[11px] font-bold text-accentBrightGold">Обновить</button>
     </div>
   );
 };
@@ -102,29 +95,26 @@ export const Tools: React.FC = () => (
   </main>
 );
 
-type Country = { id: string; flag: string; title: string; price: number };
+type Country = { id: string; flag: string; title: string };
 const countries: Country[] = [
-  { id: 'LV', flag: '🇱🇻', title: 'Латвия', price: 1.6 },
-  { id: 'DE', flag: '🇩🇪', title: 'Германия', price: 2.1 },
-  { id: 'PL', flag: '🇵🇱', title: 'Польша', price: 1.3 },
+  { id: 'LV', flag: '🇱🇻', title: 'Латвия' },
+  { id: 'DE', flag: '🇩🇪', title: 'Германия' },
+  { id: 'PL', flag: '🇵🇱', title: 'Польша' },
 ];
 const smsServices = [
-  { id: 'demo', title: 'Тестовый сервис', extra: 0 },
-  { id: 'sample', title: 'Демо-получение SMS', extra: 0.5 },
+  { id: 'demo', title: 'Тестовый сервис' },
+  { id: 'sample', title: 'Демо-получение SMS' },
 ];
-type SmsOrder = { country: Country; service: string; price: number };
+type SmsOrder = { country: Country; service: string };
 
 export const VirtualNumbers: React.FC = () => {
-  const { spend } = useDemoWallet();
   const [countryId, setCountryId] = useState('LV');
   const [serviceId, setServiceId] = useState('demo');
   const [order, setOrder] = useState<SmsOrder | null>(null);
   const [remaining, setRemaining] = useState(60);
   const [code, setCode] = useState<string | null>(null);
-  const [error, setError] = useState('');
   const country = countries.find((entry) => entry.id === countryId) || countries[0];
   const service = smsServices.find((entry) => entry.id === serviceId) || smsServices[0];
-  const price = Math.round((country.price + service.extra) * 100) / 100;
 
   useEffect(() => {
     if (!order) return;
@@ -133,13 +123,11 @@ export const VirtualNumbers: React.FC = () => {
     return () => { window.clearInterval(tick); window.clearTimeout(sample); };
   }, [order]);
 
-  const buy = () => {
-    setError('');
-    if (!spend(price)) { setError('Недостаточно средств на учебном балансе.'); return; }
-    setOrder({ country, service: service.title, price });
+  const preview = () => {
+    setOrder({ country, service: service.title });
     setRemaining(60);
     setCode(null);
-    triggerHaptic.success();
+    triggerHaptic.lightImpact();
   };
 
   return (
@@ -162,16 +150,15 @@ export const VirtualNumbers: React.FC = () => {
           </select>
         </label>
         <div className="flex items-center justify-between border-t border-white/10 pt-3 text-sm">
-          <span className="text-textSecondary">Учебная цена</span>
-          <strong className="text-accentBrightGold">{'$' + price.toFixed(2)}</strong>
+          <span className="text-textSecondary">Стоимость демонстрации</span>
+          <strong className="text-accentBrightGold">Бесплатно</strong>
         </div>
-        {!order && <Button type="button" onClick={buy}>Купить (демо) <ArrowRight className="ml-2" size={16} /></Button>}
-        {error && <p role="alert" className="text-xs text-error">{error}</p>}
+        {!order && <Button type="button" onClick={preview}>Показать демо <ArrowRight className="ml-2" size={16} /></Button>}
       </Card>
       {order && (
         <Card variant="glow" aria-live="polite" className="flex flex-col gap-3">
           <h2 className="flex items-center gap-2 text-sm font-bold"><MessageSquare size={17} className="text-accentBrightGold" /> Ожидание SMS</h2>
-          <p className="text-xs text-textSecondary">{order.country.flag} {order.country.title} · {order.service} · {'$' + order.price.toFixed(2)}</p>
+          <p className="text-xs text-textSecondary">{order.country.flag} {order.country.title} · {order.service} · Бесплатно</p>
           <p className="text-xs text-textSecondary">Номер: +000 000 0000 (не существует)</p>
           <p className="flex items-center gap-2 text-xs text-accentBrightGold">
             <Clock3 size={15} /> {String(Math.floor(remaining / 60)).padStart(2, '0') + ':' + String(remaining % 60).padStart(2, '0')}
@@ -189,23 +176,19 @@ export const VirtualNumbers: React.FC = () => {
 
 type ProxyItem = {
   id: string; protocol: 'HTTP' | 'SOCKS5'; flag: string;
-  country: string; period: string; price: number; address: string;
+  country: string; period: string; address: string;
 };
 const demoProxies: ProxyItem[] = [
-  { id: 'lv', protocol: 'HTTP', flag: '🇱🇻', country: 'Латвия', period: '1 день', price: 2.4, address: '192.0.2.10:8080' },
-  { id: 'de', protocol: 'SOCKS5', flag: '🇩🇪', country: 'Германия', period: '7 дней', price: 7.9, address: '198.51.100.7:1080' },
-  { id: 'pl', protocol: 'HTTP', flag: '🇵🇱', country: 'Польша', period: '30 дней', price: 12.5, address: '203.0.113.20:3128' },
+  { id: 'lv', protocol: 'HTTP', flag: '🇱🇻', country: 'Латвия', period: '1 день', address: '192.0.2.10:8080' },
+  { id: 'de', protocol: 'SOCKS5', flag: '🇩🇪', country: 'Германия', period: '7 дней', address: '198.51.100.7:1080' },
+  { id: 'pl', protocol: 'HTTP', flag: '🇵🇱', country: 'Польша', period: '30 дней', address: '203.0.113.20:3128' },
 ];
 
 export const ProxyService: React.FC = () => {
-  const { spend } = useDemoWallet();
   const [issued, setIssued] = useState<ProxyItem | null>(null);
-  const [error, setError] = useState('');
-  const buy = (item: ProxyItem) => {
-    setError('');
-    if (!spend(item.price)) { setError('Недостаточно средств на учебном балансе.'); return; }
+  const preview = (item: ProxyItem) => {
     setIssued(item);
-    triggerHaptic.success();
+    triggerHaptic.lightImpact();
   };
 
   return (
@@ -216,13 +199,12 @@ export const ProxyService: React.FC = () => {
         <Card key={item.id} className="flex flex-col gap-3">
           <div className="flex items-center justify-between gap-3">
             <strong className="flex items-center gap-2 text-sm"><Server size={16} className="text-accentBrightGold" /> {item.protocol}</strong>
-            <strong className="text-accentBrightGold">{'$' + item.price.toFixed(2)}</strong>
+            <strong className="text-accentBrightGold">Бесплатно</strong>
           </div>
           <p className="text-xs text-textSecondary">{item.flag} {item.country} · {item.period}</p>
-          <Button type="button" size="md" className="w-full" onClick={() => buy(item)}>Купить (демо)</Button>
+          <Button type="button" size="md" className="w-full" onClick={() => preview(item)}>Показать демо</Button>
         </Card>
       ))}
-      {error && <p role="alert" className="text-xs text-error">{error}</p>}
       {issued && (
         <Card variant="glow" aria-live="polite" className="flex flex-col gap-3">
           <h2 className="flex items-center gap-2 text-sm font-bold"><CheckCircle2 size={16} className="text-success" /> Демонстрационная выдача</h2>
@@ -252,14 +234,14 @@ export const AiModel: React.FC = () => {
   const run = () => {
     if (tokens < model.cost) { setMessage('Недостаточно учебных токенов.'); return; }
     setTokens((current) => current - model.cost);
-    setMessage('Демо-запрос выполнен. Списано ' + model.cost + ' учебных токенов. Настоящий AI-ответ не генерировался.');
+    setMessage('Демо-запрос выполнен. Использовано ' + model.cost + ' учебных токенов. Реальные ⭐ не списывались; AI-ответ не генерировался.');
     triggerHaptic.success();
   };
 
   return (
     <main className="flex flex-col gap-4 p-4 pb-24 animate-fade-in">
       <ToolHeader title="AI Модель" subtitle="Выбор модели и учебные токены" />
-      <DemoNotice />
+      <DemoNotice /><WalletPreview />
       <Card variant="glow" className="flex items-center justify-between">
         <span className="flex items-center gap-2 text-sm font-bold"><Sparkles size={17} className="text-accentBrightGold" /> Демо-токены</span>
         <strong className="text-xl text-accentBrightGold">{tokens}</strong>
