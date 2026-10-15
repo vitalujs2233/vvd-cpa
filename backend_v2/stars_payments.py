@@ -79,7 +79,7 @@ def get_star_balance(x_telegram_init_data: str | None = Header(default=None)):
             text("SELECT stars FROM star_wallets WHERE telegram_id = :uid"),
             {"uid": user_id},
         ).fetchone()
-    return {"stars": int(row.stars) if row else 0, "currency": "XTR"}
+    return {"stars": int(row.stars) if row else 0, "currency": "XTR", "payments_enabled": os.getenv("STARS_PAYMENTS_ENABLED", "false").lower() == "true"}
 
 
 @router.post("/invoice")
