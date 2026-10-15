@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wallet, History, ArrowRight, Clock, TrendingUp, Sparkles, Bell, Crown, Heart, Pill, Coins } from 'lucide-react';
+import { Wallet, History, ArrowRight, Clock, TrendingUp, Sparkles, Bell, Flame, Crown, Heart, Pill, Coins } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
@@ -52,6 +52,11 @@ const res = await fetch(
     navigate('/notifications');
   };
 
+  const handleDvizhClick = () => {
+    triggerHaptic.lightImpact();
+    navigate('/dvizh');
+  };
+
   return (
     <div className="flex flex-col gap-4 p-4 select-none pb-24 animate-fade-in">
       
@@ -81,6 +86,11 @@ const res = await fetch(
           </div>
         </div>
 
+        <div className="flex items-center gap-2">
+          <button type="button" aria-label="Открыть Движ" onClick={handleDvizhClick}
+            className="flex h-10 items-center gap-1 rounded-full border border-accentGold/20 bg-accentGold/10 px-2.5 text-accentBrightGold transition-all active:scale-95">
+            <Flame size={16} /> <span className="text-[11px] font-bold">Движ</span>
+          </button>
         {/* Кнопка уведомлений с золотым мигающим индикатором */}
         <button 
           onClick={handleNotificationsClick}
@@ -90,6 +100,7 @@ const res = await fetch(
           <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-accentGoldBright shadow-[0_0_10px_#F6C453] animate-ping" />
           <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-accentGoldBright shadow-[0_0_8px_#F6C453]" />
         </button>
+        </div>
       </Card>
 
       {/* Парящая градиентная карта Баланса с золотой фоновой короной и золотым свечением */}
