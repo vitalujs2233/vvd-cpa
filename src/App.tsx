@@ -125,6 +125,13 @@ const AppLayout = () => {
   );
 };
 
+// Wallet context exists only inside /tools; Home never initializes it.
+const ToolsWalletLayout = () => (
+  <StarsWalletProvider>
+    <Outlet />
+  </StarsWalletProvider>
+);
+
 const App = () => {
   // Состояние отображения стартового золотого лоадера
   const [isLoading, setIsLoading] = useState(true);
@@ -183,7 +190,6 @@ console.log("Telegram:", window.Telegram?.WebApp);
     minHeight: "100dvh",
   }}
 >
-      <StarsWalletProvider>
       <MemoryRouter>
         <Routes>
           {/* Обертка Лейаута */}
@@ -193,10 +199,12 @@ console.log("Telegram:", window.Telegram?.WebApp);
             <Route path="stats" element={<Stats />} />
             {/* Существующий экран «Движ» сохранён */}
             <Route path="dvizh" element={<Dvizh />} />
-            <Route path="tools" element={<Tools />} />
-            <Route path="tools/numbers" element={<VirtualNumbers />} />
-            <Route path="tools/proxy" element={<ProxyService />} />
-            <Route path="tools/ai" element={<AiModel />} />
+            <Route path="tools" element={<ToolsWalletLayout />}>
+              <Route index element={<Tools />} />
+              <Route path="numbers" element={<VirtualNumbers />} />
+              <Route path="proxy" element={<ProxyService />} />
+              <Route path="ai" element={<AiModel />} />
+            </Route>
             <Route path="profile" element={<Profile />} />
             <Route path="referral" element={<Referral />} />
           </Route>
@@ -213,7 +221,6 @@ console.log("Telegram:", window.Telegram?.WebApp);
           <Route path="/admin" element={<Admin />} />
         </Routes>
       </MemoryRouter>
-      </StarsWalletProvider>
     </div>
   );
 };
