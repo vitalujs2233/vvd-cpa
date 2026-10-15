@@ -1,0 +1,51 @@
+name: Validate Stars Top-up
+
+on:
+  push:
+    branches: [feat/telegram-stars-topup]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: stars_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/stars_test
+      BOT_TOKEN: 123456:TEST_TOKEN_FOR_CI_ONLY
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install and build frontend
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: pip install -r backend_v2/requirements.txt
+      - name: Verify Python syntax
+        run: python -m compileall -q backend_v2
+      - name: Check signed initData, idempotent settlement and refund
+        run: python -m unittest discover -s backend_v2/tests -p 'test_*.py' -v
