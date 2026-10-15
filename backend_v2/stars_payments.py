@@ -87,6 +87,8 @@ async def create_star_invoice(
     payload: InvoiceRequest, x_telegram_init_data: str | None = Header(default=None)
 ):
     user_id = require_telegram_id(x_telegram_init_data)
+    if os.getenv("STARS_PAYMENTS_ENABLED", "false").lower() != "true":
+        raise HTTPException(status_code=503, detail="Пополнение скоро появится. Платежи пока отключены.")
     stars = PACKAGES.get(payload.stars)
     if stars is None:
         raise HTTPException(status_code=422, detail="Unsupported Stars package")
