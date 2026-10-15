@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -11,12 +11,17 @@ import urllib.request
 import uuid
 import asyncio
 import os
-from bot import start_bot
+from bot import start_bot, dp, bot
+from stars_payments import router as stars_router
+from aiogram.types import Update
+import hmac
 
 app = FastAPI(
     title="VVD CPA Backend V2",
     version="2.0"
 )
+app.include_router(stars_router)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -44,6 +49,25 @@ async def shutdown_bot():
             await bot_task
         except asyncio.CancelledError:
             pass
+    if os.getenv('TELEGRAM_WEBHOOK_URL'):
+        await bot.session.close()
+@app.post("/telegram/webhook")
+async def telegram_webhook(request: Request):
+    """Receive signed Telegram updates when webhook mode is enabled on Render."""
+    if not os.getenv("TELEGRAM_WEBHOOK_URL"):
+        raise HTTPException(status_code=404, detail="Webhook is not enabled")
+    secret = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
+    provided = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+    if not secret or not hmac.compare_digest(provided, secret):
+        raise HTTPException(status_code=403, detail="Invalid Telegram webhook secret")
+    try:
+        update = Update.model_validate(await request.json())
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Malformed Telegram update")
+    await dp.feed_update(bot, update)
+    return {"ok": True}
+
+
 @app.get("/")
 async def root():
     return {

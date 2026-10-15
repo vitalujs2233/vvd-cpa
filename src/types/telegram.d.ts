@@ -105,6 +105,7 @@ interface TelegramWebApp {
   setBackgroundColor(color: 'bg_color' | 'secondary_bg_color' | string): void;
   enableClosingConfirmation(): void;
   disableClosingConfirmation(): void;
+  openInvoice(url: string, callback?: (status: 'paid' | 'pending' | 'cancelled' | 'failed') => void): void;
   showAlert(message: string, callback?: () => void): void;
   showConfirm(message: string, callback?: (result: boolean) => void): void;
 }
