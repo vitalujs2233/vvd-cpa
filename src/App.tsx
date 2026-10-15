@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MemoryRouter, Routes, Route, NavLink, Outlet } from 'react-router-dom';
-import { Home as HomeIcon, Grid, BarChart3, Flame, User } from 'lucide-react';
+import { Home as HomeIcon, Grid, BarChart3, Wrench, User } from 'lucide-react';
 import { triggerHaptic } from '@/shared/lib/telegram';
 import { Home } from '@/pages/home/Home';
 import { Offers } from '@/pages/offers/Offers';
@@ -8,6 +8,7 @@ import { OfferDetail } from '@/pages/offers/OfferDetail';
 import { Withdrawal } from '@/pages/withdrawal/Withdrawal';
 import { Stats } from '@/pages/stats/Stats';
 import { Dvizh } from '@/pages/dvizh/Dvizh';
+import { Tools, VirtualNumbers, ProxyService, AiModel, ToolsDemoProvider } from '@/pages/tools/Tools';
 import { Profile } from '@/pages/profile/Profile';
 import { Referral } from '@/pages/Referral';
 import { Admin } from '@/pages/admin/Admin';
@@ -90,7 +91,7 @@ const AppLayout = () => {
 
         {/* Восстановленная люксовая вкладка «Движ» */}
         <NavLink
-          to="/dvizh"
+          to="/tools"
           onClick={handleTabClick}
           className={({ isActive }) =>
             `flex flex-col items-center justify-center flex-1 py-3 transition-all duration-300 ease-out origin-center ${
@@ -100,8 +101,8 @@ const AppLayout = () => {
             }`
           }
         >
-          <Flame size={20} />
-          <span className="text-[10px] mt-1.5 font-bold uppercase tracking-wider scale-90">Движ</span>
+          <Wrench size={20} />
+          <span className="text-[9px] mt-1.5 font-bold uppercase tracking-normal">Инструменты</span>
         </NavLink>
 
         <NavLink
@@ -181,6 +182,7 @@ console.log("Telegram:", window.Telegram?.WebApp);
     minHeight: "100dvh",
   }}
 >
+      <ToolsDemoProvider>
       <MemoryRouter>
         <Routes>
           {/* Обертка Лейаута */}
@@ -190,6 +192,10 @@ console.log("Telegram:", window.Telegram?.WebApp);
             <Route path="stats" element={<Stats />} />
             {/* Наш роут для вкладки «Движ» восстановлен */}
             <Route path="dvizh" element={<Dvizh />} />
+            <Route path="tools" element={<Tools />} />
+            <Route path="tools/numbers" element={<VirtualNumbers />} />
+            <Route path="tools/proxy" element={<ProxyService />} />
+            <Route path="tools/ai" element={<AiModel />} />
             <Route path="profile" element={<Profile />} />
             <Route path="referral" element={<Referral />} />
           </Route>
@@ -206,6 +212,7 @@ console.log("Telegram:", window.Telegram?.WebApp);
           <Route path="/admin" element={<Admin />} />
         </Routes>
       </MemoryRouter>
+      </ToolsDemoProvider>
     </div>
   );
 };
