@@ -13,7 +13,7 @@ from datetime import timedelta
 from uuid import UUID
 from urllib.parse import urlsplit
 import httpx
-from fastapi import APIRouter, Header, HTTPException, UploadFile, File, Request, Response
+from fastapi import APIRouter, Header, HTTPException, UploadFile, File, Form, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from PIL import Image, UnidentifiedImageError
@@ -82,9 +82,10 @@ def link_config(model_id:UUID,payload:LinkConfig,x_telegram_init_data:str|None=H
     return {"ok":True,"kind":payload.kind}
 
 @router.post("/models/{model_id}/photos")
-async def add_photo(model_id:UUID,file:UploadFile=File(...),
+async def add_photo(model_id:UUID,file:UploadFile=File(...),rights_confirmed:bool=Form(False),
   x_telegram_init_data:str|None=Header(None)):
     uid=owner(x_telegram_init_data)
+    if not rights_confirmed: raise HTTPException(422,'Подтвердите права на изображение')
     with engine.connect() as conn:
         exists=conn.execute(text("SELECT 1 FROM tool_ai_models WHERE id=:id AND telegram_id=:uid"),{"id":model_id,"uid":uid}).first()
         count=conn.execute(text("SELECT count(*) FROM tool_ai_photos WHERE model_id=:id"),{"id":model_id}).scalar()
@@ -184,7 +185,9 @@ class SessionCreate(BaseModel):
     token: str | None=None
 
 @router.post("/public/{slug}/session")
-def session_create(slug:str,payload:SessionCreate):
+def session_create(slug:str,payload:SessionCreate,request:Request):
+    visitor_ip=request.client.host if request.client else 'unknown'
+    ip_hash=hmac.new(os.environ.get('BOT_TOKEN','').encode(),visitor_ip.encode(),hashlib.sha256).hexdigest()
     with engine.begin() as conn:
         model=conn.execute(text("""SELECT id,name,greeting,photo_url,button_label,affiliate_url,link_kind
              FROM tool_ai_models WHERE slug=:slug AND status='published'"""),{"slug":slug}).first()
@@ -196,8 +199,10 @@ def session_create(slug:str,payload:SessionCreate):
                    {"mid":model.id,"hash":valid_token(payload.token)}).first()
         token=payload.token if session else secrets.token_urlsafe(32)
         if not session:
-            session=conn.execute(text("""INSERT INTO tool_ai_sessions(model_id,token_hash)
-              VALUES(:mid,:hash) RETURNING id"""),{"mid":model.id,"hash":session_hash(token)}).one()
+            recent=conn.execute(text("SELECT count(*) FROM tool_ai_sessions WHERE ip_hash=:ip AND created_at>now()-INTERVAL '1 hour'"),{'ip':ip_hash}).scalar()
+            if recent>=20:raise HTTPException(429,'Слишком много новых чатов')
+            session=conn.execute(text("""INSERT INTO tool_ai_sessions(model_id,token_hash,ip_hash)
+              VALUES(:mid,:hash,:ip) RETURNING id"""),{"mid":model.id,"hash":session_hash(token),"ip":ip_hash}).one()
             conn.execute(text("INSERT INTO tool_ai_events(model_id,session_id,kind) VALUES(:mid,:sid,'conversation')"),
                          {"mid":model.id,"sid":session.id})
         conn.execute(text("INSERT INTO tool_ai_events(model_id,session_id,kind) VALUES(:mid,:sid,'visit')"),
@@ -227,6 +232,8 @@ async def send_message(slug:str,payload:ChatMessage):
             {"mid":model.id,"hash":valid_token(payload.token)}).first()
         if not session:raise HTTPException(401,"Сессия истекла")
         if session.messages_count>=100:raise HTTPException(429,"Лимит сообщений достигнут")
+        count=conn.execute(text("""SELECT count(*) FROM tool_ai_messages m JOIN tool_ai_sessions s ON s.id=m.session_id WHERE s.ip_hash=(SELECT ip_hash FROM tool_ai_sessions WHERE id=:sid) AND m.role='user' AND m.created_at>now()-INTERVAL '1 hour'"""),{'sid':session.id}).scalar()
+        if count>=60:raise HTTPException(429,'Слишком много сообщений, попробуйте позже')
         if session.messages_count>0 and (time.time()-session.updated_at.timestamp())<3:
             raise HTTPException(429,"Подождите перед следующим сообщением")
         history=conn.execute(text("""SELECT role,content FROM tool_ai_messages WHERE session_id=:sid
@@ -249,7 +256,10 @@ async def send_message(slug:str,payload:ChatMessage):
                 headers={"Authorization":"Bearer "+os.environ["AI_API_KEY"]},json=body)
             resp.raise_for_status()
             data=resp.json()
-            answer=data["choices"][0]["message"]["content"].strip()[:2500]
+            import re
+            answer=str(data['choices'][0]['message']['content']).strip()[:2500]
+            answer=re.sub(r'https?://[^\\s<>]+','[ссылка доступна через кнопку предложения]',answer)
+            if not answer:raise ValueError('Empty AI response')
             usage=data.get("usage",{})
     except (httpx.HTTPError,KeyError,IndexError,TypeError,ValueError):
         raise HTTPException(503,"Общение временно недоступно")
@@ -268,17 +278,18 @@ async def send_message(slug:str,payload:ChatMessage):
 
 @router.post("/public/{slug}/click")
 def click_offer(slug:str,payload:SessionCreate):
+    if not payload.token:raise HTTPException(401,'Сессия обязательна')
     with engine.begin() as conn:
         row=conn.execute(text("""SELECT m.id,m.affiliate_url,m.link_kind FROM tool_ai_models m
            WHERE m.slug=:slug AND m.status='published'"""),{"slug":slug}).first()
         if not row or not row.affiliate_url or not check_https(row.affiliate_url):raise HTTPException(404,"Предложение недоступно")
-        sid=None
-        if payload.token:
-            session=conn.execute(text("SELECT id FROM tool_ai_sessions WHERE model_id=:mid AND token_hash=:hash AND expires_at>now()"),
-                {"mid":row.id,"hash":valid_token(payload.token)}).first()
-            if session:sid=session.id
-        conn.execute(text("INSERT INTO tool_ai_events(model_id,session_id,kind) VALUES(:mid,:sid,'offer_click')"),
-                     {"mid":row.id,"sid":sid})
+        session=conn.execute(text("SELECT id FROM tool_ai_sessions WHERE model_id=:mid AND token_hash=:hash AND expires_at>now()"),
+            {"mid":row.id,"hash":valid_token(payload.token)}).first()
+        if not session:raise HTTPException(401,'Сессия истекла')
+        last=conn.execute(text("SELECT 1 FROM tool_ai_events WHERE session_id=:sid AND kind='offer_click' AND created_at>now()-INTERVAL '30 seconds' LIMIT 1"),{'sid':session.id}).first()
+        if not last:
+            conn.execute(text("INSERT INTO tool_ai_events(model_id,session_id,kind) VALUES(:mid,:sid,'offer_click')"),
+                         {"mid":row.id,"sid":session.id})
     return {"url":row.affiliate_url}
 
 @router.get("/models/{model_id}/stats")
