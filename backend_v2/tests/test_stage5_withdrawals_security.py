@@ -296,5 +296,67 @@ class WithdrawalsSecurityTests(unittest.TestCase):
             self.assertEqual(rows,self.before)
 
 
+    def test_08_transactional_emergency_rollback_is_reversible(self):
+        # In isolated PG17 only: simulate reverting ACL/RLS, then ROLLBACK.
+        # No rollback DDL escapes this test transaction.
+        with engine.connect() as c:
+            original=c.execute(text("""
+                SELECT id,user_id,partner_code,amount,payment_method,wallet,status,
+                       created_at,processed_at FROM public.withdrawals
+                WHERE id=ANY(:ids) ORDER BY id
+            """),{"ids":self.fixture_ids}).all()
+            balances=c.execute(text("""
+                SELECT telegram_id,balance,hold,withdrawn FROM public.users
+                WHERE telegram_id IN (:a,:b) ORDER BY telegram_id
+            """),{"a":OWNER,"b":OTHER}).all()
+            c.commit()
+            tx=c.begin()
+            try:
+                c.execute(text("ALTER TABLE public.withdrawals DISABLE ROW LEVEL SECURITY"))
+                c.execute(text("""GRANT ALL PRIVILEGES ON TABLE public.withdrawals
+                    TO anon,authenticated"""))
+                c.execute(text("""GRANT ALL PRIVILEGES ON SEQUENCE public.withdrawals_id_seq
+                    TO anon,authenticated"""))
+                self.assertFalse(c.execute(text("""
+                    SELECT relrowsecurity FROM pg_class
+                    WHERE oid='public.withdrawals'::regclass
+                """)).scalar_one())
+                for role in ("anon","authenticated"):
+                    self.assertTrue(c.execute(text("""
+                        SELECT has_table_privilege(:role,'public.withdrawals','SELECT')
+                    """),{"role":role}).scalar_one())
+                    self.assertTrue(c.execute(text("""
+                        SELECT has_sequence_privilege(:role,
+                            'public.withdrawals_id_seq','USAGE')
+                    """),{"role":role}).scalar_one())
+            finally:
+                tx.rollback()
+            # Rollback leaves the secure migration state, all 22 original
+            # withdrawals, and user balances unchanged.
+            self.assertTrue(c.execute(text("""
+                SELECT relrowsecurity FROM pg_class
+                WHERE oid='public.withdrawals'::regclass
+            """)).scalar_one())
+            for role in ("anon","authenticated"):
+                self.assertFalse(c.execute(text("""
+                    SELECT has_table_privilege(:role,'public.withdrawals','SELECT')
+                """),{"role":role}).scalar_one())
+                self.assertFalse(c.execute(text("""
+                    SELECT has_sequence_privilege(:role,
+                        'public.withdrawals_id_seq','USAGE')
+                """),{"role":role}).scalar_one())
+            after=c.execute(text("""
+                SELECT id,user_id,partner_code,amount,payment_method,wallet,status,
+                       created_at,processed_at FROM public.withdrawals
+                WHERE id=ANY(:ids) ORDER BY id
+            """),{"ids":self.fixture_ids}).all()
+            self.assertEqual(after,original)
+            balances_after=c.execute(text("""
+                SELECT telegram_id,balance,hold,withdrawn FROM public.users
+                WHERE telegram_id IN (:a,:b) ORDER BY telegram_id
+            """),{"a":OWNER,"b":OTHER}).all()
+            self.assertEqual(balances_after,balances)
+
+
 if __name__=="__main__":
     unittest.main()
