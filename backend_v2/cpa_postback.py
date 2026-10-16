@@ -242,3 +242,24 @@ def check_postback(network_id:int,x_telegram_init_data:str|None=Header(None)):
                 "http_unknown_click":unknown_code,"attribution":True,
                 "is_test":True,"status":"pending","transaction_id":transaction,
                 "financial_unchanged":True,"external_postback_enabled":False}
+
+@router.get("/admin/networks/{network_id}/postback/check")
+def read_postback_check(network_id:int,x_telegram_init_data:str|None=Header(None)):
+    """Read persisted test result; never trigger a postback or mutate a network."""
+    admin(x_telegram_init_data)
+    if network_id != 2:
+        raise HTTPException(404,"Neutral test network only")
+    with engine.connect() as c:
+        network=c.execute(text("SELECT id FROM cpa_networks WHERE id=2 AND name='VVD Test Network'")).first()
+        if not network:
+            raise HTTPException(404,"Neutral test network unavailable")
+        rows=c.execute(text("""SELECT status,payout_gross,payout_net
+            FROM conversions WHERE offer_id='vvd-test-smartlink'
+            AND network_id=2 AND is_test=TRUE
+            AND transaction_id LIKE 'cpa:2:VVD-STAGE4-TEST-%'
+            ORDER BY created_at LIMIT 2""")).mappings().all()
+    # Do not expose click IDs, webmasters, transaction IDs, or authentication material.
+    return {"completed":bool(rows),"test_conversions":len(rows),
+            "status":rows[0]["status"] if len(rows)==1 else None,
+            "zero_payout":len(rows)==1 and all(
+                row["payout_gross"]==0 and row["payout_net"]==0 for row in rows)}
