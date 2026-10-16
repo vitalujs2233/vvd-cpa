@@ -2,6 +2,7 @@ import React,{useEffect,useState} from 'react';
 import {ArrowLeft,Plus,Save} from 'lucide-react';
 import {Card} from '@/shared/ui/Card';
 import {cpaApi,type Network,type Vertical,type Offer} from '@/pages/offers/cpaApi';
+import {NetworkPostback} from './NetworkPostback';
 type Section='networks'|'verticals'|'offers';
 const input='w-full rounded-app-xs border border-white/10 bg-bgCard px-3 py-2.5 text-sm text-textPrimary outline-none focus:border-accentPurple/50';
 const sampleNetwork:Network={id:0,name:'',website:'',description:'',is_active:true,connection_notes:'',click_param:null,offers_count:0};
@@ -45,6 +46,7 @@ export const CPAManager:React.FC<{onBack:()=>void}>=({onBack})=>{
       {row('Параметр click_id сети (если подтверждён партнёркой)',network.click_param||'',s=>n('click_param',s||null))}
       {check('Активна',network.is_active,s=>n('is_active',s))}
       {exists&&<p className="text-xs text-textSecondary">Связанных офферов: {network.offers_count}</p>}
+      {exists&&network.id>0&&<NetworkPostback key={network.id} id={network.id}/>}
     </>}
     {section==='verticals'&&<>
       {row('Slug (латиница)',vertical.slug,s=>v('slug',s.toLowerCase().replace(/[^a-z0-9-]/g,'')),false,exists)}
