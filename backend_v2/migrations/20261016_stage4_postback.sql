@@ -11,6 +11,7 @@ ALTER TABLE public.conversions ADD COLUMN IF NOT EXISTS currency VARCHAR(3);
 ALTER TABLE public.conversions ADD COLUMN IF NOT EXISTS postback_source VARCHAR(20);
 ALTER TABLE public.conversions ADD COLUMN IF NOT EXISTS external_status VARCHAR(80);
 CREATE INDEX IF NOT EXISTS idx_conversions_network_id ON public.conversions(network_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_stage4_network_transaction ON public.conversions(network_id,transaction_id) WHERE postback_source='stage4';
 -- Unique legacy conversions.click_id and the existing unique index are retained.
 -- No changes to balances, conversion totals, holds or pre-existing statuses.
 REVOKE ALL ON public.conversions FROM anon, authenticated;
