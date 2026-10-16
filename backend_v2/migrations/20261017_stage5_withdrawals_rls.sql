@@ -12,8 +12,13 @@ ALTER TABLE public.withdrawals ENABLE ROW LEVEL SECURITY;
 REVOKE ALL PRIVILEGES ON TABLE public.withdrawals
   FROM PUBLIC, anon, authenticated;
 
+-- The BIGSERIAL/IDENTITY-backed withdrawal ID sequence is a separate object.
+-- Client roles do not require nextval(), currval(), SELECT, or setval() rights.
+REVOKE ALL PRIVILEGES ON SEQUENCE public.withdrawals_id_seq
+  FROM PUBLIC, anon, authenticated;
+
 -- Intentionally retain existing owner 'postgres' and existing service_role
 -- grants (service_role has BYPASSRLS). No client RLS policies are created.
 -- Do not grant privileges to any other role until the live Render
 -- DATABASE_URL username has been independently verified.
--- The operation is idempotent; only ACL metadata and relrowsecurity change.
+-- Idempotent; changes only ACL metadata and relrowsecurity, never row or sequence values.
