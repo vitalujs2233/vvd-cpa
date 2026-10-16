@@ -8,7 +8,7 @@ const auth = () => {
 };
 export type Smartlink = {id:string;url:string;title:string;offer:string|null};
 export type Photo = {id:string;url:string;preview_url?:string;title:string;description:string;auto_allowed:boolean;send_rule:string};
-export type ChatEntry = {role:'user'|'assistant';content:string};
+export type ChatEntry = {role:'user'|'assistant';content:string;photo?:{url:string}|null;offer?:{title:string;advertising:true}|null};
 export type PublicSession = {token:string;greeting:string;messages:ChatEntry[];can_chat:boolean;offer:{title:string;available:boolean}};
 export type ConversationSettings = {chat_style:string;reply_length:'short'|'medium'|'detailed';photo_mode:'automatic'|'rules'|'combined';link_kind?:'smartlink'|'external';smartlink_id?:string|null;spend_limit?:string};
 export type ModelStats = {visits:number;conversations:number;messages:number;clicks:number;cost_usd:string|null};
