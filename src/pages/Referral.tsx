@@ -9,6 +9,8 @@ export const Referral: React.FC = () => {
   const navigate = useNavigate();
 
   const [referral, setReferral] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const loadReferral = async () => {
@@ -21,7 +23,9 @@ export const Referral: React.FC = () => {
 
 setReferral(data);
       } catch (e) {
-        console.error(e);
+        setError(e instanceof Error ? e.message : 'Не удалось загрузить данные');
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -78,12 +82,18 @@ setReferral(data);
 
       </Card>
 
+      {loading && <p role="status" className="text-xs text-textSecondary">Загружаем ваш VVD-код…</p>}
+      {error && <p role="alert" className="text-xs text-error">{error}</p>}
+
       <Card padding="lg">
 
         <div className="text-[10px] uppercase tracking-widest text-accentGold font-bold">
           Моя ссылка
         </div>
 
+        <div className="mt-2 text-xs text-textSecondary">
+          Персональный код: <span className="font-bold text-accentGold">{referral?.referral_code || '—'}</span>
+        </div>
         <div className="mt-3 text-sm text-white break-all">
           {referral?.referral_link || ""}
         </div>
