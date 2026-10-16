@@ -1,4 +1,6 @@
 """AI Studio v2 integration tests on isolated CI PostgreSQL (no external API keys)."""
+import asyncio
+import io
 import hashlib
 import hmac
 import json
@@ -9,7 +11,8 @@ import uuid
 import unittest
 from pathlib import Path
 from urllib.parse import urlencode
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
+from PIL import Image
 from starlette.requests import Request
 from sqlalchemy import text
 
@@ -39,7 +42,7 @@ class AISystemTests(unittest.TestCase):
               id uuid PRIMARY KEY,user_id BIGINT NOT NULL REFERENCES public.users(telegram_id),
               offer_id varchar(80) REFERENCES public.offers(id),suffix text,url text NOT NULL,
               created_at timestamptz NOT NULL DEFAULT now())'''))
-            for filename in ('20261016_tools_marketplace.sql','20261016_ai_studio_v2.sql'):
+            for filename in ('20261016_tools_marketplace.sql','20261016_ai_studio_v2.sql','20261016_ai_media_postgres.sql'):
                 sql=(ROOT/'migrations'/filename).read_text()
                 sql='\n'.join(line for line in sql.splitlines() if not line.lstrip().startswith('--'))
                 for statement in sql.split(';'):
@@ -83,6 +86,22 @@ class AISystemTests(unittest.TestCase):
             studio.click_offer(self.slug,studio.SessionCreate())
         click=studio.click_offer(self.slug,studio.SessionCreate(token=result['token'],adult_confirmed=True))
         self.assertEqual(click['url'],'https://example.com/offer')
+
+    def test_real_photo_storage_and_owner_access(self):
+        image=Image.new('RGB',(48,48),(190,140,80))
+        blob=io.BytesIO()
+        image.save(blob,format='PNG')
+        blob.seek(0)
+        upload=UploadFile(file=blob,filename='sample.png')
+        response=asyncio.run(studio.add_photo(self.id,upload,True,signed()))
+        photo_id=uuid.UUID(response['id'])
+        loaded=asyncio.run(studio.public_photo(photo_id))
+        self.assertEqual(loaded.status_code,200)
+        self.assertTrue(loaded.body.startswith(bytes.fromhex('ffd8ff')))
+        with self.assertRaises(HTTPException) as exc:
+            asyncio.run(studio.remove_photo(photo_id,signed(UID+1)))
+        self.assertEqual(exc.exception.status_code,404)
+        self.assertTrue(asyncio.run(studio.remove_photo(photo_id,signed()))['ok'])
 
     def test_owner_stats_and_media_token(self):
         st=studio.model_stats(self.id,signed())
