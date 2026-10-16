@@ -64,7 +64,8 @@ export const PublicAIPage:React.FC<{slug:string}>=({slug})=>{
       </div>}
       {person&&<div className="max-w-[87%] rounded-2xl rounded-tl-sm bg-bgCard px-4 py-3 text-sm leading-6">{person.greeting||'Привет!'}</div>}
       {entries.map((m,i)=><div key={i} className={'flex '+(m.role==='user'?'justify-end':'justify-start')}>
-        <div className={'max-w-[87%] whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm leading-6 '+(m.role==='user'?'rounded-tr-sm bg-accentGold/20':'rounded-tl-sm bg-bgCard')}>{m.content}</div>
+        <div className={'max-w-[87%] whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm leading-6 '+(m.role==='user'?'rounded-tr-sm bg-accentGold/20':'rounded-tl-sm bg-bgCard')}>{m.content}{m.offer&&<button type="button" disabled={!adult} onClick={()=>void offer()} className="mt-3 block w-full rounded-app-xs border border-accentGold/40 p-3 text-left text-xs text-accentBrightGold disabled:opacity-60">Реклама · {m.offer.title} →</button>}
+        </div>
       </div>)}
       {busy&&<p className="text-xs text-textSecondary" role="status">Генерируется ответ…</p>}
       {error&&<div role="alert" className="rounded-app-xs border border-white/10 p-3 text-xs text-textSecondary">{error}</div>}
