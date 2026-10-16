@@ -39,6 +39,15 @@ class PostbackTests(unittest.TestCase):
             c.execute(text("CREATE TABLE IF NOT EXISTS clicks(id BIGSERIAL PRIMARY KEY,user_id BIGINT NOT NULL,partner_code VARCHAR(60) NOT NULL,click_id VARCHAR(120) NOT NULL UNIQUE,vertical VARCHAR(100) NOT NULL,created_at TIMESTAMP DEFAULT now())"))
             c.execute(text("ALTER TABLE clicks ADD COLUMN IF NOT EXISTS offer_id VARCHAR(80)"))
             c.execute(text("ALTER TABLE clicks ADD COLUMN IF NOT EXISTS network_id BIGINT"))
+            # Legacy statistics exists in production, but the isolated CI database
+            # must create its own minimal table before regression assertions.
+            c.execute(text("""CREATE TABLE IF NOT EXISTS statistics (
+                id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL,
+                date DATE NOT NULL DEFAULT CURRENT_DATE,
+                clicks INTEGER NOT NULL DEFAULT 0,
+                conversions INTEGER NOT NULL DEFAULT 0,
+                income NUMERIC(12,2) NOT NULL DEFAULT 0
+            )"""))
             c.execute(text("""CREATE TABLE IF NOT EXISTS conversions (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),click_id VARCHAR(120) NOT NULL UNIQUE,
                 user_id BIGINT NOT NULL,offer_id VARCHAR(80) NOT NULL,
