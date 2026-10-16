@@ -151,6 +151,12 @@ def _process_real_withdrawal(engine, withdrawal_id, decision):
             return {"success":False,"message":"Historical test withdrawal: real payout denied"}
         if row["status"] != "pending":
             return {"success":False,"message":f"Already processed: {row['status']}"}
+        # Reversals can invalidate an already-reserved payment before it is paid.
+        if decision == "paid":
+            try:
+                real_withdrawable(conn, int(row["user_id"]), epoch)
+            except RealFinanceInconsistent:
+                return {"success":False,"message":"CPA release was reversed; payment blocked"}
         # Reject marks reservation released; paid stays a permanent spend.
         conn.execute(text("""
             UPDATE public.withdrawals SET status=:decision,processed_at=NOW()
