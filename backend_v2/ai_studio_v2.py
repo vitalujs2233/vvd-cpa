@@ -228,6 +228,7 @@ def valid_token(token):
 
 class SessionCreate(BaseModel):
     token: str | None=None
+    adult_confirmed: bool=False
 
 @router.post("/public/{slug}/session")
 def session_create(slug:str,payload:SessionCreate,request:Request):
@@ -326,6 +327,7 @@ async def send_message(slug:str,payload:ChatMessage):
 @router.post("/public/{slug}/click")
 def click_offer(slug:str,payload:SessionCreate):
     if not payload.token:raise HTTPException(401,'Сессия обязательна')
+    if not payload.adult_confirmed: raise HTTPException(403,'Предложение доступно только совершеннолетним')
     with engine.begin() as conn:
         row=conn.execute(text("""SELECT m.id,m.affiliate_url,m.link_kind FROM tool_ai_models m
            WHERE m.slug=:slug AND m.status='published'"""),{"slug":slug}).first()
