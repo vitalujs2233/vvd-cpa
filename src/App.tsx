@@ -228,6 +228,7 @@ const MiniApp = () => {
 
           {/* Вложенный детальный экран оффера без нижнего меню */}
           <Route path="/offers/:id" element={<OfferDetail />} />
+          <Route path="/offers/:id/:offerId" element={<OfferDetail />} />
 
           {/* Вложенный экран финансов и выплат без нижнего меню */}
           <Route path="/withdrawal" element={<Withdrawal />} />
