@@ -15,6 +15,9 @@ from bot import start_bot, dp, bot
 from stars_payments import router as stars_router
 from tools_marketplace import router as tools_market_router
 from ai_studio_v2 import router as ai_studio_router
+from access_guard import access_guard
+from stars_payments import verified_telegram_id
+from urllib.parse import parse_qs
 from aiogram.types import Update
 import hmac
 
@@ -25,6 +28,7 @@ app = FastAPI(
 app.include_router(stars_router)
 app.include_router(tools_market_router)
 app.include_router(ai_studio_router)
+app.middleware('http')(access_guard)
 
 app.add_middleware(
     CORSMiddleware,
@@ -100,13 +104,8 @@ async def db():
             "details": str(e)
         }
         
-class TelegramUser(BaseModel):
-    telegram_id: int
-    first_name: str
-    last_name: str | None = None
-    username: str | None = None
-    photo_url: str | None = None
-    referral_code: str | None = None
+class TelegramAuthRequest(BaseModel):
+    init_data: str
 
 
 class WithdrawalRequest(BaseModel):
@@ -117,27 +116,40 @@ class WithdrawalRequest(BaseModel):
 
 
 @app.post("/auth")
-async def auth(user: TelegramUser):
-    save_user(
-    telegram_id=user.telegram_id,
-    first_name=user.first_name,
-    last_name=user.last_name,
-    username=user.username,
-    photo_url=user.photo_url,
-    referral_code=user.referral_code,
-)
-    
+async def auth(payload: TelegramAuthRequest):
+    # The Telegram user object and referral start_param must come from one
+    # verified initData message; never trust a browser-supplied Telegram ID.
+    try:
+        telegram_id = verified_telegram_id(payload.init_data)
+        values = parse_qs(payload.init_data,keep_blank_values=True,strict_parsing=True)
+        signed_user = json.loads(values["user"][0])
+        if not isinstance(signed_user,dict) or int(signed_user["id"])!=telegram_id:
+            raise ValueError("Telegram user mismatch")
+        referral_code = values.get("start_param",[""])[0][:64]
+    except (ValueError,KeyError,TypeError,IndexError,OverflowError):
+        raise HTTPException(status_code=401,detail="Invalid or expired Telegram initData")
+    try:
+        user=save_user(
+            telegram_id=telegram_id,
+            first_name=str(signed_user.get("first_name") or "Telegram")[:255],
+            last_name=str(signed_user.get("last_name") or "")[:255] or None,
+            username=str(signed_user.get("username") or "")[:255] or None,
+            photo_url=str(signed_user.get("photo_url") or "")[:2048] or None,
+            referral_code=referral_code
+        )
+    except Exception:
+        # Never leak SQL messages or other users' data in responses.
+        raise HTTPException(status_code=503,detail="Account registration temporarily unavailable")
     return {
-        "access_token": "telegram_auth",
-        "token_type": "bearer",
         "user": {
-            "telegram_id": user.telegram_id,
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "username": user.username,
-            "photo_url": user.photo_url,
-            "role": "user",
-            "status": "active"
+            "telegram_id":user["telegram_id"],
+            "first_name":user["first_name"],
+            "last_name":user["last_name"],
+            "username":user["username"],
+            "photo_url":user["photo_url"],
+            "partner_code":user["partner_code"],
+            "role":user["role"],
+            "status":user["status"],
         }
     }
 

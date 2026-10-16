@@ -19,7 +19,7 @@ import { Chat as SupportChat } from '@/pages/chat/Chat';
 import { Loader } from '@/shared/ui/Loader';
 
 // Импортируем методы сетевого API и хелперы токенов
-import { loginViaTelegramApi, saveAuthToken } from '@/shared/lib/api';
+import { loginViaTelegramApi } from '@/shared/lib/api';
 
 // Главный Лейаут приложения, фиксирующий Bottom Menu
 const AppLayout = () => {
@@ -129,54 +129,57 @@ const AppLayout = () => {
 // Tools use the existing app shell and bottom navigation.
 
 const MiniApp = () => {
-  // Состояние отображения стартового золотого лоадера
   const [isLoading, setIsLoading] = useState(true);
+  const [authState, setAuthState] = useState<'loading'|'ready'|'error'>('loading');
+  const [authMessage, setAuthMessage] = useState('');
+
   useEffect(() => {
-  const tg = window.Telegram?.WebApp;
+    window.Telegram?.WebApp?.ready();
+    window.Telegram?.WebApp?.expand?.();
+  }, []);
 
-  if (!tg) return;
-
-  tg.ready();
-
-  if (tg.expand) {
-    tg.expand();
-  }
-    }, []);
-  // Боевой асинхронный хук авторизации
   useEffect(() => {
-    const authenticateUser = async () => {
+    let active = true;
+    const authenticate = async () => {
       try {
-        // 1. Извлекаем сырую строку initData из нативного Telegram SDK
-        const initData = window.Telegram?.WebApp?.initData || '';
-        console.log("INIT DATA:", initData);
-console.log("Telegram:", window.Telegram?.WebApp);
-        
-        // Исправлено: Привели import.meta к типу any для обхода проверки компилятора TypeScript
-        const isDevMode = (import.meta as any).env?.DEV;
-
-        if (initData || isDevMode) {
-          // 2. Отправляем сетевой POST-запрос на наш FastAPI бэкенд
-         const response = await loginViaTelegramApi();
-          
-          // 3. Сохраняем полученный боевой JWT-токен доступа в localStorage
-          saveAuthToken(response.access_token);
-          
-          // 4. Записываем профиль пользователя из Supabase в локальную память для сквозного отображения
-          localStorage.setItem('vvd_cpa_user_data', JSON.stringify(response.user));
-          
-          console.log("Авторизация на бэкенде VVD CPA пройдена успешно!");
+        if (!window.Telegram?.WebApp?.initData) {
+          throw new Error('Откройте VVD CPA через кнопку Mini App в Telegram.');
         }
-      } catch (error) {
-        console.error("Сбой автоматической авторизации на бэкенде:", error);
+        const response = await loginViaTelegramApi();
+        if (active) {
+          localStorage.setItem('vvd_cpa_user_data', JSON.stringify(response.user));
+          setAuthState('ready');
+        }
+      } catch (cause) {
+        if (active) {
+          localStorage.removeItem('vvd_cpa_user_data');
+          setAuthMessage(cause instanceof Error &&
+            /Invalid or expired Telegram initData/.test(cause.message)
+            ? 'Сессия Telegram устарела. Полностью закройте Mini App и откройте его заново из бота.'
+            : cause instanceof Error ? cause.message : 'Не удалось авторизоваться.');
+          setAuthState('error');
+        }
       }
     };
-
-    authenticateUser();
+    void authenticate();
+    return () => { active = false; };
   }, []);
 
   if (isLoading) {
-    // Рендерим золотую заставку
     return <Loader onComplete={() => setIsLoading(false)} />;
+  }
+  if (authState === 'loading') {
+    return <div role="status" className="min-h-[100dvh] flex items-center justify-center bg-bgMain p-6 text-center text-sm text-textSecondary">
+      Проверяем Telegram-подключение…
+    </div>;
+  }
+  if (authState === 'error') {
+    return <div role="alert" className="min-h-[100dvh] flex items-center justify-center bg-bgMain p-6 text-center text-sm text-textSecondary">
+      <div className="max-w-xs rounded-card border border-accentGold/25 bg-bgCard p-5">
+        <h1 className="mb-3 text-base font-bold text-accentBrightGold">Требуется вход через Telegram</h1>
+        <p>{authMessage}</p>
+      </div>
+    </div>;
   }
 
   return (

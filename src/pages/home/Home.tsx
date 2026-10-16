@@ -1,3 +1,4 @@
+import { authorizedFetch } from '@/shared/lib/api';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Wallet, History, ArrowRight, Clock, TrendingUp, Sparkles, Bell, Flame, Crown, Heart, Pill, Coins } from 'lucide-react';
@@ -18,7 +19,7 @@ const [balance, setBalance] = useState({
 useEffect(() => {
   const loadBalance = async () => {
     try {
-const res = await fetch(
+const res = await authorizedFetch(
   `https://vvd-cpa-v2.onrender.com/balance/${user.id}`
 )
       const data = await res.json();

@@ -1,3 +1,4 @@
+import { authorizedFetch } from '@/shared/lib/api';
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
@@ -126,7 +127,7 @@ console.log("Telegram ID:", telegramId);
 
 const vertical = verticalMap[id || "adult-dating"];
 
-const response = await fetch(
+const response = await authorizedFetch(
   `https://vvd-cpa-v2.onrender.com/smartlink/${telegramId}/${vertical}`
 );
 
