@@ -25,6 +25,12 @@ class StageTwoCatalogTests(unittest.TestCase):
         with engine.begin() as conn:
             conn.execute(text("""CREATE TABLE IF NOT EXISTS public.offers(
               id VARCHAR(80) PRIMARY KEY,title VARCHAR(200) NOT NULL)"""))
+            # Other isolated CI suites create minimal offers(id,title) tables.
+            # Populate the original production columns for catalog API tests.
+            for definition in (
+                "description TEXT","icon_name VARCHAR(30)","geo VARCHAR(300)",
+            ):
+                conn.execute(text("ALTER TABLE public.offers ADD COLUMN IF NOT EXISTS "+definition))
             sql=(ROOT/"migrations/20261016_stage2_catalog.sql").read_text()
             # CI plain PostgreSQL has no Supabase anon/authenticated roles.
             sql="\n".join(line for line in sql.splitlines() if not line.lstrip().startswith("REVOKE "))
