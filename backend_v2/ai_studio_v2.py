@@ -268,7 +268,7 @@ async def send_message(slug:str,payload:ChatMessage):
     if not os.getenv("AI_API_KEY"):
         raise HTTPException(503,"Общение временно недоступно")
     with engine.begin() as conn:
-        model=conn.execute(text("""SELECT id,name,persona,language,restrictions,link_kind,chat_style,reply_length,photo_mode
+        model=conn.execute(text("""SELECT id,name,persona,language,restrictions,link_kind,affiliate_url,button_label,chat_style,reply_length,photo_mode
            FROM tool_ai_models WHERE slug=:slug AND status='published'"""),{"slug":slug}).first()
         if not model:raise HTTPException(404,"Страница недоступна")
         if model.link_kind!='smartlink':
@@ -311,7 +311,22 @@ async def send_message(slug:str,payload:ChatMessage):
             usage=data.get("usage",{})
     except (httpx.HTTPError,KeyError,IndexError,TypeError,ValueError):
         raise HTTPException(503,"Общение временно недоступно")
+    offer=None
     with engine.begin() as conn:
+        # Offer cards are server-owned and displayed only when the visitor
+        # explicitly asks about meeting people on a dating website.
+        intent=any(phrase in payload.message.lower() for phrase in
+            ('сайт знакомств','где познакомиться','познакомиться с людьми',
+             'dating site','meet real people'))
+        if intent and model.affiliate_url and model.link_kind=='smartlink':
+            sent=conn.execute(text("""SELECT 1 FROM tool_ai_events
+                WHERE session_id=:sid AND kind='offer_view'
+                AND created_at>now()-INTERVAL '15 minutes' LIMIT 1"""),
+                {'sid':session.id}).first()
+            if not sent:
+                conn.execute(text("""INSERT INTO tool_ai_events(model_id,session_id,kind)
+                   VALUES(:mid,:sid,'offer_view')"""),{'mid':model.id,'sid':session.id})
+                offer={'title':model.button_label,'advertising':True}
         conn.execute(text("""INSERT INTO tool_ai_messages(session_id,role,content,input_tokens,output_tokens)
              VALUES(:sid,'assistant',:reply,:it,:ot)"""),
              {"sid":session.id,"reply":answer,"it":int(usage.get("prompt_tokens",0)),
@@ -322,7 +337,7 @@ async def send_message(slug:str,payload:ChatMessage):
              "it":int(usage.get("prompt_tokens",0)),"ot":int(usage.get("completion_tokens",0))})
         conn.execute(text("INSERT INTO tool_ai_events(model_id,session_id,kind) VALUES(:mid,:sid,'message')"),
                      {"mid":model.id,"sid":session.id})
-    return {"role":"assistant","content":answer,"photo":None,"offer":None}
+    return {"role":"assistant","content":answer,"photo":None,"offer":offer}
 
 @router.post("/public/{slug}/click")
 def click_offer(slug:str,payload:SessionCreate):
