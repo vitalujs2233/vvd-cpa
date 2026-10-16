@@ -1,4 +1,5 @@
 import { authorizedFetch } from '@/shared/lib/api';
+import { CPAManager } from './CPAManager';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -78,7 +79,8 @@ export const Admin: React.FC = () => {
   'user' |
   'withdrawals' |
   'banner' |
-  'chatBans'
+  'chatBans' |
+  'cpa'
 >('menu');
   const [searchQuery, setSearchQuery] = useState('');
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
@@ -1021,6 +1023,7 @@ const saveChatBanner = async () => {
           </div>
         </div>
       )}
+      {subView === 'cpa' && <CPAManager onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'chatBans' && (
   <div className="flex flex-col gap-4 animate-fade-in">
 
