@@ -18,6 +18,7 @@ from ai_studio_v2 import router as ai_studio_router
 from cpa_catalog import router as cpa_catalog_router
 from neutral_links import router as neutral_links_router
 from cpa_postback import router as cpa_postback_router
+from cpa_real_withdrawals import create_real_withdrawal, mark_real_paid, mark_real_rejected
 from access_guard import access_guard
 from stars_payments import verified_telegram_id
 from urllib.parse import parse_qs
@@ -1379,111 +1380,11 @@ async def admin_users():
 
 @app.post("/withdrawals")
 async def create_withdrawal(data: WithdrawalRequest):
-    amount = round(float(data.amount or 0), 2)
-    partner_code = data.partner_code.strip()
-    method = data.payment_method.strip()
-    wallet = data.wallet.strip()
-
-    if amount < 50:
-        return {
-            "success": False,
-            "message": "Minimum withdrawal amount is $50"
-        }
-
-    if not partner_code:
-        return {
-            "success": False,
-            "message": "Partner code is required"
-        }
-
-    if not method or not wallet:
-        return {
-            "success": False,
-            "message": "Payment method and wallet are required"
-        }
-
-    with engine.begin() as conn:
-        user = conn.execute(
-            text("""
-                SELECT telegram_id, partner_code, balance
-                FROM users
-                WHERE partner_code = :partner_code
-                FOR UPDATE
-            """),
-            {
-                "partner_code": partner_code
-            }
-        ).fetchone()
-
-        if not user:
-            return {
-                "success": False,
-                "message": "Partner not found"
-            }
-
-        available = round(float(user.balance or 0), 2)
-
-        if amount > available:
-            return {
-                "success": False,
-                "message": "Insufficient available balance",
-                "available": available
-            }
-
-        row = conn.execute(
-            text("""
-                INSERT INTO withdrawals
-                (
-                    user_id,
-                    partner_code,
-                    amount,
-                    payment_method,
-                    wallet,
-                    status,
-                    created_at
-                )
-                VALUES
-                (
-                    :user_id,
-                    :partner_code,
-                    :amount,
-                    :method,
-                    :wallet,
-                    'pending',
-                    NOW()
-                )
-                RETURNING id, created_at
-            """),
-            {
-                "user_id": user.telegram_id,
-                "partner_code": user.partner_code,
-                "amount": amount,
-                "method": method,
-                "wallet": wallet
-            }
-        ).fetchone()
-
-        conn.execute(
-            text("""
-                UPDATE users
-                SET balance = balance - :amount
-                WHERE partner_code = :partner_code
-            """),
-            {
-                "amount": amount,
-                "partner_code": partner_code
-            }
-        )
-
-    return {
-        "success": True,
-        "withdrawal_id": int(row.id),
-        "partner_code": partner_code,
-        "amount": amount,
-        "status": "pending",
-        "created_at": str(row.created_at)
-    }
-
+    return create_real_withdrawal(
+        engine, partner_code=data.partner_code.strip(),
+        amount=data.amount, payment_method=data.payment_method.strip(),
+        wallet=data.wallet.strip(),
+    )
 
 @app.get("/withdrawals/{partner_code}")
 async def get_withdrawals(partner_code: str):
