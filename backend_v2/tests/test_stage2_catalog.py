@@ -29,6 +29,7 @@ class StageTwoCatalogTests(unittest.TestCase):
             # Populate the original production columns for catalog API tests.
             for definition in (
                 "description TEXT","icon_name VARCHAR(30)","geo VARCHAR(300)",
+                "smartlink_suffix VARCHAR(120) NOT NULL DEFAULT ''",
             ):
                 conn.execute(text("ALTER TABLE public.offers ADD COLUMN IF NOT EXISTS "+definition))
             sql=(ROOT/"migrations/20261016_stage2_catalog.sql").read_text()
@@ -73,6 +74,36 @@ class StageTwoCatalogTests(unittest.TestCase):
         self.assertNotIn("network_id",result["offers"][0])
         self.assertEqual(result["offers"][0]["title"],"Sample offer")
         self.assertEqual(next(x for x in client.get("/cpa/catalog").json()["verticals"] if x["slug"]==self.slug)["offers_count"],1)
+
+    def test_ay_second_offer_unique_suffix_and_admin_listing(self):
+        h=signed(ADMIN)
+        oid="vvd-test-smartlink-"+self.suffix
+        try:
+            response=client.post("/cpa/admin/offers",headers=h,json={
+                "id":oid,"title":"Neutral Utilities Smartlink",
+                "vertical_slug":self.slug,"network_id":self.network_id,
+                "offer_type":"smartlink","status":"draft",
+                "source_url":"https://example.com/test"})
+            self.assertEqual(response.status_code,200,response.text)
+            with engine.connect() as conn:
+                suffixes=conn.execute(text("""
+                    SELECT id,smartlink_suffix FROM offers
+                    WHERE id IN (:first,:second)
+                """),{"first":self.offer,"second":oid}).mappings().all()
+            self.assertEqual(len(suffixes),2)
+            self.assertEqual(len({x["smartlink_suffix"] for x in suffixes}),2)
+            offers=client.get("/cpa/admin/offers",headers=h).json()["items"]
+            created=next(x for x in offers if x["id"]==oid)
+            self.assertEqual(created["vertical_slug"],self.slug)
+            self.assertEqual(created["status"],"draft")
+            # Only a genuine offer ID conflict is described as such.
+            duplicate=client.post("/cpa/admin/offers",headers=h,json={
+                "id":oid,"title":"Another","vertical_slug":self.slug,
+                "network_id":self.network_id,"status":"draft"})
+            self.assertEqual(duplicate.status_code,409,duplicate.text)
+        finally:
+            with engine.begin() as conn:
+                conn.execute(text("DELETE FROM offers WHERE id=:id"),{"id":oid})
 
     def test_az_reject_unconfigured_published_smartlink(self):
         h=signed(ADMIN)
