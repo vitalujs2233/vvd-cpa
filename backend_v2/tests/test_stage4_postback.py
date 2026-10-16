@@ -125,6 +125,15 @@ class PostbackTests(unittest.TestCase):
         self.assertEqual(before_conversions,after_conversions)
         self.assertEqual(before_stats,after_stats)
 
+    def test_persisted_result_get_access(self):
+        path="/cpa/admin/networks/2/postback/check"
+        self.assertEqual(client.get(path).status_code,401)
+        self.assertEqual(client.get(path,headers=auth(UID)).status_code,403)
+        self.assertEqual(client.get("/cpa/admin/networks/999/postback/check",headers=auth(ADMIN)).status_code,404)
+        ui=(ROOT.parent/"src/pages/admin/NetworkPostback.tsx").read_text()
+        self.assertIn("Postback проверен успешно. Тестовая конверсия: 1. Статус: pending. Начисления: $0",ui)
+        self.assertIn('Проверка уже выполнена',ui)
+
     def test_admin_check_access_and_real_default(self):
         self.assertEqual(client.post("/cpa/admin/networks/2/postback/check").status_code,401)
         self.assertEqual(client.post("/cpa/admin/networks/2/postback/check",headers=auth(UID)).status_code,403)
@@ -188,7 +197,13 @@ class PostbackTests(unittest.TestCase):
             result=first.json()
             self.assertTrue(result["attribution"] and result["duplicate"] and result["financial_unchanged"])
             self.assertEqual((result["http_first"],result["http_duplicate"],result["http_bad_secret"],result["http_unknown_click"]),(200,200,401,404))
+            stored=client.get("/cpa/admin/networks/2/postback/check",headers=auth(ADMIN))
+            self.assertEqual(stored.status_code,200,stored.text)
+            self.assertEqual(stored.json(),{"completed":True,"test_conversions":1,
+                "status":"pending","zero_payout":True})
+            self.assertNotIn("transaction_id",stored.text)
             self.assertEqual(client.post("/cpa/admin/networks/2/postback/check",headers=auth(ADMIN)).status_code,409)
+            self.assertEqual(client.get("/cpa/admin/networks/2/postback/check",headers=auth(ADMIN)).json(),stored.json())
             with engine.connect() as c:
                 row=c.execute(text("""SELECT is_test,status,payout_gross,payout_net,user_id,network_id,offer_id
                     FROM conversions WHERE click_id=:click"""),{"click":"isolated-stage4-"+self.tag}).mappings().one()
