@@ -31,6 +31,7 @@ export const aiApi = {
   updatePhoto:(id:string,settings:Pick<Photo,'title'|'description'|'auto_allowed'|'send_rule'>)=>
     apiRequest('/ai-studio/photos/'+id,{method:'PUT',headers:auth(),body:JSON.stringify(settings)}),
   removePhoto:(id:string)=>apiRequest('/ai-studio/photos/'+id,{method:'DELETE',headers:auth()}),
+  deleteModel:(id:string)=>apiRequest('/ai-studio/models/'+id,{method:'DELETE',headers:auth()}),
   stats:(id:string)=>apiRequest<ModelStats>('/ai-studio/models/'+id+'/stats',{headers:auth()}),
   begin:(slug:string,token:string|null)=>apiRequest<PublicSession>('/ai-studio/public/'+encodeURIComponent(slug)+'/session',
     {method:'POST',body:JSON.stringify({token})}),
