@@ -8,9 +8,8 @@ Storage and PostgreSQL: existing Supabase project. Do not use the CPA account's 
 ## Production configuration (Render → vvd-cpa-v2 → Environment)
 
 Required for **media upload**:
-- `SUPABASE_URL`: existing Supabase project URL (not secret).
-- `SUPABASE_SERVICE_ROLE_KEY`: Supabase server-side secret. Add it ONLY through the Render dashboard. Never put it into the repository or Vite/frontend environment variables.
-- Apply `migrations/20261016_ai_studio_v2.sql` and `migrations/20261016_ai_private_media_bucket.sql`. Bucket `ai-character-media` stays PRIVATE and is accessed through backend verification / temporary preview signatures.
+- Uses existing PostgreSQL via `DATABASE_URL`. Normalized JPEG data is saved in `tool_ai_photos.content` (BYTEA), with strict upload caps and signed owner-only previews before publication. No new secret is required.
+- Apply migrations `20261016_ai_studio_v2.sql`, `20261016_ai_private_media_bucket.sql`, and `20261016_ai_media_postgres.sql`. The private Supabase bucket was provisioned for possible future scalable object-storage migration; the current implementation uses PostgreSQL instead.
 
 Required for **real AI responses**:
 - `AI_API_KEY`: server-side API key for an authorized OpenAI-compatible model endpoint.
