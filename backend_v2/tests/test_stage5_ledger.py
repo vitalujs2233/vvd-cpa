@@ -172,6 +172,21 @@ class StageFiveLedgerTests(unittest.TestCase):
                 SELECT finance_eligible_at FROM public.conversions WHERE id=:id
             """), {"id":self.old_ids[0]}).scalar_one())
 
+    def test_04b_approval_time_write_once(self):
+        # New pending conversions can be approved once in a future
+        # authenticated postback transaction; changing approval later is forbidden.
+        with engine.begin() as conn:
+            conn.execute(text("""
+                UPDATE public.conversions SET status='approved',
+                    finance_approved_at=now() WHERE id=:id
+            """), {"id": self.ids["late"]})
+        with self.assertRaises(DBAPIError):
+            with engine.begin() as conn:
+                conn.execute(text("""
+                    UPDATE public.conversions SET finance_approved_at=
+                      finance_approved_at + INTERVAL '1 second' WHERE id=:id
+                """), {"id": self.ids["late"]})
+
     def test_05_single_credit_and_repeat(self):
         with engine.begin() as c:
             first=post_approved_hold(c, self.ids["approved"])
