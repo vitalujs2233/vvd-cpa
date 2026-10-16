@@ -45,7 +45,7 @@ export const AIEditor:React.FC=()=>{
   const {id}=useParams();const nav=useNavigate();
   const [model,setModel]=useState<Character>({...defaultModel}),[links,setLinks]=useState<Smartlink[]>([]),[photos,setPhotos]=useState<Photo[]>([]);
   const [tab,setTab]=useState<'profile'|'chat'|'photos'|'link'>('profile'),[linkKind,setLinkKind]=useState<'smartlink'|'external'>('smartlink');
-  const [chosen,setChosen]=useState(''),[customStyle,setCustomStyle]=useState(false),[uploading,setUploading]=useState(false),[saving,setSaving]=useState(false);
+  const [chosen,setChosen]=useState(''),[customStyle,setCustomStyle]=useState(false),[uploading,setUploading]=useState(false),[rightsConfirmed,setRightsConfirmed]=useState(false),[saving,setSaving]=useState(false);
   const [error,setError]=useState(''),[notice,setNotice]=useState('');
   const update=(key:keyof Character,value:string|null)=>setModel(m=>({...m,[key]:value}));
   useEffect(()=>{if(id){marketApi.model(id).then(m=>{setModel(m);setLinkKind(m.affiliate_url?'external':'smartlink')}).catch(e=>setError(errorText(e)));
@@ -71,6 +71,7 @@ export const AIEditor:React.FC=()=>{
   };
   const upload=async(e:React.ChangeEvent<HTMLInputElement>)=>{
     const f=e.target.files?.[0];if(!f||!id)return;
+    if(!rightsConfirmed){setError('Сначала подтвердите права на фотографию');return;}
     if(f.size>4_000_000||!['image/jpeg','image/png','image/webp'].includes(f.type)){setError('JPG, PNG или WebP до 4 МБ');return;}
     setUploading(true);setError('');
     try{const p=await aiApi.upload(id,f);setPhotos(old=>[...old,p]);setNotice('Изображение сохранено.');}
@@ -115,7 +116,8 @@ export const AIEditor:React.FC=()=>{
     </Card>}
     {tab==='photos'&&<Card className="flex flex-col gap-3">
       {!id?<p className="text-xs text-textSecondary">Сначала сохраните профиль, затем загрузите фотографии.</p>:<>
-        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-app-xs border border-accentGold/30 p-3 text-sm text-accentBrightGold"><Upload size={17}/>{uploading?'Загрузка…':'Загрузить фотографию'}<input disabled={uploading||photos.length>=12} className="hidden" type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void upload(e)}/></label>
+        <label className="flex items-center gap-2 text-xs text-textSecondary"><input type="checkbox" checked={rightsConfirmed} onChange={e=>setRightsConfirmed(e.target.checked)}/> Подтверждаю, что имею право использовать эти изображения.</label>
+        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-app-xs border border-accentGold/30 p-3 text-sm text-accentBrightGold"><Upload size={17}/>{uploading?'Загрузка…':'Загрузить фотографию'}<input disabled={!rightsConfirmed||uploading||photos.length>=12} className="hidden" type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void upload(e)}/></label>
         <p className="text-xs text-textSecondary">До 12 файлов, JPG/PNG/WebP, максимум 4 МБ. Используйте изображения, на которые у вас есть права.</p>
         {photos.map(p=><div className="space-y-2 rounded-app-xs border border-white/10 p-3" key={p.id}>
           <div className="flex items-center gap-3"><img src={fileUrl(p.url)} alt={p.title||'Фото'} className="h-16 w-16 rounded-app-xs object-cover"/><div className="flex-1 space-y-2">
