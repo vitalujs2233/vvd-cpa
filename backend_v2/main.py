@@ -1073,7 +1073,6 @@ async def get_statistics(
             FROM clicks c
             LEFT JOIN conversions cv
                 ON cv.click_id = c.click_id
-                AND cv.is_test = FALSE
                 AND cv.user_id = c.user_id
                 AND cv.status = '1'
                 AND cv.is_test = FALSE
