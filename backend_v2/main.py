@@ -1075,6 +1075,7 @@ async def get_statistics(
                 ON cv.click_id = c.click_id
                 AND cv.user_id = c.user_id
                 AND cv.status = '1'
+                AND cv.is_test = FALSE
             WHERE c.user_id = :telegram_id
         """
 
@@ -1138,6 +1139,7 @@ async def get_country_statistics(
             FROM clicks c
             LEFT JOIN conversions cv
                 ON cv.click_id = c.click_id
+                AND cv.is_test = FALSE
             WHERE c.user_id = :telegram_id
         """
 
@@ -1303,7 +1305,7 @@ async def admin_finance():
                         CASE WHEN CAST(status AS TEXT) = '1'
                         THEN payout_net ELSE 0 END
                     ), 0) AS partner_income
-                FROM conversions
+                FROM conversions WHERE is_test = FALSE
             """)
         ).fetchone()
 

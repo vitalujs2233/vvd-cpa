@@ -6,6 +6,7 @@ export type PublicOffer=Pick<Offer,'id'|'title'|'description'|'icon_name'|'image
 export type PostbackConfig={postback_enabled:boolean;configured:boolean;postback_params:Record<'click'|'transaction'|'status'|'amount'|'currency',string>;postback_status_map:Record<string,'pending'|'approved'|'rejected'>;postback_last_received_at:string|null;endpoint:string};
 export type PostbackUpdate=Pick<PostbackConfig,'postback_enabled'|'postback_params'|'postback_status_map'>;
 export const cpaApi={
+  checkPostback:(id:number)=>apiRequest<{ok:boolean;http_first:number;http_duplicate:number;duplicate:boolean;http_bad_secret:number;http_unknown_click:number;attribution:boolean;is_test:boolean;status:string;financial_unchanged:boolean;external_postback_enabled:boolean}>('/cpa/admin/networks/'+id+'/postback/check',{method:'POST'}),
   getPostback:(id:number)=>apiRequest<PostbackConfig>('/cpa/admin/networks/'+id+'/postback'),
   savePostback:(id:number,config:PostbackUpdate)=>apiRequest<{ok:boolean}>('/cpa/admin/networks/'+id+'/postback',{method:'PUT',body:JSON.stringify(config)}),
   rotatePostback:(id:number)=>apiRequest<{secret_once:string;postback_enabled:boolean}>('/cpa/admin/networks/'+id+'/postback/rotate',{method:'POST'}),

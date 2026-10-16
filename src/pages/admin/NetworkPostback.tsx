@@ -9,6 +9,8 @@ export const NetworkPostback:React.FC<{id:number}>=({id})=>{
  cpaApi.getPostback(id).then(x=>{if(valid){setData(x);setMapText(JSON.stringify(x.postback_status_map,null,2))}}).catch(e=>{if(valid)setError(String(e))});
  return()=>{valid=false};},[id]);
  const save=async()=>{if(!data)return;setBusy(true);setError('');try{const parsed=JSON.parse(mapText);if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw Error('Некорректное соответствие статусов');await cpaApi.savePostback(id,{...data,postback_status_map:parsed});setData(d=>d?{...d,postback_status_map:parsed}:d);setNotice('Настройки сохранены')}catch(e){setError(String(e))}finally{setBusy(false)}};
+ const check=async()=>{if(id!==2||busy)return;if(!window.confirm('Запустить серверную проверку на одном существующем клике VVD Test Network? Будет создана одна помеченная тестовая конверсия pending без начислений. Продолжить?'))return;
+ setBusy(true);setError('');setNotice('');try{const r=await cpaApi.checkPostback(id);setNotice('Postback: '+r.http_first+'; повтор: '+r.http_duplicate+'; неверный секрет: '+r.http_bad_secret+'; неизвестный клик: '+r.http_unknown_click+'; атрибуция: '+(r.attribution?'OK':'Ошибка')+'; финансы: '+(r.financial_unchanged?'не изменены':'Ошибка')+'. Приём выключен.')}catch(e){setError(String(e))}finally{setBusy(false)}};
  const rotate=async()=>{if(!window.confirm('Старый секрет перестанет действовать, а приём postback отключится. Продолжить?'))return;setBusy(true);setError('');
  try{const result=await cpaApi.rotatePostback(id);setSecret(result.secret_once);setData(d=>d?{...d,postback_enabled:false,configured:true}:d);setNotice('Новый секрет показан один раз. Сохраните его в кабинете партнёрской сети.')}
  catch(e){setError(String(e))}finally{setBusy(false)}};
@@ -24,6 +26,7 @@ export const NetworkPostback:React.FC<{id:number}>=({id})=>{
     <textarea className={control+' mt-1 min-h-24'} value={mapText} onChange={e=>setMapText(e.target.value)}/>
    </label>
    <button type="button" disabled={busy} onClick={()=>void save()} className="w-full rounded-app-xs border border-accentPurple/50 p-2 text-xs">Сохранить Postback</button>
+   {id===2&&<button type="button" disabled={busy} onClick={()=>void check()} className="w-full rounded-app-xs border border-accentPurple/50 p-2 text-xs">Проверить Postback</button>}
    <button type="button" disabled={busy} onClick={()=>void rotate()} className="w-full rounded-app-xs border border-white/10 p-2 text-xs">Создать / заменить секрет</button>
    {secret&&<div className="space-y-2"><p className="text-xs text-textSecondary">Однократный показ секрета для заголовка X-VVD-Postback-Key. Не передавайте его в чат.</p>
      <p className="break-all select-text text-xs">{secret}</p>

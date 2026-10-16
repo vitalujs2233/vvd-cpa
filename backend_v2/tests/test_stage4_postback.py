@@ -41,6 +41,10 @@ class PostbackTests(unittest.TestCase):
             c.execute(text("ALTER TABLE clicks ADD COLUMN IF NOT EXISTS network_id BIGINT"))
             # Legacy statistics exists in production, but the isolated CI database
             # must create its own minimal table before regression assertions.
+            c.execute(text("""CREATE TABLE IF NOT EXISTS withdrawals (
+                id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL,
+                amount NUMERIC(12,2) NOT NULL DEFAULT 0
+            )"""))
             c.execute(text("""CREATE TABLE IF NOT EXISTS statistics (
                 id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL,
                 date DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -58,6 +62,8 @@ class PostbackTests(unittest.TestCase):
             stage4=(ROOT/"migrations/20261016_stage4_postback.sql").read_text()
             stage4="\n".join(line for line in stage4.splitlines() if not line.lstrip().startswith("REVOKE "))
             c.connection.cursor().execute(stage4)
+            migration=(ROOT/"migrations/20261016_stage4_admin_postback_probe.sql").read_text()
+            c.connection.cursor().execute(migration)
             c.execute(text("INSERT INTO users(telegram_id,first_name,partner_code,status) VALUES(:uid,'Stage4','VVD964001','active') ON CONFLICT(telegram_id) DO UPDATE SET status='active'"),{"uid":UID})
             c.execute(text("INSERT INTO cpa_verticals(slug,title,is_active) VALUES('utilities','Utilities',TRUE) ON CONFLICT(slug) DO NOTHING"))
         added=client.post("/cpa/admin/networks",headers=auth(ADMIN),json={"name":cls.net,"is_active":True})
@@ -119,6 +125,11 @@ class PostbackTests(unittest.TestCase):
         self.assertEqual(before_conversions,after_conversions)
         self.assertEqual(before_stats,after_stats)
 
+    def test_admin_check_access_and_real_default(self):
+        self.assertEqual(client.post("/cpa/admin/networks/2/postback/check").status_code,401)
+        self.assertEqual(client.post("/cpa/admin/networks/2/postback/check",headers=auth(UID)).status_code,403)
+        self.assertEqual(client.post("/cpa/admin/networks/999/postback/check",headers=auth(ADMIN)).status_code,404)
+
     def test_a_incorrect_auth_and_unknown_click(self):
         self.assertEqual(self.send(self.click,secret="invalid").status_code,401)
         self.assertEqual(self.send("does-not-exist").status_code,404)
@@ -147,12 +158,62 @@ class PostbackTests(unittest.TestCase):
         rejected=self.send(self.click2,transaction="sale-b",status="cancel")
         self.assertEqual(rejected.status_code,200,rejected.text)
         with engine.connect() as c:
-            rows=c.execute(text("SELECT click_id,user_id,offer_id,network_id,vertical_slug,partner_code,status,payout_gross,payout_net,currency FROM conversions WHERE click_id IN (:a,:b)"),{"a":self.click,"b":self.click2}).mappings().all()
+            rows=c.execute(text("SELECT click_id,user_id,offer_id,network_id,vertical_slug,partner_code,status,payout_gross,payout_net,currency,is_test FROM conversions WHERE click_id IN (:a,:b)"),{"a":self.click,"b":self.click2}).mappings().all()
             after=c.execute(text("SELECT balance,hold,withdrawn FROM users WHERE telegram_id=:id"),{"id":UID}).first()
         self.assertEqual(len(rows),2)
         self.assertEqual(set(x["status"] for x in rows),{"approved","rejected"})
-        self.assertTrue(all(x["offer_id"]==self.offer and x["user_id"]==UID and x["network_id"]==self.network_id and x["partner_code"]=="VVD964001" and x["vertical_slug"]=="utilities" and x["payout_net"]==0 for x in rows))
+        self.assertTrue(all(x["offer_id"]==self.offer and x["user_id"]==UID and x["network_id"]==self.network_id and x["partner_code"]=="VVD964001" and x["vertical_slug"]=="utilities" and x["payout_net"]==0 and not x["is_test"] for x in rows))
         self.assertEqual(tuple(before),tuple(after))
+
+    def test_z_admin_server_check_isolated_once_and_preserves_finance(self):
+        # This method operates only on the CI PostgreSQL fixture.
+        with engine.begin() as c:
+            saved=c.execute(text("""SELECT name,postback_enabled,postback_key_hash,
+                    postback_params,postback_status_map,postback_last_received_at
+                    FROM cpa_networks WHERE id=2""")).mappings().first()
+            if saved:
+                c.execute(text("UPDATE cpa_networks SET name='VVD Test Network',postback_enabled=FALSE WHERE id=2"))
+            else:
+                c.execute(text("INSERT INTO cpa_networks(id,name,postback_enabled) VALUES(2,'VVD Test Network',FALSE)"))
+            c.execute(text("""INSERT INTO offers(id,title,smartlink_suffix,vertical_slug,network_id,status)
+                VALUES('vvd-test-smartlink','Neutral isolated fixture','vvd-isolated-test','utilities',2,'published')"""))
+            c.execute(text("""INSERT INTO clicks(user_id,partner_code,click_id,vertical,offer_id,network_id)
+                VALUES(:uid,'VVD964001',:click,'utilities','vvd-test-smartlink',2)"""),
+                {"uid":UID,"click":"isolated-stage4-"+self.tag})
+            user_before=tuple(c.execute(text("SELECT balance,hold,withdrawn FROM users WHERE telegram_id=:id"),{"id":UID}).one())
+            payouts_before=c.execute(text("SELECT count(*) FROM withdrawals")).scalar_one()
+        try:
+            first=client.post("/cpa/admin/networks/2/postback/check",headers=auth(ADMIN))
+            self.assertEqual(first.status_code,200,first.text)
+            result=first.json()
+            self.assertTrue(result["attribution"] and result["duplicate"] and result["financial_unchanged"])
+            self.assertEqual((result["http_first"],result["http_duplicate"],result["http_bad_secret"],result["http_unknown_click"]),(200,200,401,404))
+            self.assertEqual(client.post("/cpa/admin/networks/2/postback/check",headers=auth(ADMIN)).status_code,409)
+            with engine.connect() as c:
+                row=c.execute(text("""SELECT is_test,status,payout_gross,payout_net,user_id,network_id,offer_id
+                    FROM conversions WHERE click_id=:click"""),{"click":"isolated-stage4-"+self.tag}).mappings().one()
+                self.assertTrue(row["is_test"])
+                self.assertEqual((row["status"],row["payout_gross"],row["payout_net"],row["user_id"],row["network_id"],row["offer_id"]),("pending",0,0,UID,2,"vvd-test-smartlink"))
+                self.assertEqual(tuple(c.execute(text("SELECT balance,hold,withdrawn FROM users WHERE telegram_id=:id"),{"id":UID}).one()),user_before)
+                self.assertEqual(c.execute(text("SELECT count(*) FROM withdrawals")).scalar_one(),payouts_before)
+                cfg=c.execute(text("SELECT postback_enabled,postback_key_hash FROM cpa_networks WHERE id=2")).one()
+                self.assertFalse(cfg[0])
+                self.assertEqual(cfg[1],saved["postback_key_hash"] if saved else None)
+            self.assertEqual(self.send("isolated-stage4-"+self.tag).status_code,404)
+        finally:
+            with engine.begin() as c:
+                c.execute(text("DELETE FROM conversions WHERE click_id=:click"),{"click":"isolated-stage4-"+self.tag})
+                c.execute(text("DELETE FROM clicks WHERE click_id=:click"),{"click":"isolated-stage4-"+self.tag})
+                c.execute(text("DELETE FROM offers WHERE id='vvd-test-smartlink'"))
+                if saved:
+                    c.execute(text("""UPDATE cpa_networks SET name=:name,postback_enabled=:enabled,
+                        postback_key_hash=:hash,postback_params=CAST(:params AS jsonb),
+                        postback_status_map=CAST(:statuses AS jsonb),postback_last_received_at=:last
+                        WHERE id=2"""),{"name":saved["name"],"enabled":saved["postback_enabled"],
+                        "hash":saved["postback_key_hash"],"params":json.dumps(saved["postback_params"]),
+                        "statuses":json.dumps(saved["postback_status_map"]),"last":saved["postback_last_received_at"]})
+                else:
+                    c.execute(text("DELETE FROM cpa_networks WHERE id=2"))
 
     def test_c_bad_amount_network_and_parallel_idempotency(self):
         self.assertEqual(self.send(self.click,price="-1").status_code,422)
