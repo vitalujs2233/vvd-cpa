@@ -1,0 +1,135 @@
+"""Stage 4 isolated authenticated neutral postback tests; never hit real CPA networks."""
+import concurrent.futures,hashlib,hmac,json,os,sys,time,unittest,uuid
+from decimal import Decimal
+from pathlib import Path
+from urllib.parse import urlencode
+from fastapi.testclient import TestClient
+from sqlalchemy import text
+
+ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT))
+from database import engine
+from main import app
+client=TestClient(app,follow_redirects=False)
+ADMIN=232682307
+UID=900000006401
+
+def auth(uid):
+    data={"auth_date":str(int(time.time())),"user":json.dumps({"id":uid},separators=(",",":"))}
+    check="\n".join(f"{k}={v}" for k,v in sorted(data.items()))
+    key=hmac.new(b"WebAppData",os.environ["BOT_TOKEN"].encode(),hashlib.sha256).digest()
+    data["hash"]=hmac.new(key,check.encode(),hashlib.sha256).hexdigest()
+    return {"X-Telegram-Init-Data":urlencode(data)}
+
+class PostbackTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tag=uuid.uuid4().hex[:8]
+        cls.net="PBNeutral-"+cls.tag
+        cls.offer="pb-neutral-"+cls.tag
+        cls.click="pbclick-"+cls.tag
+        cls.click2="pbclick2-"+cls.tag
+        with engine.begin() as c:
+            c.execute(text("CREATE TABLE IF NOT EXISTS offers(id VARCHAR(80) PRIMARY KEY,title VARCHAR(200) NOT NULL)"))
+            for defn in ("description TEXT","icon_name VARCHAR(30)","geo VARCHAR(300)","smartlink_suffix VARCHAR(120) NOT NULL DEFAULT ''"):
+                c.execute(text("ALTER TABLE offers ADD COLUMN IF NOT EXISTS "+defn))
+            stage2=(ROOT/"migrations/20261016_stage2_catalog.sql").read_text()
+            stage2="\n".join(line for line in stage2.splitlines() if not line.lstrip().startswith("REVOKE "))
+            c.connection.cursor().execute(stage2)
+            c.execute(text("CREATE TABLE IF NOT EXISTS clicks(id BIGSERIAL PRIMARY KEY,user_id BIGINT NOT NULL,partner_code VARCHAR(60) NOT NULL,click_id VARCHAR(120) NOT NULL UNIQUE,vertical VARCHAR(100) NOT NULL,created_at TIMESTAMP DEFAULT now())"))
+            c.execute(text("ALTER TABLE clicks ADD COLUMN IF NOT EXISTS offer_id VARCHAR(80)"))
+            c.execute(text("ALTER TABLE clicks ADD COLUMN IF NOT EXISTS network_id BIGINT"))
+            c.execute(text("""CREATE TABLE IF NOT EXISTS conversions (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),click_id VARCHAR(120) NOT NULL UNIQUE,
+                user_id BIGINT NOT NULL,offer_id VARCHAR(80) NOT NULL,
+                payout_gross NUMERIC(12,2) NOT NULL,payout_net NUMERIC(12,2) NOT NULL,
+                status VARCHAR(30) NOT NULL DEFAULT 'pending',
+                transaction_id VARCHAR(120),created_at TIMESTAMPTZ DEFAULT now(),
+                processed_at TIMESTAMPTZ)"""))
+            stage4=(ROOT/"migrations/20261016_stage4_postback.sql").read_text()
+            stage4="\n".join(line for line in stage4.splitlines() if not line.lstrip().startswith("REVOKE "))
+            c.connection.cursor().execute(stage4)
+            c.execute(text("INSERT INTO users(telegram_id,first_name,partner_code,status) VALUES(:uid,'Stage4','VVD964001','active') ON CONFLICT(telegram_id) DO UPDATE SET status='active'"),{"uid":UID})
+            c.execute(text("INSERT INTO cpa_verticals(slug,title,is_active) VALUES('utilities','Utilities',TRUE) ON CONFLICT(slug) DO NOTHING"))
+        added=client.post("/cpa/admin/networks",headers=auth(ADMIN),json={"name":cls.net,"is_active":True})
+        if added.status_code!=200:raise AssertionError(added.text)
+        cls.network_id=added.json()["id"]
+        with engine.begin() as c:
+            c.execute(text("""INSERT INTO offers(id,title,smartlink_suffix,vertical_slug,network_id,status)
+            VALUES(:id,'Neutral test',:suffix,'utilities',:net,'published')"""),
+            {"id":cls.offer,"suffix":"cpa-"+cls.offer,"net":cls.network_id})
+            for click in (cls.click,cls.click2):
+                c.execute(text("""INSERT INTO clicks(user_id,partner_code,click_id,vertical,offer_id,network_id)
+                    VALUES(:uid,'VVD964001',:click,'utilities',:offer,:network)"""),
+                    {"uid":UID,"click":click,"offer":cls.offer,"network":cls.network_id})
+        rotated=client.post(f"/cpa/admin/networks/{cls.network_id}/postback/rotate",headers=auth(ADMIN))
+        if rotated.status_code!=200:raise AssertionError(rotated.text)
+        cls.secret=rotated.json()["secret_once"]
+        setup=client.put(f"/cpa/admin/networks/{cls.network_id}/postback",headers=auth(ADMIN),json={
+            "postback_enabled":True,
+            "postback_params":{"click":"test_click","transaction":"tx","status":"state","amount":"price","currency":"ccy"},
+            "postback_status_map":{"waiting":"pending","paid":"approved","cancel":"rejected"}})
+        if setup.status_code!=200:raise AssertionError(setup.text)
+
+    @classmethod
+    def tearDownClass(cls):
+        with engine.begin() as c:
+            c.execute(text("DELETE FROM conversions WHERE click_id IN (:x,:y)"),{"x":cls.click,"y":cls.click2})
+            c.execute(text("DELETE FROM clicks WHERE click_id IN (:x,:y)"),{"x":cls.click,"y":cls.click2})
+            c.execute(text("DELETE FROM offers WHERE id=:id"),{"id":cls.offer})
+            c.execute(text("DELETE FROM cpa_networks WHERE id=:id"),{"id":cls.network_id})
+            c.execute(text("DELETE FROM users WHERE telegram_id=:uid"),{"uid":UID})
+
+    def send(self,click,transaction="sale-a",status="waiting",secret=None,price="12.50",ccy="USD"):
+        return client.post(f"/cpa/postback/{self.network_id}",json={"test_click":click,
+          "tx":transaction,"state":status,"price":price,"ccy":ccy},
+          headers={"X-VVD-Postback-Key":self.secret if secret is None else secret})
+
+    def test_a_incorrect_auth_and_unknown_click(self):
+        self.assertEqual(self.send(self.click,secret="invalid").status_code,401)
+        self.assertEqual(self.send("does-not-exist").status_code,404)
+        self.assertEqual(client.post(f"/cpa/postback/{self.network_id}",json={"bad":"value"},
+                       headers={"X-VVD-Postback-Key":self.secret}).status_code,422)
+        self.assertEqual(client.get(f"/cpa/admin/networks/{self.network_id}/postback").status_code,401)
+        self.assertEqual(client.get(f"/cpa/admin/networks/{self.network_id}/postback",
+                                   headers=auth(UID)).status_code,403)
+        private=client.get(f"/cpa/admin/networks/{self.network_id}/postback",headers=auth(ADMIN))
+        self.assertEqual(private.status_code,200,private.text)
+        self.assertNotIn(self.secret,private.text)
+
+    def test_b_valid_dedup_status_no_balance_changes(self):
+        with engine.connect() as c:
+            before=c.execute(text("SELECT balance,hold,withdrawn FROM users WHERE telegram_id=:id"),{"id":UID}).first()
+        first=self.send(self.click)
+        self.assertEqual(first.status_code,200,first.text)
+        self.assertTrue(first.json()["created"])
+        second=self.send(self.click)
+        self.assertEqual(second.status_code,200,second.text)
+        self.assertTrue(second.json()["duplicate"])
+        ok=self.send(self.click,status="paid")
+        self.assertEqual(ok.status_code,200,ok.text)
+        self.assertTrue(ok.json()["updated"])
+        self.assertEqual(self.send(self.click,status="cancel").status_code,409)
+        rejected=self.send(self.click2,transaction="sale-b",status="cancel")
+        self.assertEqual(rejected.status_code,200,rejected.text)
+        with engine.connect() as c:
+            rows=c.execute(text("SELECT click_id,user_id,offer_id,network_id,vertical_slug,partner_code,status,payout_gross,payout_net,currency FROM conversions WHERE click_id IN (:a,:b)"),{"a":self.click,"b":self.click2}).mappings().all()
+            after=c.execute(text("SELECT balance,hold,withdrawn FROM users WHERE telegram_id=:id"),{"id":UID}).first()
+        self.assertEqual(len(rows),2)
+        self.assertEqual(set(x["status"] for x in rows),{"approved","rejected"})
+        self.assertTrue(all(x["offer_id"]==self.offer and x["user_id"]==UID and x["network_id"]==self.network_id and x["partner_code"]=="VVD964001" and x["vertical_slug"]=="utilities" and x["payout_net"]==0 for x in rows))
+        self.assertEqual(tuple(before),tuple(after))
+
+    def test_c_bad_amount_network_and_parallel_idempotency(self):
+        self.assertEqual(self.send(self.click,price="-1").status_code,422)
+        self.assertEqual(self.send(self.click,ccy="USD123").status_code,422)
+        self.assertEqual(self.send(self.click,transaction="wrong-sale").status_code,409)
+        # Parallel matching notifications remain a single conversion.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+            results=list(ex.map(lambda _:self.send(self.click2,transaction="sale-b",status="cancel"),range(6)))
+        self.assertTrue(all(x.status_code==200 for x in results))
+        with engine.connect() as c:
+            n=c.execute(text("SELECT count(*) FROM conversions WHERE click_id=:id"),{"id":self.click2}).scalar_one()
+        self.assertEqual(n,1)
+
+if __name__=="__main__":unittest.main()
