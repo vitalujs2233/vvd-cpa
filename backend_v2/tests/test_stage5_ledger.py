@@ -377,7 +377,7 @@ class StageFiveLedgerTests(unittest.TestCase):
                            hold_delta,platform_fee_delta,approved_at,hold_until,actor_type)
                         VALUES (:id,:uid,:operation,:key,:amount,
                                 :hold,:fee,:approved,:until,'postback')
-                    """), {"id":self.ids["parallel"],"uid":OTHER,
+                    """), {"id":self.ids["rollback"],"uid":USER,
                             "operation":operation,"key":self.prefix+"-forged-"+operation,
                             "amount":amount,"hold":hold,
                             "fee":amount if operation=="platform_fee_accrual" else "0",
