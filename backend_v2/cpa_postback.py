@@ -138,7 +138,7 @@ def _accept(c,provider,raw,supplied_key,network_id,is_test=False):
             {"click":click,"uid":found["user_id"],"offer":found["offer_id"],
              "amount":amount,"status":state,"txn":transaction,"network":network_id,
              "vertical":found["vertical"],"code":found["partner_code"],
-             "currency":currency,"external":ext_status})
+             "currency":currency,"external":ext_status,"is_test":is_test})
         except IntegrityError as exc:
             raise HTTPException(409,"Duplicate click or transaction") from exc
         result={"ok":True,"created":True,"status":state}
