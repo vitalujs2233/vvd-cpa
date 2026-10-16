@@ -3,22 +3,24 @@ import assert from 'node:assert/strict';
 
 const home = readFileSync('src/pages/home/Home.tsx', 'utf8');
 const app = readFileSync('src/App.tsx', 'utf8');
-const tools = readFileSync('src/pages/tools/Tools.tsx', 'utf8');
-const topup = readFileSync('src/pages/tools/ToolsTopup.tsx', 'utf8');
+const market = readFileSync('src/pages/tools/MarketplacePages.tsx', 'utf8');
+const studio = readFileSync('src/pages/tools/AIStudio.tsx', 'utf8');
+const api = readFileSync('backend_v2/tools_marketplace.py', 'utf8');
 
 assert.doesNotMatch(home, /StarsTopup|StarsWallet|ToolsTopup|Пополнить|Баланс инструментов/i,
-  'Home must never contain the tools payment wallet');
-assert.match(home, /balance\.available\.toFixed\(2\)/,
-  'Home must preserve the CPA dollar balance');
+  'Home must never contain tools wallet or top-up');
+assert.match(home, /balance\.available\.toFixed\(2\)/);
 assert.match(home, /handleDvizhClick/);
-assert.match(home, /<Flame size=/);
 assert.match(app, /to="\/tools"/);
 assert.match(app, /path="dvizh"/);
-assert.match(app, /path="tools"/);
-assert.match(tools, /Баланс инструментов/);
-assert.match(tools, /<ToolsTopup\s*\/>/);
-assert.match(topup, /Пополнить/);
-assert.match(topup, /createStarsInvoice/);
-assert.match(topup, /openStarsInvoice/);
-
-console.log('UI placement verified: Home unchanged, wallet and top-up confined to Tools.');
+for (const route of ['topup','history','purchases','numbers','proxy','ai']) {
+  assert.match(app, new RegExp('path="'+route+'"'));
+}
+assert.match(market, /Баланс инструментов/);
+assert.match(market, /usd\(w\.value\.available\)/);
+assert.match(market, /Пополнить/);
+assert.doesNotMatch(market, /StarsWallet|openStarsInvoice|⭐/);
+assert.match(studio, /Создание AI-модели/);
+assert.match(api, /require_telegram_id/);
+assert.match(api, /Поставщик не подключён/);
+console.log('Marketplace placement and disabled fulfillment checks passed.');
