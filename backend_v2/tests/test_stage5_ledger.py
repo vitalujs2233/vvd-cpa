@@ -227,6 +227,24 @@ class StageFiveLedgerTests(unittest.TestCase):
                 with engine.begin() as c:
                     c.execute(text(sql))
 
+    def test_06b_hold_release_cannot_be_early(self):
+        with engine.connect() as conn:
+            first = next(e for e in ledger_events_for_conversion(conn,self.ids["approved"])
+                         if e["operation_type"]=="hold_credit")
+        with self.assertRaises(DBAPIError):
+            with engine.begin() as conn:
+                conn.execute(text("""
+                    INSERT INTO public.cpa_ledger
+                      (conversion_id,user_id,operation_type,event_key,amount,
+                       hold_delta,balance_delta,original_entry_id,actor_type)
+                    VALUES (:id,:uid,'hold_release',:key,80,-80,80,:source,'scheduler')
+                """), {"id":self.ids["approved"],"uid":USER,
+                        "key":self.prefix+"-early-release","source":first["id"]})
+        with engine.connect() as conn:
+            self.assertEqual(conn.execute(text("""
+              SELECT count(*) FROM public.cpa_ledger WHERE event_key=:key
+            """), {"key":self.prefix+"-early-release"}).scalar_one(),0)
+
     def test_07_rollback_is_all_or_nothing(self):
         with self.assertRaisesRegex(RuntimeError,"rollback injection"):
             with engine.begin() as c:
