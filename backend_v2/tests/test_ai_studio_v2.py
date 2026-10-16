@@ -61,6 +61,7 @@ class AISystemTests(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         with engine.begin() as conn:
+            conn.execute(text('DELETE FROM public.smartlinks WHERE user_id IN (:a,:b)'),{'a':UID,'b':UID+1})
             conn.execute(text('DELETE FROM public.users WHERE telegram_id IN (:a,:b)'),{'a':UID,'b':UID+1})
 
     def test_link_requires_actual_owner(self):
