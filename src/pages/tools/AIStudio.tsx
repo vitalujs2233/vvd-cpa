@@ -72,12 +72,14 @@ export const AIEditor:React.FC=()=>{
       setNotice('Партнёрская ссылка сохранена.');}
     catch(e){setError(errorText(e))}finally{setSaving(false)}
   };
-  const upload=async(e:React.ChangeEvent<HTMLInputElement>)=>{
+  const upload=async(e:React.ChangeEvent<HTMLInputElement>,asAvatar=false)=>{
     const f=e.target.files?.[0];if(!f||!id)return;
     if(!rightsConfirmed){setError('Сначала подтвердите права на фотографию');return;}
     if(f.size>4_000_000||!['image/jpeg','image/png','image/webp'].includes(f.type)){setError('JPG, PNG или WebP до 4 МБ');return;}
     setUploading(true);setError('');
-    try{const p=await aiApi.upload(id,f);setPhotos(old=>[...old,p]);setNotice('Изображение сохранено.');}
+    try{const p=await aiApi.upload(id,f);setPhotos(old=>[...old,p]);
+      if(asAvatar){const saved=await marketApi.saveModel({...model,photo_url:fileUrl(p.url)});setModel(saved);}
+      setNotice(asAvatar?'Аватар сохранён.':'Изображение сохранено.');}
     catch(e){setError(errorText(e))}finally{setUploading(false);e.target.value='';}
   };
   const avatar=async(p:Photo|null)=>{
@@ -103,7 +105,9 @@ export const AIEditor:React.FC=()=>{
       <Field label="Адрес страницы" value={model.slug} set={v=>update('slug',v.toLowerCase().replace(/[^a-z0-9-]/g,''))} placeholder="marina-123"/>
       <Field label="Описание (необязательно)" value={model.description} set={v=>update('description',v)} long/>
       <label className="text-xs text-textSecondary">Язык<select className={field} value={model.language} onChange={e=>update('language',e.target.value)}><option value="ru">Русский</option><option value="en">Английский</option><option value="de">Немецкий</option></select></label>
-      <p className="text-xs text-textSecondary">Аватар можно выбрать из загруженных фотографий во вкладке «Фото».</p>
+      <label className="flex items-center gap-2 text-xs text-textSecondary"><input type="checkbox" checked={rightsConfirmed} onChange={e=>setRightsConfirmed(e.target.checked)}/> Подтверждаю права на загружаемый аватар.</label>
+      {id?<label className="flex cursor-pointer items-center justify-center gap-2 rounded-app-xs border border-accentGold/30 p-3 text-sm text-accentBrightGold"><Upload size={16}/> Загрузить аватар<input type="file" className="hidden" disabled={!rightsConfirmed||uploading} accept="image/jpeg,image/png,image/webp" onChange={e=>void upload(e,true)}/></label>:
+        <p className="text-xs text-textSecondary">Сначала сохраните профиль, чтобы загрузить аватар.</p>}
       {model.photo_url&&<div className="flex items-center gap-3"><img src={model.photo_url} alt="Аватар" className="h-16 w-16 rounded-full object-cover"/><button type="button" className="text-xs text-accentBrightGold" onClick={()=>void avatar(null)}>Удалить аватар</button></div>}
     </Card>}
     {tab==='chat'&&<Card className="flex flex-col gap-3">
@@ -163,5 +167,9 @@ export const AIEditor:React.FC=()=>{
       {model.status==='published'&&<a target="_blank" rel="noopener noreferrer" className="text-xs text-accentBrightGold" href={modelPageUrl(model.slug)}>Открыть публичный чат <ExternalLink size={14} className="inline"/></a>}
       <button type="button" onClick={()=>void navigator.clipboard.writeText(modelPageUrl(model.slug))} className="text-left text-xs text-accentBrightGold"><Copy size={14} className="inline"/> Скопировать ссылку</button>
     </Card>}
+    {id&&<button type="button" className="rounded-app-xs border border-red-500/30 p-3 text-sm text-red-300" onClick={async()=>{
+      if(!window.confirm('Удалить персонажа, все чаты и фотографии без возможности восстановления?'))return;
+      try{await aiApi.deleteModel(id);nav('/tools/ai',{replace:true});}catch(e){setError(errorText(e));}
+    }}>Удалить персонажа</button>
   </Shell>;
 };
