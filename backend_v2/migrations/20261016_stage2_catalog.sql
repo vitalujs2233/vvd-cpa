@@ -5,6 +5,11 @@ CREATE TABLE IF NOT EXISTS public.cpa_networks (
  is_active BOOLEAN NOT NULL DEFAULT true, connection_notes TEXT NOT NULL DEFAULT '',
  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Traforce is the named primary provider but remains disabled until its
+-- actual account destination and conditions are confirmed by the owner.
+INSERT INTO public.cpa_networks(name,is_active,description)
+VALUES ('Traforce',false,'Ожидает настройки подключения')
+ON CONFLICT (name) DO NOTHING;
 CREATE TABLE IF NOT EXISTS public.cpa_verticals (
  slug VARCHAR(80) PRIMARY KEY, title VARCHAR(120) NOT NULL,
  description TEXT NOT NULL DEFAULT '', icon_name VARCHAR(30) NOT NULL DEFAULT 'layers',
