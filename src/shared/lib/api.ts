@@ -13,6 +13,13 @@ export const authorizedFetch = (input: string, init: RequestInit = {}): Promise<
   return fetch(input,{...init,headers});
 };
 
+export class ApiError extends Error {
+  constructor(public readonly status: number, public readonly code: string) {
+    super(code);
+    this.name = 'ApiError';
+  }
+}
+
 export const apiRequest = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
   const headers = new Headers(options.headers);
   if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
@@ -22,10 +29,19 @@ export const apiRequest = async <T>(endpoint: string, options: RequestInit = {})
   if (endpoint !== '/auth' && window.Telegram?.WebApp?.initData && !headers.has('X-Telegram-Init-Data')) {
     headers.set('X-Telegram-Init-Data',window.Telegram.WebApp.initData);
   }
-  const response = await fetch(API_BASE_URL + endpoint,{...options,headers});
+  let response: Response;
+  try {
+    response = await fetch(API_BASE_URL + endpoint,{...options,headers});
+  } catch {
+    throw new ApiError(0, 'network_error');
+  }
   if (!response.ok) {
     const detail = await response.json().catch(()=>({}));
-    throw new Error(String(detail.detail || 'Ошибка API: ' + response.status));
+    const raw = detail?.detail;
+    const code = typeof raw === 'object' && typeof raw?.code === 'string'
+      ? raw.code
+      : typeof raw === 'string' ? raw : 'http_error';
+    throw new ApiError(response.status, code);
   }
   return await response.json() as T;
 };
