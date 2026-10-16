@@ -19,7 +19,7 @@ export const aiApi = {
       method:'PUT',headers:auth(),body:JSON.stringify({kind,smartlink_id,external_url,button_label,spend_limit})}),
   photos:(id:string)=>apiRequest<{photos:Photo[]}>('/ai-studio/models/'+encodeURIComponent(id)+'/photos',{headers:auth()}),
   upload:async (id:string,file:File)=>{
-    const form=new FormData();form.append('file',file);
+    const form=new FormData();form.append('file',file);form.append('rights_confirmed','true');
     const resp=await fetch(base+'/ai-studio/models/'+encodeURIComponent(id)+'/photos',
       {method:'POST',headers:auth(),body:form});
     if(!resp.ok)throw new Error((await resp.json().catch(()=>({}))).detail||'Ошибка загрузки');
