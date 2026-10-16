@@ -139,8 +139,8 @@ class NeutralLinkTests(unittest.TestCase):
         self.assertEqual(client.put("/cpa/admin/offers/"+self.offers[0],headers=headers(ADMIN),json=offer).status_code,200)
         self.assertEqual(client.get(urlsplit(url).path).status_code,404)
         self.assertEqual(client.post("/cpa/links/"+self.offers[0],headers=headers(SECOND)).status_code,404)
-        self.assertIn("/go/{partner_code}/{vertical}",[r.path for r in app.routes])
-        self.assertIn("/smartlink/{telegram_id}/{vertical}",[r.path for r in app.routes])
+        self.assertIn("/go/{partner_code}/{vertical}",[getattr(r,'path','') for r in app.routes])
+        self.assertIn("/smartlink/{telegram_id}/{vertical}",[getattr(r,'path','') for r in app.routes])
 
     def test_d_parallel_idempotent(self):
         response=client.put("/cpa/admin/offers/"+self.offers[0],headers=headers(ADMIN),json={
