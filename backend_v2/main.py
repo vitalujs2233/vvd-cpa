@@ -147,7 +147,7 @@ async def auth(payload: TelegramAuthRequest):
             referral_code=referral_code
         )
     except Exception:
-        logger.exception("telegram_auth_rejected code=account_storage_error")
+        logger.error("telegram_auth_rejected code=account_storage_error")
         raise HTTPException(status_code=503, detail={"code": "account_storage_error"}) from None
     return {
         "user": {
