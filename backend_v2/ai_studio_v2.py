@@ -246,6 +246,9 @@ def session_create(slug:str,payload:SessionCreate,request:Request):
     visitor_ip=request.client.host if request.client else 'unknown'
     ip_hash=hmac.new(os.environ.get('BOT_TOKEN','').encode(),visitor_ip.encode(),hashlib.sha256).hexdigest()
     with engine.begin() as conn:
+        # Expired anonymous visitor tokens and their message history are
+        # removed on the next public-chat visit, without a paid cron worker.
+        conn.execute(text("DELETE FROM tool_ai_sessions WHERE expires_at < now()"))
         model=conn.execute(text("""SELECT id,name,greeting,photo_url,button_label,affiliate_url,link_kind
              FROM tool_ai_models WHERE slug=:slug AND status='published'"""),{"slug":slug}).first()
         if not model:raise HTTPException(404,"Страница недоступна")
@@ -284,6 +287,11 @@ async def send_message(slug:str,payload:ChatMessage):
         if not model:raise HTTPException(404,"Страница недоступна")
         if model.link_kind!='smartlink':
             raise HTTPException(503,"Для платных чатов расчёт стоимости пока не подключён")
+        free_daily_limit=max(0,min(10000,int(os.getenv("AI_FREE_DAILY_MESSAGES","100"))))
+        current_use=conn.execute(text("""SELECT count(*) FROM tool_ai_usage
+             WHERE model_id=:mid AND created_at>now()-INTERVAL '1 day'"""),{"mid":model.id}).scalar()
+        if current_use>=free_daily_limit:
+            raise HTTPException(429,"Лимит бесплатных сообщений исчерпан")
         session=conn.execute(text("""SELECT id,messages_count,updated_at FROM tool_ai_sessions
             WHERE model_id=:mid AND token_hash=:hash AND expires_at>now() FOR UPDATE"""),
             {"mid":model.id,"hash":valid_token(payload.token)}).first()
