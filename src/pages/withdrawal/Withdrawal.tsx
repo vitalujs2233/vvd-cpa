@@ -1,3 +1,4 @@
+import { authorizedFetch } from '@/shared/lib/api';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -76,8 +77,8 @@ export const Withdrawal: React.FC = () => {
 
       const [balanceResponse, partnerResponse] =
         await Promise.all([
-          fetch(`${API_URL}/balance/${telegramId}`),
-          fetch(`${API_URL}/smartlink/${telegramId}/adult`),
+          authorizedFetch(`${API_URL}/balance/${telegramId}`),
+          authorizedFetch(`${API_URL}/smartlink/${telegramId}/adult`),
         ]);
 
       const balanceData = await balanceResponse.json();
@@ -95,7 +96,7 @@ export const Withdrawal: React.FC = () => {
 
       setPartnerCode(resolvedPartnerCode);
 
-      const withdrawalsResponse = await fetch(
+      const withdrawalsResponse = await authorizedFetch(
         `${API_URL}/withdrawals/${encodeURIComponent(resolvedPartnerCode)}`
       );
 
@@ -186,7 +187,7 @@ export const Withdrawal: React.FC = () => {
       setIsSubmitting(true);
       triggerHaptic.mediumImpact();
 
-      const response = await fetch(
+      const response = await authorizedFetch(
         `${API_URL}/withdrawals`,
         {
           method: 'POST',
