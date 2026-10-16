@@ -32,3 +32,8 @@ WHERE partner_code IS NULL;
 
 -- Both existing unique constraints remain unchanged:
 -- users_pkey (telegram_id), users_partner_code_key (partner_code).
+
+-- Telegram accounts are served through the signed FastAPI backend only.
+-- RLS is already enabled and has no client policies. Drop excessive direct Data API grants.
+REVOKE ALL ON TABLE public.users FROM anon, authenticated;
+REVOKE ALL ON SEQUENCE public.vvd_partner_code_seq FROM anon, authenticated;
