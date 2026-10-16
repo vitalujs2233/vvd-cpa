@@ -19,7 +19,7 @@ import { Chat as SupportChat } from '@/pages/chat/Chat';
 import { Loader } from '@/shared/ui/Loader';
 
 // Импортируем методы сетевого API и хелперы токенов
-import { loginViaTelegramApi, saveAuthToken } from '@/shared/lib/api';
+import { loginViaTelegramApi } from '@/shared/lib/api';
 
 // Главный Лейаут приложения, фиксирующий Bottom Menu
 const AppLayout = () => {
@@ -148,23 +148,16 @@ const MiniApp = () => {
       try {
         // 1. Извлекаем сырую строку initData из нативного Telegram SDK
         const initData = window.Telegram?.WebApp?.initData || '';
-        console.log("INIT DATA:", initData);
-console.log("Telegram:", window.Telegram?.WebApp);
-        
-        // Исправлено: Привели import.meta к типу any для обхода проверки компилятора TypeScript
-        const isDevMode = (import.meta as any).env?.DEV;
 
-        if (initData || isDevMode) {
+        if (initData) {
           // 2. Отправляем сетевой POST-запрос на наш FastAPI бэкенд
          const response = await loginViaTelegramApi();
           
-          // 3. Сохраняем полученный боевой JWT-токен доступа в localStorage
-          saveAuthToken(response.access_token);
-          
+
           // 4. Записываем профиль пользователя из Supabase в локальную память для сквозного отображения
           localStorage.setItem('vvd_cpa_user_data', JSON.stringify(response.user));
           
-          console.log("Авторизация на бэкенде VVD CPA пройдена успешно!");
+          // Identity is validated server-side; no fake JWT is stored.
         }
       } catch (error) {
         console.error("Сбой автоматической авторизации на бэкенде:", error);
