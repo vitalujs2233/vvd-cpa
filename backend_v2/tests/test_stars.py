@@ -64,7 +64,7 @@ class TelegramInitDataTests(unittest.TestCase):
             "signature": "third-party-ed25519-signature",
         }
         token = BOT_TOKEN
-        data_string = "\\n".join(f"{k}={v}" for k,v in sorted(data.items()))
+        data_string = "\n".join(f"{k}={v}" for k,v in sorted(data.items()))
         key = hmac.new(b"WebAppData",token.encode(),hashlib.sha256).digest()
         data["hash"] = hmac.new(key,data_string.encode(),hashlib.sha256).hexdigest()
         self.assertEqual(verified_telegram_id(urlencode(data)), TEST_USER)
