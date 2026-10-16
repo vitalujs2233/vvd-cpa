@@ -80,7 +80,7 @@ class AISystemTests(unittest.TestCase):
         self.assertEqual(studio.session_hash(result['token']),hashlib.sha256(result['token'].encode()).hexdigest())
         with self.assertRaises(HTTPException):
             studio.click_offer(self.slug,studio.SessionCreate())
-        click=studio.click_offer(self.slug,studio.SessionCreate(token=result['token']))
+        click=studio.click_offer(self.slug,studio.SessionCreate(token=result['token'],adult_confirmed=True))
         self.assertEqual(click['url'],'https://example.com/offer')
 
     def test_owner_stats_and_media_token(self):
