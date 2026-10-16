@@ -56,36 +56,54 @@ def get_catalog():
 
 
 
+class TelegramAuthError(ValueError):
+    """Safe, non-secret failure category for Telegram authentication."""
+
+    def __init__(self, code: str):
+        self.code = code
+        super().__init__(code)
+
+
 def verified_telegram_id(init_data: str, now: int | None = None) -> int:
-    """Verify Telegram Mini App HMAC and freshness; never trust initDataUnsafe."""
+    """Verify Telegram WebApp HMAC before freshness and identity checks."""
     token = os.getenv("BOT_TOKEN")
-    if not token or not init_data or len(init_data) > 8192:
-        raise ValueError("Telegram authorization is unavailable")
+    if not token:
+        raise TelegramAuthError("auth_config_error")
+    if not init_data:
+        raise TelegramAuthError("init_data_missing")
+    if len(init_data) > 8192:
+        raise TelegramAuthError("init_data_invalid")
+
     try:
         pairs = parse_qsl(init_data, keep_blank_values=True, strict_parsing=True)
         data = dict(pairs)
-        if len(pairs) != len(data):
-            raise ValueError("Duplicate initData keys")
+        if len(data) != len(pairs):
+            raise TelegramAuthError("init_data_invalid")
         incoming_hash = data.pop("hash")
-        # Recent Telegram clients can provide an Ed25519 'signature' field.
         data.pop("signature", None)
         if not re.fullmatch(r"[0-9a-fA-F]{64}", incoming_hash):
-            raise ValueError("Invalid Telegram hash")
-        auth_date = int(data["auth_date"])
-        current = int(now if now is not None else time.time())
-        if auth_date > current + 30 or current - auth_date > MAX_INIT_DATA_AGE:
-            raise ValueError("Telegram authorization expired")
-        check_string = "\n".join(f"{key}={value}" for key, value in sorted(data.items()))
+            raise TelegramAuthError("invalid_signature")
+        check_string = "\\n".join(f"{key}={value}" for key, value in sorted(data.items()))
         secret = hmac.new(b"WebAppData", token.encode("utf-8"), hashlib.sha256).digest()
         expected = hmac.new(secret, check_string.encode("utf-8"), hashlib.sha256).hexdigest()
         if not hmac.compare_digest(expected, incoming_hash.lower()):
-            raise ValueError("Telegram signature mismatch")
-        user_id = int(json.loads(data["user"])["id"])
+            raise TelegramAuthError("invalid_signature")
+
+        auth_date = int(data["auth_date"])
+        current = int(now if now is not None else time.time())
+        if auth_date > current + 30:
+            raise TelegramAuthError("invalid_auth_date")
+        if current - auth_date > MAX_INIT_DATA_AGE:
+            raise TelegramAuthError("init_data_expired")
+        user = json.loads(data["user"])
+        user_id = int(user["id"])
         if user_id <= 0:
-            raise ValueError("Invalid user id")
+            raise TelegramAuthError("invalid_user")
         return user_id
+    except TelegramAuthError:
+        raise
     except (KeyError, ValueError, TypeError, json.JSONDecodeError) as exc:
-        raise ValueError("Invalid or expired Telegram initData") from exc
+        raise TelegramAuthError("init_data_invalid") from exc
 
 
 def require_telegram_id(raw: str | None) -> int:
