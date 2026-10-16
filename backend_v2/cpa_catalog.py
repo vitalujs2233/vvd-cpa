@@ -224,15 +224,23 @@ def create_offer(payload:OfferIn,x_telegram_init_data:str|None=Header(None)):
     try:
         with engine.begin() as conn:
             checked_offer(conn,payload)
-            conn.execute(text("""INSERT INTO offers(id,title,vertical_slug,network_id,description,icon_name,
+            conn.execute(text("""INSERT INTO offers(id,smartlink_suffix,title,vertical_slug,network_id,description,icon_name,
               image_url,offer_type,source_url,geo,traffic_restrictions,payment_model,currency,
               payout_terms,status,display_order,commission_percent,hold_override_days,click_param_override)
-              VALUES(:id,:title,:vertical_slug,:network_id,:description,:icon_name,:image_url,
+              VALUES(:id,'cpa-' || :id,:title,:vertical_slug,:network_id,:description,:icon_name,:image_url,
               :offer_type,:source_url,:geo,:traffic_restrictions,:payment_model,:currency,
                :payout_terms,:status,:display_order,:commission_percent,:hold_override_days,:click_param_override)"""),
               payload.model_dump())
-    except IntegrityError:
-        raise HTTPException(409,"Предложение с таким ID уже существует")
+    except IntegrityError as exc:
+        constraint=getattr(getattr(exc.orig,"diag",None),"constraint_name",None)
+        if constraint=="offers_pkey":
+            raise HTTPException(409,"Предложение с таким ID уже существует") from exc
+        if constraint=="offers_smartlink_suffix_key":
+            raise HTTPException(409,"Конфликт технического идентификатора ссылки") from exc
+        if constraint in ("offers_network_id_fkey","offers_vertical_slug_fkey"):
+            raise HTTPException(422,"Выбранная сеть или вертикаль недоступна") from exc
+        # Do not mislabel unrelated NOT NULL / check / other constraints as ID conflicts.
+        raise HTTPException(500,"Не удалось сохранить предложение. Проверьте обязательные поля") from exc
     return {"ok":True}
 
 @router.put("/admin/offers/{offer_id}")
