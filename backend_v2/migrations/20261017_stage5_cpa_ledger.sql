@@ -30,6 +30,11 @@ BEGIN
     RAISE EXCEPTION 'Finance eligibility is immutable after insert'
       USING ERRCODE = '23514';
   END IF;
+  IF OLD.finance_approved_at IS NOT NULL
+    AND OLD.finance_approved_at IS DISTINCT FROM NEW.finance_approved_at THEN
+    RAISE EXCEPTION 'Finance approval timestamp is immutable once set'
+      USING ERRCODE = '23514';
+  END IF;
   RETURN NEW;
 END $$;
 CREATE TRIGGER trg_cpa_finance_lock_scope
@@ -122,11 +127,12 @@ DECLARE
   source_conversion RECORD;
   source_entry RECORD;
 BEGIN
-  SELECT user_id,is_test,finance_eligible_at,finance_approved_at,status
+  SELECT user_id,is_test,finance_eligible_at,finance_approved_at,status,currency
     INTO source_conversion
     FROM public.conversions WHERE id = NEW.conversion_id FOR SHARE;
   IF NOT FOUND OR source_conversion.user_id <> NEW.user_id
-    OR source_conversion.is_test OR source_conversion.finance_eligible_at IS NULL THEN
+    OR source_conversion.is_test OR source_conversion.finance_eligible_at IS NULL
+    OR source_conversion.currency IS DISTINCT FROM 'USD' THEN
     RAISE EXCEPTION 'Ledger requires a new eligible real conversion with matching owner'
       USING ERRCODE = '23514';
   END IF;
