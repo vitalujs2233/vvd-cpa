@@ -508,7 +508,14 @@ async def get_referral(telegram_id: int):
         "earned": float(user.referral_earned),
         "invited": int(invited or 0)
     }
-@app.get("/postback/adult")
+# Fail closed: legacy provider identity cannot be authenticated.
+# Keep routes registered for integration diagnostics, but never execute wallet logic.
+from fastapi import Depends
+
+def _deny_unauthenticated_legacy_postback():
+    raise HTTPException(status_code=403, detail="Legacy postback disabled: authenticated provider integration required")
+
+@app.get("/postback/adult", dependencies=[Depends(_deny_unauthenticated_legacy_postback)])
 async def postback_adult(
     partner_code: str,
     click_id: str = "",
@@ -847,7 +854,7 @@ async def postback_adult(
     }
 
 
-@app.get("/postback/traffcore")
+@app.get("/postback/traffcore", dependencies=[Depends(_deny_unauthenticated_legacy_postback)])
 async def postback_traffcore(
     sub2: str = "",
     sub3: str = "",
