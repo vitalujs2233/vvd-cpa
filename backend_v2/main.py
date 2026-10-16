@@ -1508,92 +1508,34 @@ async def send_partner_notification(telegram_id: int, message: str):
 
 @app.post("/admin/withdrawals/{withdrawal_id}/paid")
 async def mark_withdrawal_paid(withdrawal_id: int):
-    with engine.begin() as conn:
-        row = conn.execute(text("""
-            SELECT id, user_id, amount, payment_method, status
-            FROM withdrawals WHERE id = :id FOR UPDATE
-        """), {"id": withdrawal_id}).fetchone()
-
-        if not row:
-            return {"success": False, "message": "Withdrawal not found"}
-        if row.status != "pending":
-            return {"success": False, "message": f"Already processed: {row.status}"}
-
-        conn.execute(text("""
-            UPDATE withdrawals
-            SET status = 'paid', processed_at = NOW()
-            WHERE id = :id
-        """), {"id": withdrawal_id})
-
-        conn.execute(text("""
-            UPDATE users
-            SET withdrawn = COALESCE(withdrawn, 0) + :amount
-            WHERE telegram_id = :uid
-        """), {"amount": row.amount, "uid": row.user_id})
-
+    result = mark_real_paid(engine, withdrawal_id)
+    if not result["success"]:
+        return result
     await send_partner_notification(
-        int(row.user_id),
-        (
-            "💸 <b>Выплата подтверждена</b>\n\n"
-            f"Сумма: <b>${float(row.amount or 0):.2f}</b>\n"
-            f"Метод: <b>{row.payment_method}</b>\n"
-            "Статус: <b>Выплачено ✅</b>"
-        )
+        result["user_id"],
+        "💸 <b>Выплата подтверждена</b>\n\n"
+        + "Сумма: <b>$" + format(result["amount"], ".2f") + "</b>\n"
+        + "Метод: <b>" + result["payment_method"] + "</b>\n"
+        + "Статус: <b>Выплачено ✅</b>",
     )
-
     return {"success": True, "withdrawal_id": withdrawal_id,
-            "status": "paid", "amount": float(row.amount or 0)}
+            "status": "paid", "amount": result["amount"]}
 
 
 @app.post("/admin/withdrawals/{withdrawal_id}/reject")
 async def reject_withdrawal(withdrawal_id: int):
-    with engine.begin() as conn:
-        row = conn.execute(text("""
-            SELECT id, user_id, amount, status
-            FROM withdrawals
-            WHERE id = :id
-            FOR UPDATE
-        """), {"id": withdrawal_id}).fetchone()
-
-        if not row:
-            return {"success": False, "message": "Withdrawal not found"}
-
-        if row.status != "pending":
-            return {
-                "success": False,
-                "message": f"Already processed: {row.status}"
-            }
-
-        conn.execute(text("""
-            UPDATE withdrawals
-            SET status = 'rejected', processed_at = NOW()
-            WHERE id = :id
-        """), {"id": withdrawal_id})
-
-        conn.execute(text("""
-            UPDATE users
-            SET balance = COALESCE(balance, 0) + :amount
-            WHERE telegram_id = :uid
-        """), {
-            "amount": row.amount,
-            "uid": row.user_id
-        })
-
+    result = mark_real_rejected(engine, withdrawal_id)
+    if not result["success"]:
+        return result
     await send_partner_notification(
-        int(row.user_id),
-        (
-            "❌ <b>Заявка на выплату отклонена</b>\n\n"
-            f"Сумма: <b>${float(row.amount or 0):.2f}</b>\n"
-            "Средства возвращены на ваш баланс."
-        )
+        result["user_id"],
+        "❌ <b>Заявка на выплату отклонена</b>\n\n"
+        + "Сумма: <b>$" + format(result["amount"], ".2f") + "</b>\n"
+        + "Средства возвращены на ваш баланс.",
     )
+    return {"success": True, "withdrawal_id": withdrawal_id,
+            "status": "rejected", "amount_returned": result["amount"]}
 
-    return {
-        "success": True,
-        "withdrawal_id": withdrawal_id,
-        "status": "rejected",
-        "amount_returned": float(row.amount or 0)
-    }
 
 @app.post("/chat/messages")
 async def create_chat_message(payload: dict):
