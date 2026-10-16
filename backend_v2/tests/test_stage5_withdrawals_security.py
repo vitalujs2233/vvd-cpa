@@ -141,6 +141,10 @@ class WithdrawalsSecurityTests(unittest.TestCase):
             # Match real public.withdrawals default grants before migration.
             c.execute(text("""GRANT ALL PRIVILEGES ON TABLE public.withdrawals
                 TO anon,authenticated,service_role"""))
+            c.execute(text("""GRANT ALL PRIVILEGES ON SEQUENCE public.withdrawals_id_seq
+                TO anon,authenticated,service_role"""))
+            assert c.execute(text("""SELECT has_sequence_privilege('anon',
+                     'public.withdrawals_id_seq','USAGE')""")).scalar_one()
             c.execute(text("ALTER TABLE public.withdrawals DISABLE ROW LEVEL SECURITY"))
             assert c.execute(text("""SELECT has_table_privilege('anon',
                      'public.withdrawals','UPDATE')""")).scalar_one()
@@ -162,6 +166,13 @@ class WithdrawalsSecurityTests(unittest.TestCase):
                         SELECT has_table_privilege(:role,'public.withdrawals',:priv)
                     """),{"role":role,"priv":privilege}).scalar_one(),
                     f"Unexpected {role} {privilege} access")
+            for role in ("anon","authenticated"):
+                for privilege in ("USAGE","SELECT","UPDATE"):
+                    self.assertFalse(c.execute(text("""
+                        SELECT has_sequence_privilege(:role,
+                            'public.withdrawals_id_seq',:priv)
+                    """),{"role":role,"priv":privilege}).scalar_one(),
+                    f"Unexpected {role} sequence {privilege} access")
             self.assertTrue(c.execute(text("""
                 SELECT rolbypassrls FROM pg_roles WHERE rolname='service_role'
             """)).scalar_one())
@@ -169,6 +180,11 @@ class WithdrawalsSecurityTests(unittest.TestCase):
                 for privilege in ("SELECT","INSERT","UPDATE","DELETE"):
                     self.assertTrue(c.execute(text("""
                         SELECT has_table_privilege(:role,'public.withdrawals',:priv)
+                    """),{"role":role,"priv":privilege}).scalar_one())
+                for privilege in ("USAGE","SELECT","UPDATE"):
+                    self.assertTrue(c.execute(text("""
+                        SELECT has_sequence_privilege(:role,
+                            'public.withdrawals_id_seq',:priv)
                     """),{"role":role,"priv":privilege}).scalar_one())
 
     def test_02_actual_anonymous_authenticated_sql_denied(self):
@@ -179,6 +195,8 @@ class WithdrawalsSecurityTests(unittest.TestCase):
             "UPDATE public.withdrawals SET status='paid'",
             "DELETE FROM public.withdrawals",
             "TRUNCATE public.withdrawals",
+            "SELECT nextval('public.withdrawals_id_seq')",
+            "SELECT last_value FROM public.withdrawals_id_seq",
         )
         for role in ("anon","authenticated"):
             for stmt in actions:
