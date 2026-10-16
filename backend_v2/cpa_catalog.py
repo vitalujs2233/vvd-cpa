@@ -10,6 +10,7 @@ from urllib.parse import urlsplit
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from database import engine
 from stars_payments import require_telegram_id
 from access_guard import authorized_admin
@@ -123,9 +124,12 @@ def networks(x_telegram_init_data:str|None=Header(None)):
 @router.post("/admin/networks")
 def create_network(payload:NetworkIn,x_telegram_init_data:str|None=Header(None)):
     require_admin(x_telegram_init_data)
-    with engine.begin() as conn:
-        row=conn.execute(text("""INSERT INTO cpa_networks(name,website,description,is_active,connection_notes)
-        VALUES(:name,:website,:description,:is_active,:connection_notes) RETURNING id"""),payload.model_dump()).scalar_one()
+    try:
+        with engine.begin() as conn:
+            row=conn.execute(text("""INSERT INTO cpa_networks(name,website,description,is_active,connection_notes)
+            VALUES(:name,:website,:description,:is_active,:connection_notes) RETURNING id"""),payload.model_dump()).scalar_one()
+    except IntegrityError:
+        raise HTTPException(409,"Партнёрская сеть с таким названием уже существует")
     return {"id":row}
 
 @router.put("/admin/networks/{network_id}")
@@ -150,9 +154,12 @@ def verticals(x_telegram_init_data:str|None=Header(None)):
 @router.post("/admin/verticals")
 def create_vertical(payload:VerticalIn,x_telegram_init_data:str|None=Header(None)):
     require_admin(x_telegram_init_data)
-    with engine.begin() as conn:
-        conn.execute(text("""INSERT INTO cpa_verticals(slug,title,description,icon_name,display_order,is_active)
-         VALUES(:slug,:title,:description,:icon_name,:display_order,:is_active)"""),payload.model_dump())
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("""INSERT INTO cpa_verticals(slug,title,description,icon_name,display_order,is_active)
+             VALUES(:slug,:title,:description,:icon_name,:display_order,:is_active)"""),payload.model_dump())
+    except IntegrityError:
+        raise HTTPException(409,"Вертикаль с таким адресом уже существует")
     return {"ok":True}
 
 @router.put("/admin/verticals/{slug}")
@@ -193,15 +200,18 @@ def checked_offer(conn,payload):
 @router.post("/admin/offers")
 def create_offer(payload:OfferIn,x_telegram_init_data:str|None=Header(None)):
     require_admin(x_telegram_init_data)
-    with engine.begin() as conn:
-        checked_offer(conn,payload)
-        conn.execute(text("""INSERT INTO offers(id,title,vertical_slug,network_id,description,icon_name,
-          image_url,offer_type,source_url,geo,traffic_restrictions,payment_model,currency,
-          payout_terms,status,display_order,commission_percent,hold_override_days)
-          VALUES(:id,:title,:vertical_slug,:network_id,:description,:icon_name,:image_url,
-          :offer_type,:source_url,:geo,:traffic_restrictions,:payment_model,:currency,
-          :payout_terms,:status,:display_order,:commission_percent,:hold_override_days)"""),
-          payload.model_dump())
+    try:
+        with engine.begin() as conn:
+            checked_offer(conn,payload)
+            conn.execute(text("""INSERT INTO offers(id,title,vertical_slug,network_id,description,icon_name,
+              image_url,offer_type,source_url,geo,traffic_restrictions,payment_model,currency,
+              payout_terms,status,display_order,commission_percent,hold_override_days)
+              VALUES(:id,:title,:vertical_slug,:network_id,:description,:icon_name,:image_url,
+              :offer_type,:source_url,:geo,:traffic_restrictions,:payment_model,:currency,
+              :payout_terms,:status,:display_order,:commission_percent,:hold_override_days)"""),
+              payload.model_dump())
+    except IntegrityError:
+        raise HTTPException(409,"Предложение с таким ID уже существует")
     return {"ok":True}
 
 @router.put("/admin/offers/{offer_id}")
