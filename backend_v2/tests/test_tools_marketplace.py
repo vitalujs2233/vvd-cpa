@@ -23,6 +23,7 @@ class MarketplaceTests(unittest.TestCase):
     def setUpClass(cls):
         with engine.begin() as conn:
             conn.execute(text("CREATE TABLE IF NOT EXISTS public.users(telegram_id BIGINT PRIMARY KEY,first_name VARCHAR(255) NOT NULL)"))
+            conn.execute(text("ALTER TABLE public.users ADD COLUMN IF NOT EXISTS balance NUMERIC(14,2) NOT NULL DEFAULT 0"))
             sql=(Path(__file__).resolve().parents[1]/"migrations/20261016_tools_marketplace.sql").read_text()
             sql="\n".join(x for x in sql.splitlines() if not x.lstrip().startswith("--"))
             for statement in sql.split(";"):
