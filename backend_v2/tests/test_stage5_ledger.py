@@ -35,6 +35,28 @@ class StageFiveLedgerTests(unittest.TestCase):
         )}
         cls.old_ids = [uuid.uuid4() for _ in range(24)]
         with engine.begin() as c:
+            # Match Supabase public API roles and their RLS bypass semantics.
+            # All role changes occur only in disposable CI PostgreSQL.
+            c.execute(text("""
+                DO $roles$
+                BEGIN
+                  IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='anon') THEN
+                    CREATE ROLE anon NOLOGIN;
+                  END IF;
+                  IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN
+                    CREATE ROLE authenticated NOLOGIN;
+                  END IF;
+                  IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='service_role') THEN
+                    CREATE ROLE service_role NOLOGIN BYPASSRLS;
+                  END IF;
+                END
+                $roles$;
+            """))
+            # Match Supabase's default grants on new public tables.
+            c.execute(text("""
+                ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+                  GRANT ALL ON TABLES TO anon, authenticated, service_role
+            """))
             # Independent fixture: also works if only this test file runs.
             c.execute(text("""CREATE TABLE IF NOT EXISTS public.users(
                 telegram_id BIGINT PRIMARY KEY,first_name VARCHAR(255) NOT NULL,
@@ -85,9 +107,23 @@ class StageFiveLedgerTests(unittest.TestCase):
                 FROM public.conversions WHERE click_id LIKE :pattern ORDER BY click_id
             """), {"pattern": cls.prefix+"-legacy-%"}).all()]
             sql = (ROOT / "migrations/20261017_stage5_cpa_ledger.sql").read_text()
-            # Plain CI PostgreSQL lacks Supabase's anon/authenticated roles.
-            sql = "\n".join(line for line in sql.splitlines()
-                            if not line.strip().startswith("REVOKE ALL"))
+            # Test PostgreSQL transactional DDL rollback by deliberately
+            # injecting a failure after the WHOLE migration inside a savepoint.
+            save = c.begin_nested()
+            try:
+                c.connection.cursor().execute(sql + "\nSELECT 1/0;")
+            except Exception:
+                save.rollback()
+            else:
+                raise AssertionError("Expected transactional migration failure")
+            assert c.execute(text("SELECT to_regclass('public.cpa_ledger')")).scalar_one() is None
+            assert c.execute(text("""
+                SELECT COUNT(*) FROM information_schema.columns
+                WHERE table_schema='public' AND table_name='conversions'
+                  AND column_name IN ('finance_eligible_at','finance_approved_at')
+            """)).scalar_one() == 0
+            # Apply twice in one disposable isolated PostgreSQL fixture.
+            c.connection.cursor().execute(sql)
             c.connection.cursor().execute(sql)
             cls.eligible = datetime.now(timezone.utc) - timedelta(days=3)
             cls.approved = datetime.now(timezone.utc) - timedelta(days=2)
@@ -171,6 +207,59 @@ class StageFiveLedgerTests(unittest.TestCase):
             self.assertIsNone(c.execute(text("""
                 SELECT finance_eligible_at FROM public.conversions WHERE id=:id
             """), {"id":self.old_ids[0]}).scalar_one())
+
+    def test_04a_role_matrix_and_ledger_privileges(self):
+        with engine.connect() as c:
+            for role in ("anon","authenticated","service_role"):
+                bypass = c.execute(text("""
+                    SELECT rolbypassrls FROM pg_roles WHERE rolname=:r
+                """), {"r":role}).scalar_one()
+                self.assertEqual(bypass,role=="service_role")
+                for privilege in ("SELECT","INSERT","UPDATE","DELETE","TRUNCATE"):
+                    self.assertFalse(c.execute(text("""
+                        SELECT has_table_privilege(:role, 'public.cpa_ledger', :privilege)
+                    """), {"role":role,"privilege":privilege}).scalar_one(),
+                    msg=f"{role} unexpectedly has {privilege}")
+            self.assertTrue(c.execute(text("""
+                SELECT relrowsecurity FROM pg_class
+                WHERE oid='public.cpa_ledger'::regclass
+            """)).scalar_one())
+            self.assertTrue(c.execute(text("""
+                SELECT has_table_privilege('postgres','public.cpa_ledger','INSERT')
+            """)).scalar_one())
+        # Test actual SQL role access, not just privilege metadata.
+        for role in ("anon","authenticated","service_role"):
+            for statement in ("SELECT count(*) FROM public.cpa_ledger",
+                              "INSERT INTO public.cpa_ledger DEFAULT VALUES",
+                              "UPDATE public.cpa_ledger SET amount=0",
+                              "DELETE FROM public.cpa_ledger",
+                              "TRUNCATE public.cpa_ledger"):
+                with self.subTest(role=role,statement=statement):
+                    with self.assertRaises(DBAPIError):
+                        with engine.begin() as c:
+                            c.execute(text("SET LOCAL ROLE "+role))
+                            c.execute(text(statement))
+
+    def test_04aa_wallet_check_and_sql_numeric_overflow(self):
+        for statement in (
+            "UPDATE public.users SET balance=-0.01 WHERE telegram_id=:uid",
+            "UPDATE public.users SET hold=-0.01 WHERE telegram_id=:uid",
+        ):
+            with self.assertRaises(DBAPIError):
+                with engine.begin() as c:
+                    c.execute(text(statement),{"uid":USER})
+        with engine.connect() as c:
+            self.assertEqual(c.execute(text("""
+                SELECT 9999999999.99::NUMERIC(12,2)
+            """)).scalar_one(),Decimal("9999999999.99"))
+        with self.assertRaises(DBAPIError):
+            with engine.begin() as c:
+                c.execute(text("SELECT 10000000000.00::NUMERIC(12,2)"))
+        with engine.connect() as c:
+            self.assertEqual(tuple(c.execute(text("""
+                SELECT balance,hold,withdrawn FROM public.users
+                WHERE telegram_id=:uid
+            """),{"uid":USER}).one()),self.before_wallet)
 
     def test_04b_approval_time_write_once(self):
         # New pending conversions can be approved once in a future
@@ -274,6 +363,27 @@ class StageFiveLedgerTests(unittest.TestCase):
             self.assertEqual(c.execute(text("""
                 SELECT hold FROM public.users WHERE telegram_id=:id
             """), {"id":OTHER}).scalar_one(),Decimal("87.00"))
+
+    def test_08b_sql_direct_forged_fee_and_hold_rejected(self):
+        for operation,amount,hold in (
+            ("hold_credit","81.00","81.00"),
+            ("platform_fee_accrual","21.00","0.00"),
+        ):
+            with self.subTest(operation=operation), self.assertRaises(DBAPIError):
+                with engine.begin() as c:
+                    c.execute(text("""
+                        INSERT INTO public.cpa_ledger
+                          (conversion_id,user_id,operation_type,event_key,amount,
+                           hold_delta,platform_fee_delta,approved_at,hold_until,actor_type)
+                        VALUES (:id,:uid,:operation,:key,:amount,
+                                :hold,:fee,:approved,:until,'postback')
+                    """), {"id":self.ids["parallel"],"uid":OTHER,
+                            "operation":operation,"key":self.prefix+"-forged-"+operation,
+                            "amount":amount,"hold":hold,
+                            "fee":amount if operation=="platform_fee_accrual" else "0",
+                            "approved":self.approved,
+                            "until":self.approved+timedelta(hours=240)
+                              if operation=="hold_credit" else None})
 
     def test_09_direct_historical_ledger_write_rejected(self):
         with self.assertRaises(DBAPIError):
