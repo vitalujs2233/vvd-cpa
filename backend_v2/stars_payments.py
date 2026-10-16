@@ -83,7 +83,7 @@ def verified_telegram_id(init_data: str, now: int | None = None) -> int:
         data.pop("signature", None)
         if not re.fullmatch(r"[0-9a-fA-F]{64}", incoming_hash):
             raise TelegramAuthError("invalid_signature")
-        check_string = "\\n".join(f"{key}={value}" for key, value in sorted(data.items()))
+        check_string = "\n".join(f"{key}={value}" for key, value in sorted(data.items()))
         secret = hmac.new(b"WebAppData", token.encode("utf-8"), hashlib.sha256).digest()
         expected = hmac.new(secret, check_string.encode("utf-8"), hashlib.sha256).hexdigest()
         if not hmac.compare_digest(expected, incoming_hash.lower()):
