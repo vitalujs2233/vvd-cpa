@@ -108,7 +108,7 @@ class NeutralLinkTests(unittest.TestCase):
         other=client.post("/cpa/links/"+self.offers[1],headers=headers(FIRST)).json()["url"]
         self.assertEqual(len({url,second,other}),3)
         self.assertEqual(client.get("/cpa/links/"+self.offers[0],headers=headers(SECOND)).json()["url"],second)
-        self.assertEqual(client.post("/cpa/links/"+self.offers[0],headers=headers={"X-Telegram-Init-Data":"forged"}).status_code,401)
+        self.assertEqual(client.post("/cpa/links/"+self.offers[0],headers={"X-Telegram-Init-Data":"forged"}).status_code,401)
         self.assertEqual(client.post("/cpa/links/"+self.offers[0]).status_code,401)
 
     def test_b_clicks_and_redirect(self):
