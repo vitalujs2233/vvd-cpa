@@ -108,7 +108,7 @@ export const AIEditor:React.FC=()=>{
       <label className="flex items-center gap-2 text-xs text-textSecondary"><input type="checkbox" checked={rightsConfirmed} onChange={e=>setRightsConfirmed(e.target.checked)}/> Подтверждаю права на загружаемый аватар.</label>
       {id?<label className="flex cursor-pointer items-center justify-center gap-2 rounded-app-xs border border-accentGold/30 p-3 text-sm text-accentBrightGold"><Upload size={16}/> Загрузить аватар<input type="file" className="hidden" disabled={!rightsConfirmed||uploading} accept="image/jpeg,image/png,image/webp" onChange={e=>void upload(e,true)}/></label>:
         <p className="text-xs text-textSecondary">Сначала сохраните профиль, чтобы загрузить аватар.</p>}
-      {model.photo_url&&<div className="flex items-center gap-3"><img src={model.photo_url} alt="Аватар" className="h-16 w-16 rounded-full object-cover"/><button type="button" className="text-xs text-accentBrightGold" onClick={()=>void avatar(null)}>Удалить аватар</button></div>}
+      {model.photo_url&&<div className="flex items-center gap-3"><img src={fileUrl(photos.find(p=>model.photo_url===fileUrl(p.url))?.preview_url||model.photo_url)} alt="Аватар" className="h-16 w-16 rounded-full object-cover"/><button type="button" className="text-xs text-accentBrightGold" onClick={()=>void avatar(null)}>Удалить аватар</button></div>}
     </Card>}
     {tab==='chat'&&<Card className="flex flex-col gap-3">
       <Field label="Первое сообщение" value={model.greeting} set={v=>update('greeting',v)} long/>
