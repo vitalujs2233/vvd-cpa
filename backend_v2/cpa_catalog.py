@@ -177,6 +177,14 @@ def offers_admin(x_telegram_init_data:str|None=Header(None)):
     return {"items":[{**dict(x),"commission_percent":str(x["commission_percent"])} for x in rows]}
 
 def checked_offer(conn,payload):
+    if payload.status == "published" and payload.offer_type == "smartlink":
+        if not payload.source_url:
+            raise HTTPException(422, "Для публикации Smartlink укажите действующую исходную HTTPS-ссылку")
+        if not payload.network_id:
+            raise HTTPException(422, "Выберите партнёрскую сеть перед публикацией")
+        ready=conn.execute(text("SELECT is_active FROM cpa_networks WHERE id=:id"),{"id":payload.network_id}).scalar()
+        if ready is not True:
+            raise HTTPException(422, "Сначала включите настроенную партнёрскую сеть")
     if not conn.execute(text("SELECT 1 FROM cpa_verticals WHERE slug=:s"),{"s":payload.vertical_slug}).first():
         raise HTTPException(422,"Сначала создайте вертикаль")
     if payload.network_id and not conn.execute(text("SELECT 1 FROM cpa_networks WHERE id=:id"),{"id":payload.network_id}).first():
