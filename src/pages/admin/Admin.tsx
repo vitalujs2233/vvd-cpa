@@ -347,6 +347,7 @@ const saveChatBanner = async () => {
     | 'withdrawals'
     | 'banner'
     | 'chatBans'
+    | 'cpa'
 ) => {
   triggerHaptic.lightImpact();
   setSubView(view);
