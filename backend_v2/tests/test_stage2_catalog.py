@@ -72,7 +72,7 @@ class StageTwoCatalogTests(unittest.TestCase):
         self.assertEqual(result["offers"][0]["title"],"Sample offer")
         self.assertEqual(next(x for x in client.get("/cpa/catalog").json()["verticals"] if x["slug"]==self.slug)["offers_count"],1)
 
-    def test_a2_reject_unconfigured_published_smartlink(self):
+    def test_az_reject_unconfigured_published_smartlink(self):
         h=signed(ADMIN)
         base={
             "id":"missing-source-"+self.suffix,
