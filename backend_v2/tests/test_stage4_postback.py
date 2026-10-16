@@ -161,6 +161,56 @@ class PostbackTests(unittest.TestCase):
         self.assertTrue(all(x["offer_id"]==self.offer and x["user_id"]==UID and x["network_id"]==self.network_id and x["partner_code"]=="VVD964001" and x["vertical_slug"]=="utilities" and x["payout_net"]==0 and not x["is_test"] for x in rows))
         self.assertEqual(tuple(before),tuple(after))
 
+    def test_z_admin_server_check_isolated_once_and_preserves_finance(self):
+        # This method operates only on the CI PostgreSQL fixture.
+        with engine.begin() as c:
+            saved=c.execute(text("""SELECT name,postback_enabled,postback_key_hash,
+                    postback_params,postback_status_map,postback_last_received_at
+                    FROM cpa_networks WHERE id=2""")).mappings().first()
+            if saved:
+                c.execute(text("UPDATE cpa_networks SET name='VVD Test Network',postback_enabled=FALSE WHERE id=2"))
+            else:
+                c.execute(text("INSERT INTO cpa_networks(id,name,postback_enabled) VALUES(2,'VVD Test Network',FALSE)"))
+            c.execute(text("""INSERT INTO offers(id,title,smartlink_suffix,vertical_slug,network_id,status)
+                VALUES('vvd-test-smartlink','Neutral isolated fixture','vvd-isolated-test','utilities',2,'published')"""))
+            c.execute(text("""INSERT INTO clicks(user_id,partner_code,click_id,vertical,offer_id,network_id)
+                VALUES(:uid,'VVD964001',:click,'utilities','vvd-test-smartlink',2)"""),
+                {"uid":UID,"click":"isolated-stage4-"+self.tag})
+            user_before=tuple(c.execute(text("SELECT balance,hold,withdrawn FROM users WHERE telegram_id=:id"),{"id":UID}).one())
+            payouts_before=c.execute(text("SELECT count(*) FROM withdrawals")).scalar_one()
+        try:
+            first=client.post("/cpa/admin/networks/2/postback/check",headers=auth(ADMIN))
+            self.assertEqual(first.status_code,200,first.text)
+            result=first.json()
+            self.assertTrue(result["attribution"] and result["duplicate"] and result["financial_unchanged"])
+            self.assertEqual((result["http_first"],result["http_duplicate"],result["http_bad_secret"],result["http_unknown_click"]),(200,200,401,404))
+            self.assertEqual(client.post("/cpa/admin/networks/2/postback/check",headers=auth(ADMIN)).status_code,409)
+            with engine.connect() as c:
+                row=c.execute(text("""SELECT is_test,status,payout_gross,payout_net,user_id,network_id,offer_id
+                    FROM conversions WHERE click_id=:click"""),{"click":"isolated-stage4-"+self.tag}).mappings().one()
+                self.assertTrue(row["is_test"])
+                self.assertEqual((row["status"],row["payout_gross"],row["payout_net"],row["user_id"],row["network_id"],row["offer_id"]),("pending",0,0,UID,2,"vvd-test-smartlink"))
+                self.assertEqual(tuple(c.execute(text("SELECT balance,hold,withdrawn FROM users WHERE telegram_id=:id"),{"id":UID}).one()),user_before)
+                self.assertEqual(c.execute(text("SELECT count(*) FROM withdrawals")).scalar_one(),payouts_before)
+                cfg=c.execute(text("SELECT postback_enabled,postback_key_hash FROM cpa_networks WHERE id=2")).one()
+                self.assertFalse(cfg[0])
+                self.assertEqual(cfg[1],saved["postback_key_hash"] if saved else None)
+            self.assertEqual(self.send("isolated-stage4-"+self.tag).status_code,404)
+        finally:
+            with engine.begin() as c:
+                c.execute(text("DELETE FROM conversions WHERE click_id=:click"),{"click":"isolated-stage4-"+self.tag})
+                c.execute(text("DELETE FROM clicks WHERE click_id=:click"),{"click":"isolated-stage4-"+self.tag})
+                c.execute(text("DELETE FROM offers WHERE id='vvd-test-smartlink'"))
+                if saved:
+                    c.execute(text("""UPDATE cpa_networks SET name=:name,postback_enabled=:enabled,
+                        postback_key_hash=:hash,postback_params=CAST(:params AS jsonb),
+                        postback_status_map=CAST(:statuses AS jsonb),postback_last_received_at=:last
+                        WHERE id=2"""),{"name":saved["name"],"enabled":saved["postback_enabled"],
+                        "hash":saved["postback_key_hash"],"params":json.dumps(saved["postback_params"]),
+                        "statuses":json.dumps(saved["postback_status_map"]),"last":saved["postback_last_received_at"]})
+                else:
+                    c.execute(text("DELETE FROM cpa_networks WHERE id=2"))
+
     def test_c_bad_amount_network_and_parallel_idempotency(self):
         self.assertEqual(self.send(self.click,price="-1").status_code,422)
         self.assertEqual(self.send(self.click,ccy="USD123").status_code,422)
