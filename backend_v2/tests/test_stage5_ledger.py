@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from database import engine
 from cpa_finance import (
-    FinanceIneligible, ledger_events_for_conversion, money,
+    FinanceIneligible, FinanceInconsistent, ledger_events_for_conversion, money,
     post_approved_hold, split_gross,
 )
 
@@ -85,6 +85,9 @@ class StageFiveLedgerTests(unittest.TestCase):
             )"""))
             c.execute(text("ALTER TABLE public.conversions ADD COLUMN IF NOT EXISTS is_test BOOLEAN NOT NULL DEFAULT FALSE"))
             c.execute(text("ALTER TABLE public.conversions ADD COLUMN IF NOT EXISTS currency VARCHAR(3)"))
+            # Existing Supabase service_role retains legacy conversion access,
+            # while direct CPA ledger access must be denied.
+            c.execute(text("GRANT SELECT,UPDATE ON public.conversions TO service_role"))
             for uid in (USER, OTHER):
                 c.execute(text("""INSERT INTO public.users
                     (telegram_id,first_name,balance,hold,withdrawn)
@@ -261,6 +264,18 @@ class StageFiveLedgerTests(unittest.TestCase):
                 WHERE telegram_id=:uid
             """),{"uid":USER}).one()),self.before_wallet)
 
+    def test_04ab_service_role_legacy_conversion_updates_still_work(self):
+        with engine.begin() as c:
+            c.execute(text("SET LOCAL ROLE service_role"))
+            value=c.execute(text("""
+                UPDATE public.conversions
+                   SET processed_at=processed_at
+                 WHERE id=:id RETURNING id
+            """),{"id":self.old_ids[0]}).scalar_one()
+            self.assertEqual(value,self.old_ids[0])
+        # Production's old protected Postback continues to use existing
+        # conversion permissions; ledger remains service_role-inaccessible.
+
     def test_04b_approval_time_write_once(self):
         # New pending conversions can be approved once in a future
         # authenticated postback transaction; changing approval later is forbidden.
@@ -384,6 +399,20 @@ class StageFiveLedgerTests(unittest.TestCase):
                             "approved":self.approved,
                             "until":self.approved+timedelta(hours=240)
                               if operation=="hold_credit" else None})
+
+    def test_08c_wallet_overflow_is_atomic_and_fail_closed(self):
+        with self.assertRaises(FinanceInconsistent):
+            with engine.begin() as c:
+                c.execute(text("""
+                    UPDATE public.users SET hold=9999999999.99
+                    WHERE telegram_id=:id
+                """),{"id":USER})
+                post_approved_hold(c,self.ids["rollback"])
+        with engine.connect() as c:
+            self.assertEqual(len(ledger_events_for_conversion(c,self.ids["rollback"])),0)
+            self.assertEqual(c.execute(text("""
+                SELECT hold FROM public.users WHERE telegram_id=:id
+            """),{"id":USER}).scalar_one(),Decimal("87.00"))
 
     def test_09_direct_historical_ledger_write_rejected(self):
         with self.assertRaises(DBAPIError):
