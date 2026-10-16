@@ -1452,6 +1452,7 @@ async def admin_withdrawals(status: str | None = None):
         rows = conn.execute(text("""
             SELECT w.id, w.user_id, w.amount, w.payment_method,
                    w.wallet, w.status, w.created_at, w.processed_at,
+                   w.cpa_real_epoch_at,
                    u.partner_code, u.first_name, u.last_name, u.username
             FROM withdrawals w
             LEFT JOIN users u ON u.telegram_id = w.user_id
@@ -1473,6 +1474,7 @@ async def admin_withdrawals(status: str | None = None):
             "payment_method": r.payment_method,
             "wallet": r.wallet,
             "status": r.status,
+            "is_real_finance": r.cpa_real_epoch_at is not None,
             "created_at": str(r.created_at),
             "processed_at": str(r.processed_at) if r.processed_at else None
         } for r in rows]
