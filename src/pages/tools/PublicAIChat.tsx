@@ -7,7 +7,7 @@ const err=(e:unknown)=>e instanceof Error?e.message:'Не удалось свя�
 export const PublicAIPage:React.FC<{slug:string}>=({slug})=>{
   const [person,setPerson]=useState<PublicCharacter|null>(null),[session,setSession]=useState<PublicSession|null>(null);
   const [entries,setEntries]=useState<ChatEntry[]>([]),[text,setText]=useState(''),[busy,setBusy]=useState(false);
-  const [error,setError]=useState(''),[info,setInfo]=useState(false);
+  const [error,setError]=useState(''),[info,setInfo]=useState(false),[adult,setAdult]=useState(false);
   const bottom=useRef<HTMLDivElement>(null);
   useEffect(()=>{
     let active=true;
@@ -35,12 +35,15 @@ export const PublicAIPage:React.FC<{slug:string}>=({slug})=>{
     finally{setBusy(false);}
   };
   const offer=async()=>{
-    if(!session)return;
+    if(!session||!adult)return;
+    const tab=window.open('about:blank','_blank');
+    if(tab)tab.opener=null;
     try{
-      const r=await aiApi.click(slug,session.token);
+      const r=await aiApi.click(slug,session.token,adult);
       if(!r.url.startsWith('https://'))throw new Error('Ссылка недоступна');
-      window.open(r.url,'_blank','noopener,noreferrer');
-    }catch(e){setError(err(e));}
+      if(tab)tab.location.href=r.url;
+      else window.location.assign(r.url);
+    }catch(e){tab?.close();setError(err(e));}
   };
   return <div className="mx-auto flex h-[100dvh] max-w-2xl flex-col overflow-hidden bg-bgMain text-textPrimary">
     <header className="flex shrink-0 items-center gap-3 border-b border-accentGold/15 bg-bgCard px-4 py-3">
@@ -68,7 +71,8 @@ export const PublicAIPage:React.FC<{slug:string}>=({slug})=>{
       <div ref={bottom}/>
     </div>
     <div className="shrink-0 space-y-2 border-t border-white/10 bg-bgCard px-3 py-3 pb-[max(14px,env(safe-area-inset-bottom))]">
-      {person?.affiliate_url&&<button type="button" onClick={()=>void offer()} disabled={!session} className="flex w-full items-center justify-center gap-2 rounded-app-xs bg-gold-gradient px-4 py-3 text-sm font-bold text-bgMain disabled:opacity-50">
+      {person?.affiliate_url&&<label className="flex items-center gap-2 text-xs text-textSecondary"><input type="checkbox" checked={adult} onChange={e=>setAdult(e.target.checked)}/> Подтверждаю, что мне есть 18 лет</label>}
+      {person?.affiliate_url&&<button type="button" onClick={()=>void offer()} disabled={!session||!adult} className="flex w-full items-center justify-center gap-2 rounded-app-xs bg-gold-gradient px-4 py-3 text-sm font-bold text-bgMain disabled:opacity-50">
         <ExternalLink size={16}/>{person.button_label||'Посмотреть предложение'} <span className="text-[10px] font-normal">· Реклама</span>
       </button>}
       <form onSubmit={send} className="flex gap-2">
