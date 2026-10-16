@@ -149,7 +149,7 @@ BEGIN
       USING ERRCODE = '23514';
   END IF;
   IF NEW.original_entry_id IS NOT NULL THEN
-    SELECT user_id,conversion_id,operation_type INTO source_entry
+    SELECT user_id,conversion_id,operation_type,amount,hold_until INTO source_entry
       FROM public.cpa_ledger WHERE id=NEW.original_entry_id FOR KEY SHARE;
     IF NOT FOUND OR source_entry.user_id <> NEW.user_id
       OR source_entry.conversion_id <> NEW.conversion_id THEN
@@ -163,6 +163,19 @@ BEGIN
       OR (NEW.operation_type IN ('balance_reversal','recovery_pending')
         AND source_entry.operation_type <> 'hold_release') THEN
       RAISE EXCEPTION 'Incorrect ledger origin operation' USING ERRCODE='23514';
+    END IF;
+    IF NEW.operation_type='hold_release' AND (
+      source_entry.hold_until IS NULL
+      OR clock_timestamp() < source_entry.hold_until
+      OR NEW.amount <> source_entry.amount
+    ) THEN
+      RAISE EXCEPTION 'Hold cannot release before 240 hours or for a partial amount'
+        USING ERRCODE='23514';
+    END IF;
+    IF NEW.operation_type IN ('hold_reversal','platform_fee_reversal','balance_reversal')
+      AND NEW.amount <> source_entry.amount THEN
+      RAISE EXCEPTION 'Correction must match original full event amount'
+        USING ERRCODE='23514';
     END IF;
   END IF;
   RETURN NEW;
