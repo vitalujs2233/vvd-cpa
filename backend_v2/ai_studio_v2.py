@@ -191,13 +191,24 @@ def photo_settings(photo_id:UUID,payload:PhotoSettings,x_telegram_init_data:str|
 @router.delete("/photos/{photo_id}")
 async def remove_photo(photo_id:UUID,x_telegram_init_data:str|None=Header(None)):
     uid=owner(x_telegram_init_data)
-    with engine.begin() as conn:
-        row=conn.execute(text("DELETE FROM tool_ai_photos WHERE id=:pid AND owner_id=:uid RETURNING object_key"),
+    with engine.connect() as conn:
+        row=conn.execute(text("SELECT object_key FROM tool_ai_photos WHERE id=:pid AND owner_id=:uid"),
                          {"pid":photo_id,"uid":uid}).first()
-    if not row: raise HTTPException(404,"Фотография не найдена")
+    if not row:raise HTTPException(404,"Фотография не найдена")
     base,key=storage_settings()
-    async with httpx.AsyncClient(timeout=10) as client:
-        await client.delete(f"{base}/storage/v1/object/ai-character-media/{row.object_key}",headers=storage_headers(key))
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            result=await client.delete(f"{base}/storage/v1/object/ai-character-media/{row.object_key}",
+                headers=storage_headers(key))
+            if result.status_code not in (200,204,404):
+                raise HTTPException(503,"Не удалось удалить файл")
+    except httpx.HTTPError as exc:
+        raise HTTPException(503,"Хранилище временно недоступно") from exc
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE tool_ai_models SET photo_url=NULL WHERE id=(SELECT model_id FROM tool_ai_photos WHERE id=:pid) AND photo_url LIKE :suffix"),
+                     {"pid":photo_id,"suffix":f"%/{photo_id}"})
+        conn.execute(text("DELETE FROM tool_ai_photos WHERE id=:pid AND owner_id=:uid"),
+                     {"pid":photo_id,"uid":uid})
     return {"ok":True}
 
 @router.get("/public/photos/{photo_id}")
@@ -359,25 +370,29 @@ def click_offer(slug:str,payload:SessionCreate):
 @router.delete("/models/{model_id}")
 async def delete_model(model_id:UUID,x_telegram_init_data:str|None=Header(None)):
     uid=owner(x_telegram_init_data)
-    with engine.begin() as conn:
-        exists=conn.execute(text("SELECT 1 FROM tool_ai_models WHERE id=:mid AND telegram_id=:uid FOR UPDATE"),
+    with engine.connect() as conn:
+        exists=conn.execute(text("SELECT 1 FROM tool_ai_models WHERE id=:mid AND telegram_id=:uid"),
                             {"mid":model_id,"uid":uid}).first()
         if not exists:raise HTTPException(404,"Персонаж не найден")
         objects=conn.execute(text("SELECT object_key FROM tool_ai_photos WHERE model_id=:mid AND owner_id=:uid"),
                              {"mid":model_id,"uid":uid}).all()
-        conn.execute(text("DELETE FROM tool_ai_models WHERE id=:mid AND telegram_id=:uid"),
-                     {"mid":model_id,"uid":uid})
-    # External cleanup is best effort. Missing storage configuration cannot
-    # prevent the owner from deleting a profile and all database records.
+    # Delete files first. If the provider fails, retain the database records
+    # so that the owner can retry without losing track of private media.
     if objects:
+        base,key=storage_settings()
         try:
-            base,key=storage_settings()
             async with httpx.AsyncClient(timeout=15) as client:
                 for item in objects:
-                    await client.delete(f"{base}/storage/v1/object/ai-character-media/{item.object_key}",
-                                        headers=storage_headers(key))
-        except (httpx.HTTPError,HTTPException):
-            pass
+                    response=await client.delete(
+                        f"{base}/storage/v1/object/ai-character-media/{item.object_key}",
+                        headers=storage_headers(key))
+                    if response.status_code not in (200,204,404):
+                        raise HTTPException(503,"Не удалось удалить изображение из хранилища")
+        except httpx.HTTPError as exc:
+            raise HTTPException(503,"Хранилище временно недоступно") from exc
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM tool_ai_models WHERE id=:mid AND telegram_id=:uid"),
+                     {"mid":model_id,"uid":uid})
     return {"ok":True}
 
 @router.get("/models/{model_id}/stats")
