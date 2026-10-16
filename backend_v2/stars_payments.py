@@ -80,7 +80,8 @@ def verified_telegram_id(init_data: str, now: int | None = None) -> int:
         if len(data) != len(pairs):
             raise TelegramAuthError("init_data_invalid")
         incoming_hash = data.pop("hash")
-        data.pop("signature", None)
+        # For bot-token HMAC validation only hash is excluded.
+        # Telegram signature (Ed25519) is included in data-check-string when present.
         if not re.fullmatch(r"[0-9a-fA-F]{64}", incoming_hash):
             raise TelegramAuthError("invalid_signature")
         check_string = "\n".join(f"{key}={value}" for key, value in sorted(data.items()))
