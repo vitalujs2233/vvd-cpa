@@ -41,7 +41,7 @@ class PostbackTests(unittest.TestCase):
             c.execute(text("ALTER TABLE clicks ADD COLUMN IF NOT EXISTS network_id BIGINT"))
             # Legacy statistics exists in production, but the isolated CI database
             # must create its own minimal table before regression assertions.
-            c.execute(text("""CREATE TABLE IF NOT EXISTS statistics (
+            c.execute(text("""CREATE TABLE IF NOT EXISTS withdrawals (\n                id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL,\n                amount NUMERIC(12,2) NOT NULL DEFAULT 0\n            )"""))\n            c.execute(text("""CREATE TABLE IF NOT EXISTS statistics (
                 id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL,
                 date DATE NOT NULL DEFAULT CURRENT_DATE,
                 clicks INTEGER NOT NULL DEFAULT 0,
