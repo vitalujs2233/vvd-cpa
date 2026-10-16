@@ -122,42 +122,35 @@ def settings_update(model_id:UUID,payload:ConversationSettings,x_telegram_init_d
 async def add_photo(model_id:UUID,file:UploadFile=File(...),rights_confirmed:bool=Form(False),
   x_telegram_init_data:str|None=Header(None)):
     uid=owner(x_telegram_init_data)
-    if not rights_confirmed: raise HTTPException(422,'Подтвердите права на изображение')
-    with engine.connect() as conn:
-        exists=conn.execute(text("SELECT 1 FROM tool_ai_models WHERE id=:id AND telegram_id=:uid"),{"id":model_id,"uid":uid}).first()
-        count=conn.execute(text("SELECT count(*) FROM tool_ai_photos WHERE model_id=:id"),{"id":model_id}).scalar()
-    if not exists: raise HTTPException(404,"Персонаж не найден")
-    if count>=MAX_PHOTOS: raise HTTPException(422,"Не более 12 фотографий")
-    contents=await file.read(MAX_IMAGE+1)
-    if not contents or len(contents)>MAX_IMAGE: raise HTTPException(413,"Максимальный размер 4 МБ")
+    if not rights_confirmed: raise HTTPException(422,"Подтвердите права на изображение")
+    content=await file.read(MAX_IMAGE+1)
+    if not content or len(content)>MAX_IMAGE: raise HTTPException(413,"Максимальный размер 4 МБ")
     try:
-        with Image.open(io.BytesIO(contents)) as img:
+        with Image.open(io.BytesIO(content)) as img:
             img.verify()
-        with Image.open(io.BytesIO(contents)) as img:
+        with Image.open(io.BytesIO(content)) as img:
             if img.width*img.height>16_000_000: raise HTTPException(422,"Слишком большое изображение")
             if img.format not in ("JPEG","PNG","WEBP"): raise HTTPException(422,"Нужен JPG, PNG или WebP")
-            # Re-encode image to drop metadata and exclude embedded content.
-            out=io.BytesIO()
-            img.convert("RGB").save(out,format="JPEG",quality=88)
-            data=out.getvalue()
+            img.thumbnail((1280,1280))
+            output=io.BytesIO()
+            img.convert("RGB").save(output,format="JPEG",quality=83,optimize=True)
+            data=output.getvalue()
+            if len(data)>2_000_000: raise HTTPException(413,"Изображение после обработки слишком велико")
     except (UnidentifiedImageError,ValueError,OSError,Image.DecompressionBombError):
         raise HTTPException(422,"Некорректное изображение")
-    base,key=storage_settings()
-    object_key=f"{uid}/{model_id}/{secrets.token_hex(16)}.jpg"
-    async with httpx.AsyncClient(timeout=20) as client:
-        response=await client.post(f"{base}/storage/v1/object/ai-character-media/{object_key}",
-          headers={**storage_headers(key),"Content-Type":"image/jpeg","x-upsert":"false"},content=data)
-    if response.status_code not in (200,201): raise HTTPException(503,"Не удалось сохранить изображение")
-    try:
-        with engine.begin() as conn:
-            photo_id=conn.execute(text("""INSERT INTO tool_ai_photos(model_id,owner_id,object_key,mime_type)
-                 VALUES(:model,:uid,:key,'image/jpeg') RETURNING id"""),
-                 {"model":model_id,"uid":uid,"key":object_key}).scalar_one()
-    except Exception:
-        async with httpx.AsyncClient(timeout=10) as client:
-            await client.delete(f"{base}/storage/v1/object/ai-character-media/{object_key}",headers=storage_headers(key))
-        raise
-    return {"id":str(photo_id),"url":f"/ai-studio/public/photos/{photo_id}","preview_url":media_preview_url(photo_id),"title":""}
+    object_key=f"db/{uid}/{model_id}/{secrets.token_hex(16)}.jpg"
+    with engine.begin() as conn:
+        # A model row lock enforces the photo count under concurrent uploads.
+        model=conn.execute(text("SELECT id FROM tool_ai_models WHERE id=:id AND telegram_id=:uid FOR UPDATE"),
+                           {"id":model_id,"uid":uid}).first()
+        if not model: raise HTTPException(404,"Персонаж не найден")
+        count=conn.execute(text("SELECT count(*) FROM tool_ai_photos WHERE model_id=:id"),{"id":model_id}).scalar()
+        if count>=MAX_PHOTOS: raise HTTPException(422,"Не более 12 фотографий")
+        photo_id=conn.execute(text("""INSERT INTO tool_ai_photos(model_id,owner_id,object_key,mime_type,content)
+             VALUES(:mid,:uid,:key,'image/jpeg',:content) RETURNING id"""),
+             {"mid":model_id,"uid":uid,"key":object_key,"content":data}).scalar_one()
+    return {"id":str(photo_id),"url":f"/ai-studio/public/photos/{photo_id}",
+       "preview_url":media_preview_url(photo_id),"title":""}
 
 @router.get("/models/{model_id}/photos")
 def list_photos(model_id:UUID,x_telegram_init_data:str|None=Header(None)):
@@ -191,32 +184,22 @@ def photo_settings(photo_id:UUID,payload:PhotoSettings,x_telegram_init_data:str|
 @router.delete("/photos/{photo_id}")
 async def remove_photo(photo_id:UUID,x_telegram_init_data:str|None=Header(None)):
     uid=owner(x_telegram_init_data)
-    with engine.connect() as conn:
-        row=conn.execute(text("SELECT object_key FROM tool_ai_photos WHERE id=:pid AND owner_id=:uid"),
-                         {"pid":photo_id,"uid":uid}).first()
-    if not row:raise HTTPException(404,"Фотография не найдена")
-    base,key=storage_settings()
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            result=await client.delete(f"{base}/storage/v1/object/ai-character-media/{row.object_key}",
-                headers=storage_headers(key))
-            if result.status_code not in (200,204,404):
-                raise HTTPException(503,"Не удалось удалить файл")
-    except httpx.HTTPError as exc:
-        raise HTTPException(503,"Хранилище временно недоступно") from exc
     with engine.begin() as conn:
-        conn.execute(text("UPDATE tool_ai_models SET photo_url=NULL WHERE id=(SELECT model_id FROM tool_ai_photos WHERE id=:pid) AND photo_url LIKE :suffix"),
-                     {"pid":photo_id,"suffix":f"%/{photo_id}"})
-        conn.execute(text("DELETE FROM tool_ai_photos WHERE id=:pid AND owner_id=:uid"),
-                     {"pid":photo_id,"uid":uid})
+        row=conn.execute(text("SELECT model_id FROM tool_ai_photos WHERE id=:id AND owner_id=:uid"),
+                         {"id":photo_id,"uid":uid}).first()
+        if not row: raise HTTPException(404,"Фотография не найдена")
+        conn.execute(text("""UPDATE tool_ai_models SET photo_url=NULL
+          WHERE id=:mid AND telegram_id=:uid AND photo_url LIKE :suffix"""),
+          {"mid":row.model_id,"uid":uid,"suffix":f"%/{photo_id}"})
+        conn.execute(text("DELETE FROM tool_ai_photos WHERE id=:id AND owner_id=:uid"),{"id":photo_id,"uid":uid})
     return {"ok":True}
 
 @router.get("/public/photos/{photo_id}")
 async def public_photo(photo_id:UUID,exp:int|None=None,sig:str|None=None):
     with engine.connect() as conn:
-        row=conn.execute(text("""SELECT p.object_key,p.mime_type,m.status FROM tool_ai_photos p JOIN tool_ai_models m
-          ON m.id=p.model_id WHERE p.id=:id"""),{"id":photo_id}).first()
-    if not row:raise HTTPException(404,"Фотография недоступна")
+        row=conn.execute(text("""SELECT p.content,p.mime_type,m.status FROM tool_ai_photos p
+             JOIN tool_ai_models m ON m.id=p.model_id WHERE p.id=:id"""),{"id":photo_id}).first()
+    if not row: raise HTTPException(404,"Фотография недоступна")
     if row.status!='published':
         if not exp or not sig or exp<int(time.time()) or exp>int(time.time())+3600:
             raise HTTPException(404,"Фотография недоступна")
@@ -224,11 +207,9 @@ async def public_photo(photo_id:UUID,exp:int|None=None,sig:str|None=None):
                           f"{photo_id}:{exp}".encode(),hashlib.sha256).hexdigest()
         if not hmac.compare_digest(expected,sig):
             raise HTTPException(404,"Фотография недоступна")
-    base,key=storage_settings()
-    async with httpx.AsyncClient(timeout=15) as client:
-        r=await client.get(f"{base}/storage/v1/object/ai-character-media/{row.object_key}",headers=storage_headers(key))
-    if r.status_code!=200:raise HTTPException(404,"Изображение недоступно")
-    return Response(r.content,media_type=row.mime_type,headers={"Cache-Control":"public,max-age=300","X-Content-Type-Options":"nosniff"})
+    if row.content is None: raise HTTPException(404,"Фото не загружено")
+    return Response(bytes(row.content),media_type=row.mime_type,
+                    headers={"Cache-Control":"private,max-age=120","X-Content-Type-Options":"nosniff"})
 
 def session_hash(token):
     return hashlib.sha256(token.encode()).hexdigest()
@@ -378,29 +359,10 @@ def click_offer(slug:str,payload:SessionCreate):
 @router.delete("/models/{model_id}")
 async def delete_model(model_id:UUID,x_telegram_init_data:str|None=Header(None)):
     uid=owner(x_telegram_init_data)
-    with engine.connect() as conn:
-        exists=conn.execute(text("SELECT 1 FROM tool_ai_models WHERE id=:mid AND telegram_id=:uid"),
-                            {"mid":model_id,"uid":uid}).first()
-        if not exists:raise HTTPException(404,"Персонаж не найден")
-        objects=conn.execute(text("SELECT object_key FROM tool_ai_photos WHERE model_id=:mid AND owner_id=:uid"),
-                             {"mid":model_id,"uid":uid}).all()
-    # Delete files first. If the provider fails, retain the database records
-    # so that the owner can retry without losing track of private media.
-    if objects:
-        base,key=storage_settings()
-        try:
-            async with httpx.AsyncClient(timeout=15) as client:
-                for item in objects:
-                    response=await client.delete(
-                        f"{base}/storage/v1/object/ai-character-media/{item.object_key}",
-                        headers=storage_headers(key))
-                    if response.status_code not in (200,204,404):
-                        raise HTTPException(503,"Не удалось удалить изображение из хранилища")
-        except httpx.HTTPError as exc:
-            raise HTTPException(503,"Хранилище временно недоступно") from exc
     with engine.begin() as conn:
-        conn.execute(text("DELETE FROM tool_ai_models WHERE id=:mid AND telegram_id=:uid"),
-                     {"mid":model_id,"uid":uid})
+        deleted=conn.execute(text("DELETE FROM tool_ai_models WHERE id=:mid AND telegram_id=:uid RETURNING id"),
+                             {"mid":model_id,"uid":uid}).first()
+    if not deleted:raise HTTPException(404,"Персонаж не найден")
     return {"ok":True}
 
 @router.get("/models/{model_id}/stats")
