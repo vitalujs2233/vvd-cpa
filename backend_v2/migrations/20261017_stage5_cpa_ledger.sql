@@ -1,29 +1,49 @@
 -- Stage 5.2 ONLY: additive, not applied to production by this PR.
 -- No historical data updates, no finance scheduler, no postback integration.
+-- Migration runner MUST execute the whole file in ONE transaction (Supabase apply_migration,
+-- SQLAlchemy engine.begin); no autocommit-per-statement execution. Re-runnable.
 ALTER TABLE public.conversions
   ADD COLUMN IF NOT EXISTS finance_eligible_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS finance_approved_at TIMESTAMPTZ;
 
 -- Old rows (including the single stage-4 test) remain NULL/NULL.
-ALTER TABLE public.conversions
-  ADD CONSTRAINT ck_cpa_finance_scope
-  CHECK (
-    finance_eligible_at IS NULL OR is_test = FALSE
-  );
-ALTER TABLE public.conversions
-  ADD CONSTRAINT ck_cpa_finance_approval
-  CHECK (
-    finance_approved_at IS NULL OR (
-      finance_eligible_at IS NOT NULL
-      AND finance_approved_at >= finance_eligible_at
-      AND is_test = FALSE
-    )
-  );
+DO $ddl$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE
+    conrelid='public.conversions'::regclass AND conname='ck_cpa_finance_scope') THEN
+    ALTER TABLE public.conversions ADD CONSTRAINT ck_cpa_finance_scope
+      CHECK (finance_eligible_at IS NULL OR is_test = FALSE);
+  END IF;
+END
+$ddl$;
+DO $ddl$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE
+    conrelid='public.conversions'::regclass AND conname='ck_cpa_finance_approval') THEN
+    ALTER TABLE public.conversions ADD CONSTRAINT ck_cpa_finance_approval
+      CHECK (finance_approved_at IS NULL OR
+        (finance_eligible_at IS NOT NULL
+         AND finance_approved_at >= finance_eligible_at AND is_test = FALSE));
+  END IF;
+END
+$ddl$;
+
+-- Enforce nonnegative wallet balances without changing existing amounts.
+DO $ddl$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE
+    conrelid='public.users'::regclass AND conname='ck_cpa_users_nonnegative') THEN
+    ALTER TABLE public.users ADD CONSTRAINT ck_cpa_users_nonnegative
+      CHECK (balance >= 0 AND hold >= 0) NOT VALID;
+  END IF;
+END
+$ddl$;
+ALTER TABLE public.users VALIDATE CONSTRAINT ck_cpa_users_nonnegative;
 
 -- Finance opt-in is INSERT-ONLY. A late postback/UPDATE can never opt in
 -- an existing historical conversion. Future stage 5.3 explicitly opts in
 -- newly INSERTED genuine conversions only; there is no column DEFAULT.
-CREATE FUNCTION public.cpa_finance_lock_scope() RETURNS trigger
+CREATE OR REPLACE FUNCTION public.cpa_finance_lock_scope() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
 BEGIN
   IF OLD.finance_eligible_at IS DISTINCT FROM NEW.finance_eligible_at THEN
@@ -37,11 +57,17 @@ BEGIN
   END IF;
   RETURN NEW;
 END $$;
-CREATE TRIGGER trg_cpa_finance_lock_scope
-  BEFORE UPDATE ON public.conversions
-  FOR EACH ROW EXECUTE FUNCTION public.cpa_finance_lock_scope();
+DO $ddl$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='public.conversions'::regclass AND tgname='trg_cpa_finance_lock_scope' AND NOT tgisinternal) THEN
+    CREATE TRIGGER trg_cpa_finance_lock_scope
+      BEFORE UPDATE ON public.conversions
+      FOR EACH ROW EXECUTE FUNCTION public.cpa_finance_lock_scope();
+  END IF;
+END
+$ddl$;
 
-CREATE TABLE public.cpa_ledger (
+CREATE TABLE IF NOT EXISTS public.cpa_ledger (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   conversion_id UUID NOT NULL REFERENCES public.conversions(id) ON DELETE RESTRICT,
   user_id BIGINT NOT NULL REFERENCES public.users(telegram_id) ON DELETE RESTRICT,
@@ -107,21 +133,21 @@ CREATE TABLE public.cpa_ledger (
       AND actor_type = 'admin' AND approved_at IS NULL AND hold_until IS NULL)
   )
 );
-CREATE INDEX idx_cpa_ledger_conversion_time ON public.cpa_ledger(conversion_id,created_at);
-CREATE INDEX idx_cpa_ledger_user_time ON public.cpa_ledger(user_id,created_at);
-CREATE INDEX idx_cpa_ledger_matured ON public.cpa_ledger(hold_until)
+CREATE INDEX IF NOT EXISTS idx_cpa_ledger_conversion_time ON public.cpa_ledger(conversion_id,created_at);
+CREATE INDEX IF NOT EXISTS idx_cpa_ledger_user_time ON public.cpa_ledger(user_id,created_at);
+CREATE INDEX IF NOT EXISTS idx_cpa_ledger_matured ON public.cpa_ledger(hold_until)
   WHERE operation_type = 'hold_credit';
-CREATE UNIQUE INDEX ux_cpa_ledger_single_event ON public.cpa_ledger(conversion_id,operation_type)
+CREATE UNIQUE INDEX IF NOT EXISTS ux_cpa_ledger_single_event ON public.cpa_ledger(conversion_id,operation_type)
   WHERE operation_type IN (
     'hold_credit','platform_fee_accrual','hold_release',
     'hold_reversal','platform_fee_reversal','balance_reversal'
   );
-CREATE UNIQUE INDEX ux_cpa_ledger_single_release ON public.cpa_ledger(original_entry_id)
+CREATE UNIQUE INDEX IF NOT EXISTS ux_cpa_ledger_single_release ON public.cpa_ledger(original_entry_id)
   WHERE operation_type = 'hold_release';
 
 -- Guard against direct insertion for old/test/foreign conversions; check
 -- that references to a source ledger event belong to the same owner.
-CREATE FUNCTION public.cpa_finance_validate_entry() RETURNS trigger
+CREATE OR REPLACE FUNCTION public.cpa_finance_validate_entry() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
 DECLARE
   source_conversion RECORD;
@@ -148,9 +174,24 @@ BEGIN
     RAISE EXCEPTION 'Ledger approval time must match conversion'
       USING ERRCODE = '23514';
   END IF;
+  -- SQL-level 80/20 validation: no forged credit or fee through direct INSERT.
+  IF NEW.operation_type IN ('hold_credit','platform_fee_accrual') THEN
+    IF source_conversion.payout_gross <= 0
+      OR source_conversion.payout_gross <> round(source_conversion.payout_gross,2)
+      OR NEW.amount <> CASE
+        WHEN NEW.operation_type='platform_fee_accrual'
+          THEN round(source_conversion.payout_gross*0.20,2)
+        ELSE source_conversion.payout_gross-
+             round(source_conversion.payout_gross*0.20,2)
+      END
+    THEN
+      RAISE EXCEPTION 'Ledger amount differs from USD 80/20 gross'
+        USING ERRCODE='23514';
+    END IF;
+  END IF;
   IF NEW.original_entry_id IS NOT NULL THEN
     SELECT user_id,conversion_id,operation_type,amount,hold_until INTO source_entry
-      FROM public.cpa_ledger WHERE id=NEW.original_entry_id FOR KEY SHARE;
+      FROM public.cpa_ledger WHERE id=NEW.original_entry_id FOR UPDATE;
     IF NOT FOUND OR source_entry.user_id <> NEW.user_id
       OR source_entry.conversion_id <> NEW.conversion_id THEN
       RAISE EXCEPTION 'Ledger reversal/release must refer to same owner and conversion'
@@ -168,6 +209,9 @@ BEGIN
       source_entry.hold_until IS NULL
       OR clock_timestamp() < source_entry.hold_until
       OR NEW.amount <> source_entry.amount
+      OR EXISTS (SELECT 1 FROM public.cpa_ledger
+        WHERE original_entry_id=NEW.original_entry_id
+          AND operation_type='hold_reversal')
     ) THEN
       RAISE EXCEPTION 'Hold cannot release before 240 hours or for a partial amount'
         USING ERRCODE='23514';
@@ -180,23 +224,47 @@ BEGIN
   END IF;
   RETURN NEW;
 END $$;
-CREATE TRIGGER trg_cpa_finance_validate_entry
-  BEFORE INSERT ON public.cpa_ledger FOR EACH ROW
-  EXECUTE FUNCTION public.cpa_finance_validate_entry();
+DO $ddl$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='public.cpa_ledger'::regclass AND tgname='trg_cpa_finance_validate_entry' AND NOT tgisinternal) THEN
+    CREATE TRIGGER trg_cpa_finance_validate_entry
+      BEFORE INSERT ON public.cpa_ledger FOR EACH ROW
+      EXECUTE FUNCTION public.cpa_finance_validate_entry();
+  END IF;
+END
+$ddl$;
 
-CREATE FUNCTION public.cpa_finance_immutable_ledger() RETURNS trigger
+CREATE OR REPLACE FUNCTION public.cpa_finance_immutable_ledger() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
 BEGIN
   RAISE EXCEPTION 'CPA ledger is append-only' USING ERRCODE='23514';
 END $$;
-CREATE TRIGGER trg_cpa_finance_no_update_delete
-  BEFORE UPDATE OR DELETE ON public.cpa_ledger FOR EACH ROW
-  EXECUTE FUNCTION public.cpa_finance_immutable_ledger();
-CREATE TRIGGER trg_cpa_finance_no_truncate
-  BEFORE TRUNCATE ON public.cpa_ledger FOR EACH STATEMENT
-  EXECUTE FUNCTION public.cpa_finance_immutable_ledger();
+DO $ddl$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='public.cpa_ledger'::regclass AND tgname='trg_cpa_finance_no_update_delete' AND NOT tgisinternal) THEN
+    CREATE TRIGGER trg_cpa_finance_no_update_delete
+      BEFORE UPDATE OR DELETE ON public.cpa_ledger FOR EACH ROW
+      EXECUTE FUNCTION public.cpa_finance_immutable_ledger();
+  END IF;
+END
+$ddl$;
+DO $ddl$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='public.cpa_ledger'::regclass AND tgname='trg_cpa_finance_no_truncate' AND NOT tgisinternal) THEN
+    CREATE TRIGGER trg_cpa_finance_no_truncate
+      BEFORE TRUNCATE ON public.cpa_ledger FOR EACH STATEMENT
+      EXECUTE FUNCTION public.cpa_finance_immutable_ledger();
+  END IF;
+END
+$ddl$;
 
 ALTER TABLE public.cpa_ledger ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.cpa_ledger FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON public.cpa_ledger FROM PUBLIC, anon, authenticated, service_role;
+-- Supabase's default privileges grant BYPASSRLS service_role table access.
+-- Explicit REVOKE ensures service_role cannot use Data API to access ledger.
+GRANT SELECT, INSERT ON public.cpa_ledger TO postgres;
+REVOKE EXECUTE ON FUNCTION public.cpa_finance_lock_scope(),
+  public.cpa_finance_validate_entry(), public.cpa_finance_immutable_ledger()
+  FROM PUBLIC, anon, authenticated, service_role;
 -- No anon/authenticated policies. Existing trusted backend PostgreSQL role
 -- remains the only intended writer. Production rollout needs separate approval.
