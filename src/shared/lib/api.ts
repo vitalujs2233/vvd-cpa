@@ -1,110 +1,49 @@
-// Мы заменили локальный адрес http://localhost:8000 на ваш реальный живой адрес бэкенда на Render
-const API_BASE_URL = 'https://vvd-cpa-v2.onrender.com';
+/** VVD CPA primary backend_v2 API. No synthetic bearer token or client-side identity. */
+export const API_BASE_URL = 'https://vvd-cpa-v2.onrender.com';
 
-/**
- * Безопасное сохранение JWT-токена сессии в локальную память браузера.
- */
-export const saveAuthToken = (token: string): void => {
-  localStorage.setItem('vvd_cpa_jwt_token', token);
+export const signedHeaders = (): Record<string,string> => {
+  const data = window.Telegram?.WebApp?.initData;
+  if (!data) throw new Error('Откройте VVD CPA через Telegram Mini App для авторизации.');
+  return {'X-Telegram-Init-Data': data};
 };
 
-/**
- * Получение текущего JWT-токена из локальной памяти.
- */
-export const getAuthToken = (): string | null => {
-  return localStorage.getItem('vvd_cpa_jwt_token');
+export const authorizedFetch = (input: string, init: RequestInit = {}): Promise<Response> => {
+  const headers = new Headers(init.headers);
+  headers.set('X-Telegram-Init-Data', signedHeaders()['X-Telegram-Init-Data']);
+  return fetch(input,{...init,headers});
 };
 
-/**
- * Удаление JWT-токена из памяти (выход из аккаунта).
- */
-export const removeAuthToken = (): void => {
-  localStorage.removeItem('vvd_cpa_jwt_token');
-};
-
-/**
- * Универсальный асинхронный типизированный хелпер запросов (альтернатива Axios на базе fetch).
- * Автоматически подставляет базовый адрес API, прикрепляет JWT-токен в заголовки
- * и обрабатывает ошибки сервера.
- */
-export const apiRequest = async <T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> => {
-  const url = `${API_BASE_URL}${endpoint}`;
-  const token = getAuthToken();
-
-  // Оптимизировано: Объявили заголовки как Record<string, string> для строгого и безопасного маппинга в TS
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...((options.headers as Record<string, string>) || {}),
-  };
-
-  // Если в памяти браузера сохранен JWT-токен сессии,
-  // автоматически прикрепляем его в заголовок Authorization для всех запросов
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+export const apiRequest = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
+  const headers = new Headers(options.headers);
+  if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
+    headers.set('Content-Type','application/json');
   }
-
-  const config: RequestInit = {
-    ...options,
-    headers,
-  };
-
-  try {
-    const response = await fetch(url, config);
-
-    // Если сервер вернул ошибку, извлекаем ее текст
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Ошибка сервера: ${response.status}`);
-    }
-
-    // Возвращаем результат в нужном типе данных
-    return (await response.json()) as T;
-  } catch (error) {
-    console.error(`Сетевая ошибка при запросе к ${endpoint}:`, error);
-    throw error;
+  // Auth request carries initData in its body. Other owner endpoints get the signed header.
+  if (endpoint !== '/auth' && window.Telegram?.WebApp?.initData && !headers.has('X-Telegram-Init-Data')) {
+    headers.set('X-Telegram-Init-Data',window.Telegram.WebApp.initData);
   }
+  const response = await fetch(API_BASE_URL + endpoint,{...options,headers});
+  if (!response.ok) {
+    const detail = await response.json().catch(()=>({}));
+    throw new Error(String(detail.detail || 'Ошибка API: ' + response.status));
+  }
+  return await response.json() as T;
 };
 
-/**
- * Описание типов данных ответа сервера на запрос авторизации
- */
 export interface AuthResponse {
-  access_token: string;
-  token_type: string;
   user: {
-    telegram_id: number;
-    first_name: string;
-    last_name?: string;
-    username?: string;
-    photo_url?: string;
-    role: string;
-    status: string;
+    telegram_id:number;
+    first_name:string;
+    last_name?:string|null;
+    username?:string|null;
+    photo_url?:string|null;
+    partner_code:string;
+    role:string;
+    status:string;
   };
 }
-
-/**
- * Сетевой POST-запрос авторизации:
- * Отправляет initData в FastAPI бэкенд для проверки подписи и регистрации.
- */
-import { getTelegramUser } from './telegram';
-
-export const loginViaTelegramApi = async (): Promise<AuthResponse> => {
-  const user = getTelegramUser();
-  const referralCode =
-  window.Telegram?.WebApp?.initDataUnsafe?.start_param || "";
-  console.log("START PARAM =", referralCode);
-  return apiRequest<AuthResponse>('/auth', {
-    method: 'POST',
-    body: JSON.stringify({
-      telegram_id: user.id,
-      first_name: user.first_name,
-      last_name: user.last_name || "",
-      username: user.username || "",
-      photo_url: user.photo_url || "",
-      referral_code: referralCode,
-    }),
-  });
+export const loginViaTelegramApi = ():Promise<AuthResponse> => {
+  const initData=window.Telegram?.WebApp?.initData;
+  if(!initData) return Promise.reject(new Error('Telegram initData недоступен. Откройте Mini App из бота.'));
+  return apiRequest<AuthResponse>('/auth',{method:'POST',body:JSON.stringify({init_data:initData})});
 };
