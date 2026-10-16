@@ -178,12 +178,11 @@ BEGIN
   IF NEW.operation_type IN ('hold_credit','platform_fee_accrual') THEN
     IF source_conversion.payout_gross <= 0
       OR source_conversion.payout_gross <> round(source_conversion.payout_gross,2)
-      OR NEW.amount <> CASE
-        WHEN NEW.operation_type='platform_fee_accrual'
-          THEN round(source_conversion.payout_gross*0.20,2)
-        ELSE source_conversion.payout_gross-
-             round(source_conversion.payout_gross*0.20,2)
-      END
+      OR (NEW.operation_type='platform_fee_accrual'
+          AND NEW.amount <> round(source_conversion.payout_gross*0.20,2))
+      OR (NEW.operation_type='hold_credit'
+          AND NEW.amount <> source_conversion.payout_gross -
+             round(source_conversion.payout_gross*0.20,2))
     THEN
       RAISE EXCEPTION 'Ledger amount differs from USD 80/20 gross'
         USING ERRCODE='23514';
