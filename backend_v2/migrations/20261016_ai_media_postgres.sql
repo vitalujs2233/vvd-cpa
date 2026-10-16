@@ -1,0 +1,1 @@
+ALTER TABLE public.tool_ai_photos ADD COLUMN IF NOT EXISTS content BYTEA;

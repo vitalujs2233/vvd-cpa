@@ -134,6 +134,10 @@ def ai_list(x_telegram_init_data: Optional[str] = Header(None)):
 def ai_create(payload:AIModelPayload,x_telegram_init_data:Optional[str]=Header(None)):
     uid=owner(x_telegram_init_data)
     params=payload.model_dump()
+    # Links must go through /ai-studio/models/{id}/link to verify ownership.
+    params["affiliate_url"]=None
+    params["extra_url"]=None
+    params["photo_url"]=None
     params["uid"]=uid
     with engine.begin() as conn:
         try:
@@ -162,6 +166,29 @@ def ai_update(model_id:UUID,payload:AIModelPayload,x_telegram_init_data:Optional
     uid=owner(x_telegram_init_data)
     params=payload.model_dump()
     params.update(uid=uid,id=model_id)
+    # Protect existing verified link selection from generic profile edits.
+    with engine.connect() as read_conn:
+        existing=read_conn.execute(text("""SELECT affiliate_url,extra_url,button_label,photo_url
+          FROM tool_ai_models WHERE id=:id AND telegram_id=:uid"""),{"id":model_id,"uid":uid}).fetchone()
+        if not existing: raise HTTPException(404,"Модель не найдена")
+        params["affiliate_url"]=existing.affiliate_url
+        params["extra_url"]=existing.extra_url
+        params["button_label"]=existing.button_label
+        if payload.photo_url!=existing.photo_url:
+            # Only images uploaded and owned in AI Studio may become avatars.
+            from urllib.parse import urlparse
+            from uuid import UUID
+            try:
+                photo_id=UUID((payload.photo_url or "").rsplit("/",1)[-1])
+            except ValueError:
+                photo_id=None
+            owned=read_conn.execute(text("""SELECT 1 FROM tool_ai_photos
+               WHERE id=:pid AND owner_id=:uid AND model_id=:id"""),{"pid":photo_id,"uid":uid,"id":model_id}).first() if photo_id else None
+            if payload.photo_url and not owned:
+                raise HTTPException(422,"Используйте фотографию, загруженную в AI Studio")
+            params["photo_url"]=payload.photo_url
+        else:
+            params["photo_url"]=existing.photo_url
     with engine.begin() as conn:
         try:
             row=conn.execute(text(f"""
