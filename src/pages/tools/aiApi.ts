@@ -10,6 +10,7 @@ export type Smartlink = {id:string;url:string;title:string;offer:string|null};
 export type Photo = {id:string;url:string;preview_url?:string;title:string;description:string;auto_allowed:boolean;send_rule:string};
 export type ChatEntry = {role:'user'|'assistant';content:string};
 export type PublicSession = {token:string;greeting:string;messages:ChatEntry[];can_chat:boolean;offer:{title:string;available:boolean}};
+export type ConversationSettings = {chat_style:string;reply_length:'short'|'medium'|'detailed';photo_mode:'automatic'|'rules'|'combined';link_kind?:'smartlink'|'external';smartlink_id?:string|null;spend_limit?:string};
 export type ModelStats = {visits:number;conversations:number;messages:number;clicks:number;cost_usd:string|null};
 export const fileUrl = (path:string) => path.startsWith('/')?base+path:path;
 export const aiApi = {
@@ -17,6 +18,8 @@ export const aiApi = {
   chooseLink:(id:string,kind:'smartlink'|'external',smartlink_id:string|null,external_url:string|null,button_label:string,spend_limit:number)=>
     apiRequest('/ai-studio/models/'+encodeURIComponent(id)+'/link',{
       method:'PUT',headers:auth(),body:JSON.stringify({kind,smartlink_id,external_url,button_label,spend_limit})}),
+  settings:(id:string)=>apiRequest<ConversationSettings>('/ai-studio/models/'+id+'/settings',{headers:auth()}),
+  saveSettings:(id:string,value:ConversationSettings)=>apiRequest('/ai-studio/models/'+id+'/settings',{method:'PUT',headers:auth(),body:JSON.stringify(value)}),
   photos:(id:string)=>apiRequest<{photos:Photo[]}>('/ai-studio/models/'+encodeURIComponent(id)+'/photos',{headers:auth()}),
   upload:async (id:string,file:File)=>{
     const form=new FormData();form.append('file',file);form.append('rights_confirmed','true');
