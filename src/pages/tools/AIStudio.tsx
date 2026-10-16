@@ -170,6 +170,6 @@ export const AIEditor:React.FC=()=>{
     {id&&<button type="button" className="rounded-app-xs border border-red-500/30 p-3 text-sm text-red-300" onClick={async()=>{
       if(!window.confirm('Удалить персонажа, все чаты и фотографии без возможности восстановления?'))return;
       try{await aiApi.deleteModel(id);nav('/tools/ai',{replace:true});}catch(e){setError(errorText(e));}
-    }}>Удалить персонажа</button>
+    }}>Удалить персонажа</button>}
   </Shell>;
 };
