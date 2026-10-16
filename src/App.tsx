@@ -19,7 +19,7 @@ import { Chat as SupportChat } from '@/pages/chat/Chat';
 import { Loader } from '@/shared/ui/Loader';
 
 // Импортируем методы сетевого API и хелперы токенов
-import { loginViaTelegramApi } from '@/shared/lib/api';
+import { loginViaTelegramApi, ApiError } from '@/shared/lib/api';
 
 // Главный Лейаут приложения, фиксирующий Bottom Menu
 const AppLayout = () => {
@@ -153,10 +153,21 @@ const MiniApp = () => {
       } catch (cause) {
         if (active) {
           localStorage.removeItem('vvd_cpa_user_data');
-          setAuthMessage(cause instanceof Error &&
-            /Invalid or expired Telegram initData/.test(cause.message)
-            ? 'Сессия Telegram устарела. Полностью закройте Mini App и откройте его заново из бота.'
-            : cause instanceof Error ? cause.message : 'Не удалось авторизоваться.');
+          const code = cause instanceof ApiError ? cause.code : '';
+          const message = code === 'init_data_expired'
+            ? 'Срок действия Telegram-сессии истёк. Закройте Mini App и запустите заново из бота.'
+            : code === 'invalid_signature'
+            ? 'Не удалось подтвердить подлинность входа. Запустите Mini App из официального бота VVD CPA. Если ошибка повторяется, обратитесь в поддержку.'
+            : code === 'network_error'
+            ? 'Нет соединения с сервером VVD CPA. Проверьте интернет и попробуйте открыть приложение снова.'
+            : code === 'account_storage_error' || code === 'auth_config_error' || (cause instanceof ApiError && cause.status >= 500)
+            ? 'Сервис входа временно недоступен. Попробуйте позже или обратитесь в поддержку.'
+            : code === 'init_data_missing' || !(window.Telegram?.WebApp?.initData)
+            ? 'Telegram не передал данные входа. Откройте приложение кнопкой Mini App в официальном боте.'
+            : cause instanceof ApiError
+            ? 'Не удалось проверить Telegram-вход. Запустите Mini App из бота или обратитесь в поддержку.'
+            : cause instanceof Error ? cause.message : 'Не удалось авторизоваться.';
+          setAuthMessage(message);
           setAuthState('error');
         }
       }
