@@ -1,4 +1,5 @@
 import { authorizedFetch } from '@/shared/lib/api';
+import { CPAManager } from './CPAManager';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -78,7 +79,8 @@ export const Admin: React.FC = () => {
   'user' |
   'withdrawals' |
   'banner' |
-  'chatBans'
+  'chatBans' |
+  'cpa'
 >('menu');
   const [searchQuery, setSearchQuery] = useState('');
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
@@ -345,6 +347,7 @@ const saveChatBanner = async () => {
     | 'withdrawals'
     | 'banner'
     | 'chatBans'
+    | 'cpa'
 ) => {
   triggerHaptic.lightImpact();
   setSubView(view);
@@ -451,6 +454,9 @@ const saveChatBanner = async () => {
             </div>
           </div>
 
+          <button type="button" onClick={() => handleSubViewChange('cpa')} className="flex items-center justify-between rounded-card border border-accentPurple/30 bg-accentPurple/10 px-4 py-4 text-left text-sm font-bold text-white">
+            <span>CPA → Сети · Вертикали · Офферы</span><Layers size={18} className="text-accentPurple"/>
+          </button>
           {/* Информационная карточка */}
           <Card padding="md" className="flex items-center gap-3 text-left border-accentPurple/10 bg-accentPurple/[0.02]">
             <div className="w-10 h-10 rounded-full bg-accentPurple/10 border border-accentPurple/20 flex items-center justify-center text-accentPurple shrink-0">
@@ -1021,6 +1027,7 @@ const saveChatBanner = async () => {
           </div>
         </div>
       )}
+      {subView === 'cpa' && <CPAManager onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'chatBans' && (
   <div className="flex flex-col gap-4 animate-fade-in">
 

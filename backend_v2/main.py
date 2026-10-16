@@ -15,6 +15,7 @@ from bot import start_bot, dp, bot
 from stars_payments import router as stars_router
 from tools_marketplace import router as tools_market_router
 from ai_studio_v2 import router as ai_studio_router
+from cpa_catalog import router as cpa_catalog_router
 from access_guard import access_guard
 from stars_payments import verified_telegram_id
 from urllib.parse import parse_qs
@@ -32,6 +33,7 @@ app = FastAPI(
 app.include_router(stars_router)
 app.include_router(tools_market_router)
 app.include_router(ai_studio_router)
+app.include_router(cpa_catalog_router)
 app.middleware('http')(access_guard)
 
 app.add_middleware(
