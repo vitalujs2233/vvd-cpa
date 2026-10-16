@@ -16,6 +16,7 @@ Required for **real AI responses**:
 - `AI_API_KEY`: server-side API key for an authorized OpenAI-compatible model endpoint.
 - `AI_API_BASE`: default `https://api.openai.com/v1`; must be a trusted HTTPS API endpoint.
 - `AI_MODEL`: model ID supported by that endpoint; default is `gpt-4o-mini`.
+- `AI_FREE_DAILY_MESSAGES`: server-side maximum of free provider responses per published character in a rolling 24-hour window (default 100). This is a hard upper bound for the first release, not a price or token exchange rate.
 
 Existing `BOT_TOKEN` is used to validate signed Telegram WebApp `initData`; existing `DATABASE_URL` points to PostgreSQL. Do not create a second user system or disable signature validation.
 
