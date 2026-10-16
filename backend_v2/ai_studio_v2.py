@@ -38,6 +38,12 @@ def storage_settings():
         raise HTTPException(503, "Хранилище изображений не подключено")
     return url, key
 
+def media_preview_url(photo_id):
+    expires=int(time.time())+3600
+    message=f'{photo_id}:{expires}'.encode()
+    signature=hmac.new(os.environ.get('BOT_TOKEN','').encode(),message,hashlib.sha256).hexdigest()
+    return f'/ai-studio/public/photos/{photo_id}?exp={expires}&sig={signature}'
+
 def storage_headers(key):
     return {"apikey":key, "Authorization":"Bearer "+key}
 
@@ -120,7 +126,7 @@ async def add_photo(model_id:UUID,file:UploadFile=File(...),rights_confirmed:boo
         async with httpx.AsyncClient(timeout=10) as client:
             await client.delete(f"{base}/storage/v1/object/ai-character-media/{object_key}",headers=storage_headers(key))
         raise
-    return {"id":str(photo_id),"url":f"/ai-studio/public/photos/{photo_id}","title":""}
+    return {"id":str(photo_id),"url":f"/ai-studio/public/photos/{photo_id}","preview_url":media_preview_url(photo_id),"title":""}
 
 @router.get("/models/{model_id}/photos")
 def list_photos(model_id:UUID,x_telegram_init_data:str|None=Header(None)):
@@ -131,7 +137,8 @@ def list_photos(model_id:UUID,x_telegram_init_data:str|None=Header(None)):
           WHERE p.model_id=:mid AND m.telegram_id=:uid ORDER BY p.created_at"""),
           {"mid":model_id,"uid":uid}).all()
     return {"photos":[{"id":str(r.id),"url":f"/ai-studio/public/photos/{r.id}","title":r.title,
-        "description":r.description,"auto_allowed":r.auto_allowed,"send_rule":r.send_rule} for r in rows]}
+        "description":r.description,"auto_allowed":r.auto_allowed,"send_rule":r.send_rule,
+        "preview_url":media_preview_url(r.id)} for r in rows]}
 
 class PhotoSettings(BaseModel):
     title: str=Field("",max_length=80)
@@ -163,11 +170,18 @@ async def remove_photo(photo_id:UUID,x_telegram_init_data:str|None=Header(None))
     return {"ok":True}
 
 @router.get("/public/photos/{photo_id}")
-async def public_photo(photo_id:UUID):
+async def public_photo(photo_id:UUID,exp:int|None=None,sig:str|None=None):
     with engine.connect() as conn:
-        row=conn.execute(text("""SELECT p.object_key,p.mime_type FROM tool_ai_photos p JOIN tool_ai_models m
-          ON m.id=p.model_id WHERE p.id=:id AND m.status='published'"""),{"id":photo_id}).first()
+        row=conn.execute(text("""SELECT p.object_key,p.mime_type,m.status FROM tool_ai_photos p JOIN tool_ai_models m
+          ON m.id=p.model_id WHERE p.id=:id"""),{"id":photo_id}).first()
     if not row:raise HTTPException(404,"Фотография недоступна")
+    if row.status!='published':
+        if not exp or not sig or exp<int(time.time()) or exp>int(time.time())+3600:
+            raise HTTPException(404,"Фотография недоступна")
+        expected=hmac.new(os.environ.get("BOT_TOKEN","").encode(),
+                          f"{photo_id}:{exp}".encode(),hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(expected,sig):
+            raise HTTPException(404,"Фотография недоступна")
     base,key=storage_settings()
     async with httpx.AsyncClient(timeout=15) as client:
         r=await client.get(f"{base}/storage/v1/object/ai-character-media/{row.object_key}",headers=storage_headers(key))
