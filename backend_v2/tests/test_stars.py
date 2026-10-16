@@ -39,6 +39,36 @@ class TelegramInitDataTests(unittest.TestCase):
     def test_verified_data(self):
         self.assertEqual(verified_telegram_id(self.make_init_data()), TEST_USER)
 
+    def test_independently_signed_signature_field_vector(self):
+        # Independent fixed HMAC test vector. Its hash was computed outside
+        # the application code using a public test-only token and literal LF.
+        raw = (
+            "auth_date=1760631000&query_id=AAAB_test_plus_%2B&"
+            "user=%7B%22id%22%3A9000000001%2C%22first_name%22%3A%22Test+User%22%7D&"
+            "signature=a-public-example-Ed25519-signature%2B%2F_-&"
+            "hash=6141f2ffa539e72526a675a30a2aabbbdf826762c9d668260e6d6fc86630589d"
+        )
+        with patch.dict(os.environ, {"BOT_TOKEN": "123456789:TEST_PUBLIC_FIXTURE_TOKEN"}):
+            self.assertEqual(verified_telegram_id(raw, now=1760631020), 9000000001)
+            # Mutating the signed signature parameter must invalidate the HMAC.
+            with self.assertRaises(ValueError):
+                verified_telegram_id(raw.replace("example-Ed25519", "changed-Ed25519"), now=1760631020)
+            # Real expiry is enforced after successful HMAC verification.
+            with self.assertRaises(ValueError):
+                verified_telegram_id(raw, now=1760631000 + stars_payments.MAX_INIT_DATA_AGE + 1)
+
+    def test_present_signature_is_part_of_bot_hmac(self):
+        data = {
+            "auth_date": str(int(time.time())),
+            "user": '{"id":900000002026,"first_name":"Testing"}',
+            "signature": "third-party-ed25519-signature",
+        }
+        token = BOT_TOKEN
+        data_string = "\n".join(f"{k}={v}" for k,v in sorted(data.items()))
+        key = hmac.new(b"WebAppData",token.encode(),hashlib.sha256).digest()
+        data["hash"] = hmac.new(key,data_string.encode(),hashlib.sha256).hexdigest()
+        self.assertEqual(verified_telegram_id(urlencode(data)), TEST_USER)
+
     def test_tampered_data_fails(self):
         data = self.make_init_data()
         with self.assertRaises(ValueError):

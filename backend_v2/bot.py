@@ -113,6 +113,12 @@ async def start_bot():
     """Use a secured webhook when configured; preserve existing polling otherwise."""
     webhook_url = os.getenv("TELEGRAM_WEBHOOK_URL", "").strip()
     logger.info("Запуск Telegram-бота VVD CPA (%s)", "webhook" if webhook_url else "polling")
+    # getMe is performed using the exact same BOT_TOKEN that signs Mini App initData.
+    # Log only public bot metadata: NEVER the token or signed initData.
+    identity = await bot.get_me()
+    logger.info("telegram_bot_identity username=@%s id=%s", identity.username, identity.id)
+    if (identity.username or "").lower() != "vvd_cpa_bot":
+        logger.error("telegram_bot_identity_mismatch expected=@vvd_cpa_bot")
     try:
         if webhook_url:
             secret = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
