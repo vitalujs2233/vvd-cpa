@@ -81,9 +81,9 @@ class NeutralLinkTests(unittest.TestCase):
         with engine.begin() as conn:
             for oid in cls.offers:
                 conn.execute(text("""INSERT INTO offers(id,title,vertical_slug,network_id,
-                  source_url,status,offer_type,click_param_override)
+                  source_url,status,offer_type,click_param_override,description,icon_name,geo)
                   VALUES(:id,'Neutral test', 'utilities',:network,
-                  'https://example.com/item?existing=keep','published','smartlink',NULL)"""),
+                  'https://example.com/item?existing=keep','published','smartlink',NULL,'','layers','')"""),
                   {"id":oid,"network":cls.net_id})
 
     @classmethod
