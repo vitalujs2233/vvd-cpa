@@ -4,9 +4,9 @@ import {Card} from '@/shared/ui/Card';
 import {cpaApi,type Network,type Vertical,type Offer} from '@/pages/offers/cpaApi';
 type Section='networks'|'verticals'|'offers';
 const input='w-full rounded-app-xs border border-white/10 bg-bgCard px-3 py-2.5 text-sm text-textPrimary outline-none focus:border-accentPurple/50';
-const sampleNetwork:Network={id:0,name:'',website:'',description:'',is_active:true,connection_notes:'',offers_count:0};
+const sampleNetwork:Network={id:0,name:'',website:'',description:'',is_active:true,connection_notes:'',click_param:null,offers_count:0};
 const sampleVertical:Vertical={slug:'',title:'',description:'',icon_name:'layers',display_order:0,is_active:false,offers_count:0};
-const sampleOffer:Offer={id:'',title:'',vertical_slug:'',network_id:null,description:'',icon_name:'layers',image_url:null,offer_type:'offer',source_url:null,geo:'',traffic_restrictions:'',payment_model:'CPA',currency:'USD',payout_terms:'',status:'draft',display_order:0,commission_percent:'20',hold_override_days:10};
+const sampleOffer:Offer={id:'',title:'',vertical_slug:'',network_id:null,description:'',icon_name:'layers',image_url:null,offer_type:'offer',source_url:null,geo:'',traffic_restrictions:'',payment_model:'CPA',currency:'USD',payout_terms:'',status:'draft',display_order:0,commission_percent:'20',hold_override_days:10,click_param_override:null};
 export const CPAManager:React.FC<{onBack:()=>void}>=({onBack})=>{
  const [section,setSection]=useState<Section>('networks');
  const [networks,setNetworks]=useState<Network[]>([]),[verticals,setVerticals]=useState<Vertical[]>([]),[offers,setOffers]=useState<Offer[]>([]);
@@ -42,6 +42,7 @@ export const CPAManager:React.FC<{onBack:()=>void}>=({onBack})=>{
       {row('HTTPS-сайт',network.website||'',s=>n('website',s))}
       {row('Описание',network.description,s=>n('description',s),true)}
       {row('Настройки подключения (без API-ключей)',network.connection_notes,s=>n('connection_notes',s),true)}
+      {row('Параметр click_id сети (если подтверждён партнёркой)',network.click_param||'',s=>n('click_param',s||null))}
       {check('Активна',network.is_active,s=>n('is_active',s))}
       {exists&&<p className="text-xs text-textSecondary">Связанных офферов: {network.offers_count}</p>}
     </>}
@@ -62,6 +63,8 @@ export const CPAManager:React.FC<{onBack:()=>void}>=({onBack})=>{
       {row('Описание',offer.description,s=>o('description',s),true)}
       {option('Тип',offer.offer_type,[['offer','Обычный оффер'],['smartlink','Смартлинк']],s=>o('offer_type',s))}
       {row('Исходная HTTPS-ссылка (только администратор)',offer.source_url||'',s=>o('source_url',s||null))}
+      {row('Параметр click_id для оффера (переопределяет сеть)',offer.click_param_override||'',s=>o('click_param_override',s||null))}
+      <p className="text-[11px] text-textSecondary">Если параметр не подтверждён, персональная ссылка недоступна. Текущие параметры исходного URL сохраняются.</p>
       {row('Изображение HTTPS (необязательно)',offer.image_url||'',s=>o('image_url',s||null))}
       {row('Иконка',offer.icon_name,s=>o('icon_name',s))}
       {row('Разрешённые GEO',offer.geo,s=>o('geo',s))}
