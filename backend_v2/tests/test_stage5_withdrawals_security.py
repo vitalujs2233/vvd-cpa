@@ -97,6 +97,18 @@ class WithdrawalsSecurityTests(unittest.TestCase):
               "processed_at TIMESTAMP",
             ):
                 c.execute(text("ALTER TABLE public.withdrawals ADD COLUMN IF NOT EXISTS "+col))
+            # Admin /finance needs conversion aggregates; synthetic only.
+            c.execute(text("""CREATE TABLE IF NOT EXISTS public.conversions(
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              click_id VARCHAR(120) UNIQUE,
+              user_id BIGINT NOT NULL,
+              offer_id VARCHAR(80),
+              payout_gross NUMERIC(12,4) NOT NULL DEFAULT 0,
+              payout_net NUMERIC(12,4) NOT NULL DEFAULT 0,
+              status VARCHAR(30) NOT NULL DEFAULT 'pending',
+              is_test BOOLEAN NOT NULL DEFAULT FALSE
+            )"""))
+            c.execute(text("ALTER TABLE public.conversions ADD COLUMN IF NOT EXISTS is_test BOOLEAN NOT NULL DEFAULT FALSE"))
             for uid,code in ((OWNER,OWNER_CODE),(OTHER,OTHER_CODE)):
                 c.execute(text("""INSERT INTO public.users
                     (telegram_id,first_name,partner_code,balance,hold,withdrawn,role,status)
