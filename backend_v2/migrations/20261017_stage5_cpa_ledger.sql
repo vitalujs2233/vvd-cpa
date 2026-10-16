@@ -153,7 +153,7 @@ DECLARE
   source_conversion RECORD;
   source_entry RECORD;
 BEGIN
-  SELECT user_id,is_test,finance_eligible_at,finance_approved_at,status,currency
+  SELECT user_id,is_test,finance_eligible_at,finance_approved_at,status,currency,payout_gross
     INTO source_conversion
     FROM public.conversions WHERE id = NEW.conversion_id FOR SHARE;
   IF NOT FOUND OR source_conversion.user_id <> NEW.user_id
