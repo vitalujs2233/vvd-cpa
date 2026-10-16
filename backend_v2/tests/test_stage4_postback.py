@@ -85,6 +85,31 @@ class PostbackTests(unittest.TestCase):
           "tx":transaction,"state":status,"price":price,"ccy":ccy},
           headers={"X-VVD-Postback-Key":self.secret if secret is None else secret})
 
+    def test_legacy_postbacks_fail_closed_without_financial_changes(self):
+        # A known partner_code/click_id is NOT proof of the sender's identity.
+        # This fixture uses isolated PostgreSQL only.
+        with engine.connect() as c:
+            before_user=c.execute(text("SELECT balance,hold,withdrawn FROM users WHERE telegram_id=:id"),{"id":UID}).first()
+            before_conversions=c.execute(text("SELECT count(*) FROM conversions")).scalar_one()
+            before_stats=c.execute(text("SELECT count(*) FROM statistics WHERE user_id=:id"),{"id":UID}).scalar_one()
+        attempts=[
+            ("/postback/adult",{"partner_code":"VVD964001","click_id":self.click,"offer_id":self.offer,
+             "payout":"99","status":"1","transaction_id":"legacy-denied-"+self.tag}),
+            ("/postback/traffcore",{"sub2":"VVD964001","sub3":self.click,"click_id":self.click,
+             "sum":"99","goal":self.offer,"transaction_id":"legacy-denied-"+self.tag}),
+        ]
+        for path,params in attempts:
+            for _ in range(2):
+                response=client.get(path,params=params)
+                self.assertEqual(response.status_code,403,response.text)
+        with engine.connect() as c:
+            after_user=c.execute(text("SELECT balance,hold,withdrawn FROM users WHERE telegram_id=:id"),{"id":UID}).first()
+            after_conversions=c.execute(text("SELECT count(*) FROM conversions")).scalar_one()
+            after_stats=c.execute(text("SELECT count(*) FROM statistics WHERE user_id=:id"),{"id":UID}).scalar_one()
+        self.assertEqual(tuple(before_user),tuple(after_user))
+        self.assertEqual(before_conversions,after_conversions)
+        self.assertEqual(before_stats,after_stats)
+
     def test_a_incorrect_auth_and_unknown_click(self):
         self.assertEqual(self.send(self.click,secret="invalid").status_code,401)
         self.assertEqual(self.send("does-not-exist").status_code,404)
