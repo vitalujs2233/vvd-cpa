@@ -6,6 +6,7 @@ Only stage-5 synthetic PostgreSQL tests call post_approved_hold at this step.
 from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from datetime import timedelta
 from uuid import UUID
 
 from sqlalchemy import text
@@ -100,7 +101,7 @@ def post_approved_hold(conn, conversion_id: UUID | str) -> dict:
     if wallet is None or wallet["balance"] < 0 or wallet["hold"] < 0:
         raise FinanceInconsistent("Missing user or negative legacy wallet")
     approved = row["finance_approved_at"]
-    hold_until = approved + __import__("datetime").timedelta(hours=240)
+    hold_until = approved + timedelta(hours=240)
     for operation, amount, hold_delta, fee_delta in (
         ("hold_credit", net, net, Decimal("0.00")),
         ("platform_fee_accrual", fee, Decimal("0.00"), fee),
