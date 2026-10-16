@@ -14,6 +14,7 @@ from sqlalchemy import text
 CENT = Decimal("0.01")
 FEE_RATE = Decimal("0.20")
 MAX_GROSS = Decimal("9999999999.99")
+MAX_WALLET = Decimal("9999999999.99")  # users.balance/hold are NUMERIC(12,2)
 
 
 class FinanceIneligible(ValueError):
@@ -91,7 +92,12 @@ def post_approved_hold(conn, conversion_id: UUID | str) -> dict:
         if (kinds != {"hold_credit","platform_fee_accrual"}
                 or len(approvals) != 2
                 or money(row["payout_net"]) != net
-                or any(e["user_id"] != row["user_id"] for e in approvals)):
+                or any(e["user_id"] != row["user_id"]
+                       or (e["operation_type"] == "hold_credit" and
+                           (e["amount"] != net or e["hold_delta"] != net))
+                       or (e["operation_type"] == "platform_fee_accrual" and
+                           (e["amount"] != fee or e["platform_fee_delta"] != fee))
+                       for e in approvals)):
             raise FinanceInconsistent("Partial or inconsistent approval ledger")
         return {"credited": False, "gross": gross, "fee": fee, "net": net}
 
@@ -100,6 +106,8 @@ def post_approved_hold(conn, conversion_id: UUID | str) -> dict:
     """), {"id": row["user_id"]}).mappings().first()
     if wallet is None or wallet["balance"] < 0 or wallet["hold"] < 0:
         raise FinanceInconsistent("Missing user or negative legacy wallet")
+    if wallet["balance"] > MAX_WALLET or wallet["hold"] + net > MAX_WALLET:
+        raise FinanceInconsistent("NUMERIC(12,2) user wallet overflow")
     approved = row["finance_approved_at"]
     hold_until = approved + timedelta(hours=240)
     for operation, amount, hold_delta, fee_delta in (
