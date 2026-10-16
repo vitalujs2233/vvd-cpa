@@ -58,6 +58,8 @@ class PostbackTests(unittest.TestCase):
             stage4=(ROOT/"migrations/20261016_stage4_postback.sql").read_text()
             stage4="\n".join(line for line in stage4.splitlines() if not line.lstrip().startswith("REVOKE "))
             c.connection.cursor().execute(stage4)
+            migration=(ROOT/"migrations/20261016_stage4_admin_postback_probe.sql").read_text()
+            c.connection.cursor().execute(migration)
             c.execute(text("INSERT INTO users(telegram_id,first_name,partner_code,status) VALUES(:uid,'Stage4','VVD964001','active') ON CONFLICT(telegram_id) DO UPDATE SET status='active'"),{"uid":UID})
             c.execute(text("INSERT INTO cpa_verticals(slug,title,is_active) VALUES('utilities','Utilities',TRUE) ON CONFLICT(slug) DO NOTHING"))
         added=client.post("/cpa/admin/networks",headers=auth(ADMIN),json={"name":cls.net,"is_active":True})
@@ -119,6 +121,11 @@ class PostbackTests(unittest.TestCase):
         self.assertEqual(before_conversions,after_conversions)
         self.assertEqual(before_stats,after_stats)
 
+    def test_admin_check_access_and_real_default(self):
+        self.assertEqual(client.post("/cpa/admin/networks/2/postback/check").status_code,401)
+        self.assertEqual(client.post("/cpa/admin/networks/2/postback/check",headers=auth(UID)).status_code,403)
+        self.assertEqual(client.post("/cpa/admin/networks/999/postback/check",headers=auth(ADMIN)).status_code,404)
+
     def test_a_incorrect_auth_and_unknown_click(self):
         self.assertEqual(self.send(self.click,secret="invalid").status_code,401)
         self.assertEqual(self.send("does-not-exist").status_code,404)
@@ -147,11 +154,11 @@ class PostbackTests(unittest.TestCase):
         rejected=self.send(self.click2,transaction="sale-b",status="cancel")
         self.assertEqual(rejected.status_code,200,rejected.text)
         with engine.connect() as c:
-            rows=c.execute(text("SELECT click_id,user_id,offer_id,network_id,vertical_slug,partner_code,status,payout_gross,payout_net,currency FROM conversions WHERE click_id IN (:a,:b)"),{"a":self.click,"b":self.click2}).mappings().all()
+            rows=c.execute(text("SELECT click_id,user_id,offer_id,network_id,vertical_slug,partner_code,status,payout_gross,payout_net,currency,is_test FROM conversions WHERE click_id IN (:a,:b)"),{"a":self.click,"b":self.click2}).mappings().all()
             after=c.execute(text("SELECT balance,hold,withdrawn FROM users WHERE telegram_id=:id"),{"id":UID}).first()
         self.assertEqual(len(rows),2)
         self.assertEqual(set(x["status"] for x in rows),{"approved","rejected"})
-        self.assertTrue(all(x["offer_id"]==self.offer and x["user_id"]==UID and x["network_id"]==self.network_id and x["partner_code"]=="VVD964001" and x["vertical_slug"]=="utilities" and x["payout_net"]==0 for x in rows))
+        self.assertTrue(all(x["offer_id"]==self.offer and x["user_id"]==UID and x["network_id"]==self.network_id and x["partner_code"]=="VVD964001" and x["vertical_slug"]=="utilities" and x["payout_net"]==0 and not x["is_test"] for x in rows))
         self.assertEqual(tuple(before),tuple(after))
 
     def test_c_bad_amount_network_and_parallel_idempotency(self):
