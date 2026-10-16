@@ -13,6 +13,7 @@ import asyncio
 import os
 from bot import start_bot, dp, bot
 from stars_payments import router as stars_router
+from tools_marketplace import router as tools_market_router
 from aiogram.types import Update
 import hmac
 
@@ -21,6 +22,7 @@ app = FastAPI(
     version="2.0"
 )
 app.include_router(stars_router)
+app.include_router(tools_market_router)
 
 app.add_middleware(
     CORSMiddleware,
