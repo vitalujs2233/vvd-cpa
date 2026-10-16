@@ -26,6 +26,8 @@ class StageTwoCatalogTests(unittest.TestCase):
             conn.execute(text("""CREATE TABLE IF NOT EXISTS public.offers(
               id VARCHAR(80) PRIMARY KEY,title VARCHAR(200) NOT NULL)"""))
             sql=(ROOT/"migrations/20261016_stage2_catalog.sql").read_text()
+            # CI plain PostgreSQL has no Supabase anon/authenticated roles.
+            sql="\n".join(line for line in sql.splitlines() if not line.lstrip().startswith("REVOKE "))
             conn.connection.cursor().execute(sql)
             conn.execute(text("""INSERT INTO public.users(telegram_id,first_name)
              VALUES(:id,'CatalogTester') ON CONFLICT DO NOTHING"""),{"id":WEBMASTER})
