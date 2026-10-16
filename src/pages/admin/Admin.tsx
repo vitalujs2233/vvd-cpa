@@ -1,3 +1,4 @@
+import { authorizedFetch } from '@/shared/lib/api';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -104,7 +105,7 @@ export const Admin: React.FC = () => {
     const loadFinance = async () => {
       try {
         setFinanceLoading(true);
-        const response = await fetch('https://vvd-cpa-v2.onrender.com/admin/finance');
+        const response = await authorizedFetch('https://vvd-cpa-v2.onrender.com/admin/finance');
         const data = await response.json();
         if (data.success) {
           setFinance({
@@ -131,7 +132,7 @@ export const Admin: React.FC = () => {
     const loadUsers = async () => {
       try {
         setUsersLoading(true);
-        const response = await fetch('https://vvd-cpa-v2.onrender.com/admin/users');
+        const response = await authorizedFetch('https://vvd-cpa-v2.onrender.com/admin/users');
         const data = await response.json();
         if (data.success && Array.isArray(data.users)) setAdminUsers(data.users);
       } catch (error) {
@@ -151,7 +152,7 @@ export const Admin: React.FC = () => {
     const loadWithdrawals = async () => {
       try {
         setWithdrawalsLoading(true);
-        const response = await fetch('https://vvd-cpa-v2.onrender.com/admin/withdrawals');
+        const response = await authorizedFetch('https://vvd-cpa-v2.onrender.com/admin/withdrawals');
         const data = await response.json();
 
         if (response.ok && data.success && Array.isArray(data.withdrawals)) {
@@ -178,7 +179,7 @@ useEffect(() => {
     try {
       setBannerLoading(true);
 
-      const response = await fetch(
+      const response = await authorizedFetch(
         'https://vvd-cpa-v2.onrender.com/chat/banner',
         { cache: 'no-store' }
       );
@@ -211,7 +212,7 @@ useEffect(() => {
     try {
       setChatBansLoading(true);
 
-      const response = await fetch(
+      const response = await authorizedFetch(
         'https://vvd-cpa-v2.onrender.com/admin/chat/bans',
         {
           cache: 'no-store',
@@ -239,7 +240,7 @@ const saveChatBanner = async () => {
     triggerHaptic.lightImpact();
     setBannerSaving(true);
 
-    const response = await fetch(
+    const response = await authorizedFetch(
       'https://vvd-cpa-v2.onrender.com/admin/chat/banner',
       {
         method: 'POST',
@@ -287,7 +288,7 @@ const saveChatBanner = async () => {
       triggerHaptic.lightImpact();
       setProcessingWithdrawalId(withdrawalId);
 
-      const response = await fetch(
+      const response = await authorizedFetch(
         `https://vvd-cpa-v2.onrender.com/admin/withdrawals/${withdrawalId}/${action === 'pay' ? 'paid' : 'reject'}`,
         { method: 'POST' }
       );
@@ -358,8 +359,8 @@ const saveChatBanner = async () => {
 
     try {
       const [usersResponse, countriesResponse] = await Promise.all([
-        fetch('https://vvd-cpa-v2.onrender.com/admin/users'),
-        fetch(`https://vvd-cpa-v2.onrender.com/statistics/${user.telegram_id}/countries`)
+        authorizedFetch('https://vvd-cpa-v2.onrender.com/admin/users'),
+        authorizedFetch(`https://vvd-cpa-v2.onrender.com/statistics/${user.telegram_id}/countries`)
       ]);
 
       const usersData = await usersResponse.json();
@@ -1072,7 +1073,7 @@ const saveChatBanner = async () => {
             <Button
               variant="outline"
               onClick={async () => {
-                await fetch("https://vvd-cpa-v2.onrender.com/admin/chat/unban", {
+                await authorizedFetch("https://vvd-cpa-v2.onrender.com/admin/chat/unban", {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",
