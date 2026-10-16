@@ -36,7 +36,7 @@ export const aiApi = {
     {method:'POST',body:JSON.stringify({token})}),
   send:(slug:string,token:string,message:string)=>apiRequest<ChatEntry>('/ai-studio/public/'+encodeURIComponent(slug)+'/messages',
     {method:'POST',body:JSON.stringify({token,message})}),
-  click:(slug:string,token:string|null)=>apiRequest<{url:string}>('/ai-studio/public/'+encodeURIComponent(slug)+'/click',
-    {method:'POST',body:JSON.stringify({token})})
+  click:(slug:string,token:string|null,adult_confirmed:boolean)=>apiRequest<{url:string}>('/ai-studio/public/'+encodeURIComponent(slug)+'/click',
+    {method:'POST',body:JSON.stringify({token,adult_confirmed})})
 };
 export const getLinkMode=(c:Character & {link_kind?:string})=>c.link_kind==='smartlink'?'smartlink':'external';
