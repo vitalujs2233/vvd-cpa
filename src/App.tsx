@@ -8,8 +8,8 @@ import { OfferDetail } from '@/pages/offers/OfferDetail';
 import { Withdrawal } from '@/pages/withdrawal/Withdrawal';
 import { Stats } from '@/pages/stats/Stats';
 import { Dvizh } from '@/pages/dvizh/Dvizh';
-import { Tools, VirtualNumbers, ProxyService, AiModel } from '@/pages/tools/Tools';
-import { StarsWalletProvider } from '@/shared/lib/StarsWalletContext';
+import { Tools,ToolsTopupPage,ToolsHistory,ToolsPurchases,ToolsNumbers,MyNumbers,ToolsProxy,MyProxies } from '@/pages/tools/MarketplacePages';
+import { AIModelsPage,AIEditor,PublicAIPage } from '@/pages/tools/AIStudio';
 import { Profile } from '@/pages/profile/Profile';
 import { Referral } from '@/pages/Referral';
 import { Admin } from '@/pages/admin/Admin';
@@ -125,14 +125,9 @@ const AppLayout = () => {
   );
 };
 
-// Wallet context exists only inside /tools; Home never initializes it.
-const ToolsWalletLayout = () => (
-  <StarsWalletProvider>
-    <Outlet />
-  </StarsWalletProvider>
-);
+// Tools use the existing app shell and bottom navigation.
 
-const App = () => {
+const MiniApp = () => {
   // Состояние отображения стартового золотого лоадера
   const [isLoading, setIsLoading] = useState(true);
   useEffect(() => {
@@ -199,11 +194,18 @@ console.log("Telegram:", window.Telegram?.WebApp);
             <Route path="stats" element={<Stats />} />
             {/* Существующий экран «Движ» сохранён */}
             <Route path="dvizh" element={<Dvizh />} />
-            <Route path="tools" element={<ToolsWalletLayout />}>
+            <Route path="tools" element={<Outlet />}>
               <Route index element={<Tools />} />
-              <Route path="numbers" element={<VirtualNumbers />} />
-              <Route path="proxy" element={<ProxyService />} />
-              <Route path="ai" element={<AiModel />} />
+              <Route path="topup" element={<ToolsTopupPage />} />
+              <Route path="history" element={<ToolsHistory />} />
+              <Route path="purchases" element={<ToolsPurchases />} />
+              <Route path="numbers" element={<ToolsNumbers />} />
+              <Route path="numbers/my" element={<MyNumbers />} />
+              <Route path="proxy" element={<ToolsProxy />} />
+              <Route path="proxy/my" element={<MyProxies />} />
+              <Route path="ai" element={<AIModelsPage />} />
+              <Route path="ai/new" element={<AIEditor />} />
+              <Route path="ai/:id" element={<AIEditor />} />
             </Route>
             <Route path="profile" element={<Profile />} />
             <Route path="referral" element={<Referral />} />
@@ -225,4 +227,9 @@ console.log("Telegram:", window.Telegram?.WebApp);
   );
 };
 
+// Public AI profiles work without Telegram login at /vvd-cpa/?model=slug.
+const App = () => {
+  const slug = new URLSearchParams(window.location.search).get('model');
+  return slug ? <PublicAIPage slug={slug} /> : <MiniApp />;
+};
 export default App;
