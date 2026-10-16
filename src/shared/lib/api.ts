@@ -42,8 +42,19 @@ export interface AuthResponse {
     status:string;
   };
 }
+// React StrictMode may run the startup effect twice. Reuse one request for
+// the same signed Telegram launch payload instead of double registration.
+let pendingAuth: { data: string; promise: Promise<AuthResponse> } | null = null;
 export const loginViaTelegramApi = ():Promise<AuthResponse> => {
   const initData=window.Telegram?.WebApp?.initData;
   if(!initData) return Promise.reject(new Error('Telegram initData недоступен. Откройте Mini App из бота.'));
-  return apiRequest<AuthResponse>('/auth',{method:'POST',body:JSON.stringify({init_data:initData})});
+  if (pendingAuth?.data === initData) return pendingAuth.promise;
+  const promise = apiRequest<AuthResponse>('/auth',{
+    method:'POST',body:JSON.stringify({init_data:initData})
+  }).catch((error:unknown)=>{
+    if (pendingAuth?.data === initData) pendingAuth=null;
+    throw error;
+  });
+  pendingAuth={data:initData,promise};
+  return promise;
 };
