@@ -4,7 +4,7 @@ import {ArrowLeft,Plus,Copy,Trash2,ExternalLink,Upload,Image as PhotoIcon} from 
 import {Card} from '@/shared/ui/Card';
 import {Button} from '@/shared/ui/Button';
 import {marketApi,modelPageUrl,type Character} from './marketApi';
-import {aiApi,fileUrl,type Smartlink,type Photo,type ModelStats} from './aiApi';
+import {aiApi,fileUrl,type Smartlink,type Photo,type ModelStats,type ConversationSettings} from './aiApi';
 
 const defaultModel:Character={name:'',slug:'',description:'',language:'ru',persona:'',greeting:'Привет! Давай пообщаемся 😊',offer_description:'',knowledge:'',goal:'',restrictions:'',photo_url:null,affiliate_url:null,button_label:'Посмотреть предложение',extra_url:null,status:'draft'};
 const field='mt-1 w-full rounded-app-xs border border-white/10 bg-bgCard px-3 py-3 text-sm text-textPrimary outline-none focus:border-accentGold/60';
@@ -45,10 +45,12 @@ export const AIEditor:React.FC=()=>{
   const {id}=useParams();const nav=useNavigate();
   const [model,setModel]=useState<Character>({...defaultModel}),[links,setLinks]=useState<Smartlink[]>([]),[photos,setPhotos]=useState<Photo[]>([]);
   const [tab,setTab]=useState<'profile'|'chat'|'photos'|'link'>('profile'),[linkKind,setLinkKind]=useState<'smartlink'|'external'>('smartlink');
+  const [settings,setSettings]=useState<ConversationSettings>({chat_style:'friendly',reply_length:'medium',photo_mode:'combined'});
   const [chosen,setChosen]=useState(''),[customStyle,setCustomStyle]=useState(false),[uploading,setUploading]=useState(false),[rightsConfirmed,setRightsConfirmed]=useState(false),[saving,setSaving]=useState(false);
   const [error,setError]=useState(''),[notice,setNotice]=useState('');
   const update=(key:keyof Character,value:string|null)=>setModel(m=>({...m,[key]:value}));
-  useEffect(()=>{if(id){marketApi.model(id).then(m=>{setModel(m);setLinkKind(m.affiliate_url?'external':'smartlink')}).catch(e=>setError(errorText(e)));
+  useEffect(()=>{if(id){marketApi.model(id).then(setModel).catch(e=>setError(errorText(e)));
+    aiApi.settings(id).then(s=>{setSettings(s);setLinkKind(s.link_kind==='smartlink'?'smartlink':'external');setChosen(s.smartlink_id||'');}).catch(()=>{});
     aiApi.photos(id).then(x=>setPhotos(x.photos)).catch(()=>{});}
     aiApi.links().then(x=>setLinks(x.links)).catch(()=>{});
   },[id]);
@@ -58,6 +60,7 @@ export const AIEditor:React.FC=()=>{
       const oldId=model.id;const data=await marketApi.saveModel({...model,status:model.status});
       const realId=data.id!;
       setModel(data);
+      await aiApi.saveSettings(realId,settings);
       if(oldId){setNotice('Сохранено');}
       else {setNotice('Персонаж создан. Теперь можно загрузить фотографии и выбрать ссылку.');nav('/tools/ai/'+realId,{replace:true});}
     }catch(e){setError(errorText(e));}finally{setSaving(false);}
@@ -105,10 +108,12 @@ export const AIEditor:React.FC=()=>{
     </Card>}
     {tab==='chat'&&<Card className="flex flex-col gap-3">
       <Field label="Первое сообщение" value={model.greeting} set={v=>update('greeting',v)} long/>
-      <label className="text-xs text-textSecondary">Стиль общения<select className={field} value={customStyle?'custom':model.persona||'friendly'} onChange={e=>{setCustomStyle(e.target.value==='custom');update('persona',e.target.value==='custom'?'':e.target.value);}}>
+      <label className="text-xs text-textSecondary">Стиль общения<select className={field} value={customStyle?'custom':settings.chat_style} onChange={e=>{setCustomStyle(e.target.value==='custom');setSettings(s=>({...s,chat_style:e.target.value==='custom'?'':e.target.value}));}}>
         <option value="friendly">Дружелюбный</option><option value="light">Лёгкий и непринуждённый</option><option value="talkative">Общительный</option><option value="calm">Спокойный</option><option value="custom">Собственный стиль</option>
       </select></label>
-      {customStyle&&<Field label="Свой стиль" value={model.persona} set={v=>update('persona',v)} long/>}
+      {customStyle&&<Field label="Свой стиль" value={settings.chat_style} set={v=>setSettings(s=>({...s,chat_style:v}))} long/>}
+      <label className="text-xs text-textSecondary">Длина ответов<select className={field} value={settings.reply_length} onChange={e=>setSettings(s=>({...s,reply_length:e.target.value as ConversationSettings['reply_length']}))}>
+        <option value="short">Короткие</option><option value="medium">Средние</option><option value="detailed">Подробные</option></select></label>
       <details className="rounded-app-xs border border-white/10 p-3 text-xs"><summary className="cursor-pointer font-semibold">Дополнительные настройки</summary>
         <div className="mt-3 flex flex-col gap-3"><Field label="Что персонажу важно знать" value={model.knowledge} set={v=>update('knowledge',v)} long/><Field label="Ограничения общения" value={model.restrictions} set={v=>update('restrictions',v)} long/></div>
       </details>
@@ -119,6 +124,9 @@ export const AIEditor:React.FC=()=>{
         <label className="flex items-center gap-2 text-xs text-textSecondary"><input type="checkbox" checked={rightsConfirmed} onChange={e=>setRightsConfirmed(e.target.checked)}/> Подтверждаю, что имею право использовать эти изображения.</label>
         <label className="flex cursor-pointer items-center justify-center gap-2 rounded-app-xs border border-accentGold/30 p-3 text-sm text-accentBrightGold"><Upload size={17}/>{uploading?'Загрузка…':'Загрузить фотографию'}<input disabled={!rightsConfirmed||uploading||photos.length>=12} className="hidden" type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void upload(e)}/></label>
         <p className="text-xs text-textSecondary">До 12 файлов, JPG/PNG/WebP, максимум 4 МБ. Используйте изображения, на которые у вас есть права.</p>
+        <label className="text-xs text-textSecondary">Режим отправки<select className={field} value={settings.photo_mode} onChange={e=>setSettings(s=>({...s,photo_mode:e.target.value as ConversationSettings['photo_mode']}))}>
+          <option value="combined">Комбинированный</option><option value="automatic">Автоматический</option><option value="rules">По правилам</option>
+        </select></label>
         {photos.map(p=><div className="space-y-2 rounded-app-xs border border-white/10 p-3" key={p.id}>
           <div className="flex items-center gap-3"><img src={fileUrl(p.preview_url||p.url)} alt={p.title||'Фото'} className="h-16 w-16 rounded-app-xs object-cover"/><div className="flex-1 space-y-2">
             <button type="button" className="text-xs text-accentBrightGold" onClick={()=>void avatar(p)}>Сделать аватаром</button>
