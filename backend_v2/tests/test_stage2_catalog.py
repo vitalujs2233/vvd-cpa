@@ -72,6 +72,25 @@ class StageTwoCatalogTests(unittest.TestCase):
         self.assertEqual(result["offers"][0]["title"],"Sample offer")
         self.assertEqual(next(x for x in client.get("/cpa/catalog").json()["verticals"] if x["slug"]==self.slug)["offers_count"],1)
 
+    def test_az_reject_unconfigured_published_smartlink(self):
+        h=signed(ADMIN)
+        base={
+            "id":"missing-source-"+self.suffix,
+            "title":"Unconfigured smartlink","vertical_slug":self.slug,
+            "network_id":self.network_id,"offer_type":"smartlink",
+            "status":"published",
+        }
+        missing=client.post("/cpa/admin/offers",headers=h,json=base)
+        self.assertEqual(missing.status_code,422,missing.text)
+        network=next(x for x in client.get("/cpa/admin/networks",headers=h).json()["items"] if x["id"]==self.network_id)
+        network["is_active"]=False
+        self.assertEqual(client.put("/cpa/admin/networks/"+str(self.network_id),headers=h,json=network).status_code,200)
+        disabled=client.post("/cpa/admin/offers",headers=h,json={
+            **base,"source_url":"https://example.com/affiliate"})
+        self.assertEqual(disabled.status_code,422,disabled.text)
+        network["is_active"]=True
+        self.assertEqual(client.put("/cpa/admin/networks/"+str(self.network_id),headers=h,json=network).status_code,200)
+
     def test_b_disabled_offer_disappears_and_owner_only(self):
         h=signed(ADMIN)
         payload=next(x for x in client.get("/cpa/admin/offers",headers=h).json()["items"] if x["id"]==self.offer)
