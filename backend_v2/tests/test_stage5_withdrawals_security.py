@@ -70,6 +70,8 @@ class WithdrawalsSecurityTests(unittest.TestCase):
                 status VARCHAR(30) NOT NULL DEFAULT 'active')"""))
             for col in (
               "partner_code VARCHAR(50)",
+              "last_name VARCHAR(255)",
+              "username VARCHAR(255)",
               "balance NUMERIC(12,2) NOT NULL DEFAULT 0",
               "hold NUMERIC(12,2) NOT NULL DEFAULT 0",
               "withdrawn NUMERIC(12,2) NOT NULL DEFAULT 0",
