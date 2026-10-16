@@ -341,6 +341,30 @@ def click_offer(slug:str,payload:SessionCreate):
                          {"mid":row.id,"sid":session.id})
     return {"url":row.affiliate_url}
 
+@router.delete("/models/{model_id}")
+async def delete_model(model_id:UUID,x_telegram_init_data:str|None=Header(None)):
+    uid=owner(x_telegram_init_data)
+    with engine.begin() as conn:
+        exists=conn.execute(text("SELECT 1 FROM tool_ai_models WHERE id=:mid AND telegram_id=:uid FOR UPDATE"),
+                            {"mid":model_id,"uid":uid}).first()
+        if not exists:raise HTTPException(404,"Персонаж не найден")
+        objects=conn.execute(text("SELECT object_key FROM tool_ai_photos WHERE model_id=:mid AND owner_id=:uid"),
+                             {"mid":model_id,"uid":uid}).all()
+        conn.execute(text("DELETE FROM tool_ai_models WHERE id=:mid AND telegram_id=:uid"),
+                     {"mid":model_id,"uid":uid})
+    # External cleanup is best effort. Missing storage configuration cannot
+    # prevent the owner from deleting a profile and all database records.
+    if objects:
+        try:
+            base,key=storage_settings()
+            async with httpx.AsyncClient(timeout=15) as client:
+                for item in objects:
+                    await client.delete(f"{base}/storage/v1/object/ai-character-media/{item.object_key}",
+                                        headers=storage_headers(key))
+        except (httpx.HTTPError,HTTPException):
+            pass
+    return {"ok":True}
+
 @router.get("/models/{model_id}/stats")
 def model_stats(model_id:UUID,x_telegram_init_data:str|None=Header(None)):
     uid=owner(x_telegram_init_data)
