@@ -35,6 +35,8 @@ class StageTwoCatalogTests(unittest.TestCase):
             # CI plain PostgreSQL has no Supabase anon/authenticated roles.
             sql="\n".join(line for line in sql.splitlines() if not line.lstrip().startswith("REVOKE "))
             conn.connection.cursor().execute(sql)
+            conn.execute(text("ALTER TABLE cpa_networks ADD COLUMN IF NOT EXISTS click_param VARCHAR(48)"))
+            conn.execute(text("ALTER TABLE offers ADD COLUMN IF NOT EXISTS click_param_override VARCHAR(48)"))
             conn.execute(text("""INSERT INTO public.users(telegram_id,first_name)
              VALUES(:id,'CatalogTester') ON CONFLICT DO NOTHING"""),{"id":WEBMASTER})
         cls.suffix=uuid.uuid4().hex[:8]

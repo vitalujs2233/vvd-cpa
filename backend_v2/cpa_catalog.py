@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from database import engine
+from neutral_links import PARAM_RE, NEUTRAL_VERTICALS, _validated_destination
 from stars_payments import require_telegram_id
 from access_guard import authorized_admin
 
@@ -45,6 +46,13 @@ class NetworkIn(BaseModel):
     description:str=Field("",max_length=2000)
     is_active:bool=True
     connection_notes:str=Field("",max_length=2000)
+    click_param:str|None=None
+    @field_validator('click_param')
+    @classmethod
+    def click_parameter(cls,v):
+        if v and not PARAM_RE.fullmatch(v):
+            raise ValueError('Некорректное имя параметра клика')
+        return v or None
     @field_validator("website")
     @classmethod
     def url(cls,v):
@@ -77,6 +85,13 @@ class OfferIn(BaseModel):
     display_order:int=Field(0,ge=-9999,le=9999)
     commission_percent:Decimal=Field(Decimal("20"),ge=0,le=100)
     hold_override_days:int=Field(10,ge=0,le=365)
+    click_param_override:str|None=None
+    @field_validator('click_param_override')
+    @classmethod
+    def click_parameter(cls,v):
+        if v and not PARAM_RE.fullmatch(v):
+            raise ValueError('Некорректное имя параметра клика')
+        return v or None
     @field_validator("source_url","image_url")
     @classmethod
     def url(cls,v):
@@ -116,7 +131,7 @@ def public_offer(slug:str,offer_id:str):
 def networks(x_telegram_init_data:str|None=Header(None)):
     require_admin(x_telegram_init_data)
     with engine.connect() as conn:
-        rows=conn.execute(text("""SELECT n.id,n.name,n.website,n.description,n.is_active,n.connection_notes,
+        rows=conn.execute(text("""SELECT n.id,n.name,n.website,n.description,n.is_active,n.connection_notes,n.click_param,
              COUNT(o.id) AS offers_count FROM cpa_networks n LEFT JOIN offers o ON o.network_id=n.id
              GROUP BY n.id ORDER BY n.name""")).mappings().all()
     return {"items":[dict(x) for x in rows]}
@@ -126,8 +141,8 @@ def create_network(payload:NetworkIn,x_telegram_init_data:str|None=Header(None))
     require_admin(x_telegram_init_data)
     try:
         with engine.begin() as conn:
-            row=conn.execute(text("""INSERT INTO cpa_networks(name,website,description,is_active,connection_notes)
-            VALUES(:name,:website,:description,:is_active,:connection_notes) RETURNING id"""),payload.model_dump()).scalar_one()
+            row=conn.execute(text("""INSERT INTO cpa_networks(name,website,description,is_active,connection_notes,click_param)
+            VALUES(:name,:website,:description,:is_active,:connection_notes,:click_param) RETURNING id"""),payload.model_dump()).scalar_one()
     except IntegrityError:
         raise HTTPException(409,"Партнёрская сеть с таким названием уже существует")
     return {"id":row}
@@ -137,7 +152,7 @@ def edit_network(network_id:int,payload:NetworkIn,x_telegram_init_data:str|None=
     require_admin(x_telegram_init_data)
     with engine.begin() as conn:
         row=conn.execute(text("""UPDATE cpa_networks SET name=:name,website=:website,
-          description=:description,is_active=:is_active,connection_notes=:connection_notes
+          description=:description,is_active=:is_active,connection_notes=:connection_notes,click_param=:click_param
           WHERE id=:id RETURNING id"""),{**payload.model_dump(),"id":network_id}).first()
     if not row:raise HTTPException(404,"Сеть не найдена")
     return {"ok":True}
@@ -178,12 +193,18 @@ def offers_admin(x_telegram_init_data:str|None=Header(None)):
     require_admin(x_telegram_init_data)
     with engine.connect() as conn:
         rows=conn.execute(text("""SELECT id,title,vertical_slug,network_id,description,icon_name,image_url,
-         offer_type,source_url,geo,traffic_restrictions,payment_model,currency,payout_terms,
+         offer_type,source_url,geo,traffic_restrictions,payment_model,currency,payout_terms,click_param_override,
          status,display_order,commission_percent,hold_override_days
          FROM offers ORDER BY display_order,title""")).mappings().all()
     return {"items":[{**dict(x),"commission_percent":str(x["commission_percent"])} for x in rows]}
 
 def checked_offer(conn,payload):
+    if payload.status=='published' and payload.vertical_slug in NEUTRAL_VERTICALS and payload.source_url:
+        selected=payload.click_param_override
+        if not selected and payload.network_id:
+            selected=conn.execute(text('SELECT click_param FROM cpa_networks WHERE id=:id'),{'id':payload.network_id}).scalar()
+        if selected:
+            _validated_destination(payload.source_url,selected,'configuration-check')
     if payload.status == "published" and payload.offer_type == "smartlink":
         if not payload.source_url:
             raise HTTPException(422, "Для публикации Smartlink укажите действующую исходную HTTPS-ссылку")
@@ -205,10 +226,10 @@ def create_offer(payload:OfferIn,x_telegram_init_data:str|None=Header(None)):
             checked_offer(conn,payload)
             conn.execute(text("""INSERT INTO offers(id,title,vertical_slug,network_id,description,icon_name,
               image_url,offer_type,source_url,geo,traffic_restrictions,payment_model,currency,
-              payout_terms,status,display_order,commission_percent,hold_override_days)
+              payout_terms,status,display_order,commission_percent,hold_override_days,click_param_override)
               VALUES(:id,:title,:vertical_slug,:network_id,:description,:icon_name,:image_url,
               :offer_type,:source_url,:geo,:traffic_restrictions,:payment_model,:currency,
-              :payout_terms,:status,:display_order,:commission_percent,:hold_override_days)"""),
+               :payout_terms,:status,:display_order,:commission_percent,:hold_override_days,:click_param_override)"""),
               payload.model_dump())
     except IntegrityError:
         raise HTTPException(409,"Предложение с таким ID уже существует")
@@ -226,7 +247,7 @@ def edit_offer(offer_id:str,payload:OfferIn,x_telegram_init_data:str|None=Header
           traffic_restrictions=:traffic_restrictions,payment_model=:payment_model,
           currency=:currency,payout_terms=:payout_terms,status=:status,
           display_order=:display_order,commission_percent=:commission_percent,
-          hold_override_days=:hold_override_days,updated_at=now() WHERE id=:id RETURNING id"""),
+          hold_override_days=:hold_override_days,click_param_override=:click_param_override,updated_at=now() WHERE id=:id RETURNING id"""),
           payload.model_dump()).first()
     if not result:raise HTTPException(404,"Оффер не найден")
     return {"ok":True}
