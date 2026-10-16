@@ -7,7 +7,7 @@ const auth = () => {
   return {'X-Telegram-Init-Data':raw};
 };
 export type Smartlink = {id:string;url:string;title:string;offer:string|null};
-export type Photo = {id:string;url:string;title:string;description:string;auto_allowed:boolean;send_rule:string};
+export type Photo = {id:string;url:string;preview_url?:string;title:string;description:string;auto_allowed:boolean;send_rule:string};
 export type ChatEntry = {role:'user'|'assistant';content:string};
 export type PublicSession = {token:string;greeting:string;messages:ChatEntry[];can_chat:boolean;offer:{title:string;available:boolean}};
 export type ModelStats = {visits:number;conversations:number;messages:number;clicks:number;cost_usd:string|null};
