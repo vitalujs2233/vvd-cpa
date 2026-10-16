@@ -55,6 +55,7 @@ class NeutralLinkTests(unittest.TestCase):
                partner_code VARCHAR(50) NOT NULL,click_id VARCHAR(80) NOT NULL UNIQUE,
                vertical VARCHAR(100) NOT NULL,created_at TIMESTAMP DEFAULT NOW()
             )"""))
+            conn.execute(text("ALTER TABLE smartlinks ALTER COLUMN id SET DEFAULT gen_random_uuid()"))
             stage3=(ROOT/"migrations/20261016_stage3_neutral_links.sql").read_text()
             stage3="\n".join(x for x in stage3.splitlines() if not x.lstrip().startswith("REVOKE "))
             conn.connection.cursor().execute(stage3)
@@ -142,9 +143,10 @@ class NeutralLinkTests(unittest.TestCase):
         self.assertIn("/smartlink/{telegram_id}/{vertical}",[r.path for r in app.routes])
 
     def test_d_parallel_idempotent(self):
-        self.assertEqual(client.put("/cpa/admin/offers/"+self.offers[0],headers=headers(ADMIN),json={
+        response=client.put("/cpa/admin/offers/"+self.offers[0],headers=headers(ADMIN),json={
             **next(x for x in client.get("/cpa/admin/offers",headers=headers(ADMIN)).json()["items"] if x["id"]==self.offers[0]),
-            "status":"published"}).status_code,200)
+            "status":"published"})
+        self.assertEqual(response.status_code,200,response.text)
         def create(_):
             r=client.post("/cpa/links/"+self.offers[1],headers=headers(SECOND))
             self.assertEqual(r.status_code,200,r.text)
