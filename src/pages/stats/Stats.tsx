@@ -1,3 +1,4 @@
+import { authorizedFetch } from '@/shared/lib/api';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { BarChart2, Coins, Eye, RefreshCw, ShieldAlert } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
@@ -59,11 +60,11 @@ export const Stats: React.FC = () => {
       const id = Number(getTelegramUser().id);
       if (!id) throw new Error('Не удалось определить Telegram ID');
       const [s, c] = await Promise.all([
-        fetch(
+        authorizedFetch(
   `${API}/statistics/${id}${vertical !== 'all' ? `?vertical=${vertical}` : ''}`,
   { cache: 'no-store' }
 ),
-        fetch(
+        authorizedFetch(
   `${API}/statistics/${id}/countries${vertical !== 'all' ? `?vertical=${vertical}` : ''}`,
   { cache: 'no-store' }
 )
