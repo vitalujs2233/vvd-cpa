@@ -19,6 +19,7 @@ LOG=logging.getLogger(__name__)
 ALLOWED={"pending","approved","rejected"}
 PARAM=re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,47}$")
 SAFE_ID=re.compile(r"^[\w:.\-]{1,120}$",re.ASCII)
+EXTERNAL_STATUS=re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,47}$")
 NEUTRAL=frozenset({"utilities","education","productivity","software","technology"})
 DEFAULT_PARAMS={"click":"click_id","transaction":"transaction_id","status":"status","amount":"amount","currency":"currency"}
 DEFAULT_MAP={"pending":"pending","approved":"approved","rejected":"rejected"}
@@ -41,7 +42,7 @@ class ProviderConfig(BaseModel):
     @field_validator("postback_status_map")
     @classmethod
     def map_valid(cls,v):
-        if not v or len(v)>20 or not all(PARAM.fullmatch(k) and x in ALLOWED for k,x in v.items()):
+        if not v or len(v)>20 or not all(EXTERNAL_STATUS.fullmatch(k) and x in ALLOWED for k,x in v.items()):
             raise ValueError("Invalid external status map")
         return v
 
@@ -83,7 +84,11 @@ async def receive_postback(network_id:int,request:Request,
                            x_vvd_postback_key:str|None=Header(None)):
     if request.headers.get("content-type","").split(";")[0].strip().lower()!="application/json":
         raise HTTPException(415,"JSON required")
-    if request.headers.get("content-length") and int(request.headers["content-length"])>4096:
+    try:
+        declared_size=int(request.headers.get("content-length","0"))
+    except ValueError:
+        raise HTTPException(400,"Invalid request size")
+    if declared_size<0 or declared_size>4096:
         raise HTTPException(413,"Payload too large")
     raw=await request.body()
     if len(raw)>4096:raise HTTPException(413,"Payload too large")
