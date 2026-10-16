@@ -37,4 +37,4 @@ export const marketApi = {
 };
 export const usd = (input:string|number|null|undefined) => '$'+Number(input ?? 0).toFixed(2);
 export const modelPageUrl = (slug:string) =>
-  window.location.origin + import.meta.env.BASE_URL + '?model=' + encodeURIComponent(slug);
+  window.location.origin + '/vvd-cpa/' + '?model=' + encodeURIComponent(slug);
