@@ -120,7 +120,7 @@ export const AIEditor:React.FC=()=>{
         <label className="flex cursor-pointer items-center justify-center gap-2 rounded-app-xs border border-accentGold/30 p-3 text-sm text-accentBrightGold"><Upload size={17}/>{uploading?'Загрузка…':'Загрузить фотографию'}<input disabled={!rightsConfirmed||uploading||photos.length>=12} className="hidden" type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void upload(e)}/></label>
         <p className="text-xs text-textSecondary">До 12 файлов, JPG/PNG/WebP, максимум 4 МБ. Используйте изображения, на которые у вас есть права.</p>
         {photos.map(p=><div className="space-y-2 rounded-app-xs border border-white/10 p-3" key={p.id}>
-          <div className="flex items-center gap-3"><img src={fileUrl(p.url)} alt={p.title||'Фото'} className="h-16 w-16 rounded-app-xs object-cover"/><div className="flex-1 space-y-2">
+          <div className="flex items-center gap-3"><img src={fileUrl(p.preview_url||p.url)} alt={p.title||'Фото'} className="h-16 w-16 rounded-app-xs object-cover"/><div className="flex-1 space-y-2">
             <button type="button" className="text-xs text-accentBrightGold" onClick={()=>void avatar(p)}>Сделать аватаром</button>
             <button type="button" className="ml-3 text-xs text-textSecondary" onClick={()=>void deletePhoto(p)}><Trash2 size={14} className="inline"/> Удалить</button>
           </div></div>
