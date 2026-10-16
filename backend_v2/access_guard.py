@@ -7,7 +7,10 @@ import os
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from database import engine
-from stars_payments import verified_telegram_id
+from stars_payments import verified_telegram_id, TelegramAuthError
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Existing legacy administrator from the current Admin/Profile UI. Optional
 # env override supports migrating to database-backed roles.
@@ -39,8 +42,10 @@ async def access_guard(request,call_next):
         return await call_next(request)
     try:
         uid=verified_telegram_id(request.headers.get("X-Telegram-Init-Data",""))
-    except ValueError:
-        return JSONResponse({"detail":"Invalid or expired Telegram initData"},status_code=401)
+    except TelegramAuthError as exc:
+        logger.warning("telegram_access_rejected code=%s", exc.code)
+        status = 503 if exc.code == "auth_config_error" else 401
+        return JSONResponse({"detail":{"code":exc.code}},status_code=status)
     parts=path.strip("/").split("/")
     admin=authorized_admin(uid) if path.startswith("/admin/") else False
     if path.startswith("/admin/") and not admin:
