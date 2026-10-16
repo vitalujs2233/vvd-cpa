@@ -1,26 +1,7 @@
 from sqlalchemy import create_engine, text
-import random
-import string
 from config import settings
 
 engine = create_engine(settings.DATABASE_URL)
-def generate_partner_code():
-    while True:
-        code = "VVD" + "".join(random.choices(string.digits, k=6))
-
-        with engine.connect() as conn:
-            exists = conn.execute(
-                text("""
-                    SELECT 1
-                    FROM users
-                    WHERE partner_code = :code
-                """),
-                {"code": code},
-            ).fetchone()
-
-        if not exists:
-            return code
-
 def check_database():
     with engine.connect() as conn:
         conn.execute(text("SELECT 1"))
@@ -55,7 +36,7 @@ def save_user(
 
             if inviter:
                 invited_by = inviter.telegram_id
-        conn.execute(
+        row = conn.execute(
             text("""
             INSERT INTO users (
                 telegram_id,
@@ -77,7 +58,7 @@ def save_user(
                 :last_name,
                 :username,
                 :photo_url,
-                :partner_code,
+                NULL,
                 :invited_by,
                 0,
                 0,
@@ -91,6 +72,7 @@ def save_user(
                 last_name = EXCLUDED.last_name,
                 username = EXCLUDED.username,
                 photo_url = EXCLUDED.photo_url
+            RETURNING telegram_id, first_name, last_name, username, photo_url, partner_code, role, status
             """),
             {
                 "telegram_id": telegram_id,
@@ -98,10 +80,11 @@ def save_user(
                 "last_name": last_name,
                 "username": username,
                 "photo_url": photo_url,
-                "partner_code": generate_partner_code(),
                 "invited_by": invited_by,
             }
-        )
+        ).mappings().one()
+        return dict(row)
+
 def create_analytics_tables():
     with engine.begin() as conn:
         conn.execute(
