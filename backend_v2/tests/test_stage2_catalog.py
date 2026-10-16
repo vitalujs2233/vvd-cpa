@@ -104,6 +104,87 @@ class StageTwoCatalogTests(unittest.TestCase):
         self.assertIn(client.get("/cpa/admin/offers",headers=signed(WEBMASTER)).status_code,(401,403))
         self.assertEqual(client.get("/cpa/admin/networks").status_code,401)
 
+    def test_d_edit_persist_and_shared_vertical_marketplace(self):
+        h=signed(ADMIN)
+        original=next(x for x in client.get("/cpa/admin/offers",headers=h).json()["items"] if x["id"]==self.offer)
+        try:
+            # Editing an existing offer keeps its stable ID, preserves the
+            # provider URL in private storage and applies updated commission/hold.
+            changed={**original,"status":"published","offer_type":"smartlink",
+                     "source_url":"https://example.com/new-neutral-smartlink",
+                     "commission_percent":"17.5","hold_override_days":14}
+            r=client.put("/cpa/admin/offers/"+self.offer,headers=h,json=changed)
+            self.assertEqual(r.status_code,200,r.text)
+            persisted=next(x for x in client.get("/cpa/admin/offers",headers=h).json()["items"] if x["id"]==self.offer)
+            self.assertEqual(persisted["source_url"],changed["source_url"])
+            self.assertEqual(float(persisted["commission_percent"]),17.5)
+            self.assertEqual(persisted["hold_override_days"],14)
+            exposed=client.get("/cpa/catalog/"+self.slug+"/"+self.offer)
+            self.assertEqual(exposed.status_code,200,exposed.text)
+            self.assertNotIn("source_url",exposed.text)
+            self.assertNotIn("new-neutral-smartlink",exposed.text)
+
+            # A second network may offer a second smartlink in the SAME vertical.
+            second=client.post("/cpa/admin/networks",headers=h,json={
+                "name":"Second-"+self.suffix,"website":"https://example.org","is_active":True})
+            self.assertEqual(second.status_code,200,second.text)
+            second_id=second.json()["id"]
+            another=client.post("/cpa/admin/offers",headers=h,json={
+                "id":"secondary-"+self.suffix,"title":"Neutral second smartlink",
+                "vertical_slug":self.slug,"network_id":second_id,
+                "offer_type":"smartlink","source_url":"https://example.org/offer",
+                "status":"published"})
+            self.assertEqual(another.status_code,200,another.text)
+            listing=client.get("/cpa/catalog/"+self.slug)
+            self.assertEqual(listing.status_code,200,listing.text)
+            self.assertEqual(len(listing.json()["offers"]),2)
+            self.assertNotIn("source_url",listing.text)
+            self.assertEqual(next(x for x in client.get("/cpa/catalog").json()["verticals"]
+                                  if x["slug"]==self.slug)["offers_count"],2)
+
+            # Disabling one network hides only that network's offers.
+            net=next(x for x in client.get("/cpa/admin/networks",headers=h).json()["items"]
+                     if x["id"]==second_id)
+            net["is_active"]=False
+            self.assertEqual(client.put("/cpa/admin/networks/"+str(second_id),headers=h,json=net).status_code,200)
+            self.assertEqual(len(client.get("/cpa/catalog/"+self.slug).json()["offers"]),1)
+
+            # No normal webmaster can edit the URL or change status.
+            forbidden=client.put("/cpa/admin/offers/"+self.offer,
+                                 headers=signed(WEBMASTER),json=changed)
+            self.assertEqual(forbidden.status_code,403,forbidden.text)
+        finally:
+            with engine.begin() as conn:
+                conn.execute(text("DELETE FROM offers WHERE id=:id"),
+                             {"id":"secondary-"+self.suffix})
+                conn.execute(text("DELETE FROM cpa_networks WHERE name=:name"),
+                             {"name":"Second-"+self.suffix})
+            client.put("/cpa/admin/offers/"+self.offer,headers=h,json=original)
+
+    def test_e_multi_vertical_edit_and_empty_state(self):
+        h=signed(ADMIN)
+        slug="secondvertical-"+self.suffix
+        try:
+            second=client.post("/cpa/admin/verticals",headers=h,json={
+                "slug":slug,"title":"Another category","is_active":True,
+                "display_order":5})
+            self.assertEqual(second.status_code,200,second.text)
+            empty=client.get("/cpa/catalog/"+slug)
+            self.assertEqual(empty.status_code,200,empty.text)
+            self.assertEqual(empty.json()["offers"],[])
+            saved=next(x for x in client.get("/cpa/admin/verticals",headers=h).json()["items"]
+                       if x["slug"]==slug)
+            updated={**saved,"title":"Renamed category","display_order":3,
+                     "description":"Stored in PostgreSQL"}
+            self.assertEqual(client.put("/cpa/admin/verticals/"+slug,
+                                        headers=h,json=updated).status_code,200)
+            self.assertEqual(client.get("/cpa/catalog/"+slug).json()["vertical"]["title"],
+                             "Renamed category")
+            self.assertEqual(client.post("/cpa/admin/verticals",headers=h,json=updated).status_code,409)
+        finally:
+            with engine.begin() as conn:
+                conn.execute(text("DELETE FROM cpa_verticals WHERE slug=:slug"),{"slug":slug})
+
     def test_c_validation_blocks_unsafe_urls(self):
         h=signed(ADMIN)
         for url in ("javascript:alert(1)","http://localhost/secret","https://127.0.0.1/private"):
