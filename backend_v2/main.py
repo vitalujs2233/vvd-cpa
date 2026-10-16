@@ -20,6 +20,10 @@ from stars_payments import verified_telegram_id
 from urllib.parse import parse_qs
 from aiogram.types import Update
 import hmac
+import logging
+from stars_payments import TelegramAuthError
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="VVD CPA Backend V2",
@@ -126,8 +130,13 @@ async def auth(payload: TelegramAuthRequest):
         if not isinstance(signed_user,dict) or int(signed_user["id"])!=telegram_id:
             raise ValueError("Telegram user mismatch")
         referral_code = values.get("start_param",[""])[0][:64]
-    except (ValueError,KeyError,TypeError,IndexError,OverflowError):
-        raise HTTPException(status_code=401,detail="Invalid or expired Telegram initData")
+    except TelegramAuthError as exc:
+        logger.warning("telegram_auth_rejected code=%s", exc.code)
+        status = 503 if exc.code == "auth_config_error" else 401
+        raise HTTPException(status_code=status, detail={"code": exc.code}) from None
+    except (ValueError, KeyError, TypeError, IndexError, OverflowError):
+        logger.warning("telegram_auth_rejected code=invalid_user")
+        raise HTTPException(status_code=401, detail={"code": "invalid_user"}) from None
     try:
         user=save_user(
             telegram_id=telegram_id,
@@ -138,8 +147,8 @@ async def auth(payload: TelegramAuthRequest):
             referral_code=referral_code
         )
     except Exception:
-        # Never leak SQL messages or other users' data in responses.
-        raise HTTPException(status_code=503,detail="Account registration temporarily unavailable")
+        logger.exception("telegram_auth_rejected code=account_storage_error")
+        raise HTTPException(status_code=503, detail={"code": "account_storage_error"}) from None
     return {
         "user": {
             "telegram_id":user["telegram_id"],
