@@ -1,3 +1,4 @@
+import { authorizedFetch } from '@/shared/lib/api';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Send, ShieldAlert, Users, Pin, Search, Smile, 
@@ -87,7 +88,7 @@ const [onlineCount, setOnlineCount] = useState(0);
 useEffect(() => {
   const loadBanner = async () => {
     try {
-      const response = await fetch(`${API}/chat/banner`, {
+      const response = await authorizedFetch(`${API}/chat/banner`, {
         cache: 'no-store',
       });
 
@@ -106,7 +107,7 @@ useEffect(() => {
   useEffect(() => {
   const heartbeat = async () => {
     try {
-      await fetch(`${API}/chat/online`, {
+      await authorizedFetch(`${API}/chat/online`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -116,7 +117,7 @@ useEffect(() => {
         }),
       });
 
-      const response = await fetch(
+      const response = await authorizedFetch(
         `${API}/chat/online-count`,
         {
           cache: 'no-store',
@@ -142,7 +143,7 @@ useEffect(() => {
 
   const counterInterval = setInterval(async () => {
     try {
-      const response = await fetch(
+      const response = await authorizedFetch(
         `${API}/chat/online-count`,
         {
           cache: 'no-store',
@@ -165,7 +166,7 @@ useEffect(() => {
   useEffect(() => {
   const loadMessages = async () => {
     try {
-      const response = await fetch(`${API}/chat/messages`, {
+      const response = await authorizedFetch(`${API}/chat/messages`, {
         cache: 'no-store',
       });
 
@@ -253,7 +254,7 @@ const deleteChatMessage = async (messageId: string) => {
   if (!confirmed) return;
 
   try {
-    const response = await fetch(`${API}/admin/chat/delete-message`, {
+    const response = await authorizedFetch(`${API}/admin/chat/delete-message`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -281,7 +282,7 @@ const deleteChatMessage = async (messageId: string) => {
   }
 };
 const loadChatBans = async () => {
-  const response = await fetch(
+  const response = await authorizedFetch(
     `${API}/admin/chat/bans`
   );
 
@@ -294,7 +295,7 @@ const loadChatBans = async () => {
   return data.bans;
 };
   const unbanChatUser = async (telegramId: string) => {
-  const response = await fetch(
+  const response = await authorizedFetch(
     `${API}/admin/chat/unban`,
     {
       method: "POST",
@@ -326,7 +327,7 @@ const banChatUser = async (msg: ChatMessage) => {
   if (!confirmed) return;
 
   try {
-    const response = await fetch(`${API}/admin/chat/ban`, {
+    const response = await authorizedFetch(`${API}/admin/chat/ban`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -368,7 +369,7 @@ const banChatUser = async (msg: ChatMessage) => {
   try {
     triggerHaptic.mediumImpact();
 
-    const response = await fetch(`${API}/chat/messages`, {
+    const response = await authorizedFetch(`${API}/chat/messages`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
