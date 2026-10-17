@@ -1,0 +1,42 @@
+name: Validate CPA Ledger in isolated PostgreSQL 17
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend_v2/cpa_finance.py'
+      - 'backend_v2/migrations/20261017_stage5_cpa_ledger.sql'
+      - 'backend_v2/tests/test_stage5_ledger.py'
+      - '.github/workflows/validate-cpa-ledger.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage5-ledger:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cpa_ledger_isolated
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/cpa_ledger_isolated
+      BOT_TOKEN: 123456:TEST_TOKEN_FOR_CI_ONLY
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install backend_v2 dependencies
+        run: pip install -r backend_v2/requirements.txt
+      - name: Run isolated Supabase-role, DDL, monetary and concurrency tests
+        run: python -m unittest discover -s backend_v2/tests -p 'test_stage5_ledger.py' -v
