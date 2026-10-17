@@ -24,3 +24,14 @@ assert.ok(ui.includes("visibleDays.length"));
 assert.ok(ui.includes("overflow-x-auto"));
 assert.ok(ui.includes("w-[7px]"));
 assert.ok(ui.includes("Макс. в день"));
+
+import {readdirSync} from 'node:fs';
+import {join} from 'node:path';
+
+// Verify actual Tailwind output, not just the TSX classname.
+assert.ok(ui.includes('bg-accentGold border-t border-white/25'));
+const cssDir='dist/assets';
+const cssFiles=readdirSync(cssDir).filter(name=>name.endsWith('.css'));
+assert.ok(cssFiles.length>0,'Vite emitted no CSS bundle');
+const compiled=cssFiles.map(name=>readFileSync(join(cssDir,name),'utf8')).join('\n');
+assert.match(compiled,/\.bg-accentGold\s*\{\s*--tw-bg-opacity:\s*1;\s*background-color:\s*rgb\(212 175 55\s*\/\s*var\(--tw-bg-opacity\)\)/,'Generated CSS must contain opaque VVD gold background (#D4AF37)');
