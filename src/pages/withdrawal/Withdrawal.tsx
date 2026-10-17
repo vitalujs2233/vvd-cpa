@@ -1,5 +1,5 @@
 import { authorizedFetch } from '@/shared/lib/api';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -51,6 +51,7 @@ export const Withdrawal: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const withdrawalAttempt = useRef<{fingerprint:string;id:string}|null>(null);
 
   const [formErrors, setFormErrors] = useState<{
     amount?: string;
@@ -210,6 +211,10 @@ export const Withdrawal: React.FC = () => {
       setIsSubmitting(true);
       triggerHaptic.mediumImpact();
 
+      const fingerprint = partnerCode + '|' + parsedAmount + '|' + wallet.trim();
+      if (!withdrawalAttempt.current || withdrawalAttempt.current.fingerprint !== fingerprint) {
+        withdrawalAttempt.current = { fingerprint, id: crypto.randomUUID() };
+      }
       const response = await authorizedFetch(
         `${API_URL}/withdrawals`,
         {
@@ -222,6 +227,7 @@ export const Withdrawal: React.FC = () => {
             amount: parsedAmount,
             payment_method: 'USDT TRC20',
             wallet: wallet.trim(),
+            request_id: withdrawalAttempt.current?.id,
           }),
         }
       );
@@ -235,7 +241,7 @@ export const Withdrawal: React.FC = () => {
       }
 
       triggerHaptic.success();
-
+      withdrawalAttempt.current = null;
       setAmount('');
 
       await loadData();
