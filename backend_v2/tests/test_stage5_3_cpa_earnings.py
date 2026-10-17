@@ -13,6 +13,10 @@ import unittest
 import uuid
 from datetime import datetime,timedelta,timezone
 from decimal import Decimal
+import hmac
+import time
+from urllib.parse import urlencode
+
 from pathlib import Path
 from unittest.mock import patch
 from fastapi.testclient import TestClient
@@ -73,6 +77,9 @@ class CPAStage53Integration(unittest.TestCase):
             c.execute(text("""UPDATE public.cpa_finance_epoch
               SET activated_at=:t,legacy_max_withdrawal_id=22,
                   legacy_max_click_row_id=700 WHERE id=1"""),{"t":EPOCH})
+            c.connection.cursor().execute(
+                (ROOT/"migrations/20261017_stage5_manual_hold_release.sql").read_text()
+            )
             cls.original_history=tuple(c.execute(text(x)).scalar_one() for x in (
               "SELECT count(*) FROM users","SELECT count(*) FROM withdrawals",
               "SELECT count(*) FROM conversions WHERE finance_eligible_at IS NULL",
@@ -345,6 +352,163 @@ class CPAStage53Integration(unittest.TestCase):
               FROM withdrawals WHERE cpa_real_epoch_at IS NOT NULL""")).scalar_one(),0)
             self.assertEqual(c.execute(text("SELECT count(*) FROM users")).scalar_one(),12)
             self.assertEqual(c.execute(text("SELECT count(*) FROM withdrawals")).scalar_one(),22)
+
+
+    @classmethod
+    def admin_headers(cls,uid=UID):
+        token=os.environ["BOT_TOKEN"]
+        d={"auth_date":str(int(time.time())),
+           "user":json.dumps({"id":uid},separators=(",",":"))}
+        payload="\n".join(k+"="+v for k,v in sorted(d.items()))
+        secret=hmac.new(b"WebAppData",token.encode(),hashlib.sha256).digest()
+        d["hash"]=hmac.new(secret,payload.encode(),hashlib.sha256).hexdigest()
+        return {"X-Telegram-Init-Data":urlencode(d)}
+
+    @classmethod
+    def approve_network_receipt(cls,cid,*,gross="100.00",uid=UID):
+        return client.post("/admin/cpa/partners/"+CODE+"/receipts",
+            headers=cls.admin_headers(uid),json={
+              "conversion_id":str(cid),
+              "settlement_reference":"CI-BANK-"+uuid.uuid4().hex,
+              "verification_source":"bank_verified",
+              "evidence_reference":"CI-private-receipt-"+uuid.uuid4().hex,
+              "received_gross":gross,
+              "received_at":(datetime.now(timezone.utc)-timedelta(minutes=1)).isoformat(),
+            })
+
+    @classmethod
+    def manual(cls,cid,amount="30.00",*,uid=UID,code=CODE,req=None,reason="Verified settlement early release"):
+        return client.post("/admin/cpa/partners/"+code+"/release",
+          headers=cls.admin_headers(uid),json={
+          "conversion_id":str(cid),"amount":amount,
+          "reason":reason,"request_id":str(req or uuid.uuid4())})
+
+    def test_14_manual_early_partial_with_confirmed_funding(self):
+        cid=self.seed_matured("manual-early",datetime.now(timezone.utc)-timedelta(hours=1))
+        with engine.connect() as c:
+            before=real_withdrawable(c,UID)
+            before_hold=c.execute(text("SELECT hold FROM users WHERE telegram_id=:uid"),{"uid":UID}).scalar_one()
+        unpaid=self.manual(cid,"30.00")
+        self.assertEqual(unpaid.status_code,409,unpaid.text)
+        insufficient=self.approve_network_receipt(cid,gross="99.99")
+        self.assertEqual(insufficient.status_code,409,insufficient.text)
+        receipt=self.approve_network_receipt(cid)
+        self.assertEqual(receipt.status_code,200,receipt.text)
+        report=client.get("/admin/cpa/partners/"+CODE+"/hold",
+                          headers=self.admin_headers())
+        self.assertEqual(report.status_code,200,report.text)
+        credit=next(x for x in report.json()["credits"] if x["conversion_id"]==str(cid))
+        self.assertEqual(credit["remaining"],"80.00")
+        self.assertEqual(credit["early_releasable"],"80.00")
+        rid=uuid.uuid4()
+        first=self.manual(cid,"30.00",req=rid)
+        self.assertEqual(first.status_code,200,first.text)
+        self.assertFalse(first.json()["duplicate"])
+        retry=self.manual(cid,"30.00",req=rid)
+        self.assertEqual(retry.status_code,200,retry.text)
+        self.assertTrue(retry.json()["duplicate"])
+        with engine.connect() as c:
+            self.assertEqual(real_withdrawable(c,UID),before+Decimal("30.00"))
+            self.assertEqual(c.execute(text("SELECT hold FROM users WHERE telegram_id=:uid"),{"uid":UID}).scalar_one(),before_hold-Decimal("30.00"))
+            rows=[x for x in ledger_events_for_conversion(c,cid) if x["operation_type"]=="manual_hold_release"]
+            self.assertEqual(len(rows),1)
+            self.assertEqual(rows[0]["actor_type"],"admin")
+            receipt_id=c.execute(text("""SELECT receipt_id,actor_id,reason_code FROM
+                cpa_ledger WHERE conversion_id=:id AND operation_type='manual_hold_release'"""),{"id":cid}).one()
+            self.assertIsNotNone(receipt_id.receipt_id)
+            self.assertEqual(receipt_id.actor_id,UID)
+
+    def test_15_partial_auto_remainder(self):
+        cid=self.seed_matured("partial-auto")
+        self.assertEqual(self.approve_network_receipt(cid).status_code,200)
+        self.assertEqual(self.manual(cid,"30.00").status_code,200)
+        released=release_matured_holds(engine,limit=80)
+        self.assertGreaterEqual(released["released"],1)
+        with engine.connect() as c:
+            events=ledger_events_for_conversion(c,cid)
+            automatic=next(x for x in events if x["operation_type"]=="hold_release")
+            manual=next(x for x in events if x["operation_type"]=="manual_hold_release")
+            self.assertEqual(automatic["amount"],Decimal("50.00"))
+            self.assertEqual(manual["amount"],Decimal("30.00"))
+            self.assertEqual(sum(x["amount"] for x in (automatic,manual)),Decimal("80.00"))
+        self.assertEqual(release_matured_holds(engine,limit=80)["released"],0)
+        self.assertEqual(self.manual(cid,"1.00").status_code,409)
+
+    def test_16_nonadmin_and_wrong_partner_fail(self):
+        cid=self.seed_matured("auth-early",datetime.now(timezone.utc)-timedelta(hours=1))
+        no_auth=client.get("/admin/cpa/partners/"+CODE+"/hold")
+        self.assertEqual(no_auth.status_code,401)
+        regular=client.get("/admin/cpa/partners/"+CODE+"/hold",
+                           headers=self.admin_headers(base_fixture.OTHER))
+        self.assertEqual(regular.status_code,403)
+        self.assertEqual(self.approve_network_receipt(cid,uid=base_fixture.OTHER).status_code,403)
+        self.assertEqual(self.manual(cid,uid=base_fixture.OTHER).status_code,403)
+        self.assertEqual(self.approve_network_receipt(cid).status_code,200)
+        self.assertEqual(self.manual(cid,code="WRONG-CODE").status_code,409)
+
+    def test_17_insufficient_hold_and_dispute(self):
+        cid=self.seed_matured("dispute-early",datetime.now(timezone.utc)-timedelta(hours=1))
+        self.assertEqual(self.approve_network_receipt(cid).status_code,200)
+        self.assertEqual(self.manual(cid,"80.01").status_code,409)
+        self.assertEqual(self.manual(cid,"30.00").status_code,200)
+        self.assertEqual(self.manual(cid,"50.01").status_code,409)
+        with engine.begin() as c:
+            c.execute(text("SELECT telegram_id FROM users WHERE telegram_id=:id FOR UPDATE"),{"id":UID})
+            release=c.execute(text("""SELECT id,amount FROM public.cpa_ledger
+              WHERE conversion_id=:cid AND operation_type='manual_hold_release'"""),
+              {"cid":cid}).one()
+            c.execute(text("""INSERT INTO public.cpa_ledger
+              (conversion_id,user_id,operation_type,event_key,amount,currency,
+               original_entry_id,actor_type,actor_id,reason_code)
+              VALUES (:cid,:uid,'recovery_pending',:key,:amount,'USD',
+                 :origin,'admin',:admin,'pending review')"""),{
+              "cid":cid,"uid":UID,"key":"disputed-"+uuid.uuid4().hex,
+              "amount":release.amount,"origin":release.id,"admin":UID})
+        self.assertEqual(self.manual(cid,"5.00").status_code,409)
+        report=client.get("/admin/cpa/partners/"+CODE+"/hold",
+                          headers=self.admin_headers())
+        entry=next(x for x in report.json()["credits"] if x["conversion_id"]==str(cid))
+        self.assertTrue(entry["disputed"])
+        self.assertEqual(entry["early_releasable"],"0.00")
+
+    def test_18_old_history_and_replay_cannot_be_credited(self):
+        old=client.get("/admin/cpa/partners/"+CODE+"/hold",
+            headers=self.admin_headers())
+        self.assertEqual(old.status_code,200)
+        self.assertTrue(all(x["conversion_id"].startswith('') for x in old.json()["credits"]))
+        with engine.connect() as c:
+            historical=c.execute(text("""
+              SELECT id FROM conversions WHERE finance_eligible_at IS NULL
+                ORDER BY created_at LIMIT 1""")).scalar_one()
+        self.assertEqual(self.manual(historical).status_code,409)
+        self.assertEqual(self.approve_network_receipt(historical).status_code,409)
+        with engine.connect() as c:
+            self.assertEqual(c.execute(text("SELECT count(*) FROM withdrawals")).scalar_one(),22)
+            self.assertEqual(c.execute(text("SELECT count(*) FROM users")).scalar_one(),12)
+
+    def test_19_auto_manual_race_never_exceeds_credit(self):
+        cid=self.seed_matured("auto-manual-race")
+        self.assertEqual(self.approve_network_receipt(cid).status_code,200)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+            f1=pool.submit(release_matured_holds,engine,limit=60)
+            f2=pool.submit(self.manual,cid,"30.00")
+            f3=pool.submit(self.manual,cid,"20.00")
+            f1.result(); f2.result(); f3.result()
+        with engine.connect() as c:
+            events=[x for x in ledger_events_for_conversion(c,cid)
+                if x["operation_type"] in ("hold_release","manual_hold_release")]
+            self.assertEqual(sum(x["amount"] for x in events),Decimal("80.00"))
+            self.assertLessEqual(len([x for x in events if x["operation_type"]=="hold_release"]),1)
+            self.assertGreaterEqual(c.execute(text("SELECT hold FROM users WHERE telegram_id=:id"),
+              {"id":UID}).scalar_one(),Decimal("0.00"))
+
+    def test_20_disabled_flag_and_no_network_receipt(self):
+        cid=self.seed_matured("disabled-early",datetime.now(timezone.utc)-timedelta(hours=1))
+        with patch.dict(os.environ,{"VVD_CPA_EARLY_RELEASE_ENABLED":"0"}):
+            self.assertEqual(self.manual(cid).status_code,409)
+            self.assertEqual(self.approve_network_receipt(cid).status_code,409)
+        with engine.connect() as c:
+            self.assertEqual(len(ledger_events_for_conversion(c,cid)),2)
 
 
 if __name__=="__main__":
