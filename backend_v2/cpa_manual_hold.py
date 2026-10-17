@@ -89,6 +89,9 @@ def read_partner_hold(engine, partner_code):
                    (SELECT COALESCE(sum(r.amount),0) FROM public.cpa_ledger r
                       WHERE r.original_entry_id=h.id AND
                         r.operation_type IN ('hold_release','manual_hold_release')) AS released,
+                   (SELECT COALESCE(sum(r.amount),0) FROM public.cpa_ledger r
+                      WHERE r.original_entry_id=h.id AND
+                        r.operation_type='hold_reversal') AS reversed,
                    (SELECT count(*) FROM public.cpa_ledger d
                       WHERE d.conversion_id=h.conversion_id
                         AND d.operation_type IN ('recovery_pending','hold_reversal',
@@ -108,7 +111,7 @@ def read_partner_hold(engine, partner_code):
               "old_click":epoch["legacy_max_click_row_id"]}).mappings().all()
         results=[]
         for x in credits:
-            rem=max(ZERO,Decimal(x["amount"])-Decimal(x["released"]))
+            rem=max(ZERO,Decimal(x["amount"])-Decimal(x["released"])-Decimal(x["reversed"]))
             blocked=bool(x["disputes"])
             verified=bool(x["receipt_id"])
             results.append({
@@ -121,7 +124,9 @@ def read_partner_hold(engine, partner_code):
                "network_verified":verified,
                "settlement_reference":x["settlement_reference"],
                "disputed":blocked,
-               "early_releasable":"%.2f"%(rem if verified and not blocked else ZERO)
+               "early_releasable":"%.2f"%(
+                 min(rem, max(ZERO,Decimal(u["hold"]))) if verified and not blocked
+                 and os.getenv("VVD_CPA_EARLY_RELEASE_ENABLED")=="1" else ZERO)
             })
         try:
             spendable=min(real_withdrawable(c,u["telegram_id"],epoch),Decimal(u["balance"]))
