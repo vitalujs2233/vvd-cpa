@@ -59,6 +59,7 @@ class NeutralLinkTests(unittest.TestCase):
             stage3=(ROOT/"migrations/20261016_stage3_neutral_links.sql").read_text()
             stage3="\n".join(x for x in stage3.splitlines() if not x.lstrip().startswith("REVOKE "))
             conn.connection.cursor().execute(stage3)
+            conn.connection.cursor().execute((ROOT/"migrations/20261017_universal_cpa_integrations.sql").read_text())
             conn.execute(text("""INSERT INTO users(telegram_id,first_name,partner_code,status)
                VALUES(:id,'Tester',:code,'active') ON CONFLICT(telegram_id)
                DO UPDATE SET partner_code=EXCLUDED.partner_code,status='active'"""),
