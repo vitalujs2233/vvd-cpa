@@ -82,9 +82,9 @@ class NeutralLinkTests(unittest.TestCase):
         if network.status_code!=200:raise AssertionError(network.text)
         cls.net_id=network.json()["id"]
         vert=client.post("/cpa/admin/verticals",headers=headers(ADMIN),json={
-            "slug":"utilities","title":"Utilities","is_active":True})
+            "slug":"utilities","title":"Utilities","is_active":True,"cpa_link_allowed":True})
         if vert.status_code==409:
-            pass
+            client.put("/cpa/admin/verticals/utilities",headers=headers(ADMIN),json={"slug":"utilities","title":"Utilities","is_active":True,"cpa_link_allowed":True})
         elif vert.status_code!=200:
             raise AssertionError(vert.text)
         with engine.begin() as conn:
