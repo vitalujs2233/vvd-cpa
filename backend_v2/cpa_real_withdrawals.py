@@ -49,7 +49,9 @@ def real_withdrawable(conn, user_id: int, epoch=None):
         WHERE l.user_id=:uid
           AND l.operation_type IN ('hold_release','balance_reversal')
           AND v.finance_eligible_at >= :cutover
+          AND v.created_at >= :cutover
           AND v.finance_approved_at >= v.finance_eligible_at
+          AND v.status='approved'
           AND v.is_test=FALSE AND v.currency='USD'
           AND k.id > :old_click
           AND k.user_id=v.user_id
