@@ -6,4 +6,4 @@ ALTER TABLE public.cpa_networks ADD CONSTRAINT cpa_networks_postback_method_chec
 ALTER TABLE public.cpa_verticals ADD COLUMN IF NOT EXISTS cpa_link_allowed BOOLEAN NOT NULL DEFAULT FALSE;
 -- Preserve previously approved neutral vertical behavior; new/renamed categories are denied by default.
 UPDATE public.cpa_verticals SET cpa_link_allowed=TRUE
-WHERE slug IN ('utilities','education','productivity','software','technology');
+WHERE slug IN ('utilities','education','productivity','software','technology') AND cpa_link_allowed=FALSE;
