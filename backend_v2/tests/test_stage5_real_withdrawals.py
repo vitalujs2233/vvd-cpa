@@ -317,13 +317,13 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
         with engine.begin() as c:
             c.execute(text("""
                 CREATE FUNCTION public.ci_fail_user_balance_debit() RETURNS trigger
-                LANGUAGE plpgsql AS $
+                LANGUAGE plpgsql AS $$
                 BEGIN
                     IF NEW.balance < OLD.balance THEN
                       RAISE EXCEPTION 'Simulated user debit failure';
                     END IF;
                     RETURN NEW;
-                END $;
+                END $$;
             """))
             c.execute(text("""
                 CREATE TRIGGER ci_fail_user_balance_debit BEFORE UPDATE
