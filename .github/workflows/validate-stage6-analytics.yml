@@ -2,7 +2,7 @@ name: Validate VVD CPA Stage 6 Analytics
 
 on:
   push:
-    branches: [feat/stage6-existing-analysis-analytics-draft, feat/stage6-compact-partner-analysis-draft, fix/stage7-click-chart-visibility-draft, fix/stage7-gold-click-chart-css-draft]
+    branches: [feat/stage6-existing-analysis-analytics-draft, feat/stage6-compact-partner-analysis-draft, fix/stage7-click-chart-visibility-draft, fix/stage7-gold-click-chart-css-draft, fix/compact-geo-scroll-iphone-draft]
   workflow_dispatch:
 
 permissions:

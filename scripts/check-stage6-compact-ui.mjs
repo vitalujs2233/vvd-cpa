@@ -38,3 +38,27 @@ const goldRule=compiled.match(/\.bg-accentGold\s*\{([^}]+)\}/);
 assert.ok(goldRule,'Generated CSS must contain .bg-accentGold rule');
 assert.ok(/background-color/.test(goldRule[1]),'Compiled CSS must set background-color');
 assert.ok(/212\s+175\s+55|#d4af37/i.test(goldRule[1]),'Compiled bar background must use VVD gold #D4AF37');
+
+
+// GEO keeps its controls outside a bounded, touch-scrollable list.
+const geoStart=ui.indexOf('География трафика');
+const recentStart=ui.indexOf('Последние клики',geoStart);
+assert.ok(geoStart>=0&&recentStart>geoStart,'GEO must precede recent clicks');
+const geo=ui.slice(geoStart,recentStart);
+const listStart=geo.indexOf('data-testid="geo-scroll-list"');
+assert.ok(listStart>geo.indexOf('aria-label="Сортировка стран"'),'GEO sort control must remain above scroll container');
+assert.match(geo,/max-h-\[300px\]/,'GEO list limited to 300px');
+assert.match(geo,/overflow-y-auto/,'GEO uses internal vertical scrolling');
+assert.match(geo,/overflow-x-hidden/,'GEO prevents horizontal scrolling');
+assert.match(geo,/overscroll-y-auto/,'GEO allows page scroll chaining at its boundaries');
+assert.match(geo,/touch-pan-y/,'GEO allows finger panning');
+assert.ok(geo.includes("WebkitOverflowScrolling:'touch'"),'GEO enables iOS momentum scrolling');
+assert.ok(geo.includes('orderedCountries.map'),'All countries remain rendered regardless of viewport');
+assert.ok(geo.includes('countryFlag(c.country_code)')&&geo.includes('c.country_name')&&geo.includes('c.clicks.toLocaleString'),'GEO retains flag, name and count');
+const many=Array.from({length:200},(_,i)=>({country_code:String(i),country_name:'Country '+i,clicks:(i*37)%241}));
+for(const direction of ['asc','desc']){
+ const sorted=sortCountries(many,direction);
+ assert.equal(sorted.length,200,'Sorting retains all 200 countries');
+ for(let i=1;i<sorted.length;i++)assert.ok(direction==='asc'?sorted[i-1].clicks<=sorted[i].clicks:sorted[i-1].clicks>=sorted[i].clicks,'Sort direction must apply to every country, including offscreen entries');
+}
+console.log('Stage 7 GEO bounded iPhone scroll and full-list sorting checks passed');

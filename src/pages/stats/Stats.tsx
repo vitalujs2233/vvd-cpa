@@ -165,10 +165,10 @@ export const Stats:React.FC=()=>{
           <option value="desc">Больше кликов</option><option value="asc">Меньше кликов</option>
         </select>
       </div>
-      <div className="mt-2">
-        {orderedCountries.length?orderedCountries.map((c,i)=><div key={(c.country_code||'unknown')+i} className="flex justify-between gap-2 py-2 border-b border-white/5 last:border-0 text-xs">
-          <span className="text-white">{countryFlag(c.country_code)} {c.country_name}</span>
-          <span className="text-textSecondary whitespace-nowrap">{c.clicks.toLocaleString('ru-RU')} кликов</span>
+      <div data-testid="geo-scroll-list" className="mt-2 max-h-[300px] overflow-y-auto overflow-x-hidden overscroll-y-auto touch-pan-y min-w-0" style={{WebkitOverflowScrolling:'touch'}}>
+        {orderedCountries.length?orderedCountries.map((c,i)=><div key={(c.country_code||'unknown')+i} className="flex items-center justify-between min-w-0 gap-2 py-2 border-b border-white/5 last:border-0 text-xs">
+          <span className="text-white min-w-0 break-words">{countryFlag(c.country_code)} {c.country_name}</span>
+          <span className="text-textSecondary whitespace-nowrap shrink-0">{c.clicks.toLocaleString('ru-RU')} кликов</span>
         </div>):<div className="text-xs text-textSecondary py-2">Нет переходов за период</div>}
       </div>
     </Card>
