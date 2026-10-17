@@ -17,3 +17,10 @@ assert.ok(ui.includes('grid grid-cols-2'));
 assert.ok(ui.includes('min-w-0'));
 assert.ok(ui.includes('Показать ещё'));
 console.log('Stage 6 compact mobile UI and sorting checks passed');
+
+// Historical clicks must not collapse into tiny unlabeled bars on iPhone.
+assert.ok(ui.includes("totalVisible.toLocaleString('ru-RU')"));
+assert.ok(ui.includes("visibleDays.length"));
+assert.ok(ui.includes("overflow-x-auto"));
+assert.ok(ui.includes("w-[7px]"));
+assert.ok(ui.includes("Макс. в день"));
