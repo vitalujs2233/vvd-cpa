@@ -129,6 +129,7 @@ jobs:
           PY
       - name: Run every existing backend test suite on own disposable PG17
         env:
+          VVD_CPA_EARLY_RELEASE_ENABLED: '1'
           SUITE: ${{ matrix.suite }}
         run: python -m unittest discover -s backend_v2/tests -p "$SUITE.py" -v
 
