@@ -339,7 +339,7 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
             self.assertEqual(response.status_code,200)
             self.assertFalse(response.json()["success"])
             self.assertEqual(response.json()["message"],"Insufficient real CPA earnings")
-            with patch("main.send_partner_notification",new=AsyncMock()):
+            with patch("main.send_partner_notification",new=AsyncMock()), patch("main.verified_telegram_id",return_value=ADMIN):
                 r=client.post("/admin/withdrawals/1/paid",json={
                     "external_transfer_id":"CI-HISTORY-FORBIDDEN-1",
                     "evidence_reference":"CI-HISTORY-PROOF-1",
