@@ -114,13 +114,17 @@ def summarize(conn, uid, params):
                 for s in ("pending","approved","rejected","legacy","unknown")}
     count = sum(statuses[x] for x in ("pending","approved","rejected"))
     # Real EPC never uses the historic/demo earnings.
-    return {"clicks":int(clicks),"conversions":count,"approved_conversions":statuses["approved"],"statuses":statuses,
+    result={"clicks":int(clicks),"conversions":count,"approved_conversions":statuses["approved"],"statuses":statuses,
             "cr":round(100*count/clicks,2) if clicks else 0.0,
             "approved_cr":round(100*statuses["approved"]/clicks,2) if clicks else 0.0,
             "epc":scalar(finance["partner"] / clicks) if clicks else 0.0,
-            "finance":{key:scalar(value) for key,value in finance.items()},
+            "earned":scalar(finance["partner"]), "on_hold":scalar(finance["hold"]),
+            "real_withdrawable":scalar(finance["real_withdrawable"]),
             "legacy_conversions":statuses["legacy"],"test_conversions":sum(bool(row["is_test"]) for row in conv),
             "historical_income_included":False}
+    if uid is None:
+        result["finance"]={key:scalar(value) for key,value in finance.items()}
+    return result
 
 
 def daily(conn, uid, params):
@@ -178,20 +182,51 @@ def grouped(conn, uid, params, field):
 
 
 def countries(conn, uid, params):
-    # Blank/unknown country is NOT a geographic fact; exclude it.
+    """Country of a click only; unknown data stays unknown."""
     bind={**params,"uid":uid}
     rows=conn.execute(text("""
-      WITH c AS (SELECT NULLIF(trim(country_code),'') code,
-           max(NULLIF(trim(country_name),'')) name,count(*) clicks
-           FROM ("""+CLICK_ROWS+""") x
-           WHERE country_code IS NOT NULL AND trim(country_code) <> ''
-             AND upper(country_code) NOT IN ('XX','ZZ','UNKNOWN','--')
-           GROUP BY NULLIF(trim(country_code),''))
-      SELECT code AS country_code,name AS country_name,clicks
-      FROM c ORDER BY clicks DESC,code
+      SELECT CASE WHEN upper(trim(country_code)) ~ '^[A-Z]{2}$'
+                    AND upper(trim(country_code)) NOT IN ('XX','ZZ')
+                  THEN upper(trim(country_code)) ELSE NULL END AS country_code,
+             max(CASE WHEN upper(trim(country_code)) ~ '^[A-Z]{2}$'
+                    AND upper(trim(country_code)) NOT IN ('XX','ZZ')
+                  THEN NULLIF(trim(country_name),'') ELSE NULL END) AS country_name,
+             count(*) AS clicks
+      FROM ("""+CLICK_ROWS+""") x
+      GROUP BY 1 ORDER BY clicks DESC,country_code NULLS LAST
     """),bind).mappings().all()
-    return [{"country_code":r["country_code"],"country_name":r["country_name"] or r["country_code"],
-             "clicks":r["clicks"],"conversions":0,"income":0.0} for r in rows]
+    return [{"country_code":r["country_code"],
+             "country_name":r["country_name"] if r["country_code"] and r["country_name"] else (r["country_code"] or "Не определена"),
+             "clicks":r["clicks"]} for r in rows]
+
+
+def recent_clicks(conn, uid, params, limit=10, offset=0):
+    """Only owned click facts; never expose visitor IP, click ID or network tokens."""
+    rows=conn.execute(text("""
+        SELECT k.created_at AS clicked_at,
+               CASE WHEN upper(trim(k.country_code)) ~ '^[A-Z]{2}$'
+                         AND upper(trim(k.country_code)) NOT IN ('XX','ZZ')
+                    THEN upper(trim(k.country_code)) ELSE NULL END AS country_code,
+               CASE WHEN upper(trim(k.country_code)) ~ '^[A-Z]{2}$'
+                         AND upper(trim(k.country_code)) NOT IN ('XX','ZZ')
+                    THEN NULLIF(trim(k.country_name),'') ELSE NULL END AS country_name,
+               o.title AS offer_name
+        FROM public.clicks k
+        LEFT JOIN public.offers o ON o.id=k.offer_id
+        WHERE k.user_id=:uid
+          AND (CAST(:start AS DATE) IS NULL OR k.created_at::date >= :start)
+          AND (CAST(:end AS DATE) IS NULL OR k.created_at::date <= :end)
+          AND (CAST(:vertical AS TEXT) IS NULL OR k.vertical=:vertical)
+          AND (CAST(:offer AS TEXT) IS NULL OR k.offer_id=:offer)
+          AND (CAST(:network AS BIGINT) IS NULL OR k.network_id=:network)
+        ORDER BY k.created_at DESC,k.id DESC
+        LIMIT :limit OFFSET :offset
+    """),{**params,"uid":uid,"limit":limit,"offset":offset}).mappings().all()
+    return [{"created_at":r["clicked_at"].isoformat(),
+             "country_code":r["country_code"],
+             "country_name":r["country_name"] or r["country_code"] or "Не определена",
+             "offer_name":r["offer_name"]} for r in rows]
+
 
 
 def options(period: str=Query("all"), date_from: date|None=Query(None,alias="from"),
@@ -224,6 +259,20 @@ def existing_countries(telegram_id:int,period:str="all",vertical:str|None=None,
     with engine.connect() as conn:
         return {"success":True,"countries":countries(conn,telegram_id,params),
                 "vertical":vertical or "all"}
+
+
+@router.get("/statistics/{telegram_id}/clicks")
+def partner_recent_clicks(telegram_id:int,period:str="all",vertical:str|None=None,
+                          offer_id:str|None=None,network_id:int|None=None,
+                          date_from:date|None=Query(None,alias="from"),
+                          date_to:date|None=Query(None,alias="to"),
+                          limit:int=Query(10,ge=1,le=20),
+                          offset:int=Query(0,ge=0)):
+    if date_from and date_to and date_from>date_to: raise HTTPException(422,"Invalid date range")
+    params=arguments(period,date_from,date_to,vertical,offer_id,network_id)
+    with engine.connect() as conn:
+        return {"success":True,"clicks":recent_clicks(conn,telegram_id,params,limit,offset),
+                "limit":limit,"offset":offset}
 
 
 @router.get("/statistics/{telegram_id}/breakdown")
