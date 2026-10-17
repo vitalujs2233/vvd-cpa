@@ -281,6 +281,11 @@ def release_matured_holds(engine, *, limit=100):
                     WHERE lr.original_entry_id=l.id
                       AND lr.operation_type IN ('hold_release','hold_reversal')
                   )
+                  AND NOT EXISTS (
+                    SELECT 1 FROM public.cpa_conversion_disputes d
+                    WHERE d.conversion_id=l.conversion_id
+                      AND d.resolution IS DISTINCT FROM 'cleared'
+                  )
                   AND l.amount > (
                     SELECT COALESCE(SUM(part.amount),0)
                     FROM public.cpa_ledger part
