@@ -22,7 +22,14 @@ export const NetworkPostback:React.FC<{id:number}>=({id})=>{
   {!data? <p className="text-xs text-textSecondary">Загрузка конфигурации…</p>:<>
    <p className="text-xs text-textSecondary break-all select-text">URL: {data.endpoint}</p>
    <p className="text-xs text-textSecondary">Секрет: {data.configured?'настроен':'не настроен'} · Последняя проверка: {data.postback_last_received_at?new Date(data.postback_last_received_at).toLocaleString('ru-RU'):'Нет данных'}</p>
-   <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={data.postback_enabled} disabled={!data.configured} onChange={e=>setData({...data,postback_enabled:e.target.checked})}/>Принимать Postback</label>
+   <label className="block text-xs text-textSecondary">Формат Postback
+     <select className={control+' mt-1'} value={data.postback_method} onChange={e=>setData({...data,postback_method:e.target.value as 'POST_JSON'|'GET_QUERY',postback_enabled:false})}>
+       <option value="POST_JSON">POST / JSON (совместимый)</option>
+       <option value="GET_QUERY">GET / Query (требует проверки отправителя)</option>
+     </select>
+   </label>
+   {data.postback_method==='GET_QUERY'&&!data.get_auth_ready&&<p role="alert" className="text-xs text-textSecondary">GET приём отключён: {data.get_auth_reason}. X-Forwarded-For не подтверждает отправителя; секрет в URL не допускается.</p>}
+   <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={data.postback_enabled} disabled={!data.configured||(data.postback_method==='GET_QUERY'&&!data.get_auth_ready)} onChange={e=>setData({...data,postback_enabled:e.target.checked})}/>Принимать Postback</label>
    {fieldNames.map(k=><label key={k} className="block text-xs text-textSecondary">Параметр: {k}<input className={control+' mt-1'} value={data.postback_params[k]} onChange={e=>setData({...data,postback_params:{...data.postback_params,[k]:e.target.value}})}/></label>)}
    <label className="block text-xs text-textSecondary">Соответствие статусов (JSON)
     <textarea className={control+' mt-1 min-h-24'} value={mapText} onChange={e=>setMapText(e.target.value)}/>
