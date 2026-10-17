@@ -58,6 +58,8 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
             c.execute(text("""CREATE TABLE public.users (
                 telegram_id BIGINT PRIMARY KEY,
                 first_name TEXT NOT NULL,
+                last_name TEXT,
+                username TEXT,
                 partner_code TEXT UNIQUE,
                 role TEXT NOT NULL DEFAULT 'user',
                 balance NUMERIC(12,2) NOT NULL DEFAULT 0,
