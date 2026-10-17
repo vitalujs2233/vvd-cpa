@@ -21,7 +21,7 @@ ALLOWED={"pending","approved","rejected"}
 PARAM=re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,47}$")
 SAFE_ID=re.compile(r"^[\w:.\-]{1,120}$",re.ASCII)
 EXTERNAL_STATUS=re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,47}$")
-NEUTRAL=frozenset({"utilities","education","productivity","software","technology"})
+
 DEFAULT_PARAMS={"click":"click_id","transaction":"transaction_id","status":"status","amount":"amount","currency":"currency"}
 DEFAULT_MAP={"pending":"pending","approved":"approved","rejected":"rejected"}
 
@@ -32,6 +32,7 @@ def admin(raw):
 
 class ProviderConfig(BaseModel):
     postback_enabled:bool=False
+    postback_method:str=Field("POST_JSON",pattern="^(POST_JSON|GET_QUERY)$")
     postback_params:dict[str,str]=Field(default_factory=lambda:dict(DEFAULT_PARAMS))
     postback_status_map:dict[str,str]=Field(default_factory=lambda:dict(DEFAULT_MAP))
     @field_validator("postback_params")
@@ -51,20 +52,22 @@ class ProviderConfig(BaseModel):
 def get_provider(network_id:int,x_telegram_init_data:str|None=Header(None)):
     admin(x_telegram_init_data)
     with engine.connect() as c:
-        row=c.execute(text("""SELECT postback_enabled,postback_params,postback_status_map,
+        row=c.execute(text("""SELECT postback_enabled,postback_method,postback_params,postback_status_map,
              postback_key_hash IS NOT NULL AS configured,postback_last_received_at
              FROM cpa_networks WHERE id=:id"""),{"id":network_id}).mappings().first()
     if not row:raise HTTPException(404,"Network not found")
-    return {**dict(row),"endpoint":f"https://vvd-cpa-v2.onrender.com/cpa/postback/{network_id}"}
+    return {**dict(row),"get_auth_ready":False,"get_auth_reason":"GET requires verified sender authentication; IP headers and URL secrets are not trusted","endpoint":f"https://vvd-cpa-v2.onrender.com/cpa/postback/{network_id}"}
 
 @router.put("/admin/networks/{network_id}/postback")
 def configure_provider(network_id:int,payload:ProviderConfig,x_telegram_init_data:str|None=Header(None)):
     admin(x_telegram_init_data)
+    if payload.postback_method=="GET_QUERY" and payload.postback_enabled:
+        raise HTTPException(422,"GET reception disabled until authenticated sender support is verified")
     with engine.begin() as c:
         row=c.execute(text("""UPDATE cpa_networks SET postback_enabled=:enabled,
-          postback_params=CAST(:params AS jsonb),postback_status_map=CAST(:map AS jsonb)
+          postback_method=:method,postback_params=CAST(:params AS jsonb),postback_status_map=CAST(:map AS jsonb)
           WHERE id=:id RETURNING id"""),{"id":network_id,"enabled":payload.postback_enabled,
-          "params":json.dumps(payload.postback_params),"map":json.dumps(payload.postback_status_map)}).first()
+          "method":payload.postback_method,"params":json.dumps(payload.postback_params),"map":json.dumps(payload.postback_status_map)}).first()
     if not row:raise HTTPException(404,"Network not found")
     return {"ok":True}
 
@@ -112,10 +115,13 @@ def _accept(c,provider,raw,supplied_key,network_id,is_test=False):
             or not re.fullmatch(r"[A-Z]{3}",currency)):
         raise HTTPException(422,"Invalid postback fields")
     found=c.execute(text("""SELECT c.id,c.user_id,c.partner_code,c.offer_id,
-      c.vertical,c.network_id FROM clicks c WHERE c.click_id=:click"""),
+      c.vertical,c.network_id,u.cpa_link_allowed AND u.is_active AS allowed
+      FROM clicks c JOIN offers o ON o.id=c.offer_id
+      JOIN cpa_verticals u ON u.slug=o.vertical_slug
+      WHERE c.click_id=:click AND o.network_id=c.network_id AND o.vertical_slug=c.vertical"""),
       {"click":click}).mappings().first()
     if (not found or found["network_id"]!=network_id or not found["offer_id"]
-            or found["vertical"] not in NEUTRAL):
+            or not found["allowed"]):
         LOG.warning("cpa_postback_rejected reason=unattributed network_id=%s",network_id)
         raise HTTPException(404,"Attributed click not found")
 
@@ -244,11 +250,26 @@ async def receive_postback(network_id:int,request:Request,
     if len(raw)>4096:raise HTTPException(413,"Payload too large")
     with engine.begin() as c:
         provider=c.execute(text("""SELECT id,postback_enabled,postback_key_hash,
-          postback_params,postback_status_map FROM cpa_networks WHERE id=:id FOR UPDATE"""),
+          postback_method,postback_params,postback_status_map FROM cpa_networks WHERE id=:id FOR UPDATE"""),
           {"id":network_id}).mappings().first()
         if not provider or not provider["postback_enabled"] or not provider["postback_key_hash"]:
             raise HTTPException(404,"Source unavailable")
+        if provider["postback_method"]!="POST_JSON":
+            raise HTTPException(405,"Network is not configured for POST JSON")
         return _accept(c,provider,raw,x_vvd_postback_key,network_id)
+
+@router.get("/postback/{network_id}")
+async def receive_get_postback(network_id:int,request:Request):
+    # Fail closed: arbitrary X-Forwarded-For or query parameters are not identity.
+    # Do not emit or log sensitive query strings.
+    if len(request.scope.get("query_string",b""))>4096:
+        raise HTTPException(413,"Query too large")
+    with engine.connect() as c:
+        provider=c.execute(text("""SELECT postback_method,postback_enabled
+            FROM cpa_networks WHERE id=:id"""),{"id":network_id}).mappings().first()
+    if not provider or provider["postback_method"]!="GET_QUERY":
+        raise HTTPException(404,"Source unavailable")
+    raise HTTPException(403,"GET sender authentication not configured")
 
 def _snapshot(c):
     return tuple(c.execute(text(q)).scalar_one() for q in (

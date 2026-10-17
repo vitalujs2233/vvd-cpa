@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from database import engine
-from neutral_links import PARAM_RE, NEUTRAL_VERTICALS, _validated_destination
+from neutral_links import PARAM_RE, _validated_destination
 from stars_payments import require_telegram_id
 from access_guard import authorized_admin
 
@@ -65,6 +65,7 @@ class VerticalIn(BaseModel):
     icon_name:str=Field("layers",pattern=r"^(layers|heart|sparkles|video|gamepad|smartphone|globe)$")
     display_order:int=Field(0,ge=-9999,le=9999)
     is_active:bool=False
+    cpa_link_allowed:bool=False
 
 class OfferIn(BaseModel):
     id:str=Field(min_length=2,max_length=80,pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_-]*$")
@@ -171,8 +172,8 @@ def create_vertical(payload:VerticalIn,x_telegram_init_data:str|None=Header(None
     require_admin(x_telegram_init_data)
     try:
         with engine.begin() as conn:
-            conn.execute(text("""INSERT INTO cpa_verticals(slug,title,description,icon_name,display_order,is_active)
-             VALUES(:slug,:title,:description,:icon_name,:display_order,:is_active)"""),payload.model_dump())
+            conn.execute(text("""INSERT INTO cpa_verticals(slug,title,description,icon_name,display_order,is_active,cpa_link_allowed)
+             VALUES(:slug,:title,:description,:icon_name,:display_order,:is_active,:cpa_link_allowed)"""),payload.model_dump())
     except IntegrityError:
         raise HTTPException(409,"Вертикаль с таким адресом уже существует")
     return {"ok":True}
@@ -183,8 +184,8 @@ def edit_vertical(slug:str,payload:VerticalIn,x_telegram_init_data:str|None=Head
     if slug!=payload.slug:raise HTTPException(422,"Идентификатор вертикали не изменяется")
     with engine.begin() as conn:
         row=conn.execute(text("""UPDATE cpa_verticals SET title=:title,description=:description,
-           icon_name=:icon_name,display_order=:display_order,is_active=:is_active
-           WHERE slug=:slug RETURNING slug"""),payload.model_dump()).first()
+           icon_name=:icon_name,display_order=:display_order,is_active=:is_active,
+           cpa_link_allowed=:cpa_link_allowed WHERE slug=:slug RETURNING slug"""),payload.model_dump()).first()
     if not row:raise HTTPException(404,"Вертикаль не найдена")
     return {"ok":True}
 
@@ -199,13 +200,16 @@ def offers_admin(x_telegram_init_data:str|None=Header(None)):
     return {"items":[{**dict(x),"commission_percent":str(x["commission_percent"])} for x in rows]}
 
 def checked_offer(conn,payload):
-    if payload.status=='published' and payload.vertical_slug in NEUTRAL_VERTICALS and payload.source_url:
+    if payload.status=='published' and payload.source_url:
         selected=payload.click_param_override
         if not selected and payload.network_id:
             selected=conn.execute(text('SELECT click_param FROM cpa_networks WHERE id=:id'),{'id':payload.network_id}).scalar()
         if selected:
             _validated_destination(payload.source_url,selected,'configuration-check')
     if payload.status == "published" and payload.offer_type == "smartlink":
+        authorized=conn.execute(text("SELECT is_active AND cpa_link_allowed FROM cpa_verticals WHERE slug=:slug"),{"slug":payload.vertical_slug}).scalar()
+        if authorized is not True:
+            raise HTTPException(422,"Вертикаль не разрешена для CPA-переходов")
         if not payload.source_url:
             raise HTTPException(422, "Для публикации Smartlink укажите действующую исходную HTTPS-ссылку")
         if not payload.network_id:

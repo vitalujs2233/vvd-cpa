@@ -2,7 +2,7 @@ name: Validate VVD CPA Stage 6 Analytics
 
 on:
   push:
-    branches: [feat/stage6-existing-analysis-analytics-draft, feat/stage6-compact-partner-analysis-draft, fix/stage7-click-chart-visibility-draft, fix/stage7-gold-click-chart-css-draft, fix/compact-geo-scroll-iphone-draft]
+    branches: [feat/stage6-existing-analysis-analytics-draft, feat/stage6-compact-partner-analysis-draft, fix/stage7-click-chart-visibility-draft, fix/stage7-gold-click-chart-css-draft, fix/compact-geo-scroll-iphone-draft, feat/universal-cpa-integration-draft]
   workflow_dispatch:
 
 permissions:
@@ -35,6 +35,61 @@ jobs:
           python-version: '3.11'
       - run: pip install -r backend_v2/requirements.txt
       - run: python -m unittest discover -s backend_v2/tests -p 'test_stage6*.py' -v
+
+
+  isolated-cpa-links:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cpa_links
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/cpa_links
+      BOT_TOKEN: 123456:TEST_TOKEN_FOR_CI_ONLY
+      PYTHONPATH: backend_v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r backend_v2/requirements.txt
+      - run: python -m unittest discover -s backend_v2/tests -p 'test_stage3_neutral_links.py' -v
+
+  isolated-cpa-postback:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cpa_postback
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/cpa_postback
+      BOT_TOKEN: 123456:TEST_TOKEN_FOR_CI_ONLY
+      PYTHONPATH: backend_v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r backend_v2/requirements.txt
+      - run: python -m unittest discover -s backend_v2/tests -p 'test_stage4_postback.py' -v
 
   mini-app-build:
     runs-on: ubuntu-latest

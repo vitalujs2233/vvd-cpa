@@ -30,6 +30,13 @@ class PostbackTests(unittest.TestCase):
         cls.click="pbclick-"+cls.tag
         cls.click2="pbclick2-"+cls.tag
         with engine.begin() as c:
+            c.execute(text("""CREATE TABLE IF NOT EXISTS users (
+                telegram_id BIGINT PRIMARY KEY,first_name TEXT,partner_code TEXT,
+                status TEXT NOT NULL DEFAULT 'active',role TEXT NOT NULL DEFAULT 'user',
+                balance NUMERIC(12,2) NOT NULL DEFAULT 0,
+                hold NUMERIC(12,2) NOT NULL DEFAULT 0,
+                withdrawn NUMERIC(12,2) NOT NULL DEFAULT 0)"""))
+            c.execute(text("INSERT INTO users(telegram_id,first_name,partner_code,status,role) VALUES(232682307,'TestAdmin','VVDADMIN','active','admin') ON CONFLICT(telegram_id) DO UPDATE SET role='admin'"))
             c.execute(text("CREATE TABLE IF NOT EXISTS offers(id VARCHAR(80) PRIMARY KEY,title VARCHAR(200) NOT NULL)"))
             for defn in ("description TEXT","icon_name VARCHAR(30)","geo VARCHAR(300)","smartlink_suffix VARCHAR(120) NOT NULL DEFAULT ''"):
                 c.execute(text("ALTER TABLE offers ADD COLUMN IF NOT EXISTS "+defn))
@@ -62,10 +69,12 @@ class PostbackTests(unittest.TestCase):
             stage4=(ROOT/"migrations/20261016_stage4_postback.sql").read_text()
             stage4="\n".join(line for line in stage4.splitlines() if not line.lstrip().startswith("REVOKE "))
             c.connection.cursor().execute(stage4)
+            c.execute(text("ALTER TABLE cpa_networks ADD COLUMN IF NOT EXISTS click_param VARCHAR(48)"))
+            c.connection.cursor().execute((ROOT/"migrations/20261017_universal_cpa_integrations.sql").read_text())
             migration=(ROOT/"migrations/20261016_stage4_admin_postback_probe.sql").read_text()
             c.connection.cursor().execute(migration)
             c.execute(text("INSERT INTO users(telegram_id,first_name,partner_code,status) VALUES(:uid,'Stage4','VVD964001','active') ON CONFLICT(telegram_id) DO UPDATE SET status='active'"),{"uid":UID})
-            c.execute(text("INSERT INTO cpa_verticals(slug,title,is_active) VALUES('utilities','Utilities',TRUE) ON CONFLICT(slug) DO NOTHING"))
+            c.execute(text("INSERT INTO cpa_verticals(slug,title,is_active,cpa_link_allowed) VALUES('utilities','Utilities',TRUE,TRUE) ON CONFLICT(slug) DO UPDATE SET cpa_link_allowed=TRUE"))
         added=client.post("/cpa/admin/networks",headers=auth(ADMIN),json={"name":cls.net,"is_active":True})
         if added.status_code!=200:raise AssertionError(added.text)
         cls.network_id=added.json()["id"]
@@ -99,6 +108,27 @@ class PostbackTests(unittest.TestCase):
         return client.post(f"/cpa/postback/{self.network_id}",json={"test_click":click,
           "tx":transaction,"state":status,"price":price,"ccy":ccy},
           headers={"X-VVD-Postback-Key":self.secret if secret is None else secret})
+
+    def test_get_requires_verified_sender_and_preserves_post(self):
+        url=f"/cpa/postback/{self.network_id}"
+        # A spoofed forwarded header and correct mapped fields never authenticate GET.
+        response=client.get(url,params={"test_click":self.click,"tx":"probe-get",
+            "state":"waiting","price":"0","ccy":"USD"},
+            headers={"X-Forwarded-For":"203.0.113.5"})
+        self.assertIn(response.status_code,(403,404))
+        settings=client.put(f"/cpa/admin/networks/{self.network_id}/postback",
+            headers=auth(ADMIN),json={"postback_enabled":True,
+                "postback_method":"GET_QUERY",
+                "postback_params":{"click":"test_click","transaction":"tx",
+                  "status":"state","amount":"price","currency":"ccy"},
+                "postback_status_map":{"waiting":"pending","hold":"pending",
+                    "paid":"approved","cancel":"rejected"}})
+        self.assertEqual(settings.status_code,422)
+        # A rejected GET change must leave the established POST method in place.
+        config=client.get(f"/cpa/admin/networks/{self.network_id}/postback",headers=auth(ADMIN))
+        self.assertEqual(config.status_code,200)
+        self.assertEqual(config.json()["postback_method"],"POST_JSON")
+        self.assertTrue(config.json()["postback_enabled"])
 
     def test_legacy_postbacks_fail_closed_without_financial_changes(self):
         # A known partner_code/click_id is NOT proof of the sender's identity.

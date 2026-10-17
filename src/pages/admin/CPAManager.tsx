@@ -6,7 +6,7 @@ import {NetworkPostback} from './NetworkPostback';
 type Section='networks'|'verticals'|'offers';
 const input='w-full rounded-app-xs border border-white/10 bg-bgCard px-3 py-2.5 text-sm text-textPrimary outline-none focus:border-accentPurple/50';
 const sampleNetwork:Network={id:0,name:'',website:'',description:'',is_active:true,connection_notes:'',click_param:null,offers_count:0};
-const sampleVertical:Vertical={slug:'',title:'',description:'',icon_name:'layers',display_order:0,is_active:false,offers_count:0};
+const sampleVertical:Vertical={slug:'',title:'',description:'',icon_name:'layers',display_order:0,is_active:false,cpa_link_allowed:false,offers_count:0};
 const sampleOffer:Offer={id:'',title:'',vertical_slug:'',network_id:null,description:'',icon_name:'layers',image_url:null,offer_type:'offer',source_url:null,geo:'',traffic_restrictions:'',payment_model:'CPA',currency:'USD',payout_terms:'',status:'draft',display_order:0,commission_percent:'20',hold_override_days:10,click_param_override:null};
 export const CPAManager:React.FC<{onBack:()=>void}>=({onBack})=>{
  const [section,setSection]=useState<Section>('networks');
@@ -55,6 +55,8 @@ export const CPAManager:React.FC<{onBack:()=>void}>=({onBack})=>{
       {option('Иконка',vertical.icon_name,[['layers','Каталог'],['heart','Сердце'],['sparkles','Искры'],['video','Видео'],['gamepad','Игры'],['smartphone','Телефон'],['globe','Мир']],s=>v('icon_name',s))}
       {row('Порядок',vertical.display_order,s=>v('display_order',Number(s)||0))}
       {check('Опубликована',vertical.is_active,s=>v('is_active',s))}
+      {check('Разрешить CPA-ссылки (только при подтверждённой допустимости и условиях доступа)',vertical.cpa_link_allowed,s=>v('cpa_link_allowed',s))}
+      <p className="text-xs text-textSecondary">Настройка допуска не заменяет возрастные, юридические и договорные ограничения. Не используйте переименование категории для их обхода.</p>
       {exists&&<p className="text-xs text-textSecondary">Всего офферов: {vertical.offers_count}</p>}
     </>}
     {section==='offers'&&<>
