@@ -62,6 +62,7 @@ class PostbackTests(unittest.TestCase):
             stage4=(ROOT/"migrations/20261016_stage4_postback.sql").read_text()
             stage4="\n".join(line for line in stage4.splitlines() if not line.lstrip().startswith("REVOKE "))
             c.connection.cursor().execute(stage4)
+            c.connection.cursor().execute((ROOT/"migrations/20261017_universal_cpa_integrations.sql").read_text())
             migration=(ROOT/"migrations/20261016_stage4_admin_postback_probe.sql").read_text()
             c.connection.cursor().execute(migration)
             c.execute(text("INSERT INTO users(telegram_id,first_name,partner_code,status) VALUES(:uid,'Stage4','VVD964001','active') ON CONFLICT(telegram_id) DO UPDATE SET status='active'"),{"uid":UID})
