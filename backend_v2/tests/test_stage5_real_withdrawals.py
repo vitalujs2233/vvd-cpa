@@ -20,10 +20,11 @@ sys.path.insert(0,str(ROOT))
 if "127.0.0.1:5432/cpa_withdrawals_isolated" not in os.getenv("DATABASE_URL",""):
     raise RuntimeError("Real-withdrawable integration tests require disposable isolated PostgreSQL")
 from database import engine
-from cpa_finance import post_approved_hold,ledger_events_for_conversion
+from cpa_finance import post_approved_hold,ledger_events_for_conversion,lock_finance_scope
 from cpa_real_withdrawals import (
     create_real_withdrawal,mark_real_paid,mark_real_rejected,real_withdrawable,
     epoch_row,RealFinanceDisabled,RealFinanceInconsistent,
+    release_matured_hold_contract,
 )
 from main import app
 
@@ -157,6 +158,25 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
                 amount="50.00",payment_method="TEST",wallet="synthetic")
         self.assertFalse(blocked["success"])
         self.assertFalse(mark_real_paid(engine,1)["success"])
+
+    def test_01a_pre_activation_balance_and_history_api(self):
+        with patch("access_guard.verified_telegram_id",return_value=ADMIN):
+            client=TestClient(app)
+            balance=client.get(f"/balance/{ADMIN}")
+            self.assertEqual(balance.status_code,200)
+            self.assertEqual(balance.json()["available"],833.48)
+            self.assertEqual(balance.json()["real_withdrawable"],0.0)
+            self.assertFalse(balance.json()["real_finance_active"])
+            self.assertFalse(balance.json()["real_finance_available"])
+            history=client.get(f"/withdrawals/{USER_CODE}")
+            admin_history=client.get("/admin/withdrawals")
+            self.assertEqual(len(history.json()["withdrawals"]),22)
+            self.assertEqual(len(admin_history.json()["withdrawals"]),22)
+            pairs={p["id"]:p for p in admin_history.json()["withdrawals"]}
+            for item in history.json()["withdrawals"]:
+                self.assertIs(item["is_real_finance"],False)
+                self.assertEqual(item["is_real_finance"],pairs[item["id"]]["is_real_finance"])
+                self.assertEqual(item["status"],pairs[item["id"]]["status"])
 
     def test_02_cutover_immutable_and_no_old_finance(self):
         # CI-only synthetic time travel to exercise 240h maturity without waiting.
@@ -351,6 +371,151 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
         with engine.connect() as c:
             self.assertEqual(c.execute(text("SELECT COUNT(*) FROM public.cpa_finance_epoch")).scalar_one(),1)
             self.assertIsNotNone(epoch_row(c)["activated_at"])
+
+
+    def test_11_recovery_pending_reserves_disputed_release(self):
+        src, hold=self.conv_ids["failure-injection"]
+        with engine.connect() as c:
+            before=real_withdrawable(c,ADMIN)
+            self.assertGreaterEqual(before,Decimal("80.00"))
+        with engine.begin() as c:
+            # Correction contract: user -> conversion -> originating ledger.
+            lock_finance_scope(c,src)
+            release=next(x for x in ledger_events_for_conversion(c,src)
+                         if x["operation_type"]=="hold_release")
+            c.execute(text("""
+                INSERT INTO public.cpa_ledger
+                 (conversion_id,user_id,operation_type,event_key,amount,currency,
+                  hold_delta,balance_delta,platform_fee_delta,original_entry_id,
+                  actor_type,actor_id,reason_code)
+                VALUES (:cid,:uid,'recovery_pending',:key,:amt,'USD',
+                         0,0,0,:source,'admin',:actor,'disputed-synthetic')
+            """),{"cid":src,"uid":ADMIN,"key":f"recovery:{src}",
+                  "amt":hold["amount"],"source":release["id"],"actor":ADMIN})
+        with engine.connect() as c:
+            self.assertEqual(real_withdrawable(c,ADMIN),before-Decimal("80.00"))
+        rejected=create_real_withdrawal(engine,partner_code=USER_CODE,
+                    amount="80.00",payment_method="TEST",wallet="synthetic")
+        self.assertFalse(rejected["success"])
+
+    def test_12_reversal_resolves_pending_without_double_discount(self):
+        cid,_=self.conv_ids["failure-injection"]
+        with engine.connect() as c:
+            disputed=real_withdrawable(c,ADMIN)
+        with engine.begin() as c:
+            lock_finance_scope(c,cid)
+            release=next(x for x in ledger_events_for_conversion(c,cid)
+                         if x["operation_type"]=="hold_release")
+            c.execute(text("""
+                INSERT INTO public.cpa_ledger
+                 (conversion_id,user_id,operation_type,event_key,amount,currency,
+                  hold_delta,balance_delta,platform_fee_delta,original_entry_id,
+                  actor_type,actor_id,reason_code)
+                VALUES (:cid,:uid,'balance_reversal',:key,:amt,'USD',
+                         0,:delta,0,:source,'admin',:actor,'confirmed-reversal')
+            """),{"cid":cid,"uid":ADMIN,"key":f"confirmed-reversal:{cid}",
+                  "amt":release["amount"],"delta":-release["amount"],
+                  "source":release["id"],"actor":ADMIN})
+        with engine.connect() as c:
+            # recovery_pending no longer reserves on top of a full reversal.
+            self.assertEqual(real_withdrawable(c,ADMIN),disputed)
+
+    @classmethod
+    def prepare_hold_only(cls,suffix,approval_time):
+        cid=uuid.uuid4()
+        with engine.begin() as c:
+            c.execute(text("""
+                INSERT INTO public.clicks(user_id,partner_code,click_id)
+                VALUES(:uid,:code,:click)
+            """),{"uid":ADMIN,"code":USER_CODE,"click":f"hold-only:{suffix}"})
+            c.execute(text("""
+                INSERT INTO public.conversions
+                 (id,click_id,user_id,offer_id,payout_gross,payout_net,status,
+                  currency,is_test,finance_eligible_at,finance_approved_at)
+                VALUES (:cid,:click,:uid,'new-real',100,0,'approved',
+                        'USD',FALSE,:eligible,:approved)
+            """),{"cid":cid,"click":f"hold-only:{suffix}",
+                  "uid":ADMIN,"eligible":T0+timedelta(days=1),
+                  "approved":approval_time})
+            post_approved_hold(c,cid)
+        return cid
+
+    def test_13_future_hold_release_contract_and_idempotency(self):
+        cid=self.prepare_hold_only("mature",T0+timedelta(days=3))
+        with engine.connect() as c:
+            before=real_withdrawable(c,ADMIN)
+        def release():
+            with engine.begin() as c:
+                return release_matured_hold_contract(c,cid)["released"]
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+            outcomes=list(pool.map(lambda _:release(),range(8)))
+        self.assertEqual(outcomes.count(True),1,outcomes)
+        with engine.connect() as c:
+            self.assertEqual(real_withdrawable(c,ADMIN),before+Decimal("80.00"))
+            self.assertEqual(c.execute(text("""
+                SELECT count(*) FROM public.cpa_ledger
+                WHERE conversion_id=:cid AND operation_type='hold_release'
+            """),{"cid":cid}).scalar_one(),1)
+        self.__class__.contract_cid=cid
+
+    def test_14_concurrent_release_claim_and_replay_never_overreserves(self):
+        cid=self.prepare_hold_only("race",T0+timedelta(days=3))
+        def release_once():
+            with engine.begin() as c:
+                return release_matured_hold_contract(c,cid)["released"]
+        def claim():
+            return create_real_withdrawal(engine,partner_code=USER_CODE,
+                    amount="50.00",payment_method="TEST",wallet="synthetic")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=12) as pool:
+            future_release=pool.submit(release_once)
+            claims=list(pool.map(lambda _:claim(),range(11)))
+            self.assertTrue(future_release.result())
+        with engine.connect() as c:
+            available=real_withdrawable(c,ADMIN)
+            self.assertGreaterEqual(available,Decimal("0.00"))
+            self.assertLess(available,Decimal("50.00"))
+            self.assertEqual(c.execute(text("""
+                SELECT count(*) FROM public.cpa_ledger
+                WHERE conversion_id=:cid AND operation_type='hold_release'
+            """),{"cid":cid}).scalar_one(),1)
+        self.assertLessEqual(sum(x["success"] for x in claims),5)
+
+    def test_15_immature_release_refused_and_rolled_back(self):
+        cid=self.prepare_hold_only("immature",datetime.now(timezone.utc))
+        with engine.connect() as c:
+            before=real_withdrawable(c,ADMIN)
+            hold_before=c.execute(text(
+                "SELECT hold FROM public.users WHERE telegram_id=:uid"
+            ),{"uid":ADMIN}).scalar_one()
+        with self.assertRaises(DBAPIError):
+            with engine.begin() as c:
+                release_matured_hold_contract(c,cid)
+        with engine.connect() as c:
+            self.assertEqual(real_withdrawable(c,ADMIN),before)
+            self.assertEqual(c.execute(text(
+                "SELECT hold FROM public.users WHERE telegram_id=:uid"
+            ),{"uid":ADMIN}).scalar_one(),hold_before)
+            self.assertEqual(c.execute(text("""
+                SELECT count(*) FROM public.cpa_ledger
+                WHERE conversion_id=:cid AND operation_type='hold_release'
+            """),{"cid":cid}).scalar_one(),0)
+
+    def test_16_real_finance_balance_projection_when_active(self):
+        with patch("access_guard.verified_telegram_id",return_value=ADMIN):
+            client=TestClient(app)
+            resp=client.get(f"/balance/{ADMIN}")
+            self.assertEqual(resp.status_code,200)
+            payload=resp.json()
+            self.assertTrue(payload["real_finance_active"])
+            self.assertTrue(payload["real_finance_available"])
+            with engine.connect() as c:
+                entitled=real_withdrawable(c,ADMIN)
+                balance=c.execute(text("""
+                  SELECT balance FROM public.users WHERE telegram_id=:id
+                """),{"id":ADMIN}).scalar_one()
+            self.assertAlmostEqual(payload["real_withdrawable"],
+                float(min(entitled,balance)),places=2)
+            self.assertGreaterEqual(payload["available"],payload["real_withdrawable"])
 
 
 if __name__=="__main__":
