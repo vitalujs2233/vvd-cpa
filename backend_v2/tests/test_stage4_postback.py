@@ -30,6 +30,12 @@ class PostbackTests(unittest.TestCase):
         cls.click="pbclick-"+cls.tag
         cls.click2="pbclick2-"+cls.tag
         with engine.begin() as c:
+            c.execute(text("""CREATE TABLE IF NOT EXISTS users (
+                telegram_id BIGINT PRIMARY KEY,first_name TEXT,partner_code TEXT,
+                status TEXT NOT NULL DEFAULT 'active',
+                balance NUMERIC(12,2) NOT NULL DEFAULT 0,
+                hold NUMERIC(12,2) NOT NULL DEFAULT 0,
+                withdrawn NUMERIC(12,2) NOT NULL DEFAULT 0)"""))
             c.execute(text("CREATE TABLE IF NOT EXISTS offers(id VARCHAR(80) PRIMARY KEY,title VARCHAR(200) NOT NULL)"))
             for defn in ("description TEXT","icon_name VARCHAR(30)","geo VARCHAR(300)","smartlink_suffix VARCHAR(120) NOT NULL DEFAULT ''"):
                 c.execute(text("ALTER TABLE offers ADD COLUMN IF NOT EXISTS "+defn))
