@@ -99,7 +99,9 @@ def summarize(conn, uid, params):
           SELECT COALESCE(SUM(payout_gross),0) gross FROM public.conversions
           WHERE id=ANY(:ids) AND status='approved'
         """), {"ids": list(approved)}).one()
-        finance["gross"] = totals.gross or ZERO
+        # Gross is recognized only when a finance hold credit is actually posted.
+        recognized = {r["conversion_id"] for r in ledger if r["operation_type"]=="hold_credit"}
+        finance["gross"] = sum((Decimal(str(row["payout_gross"])) for row in conn.execute(text("SELECT id,payout_gross FROM public.conversions WHERE id=ANY(:ids)"),{"ids":list(recognized)}).mappings()), ZERO)
         # Finance earnings only from actual ledger events, never assumed based on approvals.
         finance["partner"] = sum((row["hold_delta"] for row in ledger if row["operation_type"]=="hold_credit"), ZERO)
         finance["fee"] = sum((row["platform_fee_delta"] for row in ledger if row["operation_type"]=="platform_fee_accrual"), ZERO)
