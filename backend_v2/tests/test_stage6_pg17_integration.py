@@ -205,7 +205,8 @@ class Stage6PostgresIntegration(unittest.TestCase):
             self.assertNotIn("finance",s)
             self.assertEqual(s["earned"],80)
             self.assertEqual(s["on_hold"],80)
-            admin=client.get(f"/admin/analytics?telegram_id={OWNER}",headers=signed(ADMIN))
+            with patch("cpa_real_withdrawals.finance_balance_projection",return_value={"real_withdrawable":0.0}):
+                admin=client.get(f"/admin/analytics?telegram_id={OWNER}",headers=signed(ADMIN))
             self.assertEqual(admin.status_code,200,admin.text)
             finance=admin.json()["summary"]["finance"]
             self.assertEqual(finance["gross"],100)
