@@ -2,7 +2,7 @@ name: Validate VVD CPA Stage 6 Analytics
 
 on:
   push:
-    branches: [feat/stage6-existing-analysis-analytics-draft]
+    branches: [feat/stage6-existing-analysis-analytics-draft, feat/stage6-compact-partner-analysis-draft]
   workflow_dispatch:
 
 permissions:
@@ -45,3 +45,4 @@ jobs:
           node-version: '20'
       - run: npm install --no-audit --no-fund
       - run: npm run build
+      - run: node scripts/check-stage6-compact-ui.mjs
