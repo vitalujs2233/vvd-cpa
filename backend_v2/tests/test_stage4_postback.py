@@ -202,7 +202,11 @@ class PostbackTests(unittest.TestCase):
                 "postback_params":{"click":"test_click","transaction":"tx",
                     "status":"state","amount":"price","currency":"ccy"},
                 "postback_status_map":{"waiting":"pending","paid":"approved","cancel":"rejected"}}
-        data={"test_click":self.click,"tx":"gateway-"+self.tag,
+        unique_click="gateway-click-"+self.tag
+        with engine.begin() as c:
+            c.execute(text("INSERT INTO clicks(user_id,partner_code,click_id,vertical,offer_id,network_id) VALUES(:uid,'VVD964001',:click,'utilities',:offer,:network)"),
+                {"uid":UID,"click":unique_click,"offer":self.offer,"network":self.network_id})
+        data={"test_click":unique_click,"tx":"gateway-"+self.tag,
               "state":"waiting","price":"0","ccy":"USD"}
         try:
             updated=client.put(f"/cpa/admin/networks/{self.network_id}/postback",
@@ -231,6 +235,7 @@ class PostbackTests(unittest.TestCase):
             with engine.begin() as c:
                 c.execute(text("DELETE FROM conversions WHERE transaction_id=:tx"),
                    {"tx":"cpa:"+str(self.network_id)+":gateway-"+self.tag})
+                c.execute(text("DELETE FROM clicks WHERE click_id=:click"),{"click":unique_click})
                 c.execute(text("UPDATE cpa_networks SET postback_enabled=TRUE,postback_method='POST_JSON' WHERE id=:id"),
                    {"id":self.network_id})
 
