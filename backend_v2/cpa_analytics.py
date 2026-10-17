@@ -205,7 +205,7 @@ def existing_statistics(telegram_id:int,period:str="all",vertical:str|None=None,
                         offer_id:str|None=None,network_id:int|None=None,
                         date_from:date|None=Query(None,alias="from"),
                         date_to:date|None=Query(None,alias="to")):
-    params=options(period,date_from,date_to,vertical,offer_id,network_id)
+    params=arguments(period,date_from,date_to,vertical,offer_id,network_id)
     with engine.connect() as conn:
         summary=summarize(conn,telegram_id,params)
         return {"success":True,"statistics":daily(conn,telegram_id,params),
@@ -217,7 +217,8 @@ def existing_countries(telegram_id:int,period:str="all",vertical:str|None=None,
                        offer_id:str|None=None,network_id:int|None=None,
                        date_from:date|None=Query(None,alias="from"),
                        date_to:date|None=Query(None,alias="to")):
-    params=options(period,date_from,date_to,vertical,offer_id,network_id)
+    if date_from and date_to and date_from>date_to: raise HTTPException(422,'Invalid date range')
+    params=arguments(period,date_from,date_to,vertical,offer_id,network_id)
     with engine.connect() as conn:
         return {"success":True,"countries":countries(conn,telegram_id,params),
                 "vertical":vertical or "all"}
@@ -228,7 +229,8 @@ def existing_breakdown(telegram_id:int,period:str="all",vertical:str|None=None,
                        offer_id:str|None=None,network_id:int|None=None,
                        date_from:date|None=Query(None,alias="from"),
                        date_to:date|None=Query(None,alias="to")):
-    params=options(period,date_from,date_to,vertical,offer_id,network_id)
+    if date_from and date_to and date_from>date_to: raise HTTPException(422,'Invalid date range')
+    params=arguments(period,date_from,date_to,vertical,offer_id,network_id)
     with engine.connect() as conn:
         return {"success":True,"offers":grouped(conn,telegram_id,params,"offers"),
                 "networks":grouped(conn,telegram_id,params,"networks")}
@@ -240,7 +242,8 @@ def admin_analytics(telegram_id:int|None=None,period:str="all",vertical:str|None
                     date_from:date|None=Query(None,alias="from"),
                     date_to:date|None=Query(None,alias="to")):
     # /admin/ remains protected by access_guard with verified Telegram admin.
-    params=options(period,date_from,date_to,vertical,offer_id,network_id)
+    if date_from and date_to and date_from>date_to: raise HTTPException(422,'Invalid date range')
+    params=arguments(period,date_from,date_to,vertical,offer_id,network_id)
     with engine.connect() as conn:
         return {"success":True,"summary":summarize(conn,telegram_id,params),
                 "daily":daily(conn,telegram_id,params),
