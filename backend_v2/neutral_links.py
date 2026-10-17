@@ -20,9 +20,13 @@ API_ROOT="https://vvd-cpa-v2.onrender.com"
 NEUTRAL_VERTICALS=frozenset({"utilities","education","productivity","software","technology"})  # legacy initial migration only
 PARAM_RE=re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,47}$")
 
-def _validated_destination(url: str, parameter: str, click_id: str) -> str:
+def _validated_destination(url: str, parameter: str, click_id: str, partner_parameter: str|None=None, partner_code: str|None=None) -> str:
     if not parameter or not PARAM_RE.fullmatch(parameter):
         raise HTTPException(409,"Настройка идентификатора клика не завершена")
+    if partner_parameter is not None and (not PARAM_RE.fullmatch(partner_parameter) or partner_parameter==parameter):
+        raise HTTPException(409,"Параметр партнёра совпадает с click_id или некорректен")
+    if partner_parameter and (not partner_code or not re.fullmatch(r"VVD[A-Za-z0-9]{1,32}",partner_code)):
+        raise HTTPException(409,"Код партнёра недоступен")
     try:
         parts=urlsplit(url)
         hostname=(parts.hostname or "").lower()
@@ -38,10 +42,10 @@ def _validated_destination(url: str, parameter: str, click_id: str) -> str:
         if ip is not None and not ip.is_global:
             raise ValueError("internal IP")
         old=parse_qsl(parts.query,keep_blank_values=True)
-        if any(k==parameter for k,_ in old):
+        if any(k==parameter or (partner_parameter and k==partner_parameter) for k,_ in old):
             raise ValueError("click parameter already exists in source URL")
         # Existing partner parameters are preserved in their original order.
-        query=urlencode([*old,(parameter,click_id)])
+        query=urlencode([*old,(parameter,click_id),*([(partner_parameter,partner_code)] if partner_parameter else [])])
         return urlunsplit((parts.scheme,parts.netloc,parts.path,query,""))
     except (ValueError,TypeError) as exc:
         raise HTTPException(409,"Проверьте исходный URL и параметр клика") from exc
@@ -50,6 +54,7 @@ def _active_offer(conn, offer_id: str):
     offer=conn.execute(text("""
        SELECT o.id,o.vertical_slug,o.source_url,o.network_id,o.status,
               o.click_param_override,n.click_param AS network_param,
+              n.partner_param AS partner_param,
               u.is_active AS vertical_active,u.cpa_link_allowed AS vertical_allowed,
               n.is_active AS network_active
        FROM offers o
@@ -63,7 +68,7 @@ def _active_offer(conn, offer_id: str):
             or not offer["vertical_active"] or not offer["network_active"] or not offer["source_url"]):
         raise HTTPException(404,"Предложение недоступно")
     parameter=offer["click_param_override"] or offer["network_param"]
-    _validated_destination(offer["source_url"],parameter,"configuration-check")
+    _validated_destination(offer["source_url"],parameter,"configuration-check",offer["partner_param"],"VVDTEST")
     return offer
 
 def _owned_link(conn, uid: int, offer_id: str):
@@ -129,7 +134,8 @@ def neutral_click_redirect(suffix:str):
                 raise HTTPException(404,"Ссылка не найдена")
             offer=_active_offer(conn,row["offer_id"])
             redirect_url=_validated_destination(offer["source_url"],
-                offer["click_param_override"] or offer["network_param"],click_id)
+                offer["click_param_override"] or offer["network_param"],click_id,
+                offer["partner_param"],row["partner_code"])
             conn.execute(text("""
               INSERT INTO clicks(user_id,partner_code,click_id,vertical,
                   offer_id,network_id,smartlink_id)
