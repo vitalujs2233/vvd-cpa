@@ -34,7 +34,7 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install -r backend_v2/requirements.txt
-      - run: python -m unittest discover -s backend_v2/tests -p test_stage6_analytics.py -v
+      - run: python -m unittest discover -s backend_v2/tests -p 'test_stage6*.py' -v
 
   mini-app-build:
     runs-on: ubuntu-latest
