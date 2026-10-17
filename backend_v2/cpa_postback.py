@@ -254,8 +254,11 @@ async def receive_postback(network_id:int,request:Request,
           {"id":network_id}).mappings().first()
         if not provider or not provider["postback_enabled"] or not provider["postback_key_hash"]:
             raise HTTPException(404,"Source unavailable")
-        if provider["postback_method"]!="POST_JSON":
-            raise HTTPException(405,"Network is not configured for POST JSON")
+        if provider["postback_method"] not in ("POST_JSON","GET_QUERY"):
+            raise HTTPException(405,"Unsupported postback method")
+        # GET_QUERY labels the provider's inbound format; only authenticated
+        # POST/JSON from the trusted gateway reaches this handler.
+        # Direct GET remains denied and no client-supplied IP is trusted.
         return _accept(c,provider,raw,x_vvd_postback_key,network_id)
 
 @router.get("/postback/{network_id}")
