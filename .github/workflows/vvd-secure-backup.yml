@@ -1,0 +1,99 @@
+name: VVD CPA encrypted PG17 backup and restore trial
+on:
+  push:
+    branches: [ops/verified-backup-20261017]
+permissions:
+  contents: read
+jobs:
+  encrypted-backup:
+    name: Read-only full dump + isolated PostgreSQL 17 restore
+    runs-on: ubuntu-latest
+    environment: vvd-backup-20261017
+    timeout-minutes: 35
+    env:
+      VVD_BACKUP_DB_URL: ${{ secrets.VVD_BACKUP_DB_URL }}
+      VVD_BACKUP_PASSPHRASE: ${{ secrets.VVD_BACKUP_PASSPHRASE }}
+    steps:
+      - name: Check independent secrets (never print)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$VVD_BACKUP_DB_URL" || -z "$VVD_BACKUP_PASSPHRASE" ]]; then
+            echo "::error::Environment secrets missing; database was not accessed"
+            exit 1
+          fi
+          if [[ "$(printf '%s' "$VVD_BACKUP_PASSPHRASE" | wc -c)" -lt 24 ]]; then
+            echo "::error::Use a 24+ character backup encryption passphrase"
+            exit 1
+          fi
+          case "$VVD_BACKUP_DB_URL" in postgres://*|postgresql://*) ;; *)
+            echo "::error::Expected PostgreSQL connection URL"; exit 1;; esac
+          echo "::add-mask::$VVD_BACKUP_DB_URL"
+      - uses: actions/checkout@v4
+      - name: Export entire accessible database and roles using PG17
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -m 700 "$RUNNER_TEMP/vvd-private"
+          docker pull postgres:17
+          docker run --rm --network host -e VVD_BACKUP_DB_URL -e PGSSLMODE=require \
+            -v "$RUNNER_TEMP/vvd-private:/private" postgres:17 \
+            sh -c 'pg_dump --dbname="$VVD_BACKUP_DB_URL" --no-password --format=custom --lock-wait-timeout=5000 --file=/private/full.dump'
+          docker run --rm --network host -e VVD_BACKUP_DB_URL -e PGSSLMODE=require \
+            -v "$RUNNER_TEMP/vvd-private:/private" postgres:17 \
+            sh -c 'pg_dumpall --dbname="$VVD_BACKUP_DB_URL" --globals-only --no-role-passwords --file=/private/roles.sql'
+          test -s "$RUNNER_TEMP/vvd-private/full.dump"
+          test -s "$RUNNER_TEMP/vvd-private/roles.sql"
+          docker run --rm -v "$RUNNER_TEMP/vvd-private:/private:ro" postgres:17 \
+            pg_restore --list /private/full.dump >/dev/null
+          (cd "$RUNNER_TEMP/vvd-private" && sha256sum full.dump roles.sql > SHA256SUMS)
+          tar -C "$RUNNER_TEMP/vvd-private" -cf "$RUNNER_TEMP/vvd-backup.tar" \
+            full.dump roles.sql SHA256SUMS
+      - name: Encrypt before uploading and verify decryption
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s' "$VVD_BACKUP_PASSPHRASE" > "$RUNNER_TEMP/passphrase"
+          gpg --batch --yes --pinentry-mode loopback \
+            --passphrase-file "$RUNNER_TEMP/passphrase" --symmetric \
+            --cipher-algo AES256 --s2k-digest-algo SHA256 \
+            --output "$RUNNER_TEMP/vvd-backup-20261017.tar.gpg" "$RUNNER_TEMP/vvd-backup.tar"
+          gpg --batch --yes --pinentry-mode loopback \
+            --passphrase-file "$RUNNER_TEMP/passphrase" \
+            --decrypt "$RUNNER_TEMP/vvd-backup-20261017.tar.gpg" 2>/dev/null | tar -t >/dev/null
+          rm -f "$RUNNER_TEMP/passphrase"
+      - name: Trial restore public schema to isolated PostgreSQL 17
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name vvd-pg17-restore -e POSTGRES_PASSWORD=ci-only-temp-pass \
+            -p 127.0.0.1:55432:5432 postgres:17 >/dev/null
+          for i in $(seq 1 40); do
+            docker exec vvd-pg17-restore pg_isready -U postgres >/dev/null 2>&1 && break
+            sleep 1
+          done
+          docker run --rm --network host -e PGPASSWORD=ci-only-temp-pass \
+            -v "$RUNNER_TEMP/vvd-private:/private:ro" postgres:17 \
+            pg_restore -h 127.0.0.1 -p 55432 -U postgres -d postgres \
+              --no-owner --no-acl --exit-on-error --schema=public /private/full.dump
+          docker exec vvd-pg17-restore psql -U postgres -d postgres -At -c \
+            "SELECT 'users='||(SELECT count(*) FROM public.users)
+              ||' withdrawals='||(SELECT count(*) FROM public.withdrawals)
+              ||' conversions='||(SELECT count(*) FROM public.conversions)
+              ||' clicks='||(SELECT count(*) FROM public.clicks)"
+          echo "::notice::PG17 test restored public schema; full Supabase-native restore still requires independent validation"
+      - name: Upload ONLY encrypted artifact (7-day retention)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: VVD-CPA-ENCRYPTED-POSTGRES17
+          path: ${{ runner.temp }}/vvd-backup-20261017.tar.gpg
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Clean decrypted data from temporary runner
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          rm -rf "$RUNNER_TEMP/vvd-private" "$RUNNER_TEMP/vvd-backup.tar" "$RUNNER_TEMP/passphrase"
+          docker rm -f vvd-pg17-restore >/dev/null 2>&1 || true
