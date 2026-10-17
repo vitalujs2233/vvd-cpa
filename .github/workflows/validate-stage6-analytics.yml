@@ -27,6 +27,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/cpa_stage6_isolated
       BOT_TOKEN: 123456:TEST_TOKEN_FOR_CI_ONLY
+      PYTHONPATH: backend_v2
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
