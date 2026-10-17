@@ -51,7 +51,7 @@ def real_withdrawable(conn, user_id: int, epoch=None):
         JOIN public.conversions v ON v.id=l.conversion_id
         JOIN public.clicks k ON k.click_id=v.click_id
         WHERE l.user_id=:uid
-          AND l.operation_type IN ('hold_release','balance_reversal')
+          AND l.operation_type IN ('hold_release','manual_hold_release','balance_reversal')
           AND v.finance_eligible_at >= :cutover
           AND v.created_at >= :cutover
           AND v.finance_approved_at >= v.finance_eligible_at
@@ -124,15 +124,22 @@ def release_matured_hold_contract(conn, conversion_id):
     """), {"id":str(conversion_id)}).mappings().first()
     if not credit:
         raise FinanceInconsistent("Approved hold entry absent")
-    existing = conn.execute(text("""
-        SELECT id FROM public.cpa_ledger WHERE original_entry_id=:source
-          AND operation_type='hold_release'
+    old_auto=conn.execute(text("""
+        SELECT id FROM public.cpa_ledger
+        WHERE original_entry_id=:source AND operation_type='hold_release'
     """), {"source":credit["id"]}).first()
-    if existing:
-        return {"released":False,"amount":credit["amount"]}
-    if wallet["hold"] < credit["amount"]:
-        raise FinanceInconsistent("Not enough held balance to release")
-    # DB trigger enforces the >=240h deadline using PostgreSQL clock_timestamp().
+    manual_or_auto=conn.execute(text("""
+        SELECT COALESCE(sum(amount),0) FROM public.cpa_ledger
+        WHERE original_entry_id=:source
+          AND operation_type IN ('manual_hold_release','hold_release')
+    """), {"source":credit["id"]}).scalar_one()
+    remaining=credit["amount"]-Decimal(manual_or_auto)
+    if old_auto or remaining==ZERO:
+        return {"released":False,"amount":ZERO}
+    if remaining<ZERO or wallet["hold"]<remaining:
+        raise FinanceInconsistent("Hold balance inconsistent with remaining ledger credit")
+    # The trigger independently validates the full 240-hour maturity and
+    # releases ONLY the remaining amount after any prior manual partials.
     conn.execute(text("""
         INSERT INTO public.cpa_ledger
          (conversion_id,user_id,operation_type,event_key,amount,currency,
@@ -141,15 +148,14 @@ def release_matured_hold_contract(conn, conversion_id):
                :debit,:amount,0,:source,'scheduler')
     """), {"cid":row["id"],"uid":row["user_id"],
            "key":f"cpa:v1:{row['id']}:hold_release",
-           "amount":credit["amount"],"debit":-credit["amount"],
-           "source":credit["id"]})
+           "amount":remaining,"debit":-remaining,"source":credit["id"]})
     changed=conn.execute(text("""
         UPDATE public.users SET hold=hold-:amount, balance=balance+:amount
         WHERE telegram_id=:uid AND hold>=:amount RETURNING telegram_id
-    """), {"uid":row["user_id"],"amount":credit["amount"]}).first()
+    """), {"uid":row["user_id"],"amount":remaining}).first()
     if not changed:
         raise FinanceInconsistent("User hold changed during release")
-    return {"released":True,"amount":credit["amount"]}
+    return {"released":True,"amount":remaining}
 
 
 def release_matured_holds(engine, *, limit=100):
@@ -186,6 +192,12 @@ def release_matured_holds(engine, *, limit=100):
                     SELECT 1 FROM public.cpa_ledger lr
                     WHERE lr.original_entry_id=l.id
                       AND lr.operation_type IN ('hold_release','hold_reversal')
+                  )
+                  AND l.amount > (
+                    SELECT COALESCE(SUM(part.amount),0)
+                    FROM public.cpa_ledger part
+                    WHERE part.original_entry_id=l.id
+                      AND part.operation_type='manual_hold_release'
                   )
                 ORDER BY l.hold_until,l.id LIMIT 1
             """), {"cutover":epoch["activated_at"],
