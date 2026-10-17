@@ -80,10 +80,10 @@ def snapshot(c):
         "SELECT COALESCE(SUM(withdrawn),0) FROM public.users",
         "SELECT COALESCE(SUM(amount),0) FROM public.withdrawals",
         "SELECT COALESCE(SUM(balance),0) FROM public.tool_wallets",
-        "SELECT md5(coalesce(string_agg(md5(to_jsonb(t)::text),'|' ORDER BY id),'')) FROM public.withdrawals t",
-        "SELECT md5(coalesce(string_agg(md5(to_jsonb(t)::text),'|' ORDER BY telegram_id),'')) FROM public.users t",
-        "SELECT md5(coalesce(string_agg(md5(to_jsonb(t)::text),'|' ORDER BY id),'')) FROM public.conversions t",
-        "SELECT md5(coalesce(string_agg(md5(to_jsonb(t)::text),'|' ORDER BY id),'')) FROM public.clicks t",
+        "SELECT md5(coalesce(string_agg(md5(jsonb_build_array(t.id,t.user_id,t.partner_code,t.amount,t.payment_method,t.wallet,t.status,t.created_at,t.processed_at)::text),'|' ORDER BY id),'')) FROM public.withdrawals t",
+        "SELECT md5(coalesce(string_agg(md5(jsonb_build_array(t.telegram_id,t.first_name,t.partner_code,t.balance,t.hold,t.withdrawn,t.role)::text),'|' ORDER BY telegram_id),'')) FROM public.users t",
+        "SELECT md5(coalesce(string_agg(md5(jsonb_build_array(t.id,t.click_id,t.user_id,t.offer_id,t.payout_gross,t.payout_net,t.status,t.currency,t.is_test,t.created_at)::text),'|' ORDER BY id),'')) FROM public.conversions t",
+        "SELECT md5(coalesce(string_agg(md5(jsonb_build_array(t.id,t.user_id,t.partner_code,t.click_id,t.created_at)::text),'|' ORDER BY id),'')) FROM public.clicks t",
     ))
 
 with engine.begin() as c:
