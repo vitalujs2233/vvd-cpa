@@ -36,6 +36,7 @@ class PostbackTests(unittest.TestCase):
                 balance NUMERIC(12,2) NOT NULL DEFAULT 0,
                 hold NUMERIC(12,2) NOT NULL DEFAULT 0,
                 withdrawn NUMERIC(12,2) NOT NULL DEFAULT 0)"""))
+            c.execute(text("INSERT INTO users(telegram_id,first_name,partner_code,status,role) VALUES(232682307,'TestAdmin','VVDADMIN','active','admin') ON CONFLICT(telegram_id) DO UPDATE SET role='admin'"))
             c.execute(text("CREATE TABLE IF NOT EXISTS offers(id VARCHAR(80) PRIMARY KEY,title VARCHAR(200) NOT NULL)"))
             for defn in ("description TEXT","icon_name VARCHAR(30)","geo VARCHAR(300)","smartlink_suffix VARCHAR(120) NOT NULL DEFAULT ''"):
                 c.execute(text("ALTER TABLE offers ADD COLUMN IF NOT EXISTS "+defn))
