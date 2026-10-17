@@ -125,6 +125,8 @@ import hmac
 import time
 from urllib.parse import urlencode
 from fastapi.testclient import TestClient
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'backend_v2'))
 from main import app
 
 def signed(uid):
