@@ -133,12 +133,12 @@ def daily(conn, uid, params):
                      count(*) FILTER(WHERE normalized_status='approved') approved,
                      count(*) FILTER(WHERE normalized_status='rejected') rejected
                  FROM ("""+CONVERSION_ROWS+""") x GROUP BY event_date)
-      SELECT COALESCE(c.event_date,v.event_date) day,COALESCE(c.clicks,0) clicks,
+      SELECT COALESCE(c.event_date,v.event_date) AS event_day,COALESCE(c.clicks,0) clicks,
              COALESCE(v.conversions,0) conversions,COALESCE(v.pending,0) pending,
              COALESCE(v.approved,0) approved,COALESCE(v.rejected,0) rejected
-      FROM c FULL JOIN v ON c.event_date=v.event_date ORDER BY day
+      FROM c FULL JOIN v ON c.event_date=v.event_date ORDER BY event_day
     """),bind).mappings().all()
-    return [{"date":str(r["day"]),"clicks":r["clicks"],
+    return [{"date":str(r["event_day"]),"clicks":r["clicks"],
              "conversions":r["conversions"],"pending":r["pending"],
              "approved":r["approved"],"rejected":r["rejected"],"income":0.0}
             for r in rows]
