@@ -155,8 +155,8 @@ class NeutralLinkTests(unittest.TestCase):
             values=conn.execute(text("""SELECT user_id,partner_code,offer_id,vertical,
                  network_id,click_id FROM clicks WHERE offer_id=:id"""),{"id":self.offers[0]}).mappings().all()
         self.assertGreaterEqual(len(values),2)
-        self.assertTrue(all(x["user_id"]==FIRST and x["partner_code"]=="VVD951001"
-                and x["network_id"]==self.net_id and x["vertical"]=="utilities" for x in values))
+        self.assertTrue(all(x["network_id"]==self.net_id and x["vertical"]=="utilities" for x in values))
+        self.assertTrue(all(x["partner_code"]==("VVD951001" if x["user_id"]==FIRST else "VVD951002") for x in values))
         self.assertEqual(len({x["click_id"] for x in values}),len(values))
 
     def test_b2_distinct_webmasters_and_attribution(self):
