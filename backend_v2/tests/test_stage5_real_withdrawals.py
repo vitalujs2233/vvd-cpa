@@ -306,5 +306,52 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
             self.assertEqual(c.execute(text("SELECT count(*) FROM public.withdrawals WHERE cpa_real_epoch_at IS NULL")).scalar_one(),22)
 
 
+    def test_09_failure_after_insert_rolls_back_all(self):
+        # Simulate a DB failure AFTER the INSERT but BEFORE users.balance debit.
+        self.credit_real_conversion("failure-injection")
+        with engine.connect() as c:
+            old_count=c.execute(text("SELECT count(*) FROM public.withdrawals")).scalar_one()
+            old_balance=c.execute(text("SELECT balance FROM public.users WHERE telegram_id=:id"),
+                {"id":ADMIN}).scalar_one()
+            old_available=real_withdrawable(c,ADMIN)
+        with engine.begin() as c:
+            c.execute(text("""
+                CREATE FUNCTION public.ci_fail_user_balance_debit() RETURNS trigger
+                LANGUAGE plpgsql AS $
+                BEGIN
+                    IF NEW.balance < OLD.balance THEN
+                      RAISE EXCEPTION 'Simulated user debit failure';
+                    END IF;
+                    RETURN NEW;
+                END $;
+            """))
+            c.execute(text("""
+                CREATE TRIGGER ci_fail_user_balance_debit BEFORE UPDATE
+                ON public.users FOR EACH ROW
+                EXECUTE FUNCTION public.ci_fail_user_balance_debit();
+            """))
+        try:
+            with self.assertRaises(DBAPIError):
+                create_real_withdrawal(engine,partner_code=USER_CODE,
+                    amount="50.00",payment_method="TEST",wallet="synthetic")
+        finally:
+            with engine.begin() as c:
+                c.execute(text("DROP TRIGGER ci_fail_user_balance_debit ON public.users"))
+                c.execute(text("DROP FUNCTION public.ci_fail_user_balance_debit()"))
+        with engine.connect() as c:
+            self.assertEqual(c.execute(text("SELECT count(*) FROM public.withdrawals")).scalar_one(),old_count)
+            self.assertEqual(c.execute(text("SELECT balance FROM public.users WHERE telegram_id=:id"),
+                {"id":ADMIN}).scalar_one(),old_balance)
+            self.assertEqual(real_withdrawable(c,ADMIN),old_available)
+
+    def test_10_epoch_cannot_truncate(self):
+        with self.assertRaises(DBAPIError):
+            with engine.begin() as c:
+                c.execute(text("TRUNCATE public.cpa_finance_epoch"))
+        with engine.connect() as c:
+            self.assertEqual(c.execute(text("SELECT COUNT(*) FROM public.cpa_finance_epoch")).scalar_one(),1)
+            self.assertIsNotNone(epoch_row(c)["activated_at"])
+
+
 if __name__=="__main__":
     unittest.main()
