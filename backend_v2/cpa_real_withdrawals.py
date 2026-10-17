@@ -41,6 +41,10 @@ def real_withdrawable(conn, user_id: int, epoch=None):
     Old clicks and all pre-cutover conversions are categorically excluded.
     """
     epoch = epoch or epoch_row(conn)
+    # Recovery events are an explicit, non-cash reserve of a disputed release.
+    # A balance_reversal referencing the same release resolves that reserve;
+    # the reversal's negative balance_delta then reduces entitlement instead.
+    # Repeated pending records remain conservative (cannot inflate credit).
     earned = conn.execute(text("""
         SELECT COALESCE(SUM(l.balance_delta),0)
         FROM public.cpa_ledger l
@@ -53,8 +57,26 @@ def real_withdrawable(conn, user_id: int, epoch=None):
           AND v.finance_approved_at >= v.finance_eligible_at
           AND v.status='approved'
           AND v.is_test=FALSE AND v.currency='USD'
-          AND k.id > :old_click
-          AND k.user_id=v.user_id
+          AND k.id > :old_click AND k.user_id=v.user_id
+    """), {"uid":user_id, "cutover":epoch["activated_at"],
+           "old_click":epoch["legacy_max_click_row_id"]}).scalar_one()
+    disputed = conn.execute(text("""
+        SELECT COALESCE(SUM(p.amount),0)
+        FROM public.cpa_ledger p
+        JOIN public.conversions v ON v.id=p.conversion_id
+        JOIN public.clicks k ON k.click_id=v.click_id
+        WHERE p.user_id=:uid AND p.operation_type='recovery_pending'
+          AND v.finance_eligible_at >= :cutover AND v.created_at >= :cutover
+          AND v.finance_approved_at >= v.finance_eligible_at
+          AND v.status='approved' AND v.is_test=FALSE AND v.currency='USD'
+          AND k.id > :old_click AND k.user_id=v.user_id
+          AND NOT EXISTS (
+            SELECT 1 FROM public.cpa_ledger reversal
+            WHERE reversal.original_entry_id=p.original_entry_id
+              AND reversal.conversion_id=p.conversion_id
+              AND reversal.user_id=p.user_id
+              AND reversal.operation_type='balance_reversal'
+          )
     """), {"uid":user_id, "cutover":epoch["activated_at"],
            "old_click":epoch["legacy_max_click_row_id"]}).scalar_one()
     committed = conn.execute(text("""
@@ -64,11 +86,29 @@ def real_withdrawable(conn, user_id: int, epoch=None):
           AND id>:old_withdrawal AND status IN ('pending','paid')
     """), {"uid":user_id,"cutover":epoch["activated_at"],
            "old_withdrawal":epoch["legacy_max_withdrawal_id"]}).scalar_one()
-    raw = Decimal(earned) - Decimal(committed)
-    # An inconsistent ledger must not quietly become a positive entitlement.
+    raw = Decimal(earned) - Decimal(disputed) - Decimal(committed)
+    # Negative entitlement is a visible reconciliation blocker, NOT an automatic debt.
     if raw < ZERO:
         raise RealFinanceInconsistent("Real CPA reservations exceed ledger releases")
     return raw.quantize(Decimal("0.01"))
+
+
+def finance_balance_projection(conn, user_id, legacy_balance):
+    """Read-only API projection. No historical value is rewritten."""
+    try:
+        epoch = epoch_row(conn)
+    except RealFinanceDisabled:
+        return {"real_withdrawable": 0.0, "real_finance_active": False,
+                "real_finance_available": False}
+    try:
+        entitlement = real_withdrawable(conn, user_id, epoch)
+        spendable = max(ZERO, min(entitlement, Decimal(legacy_balance)))
+        return {"real_withdrawable": float(spendable),
+                "real_finance_active": True, "real_finance_available": True}
+    except RealFinanceInconsistent:
+        # Never turn a disputed negative financial balance into positive funds.
+        return {"real_withdrawable": 0.0, "real_finance_active": True,
+                "real_finance_available": False}
 
 
 def create_real_withdrawal(engine, *, partner_code, amount, payment_method, wallet):
