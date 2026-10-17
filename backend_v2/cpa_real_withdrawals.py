@@ -95,7 +95,7 @@ def real_withdrawable(conn, user_id: int, epoch=None):
 
 
 def release_matured_hold_contract(conn, conversion_id):
-    """TEST/FUTURE CONTRACT ONLY: never called from routes or a scheduler.
+    """Stage 5.3 implementation: only callable from explicit backend invocation.
 
     Caller owns the transaction. Lock users -> conversions -> ledger so this
     future primitive is compatible with approval, claims and corrections.
@@ -132,7 +132,7 @@ def release_matured_hold_contract(conn, conversion_id):
         return {"released":False,"amount":credit["amount"]}
     if wallet["hold"] < credit["amount"]:
         raise FinanceInconsistent("Not enough held balance to release")
-    # Also checked by database trigger; do not rely only on application clock.
+    # DB trigger enforces the >=240h deadline using PostgreSQL clock_timestamp().
     conn.execute(text("""
         INSERT INTO public.cpa_ledger
          (conversion_id,user_id,operation_type,event_key,amount,currency,
@@ -150,6 +150,54 @@ def release_matured_hold_contract(conn, conversion_id):
     if not changed:
         raise FinanceInconsistent("User hold changed during release")
     return {"released":True,"amount":credit["amount"]}
+
+
+def release_matured_holds(engine, *, limit=100):
+    """Release eligible >=240h holds, synchronously, WITHOUT scheduling it.
+
+    Used by a future explicitly enabled job. Each conversion is processed in
+    its own transaction and follows users -> conversions -> ledger locks.
+    Concurrency, retries and multiple workers are safe: the one-release ledger
+    key, source-reference unique index and user row lock prevent double credit.
+    An inconsistent row aborts with its transaction rolled back; no silent
+    forgiveness, hidden debt or external payment is performed.
+    """
+    if isinstance(limit,bool) or not isinstance(limit,int) or not 1<=limit<=500:
+        raise ValueError("limit must be an integer between 1 and 500")
+    released=0
+    total=ZERO
+    for _ in range(limit):
+        with engine.begin() as conn:
+            epoch=epoch_row(conn)  # Disabled = do not even select candidates.
+            candidate=conn.execute(text("""
+                SELECT l.conversion_id
+                FROM public.cpa_ledger l
+                JOIN public.conversions v ON v.id=l.conversion_id
+                JOIN public.clicks k ON k.click_id=v.click_id
+                WHERE l.operation_type='hold_credit'
+                  AND l.hold_until <= clock_timestamp()
+                  AND v.status='approved' AND v.is_test=FALSE
+                  AND v.currency='USD'
+                  AND v.created_at >= :cutover
+                  AND v.finance_eligible_at >= :cutover
+                  AND v.finance_approved_at >= v.finance_eligible_at
+                  AND k.id>:legacy_click AND k.user_id=v.user_id
+                  AND NOT EXISTS (
+                    SELECT 1 FROM public.cpa_ledger lr
+                    WHERE lr.original_entry_id=l.id
+                      AND lr.operation_type IN ('hold_release','hold_reversal')
+                  )
+                ORDER BY l.hold_until,l.id LIMIT 1
+            """), {"cutover":epoch["activated_at"],
+                   "legacy_click":epoch["legacy_max_click_row_id"]}).scalar_one_or_none()
+            if candidate is None:
+                break
+            result=release_matured_hold_contract(conn,candidate)
+            if result["released"]:
+                released+=1
+                total+=result["amount"]
+    return {"released":released,"amount":total.quantize(Decimal("0.01"))}
+
 
 def finance_balance_projection(conn, user_id, legacy_balance):
     """Read-only API projection. No historical value is rewritten."""
