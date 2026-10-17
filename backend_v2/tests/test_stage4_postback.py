@@ -68,6 +68,7 @@ class PostbackTests(unittest.TestCase):
             stage4=(ROOT/"migrations/20261016_stage4_postback.sql").read_text()
             stage4="\n".join(line for line in stage4.splitlines() if not line.lstrip().startswith("REVOKE "))
             c.connection.cursor().execute(stage4)
+            c.execute(text("ALTER TABLE cpa_networks ADD COLUMN IF NOT EXISTS click_param VARCHAR(48)"))
             c.connection.cursor().execute((ROOT/"migrations/20261017_universal_cpa_integrations.sql").read_text())
             migration=(ROOT/"migrations/20261016_stage4_admin_postback_probe.sql").read_text()
             c.connection.cursor().execute(migration)
