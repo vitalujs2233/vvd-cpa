@@ -441,13 +441,16 @@ def _process_real_withdrawal(engine, withdrawal_id, decision, *,
                 return {"success":False,"message":"Unfunded or disputed CPA obligation; payment blocked"}
             # Insert immutable evidence BEFORE status changes. The separate
             # PostgreSQL trigger forbids bypassing proof from any SQL route.
-            conn.execute(text("""
+            proof_saved=conn.execute(text("""
                 INSERT INTO public.cpa_payout_proofs
                 (withdrawal_id,external_transfer_id,evidence_reference,
                  transferred_at,confirmed_by)
                 VALUES(:wid,:reference,:evidence,:transferred,:admin)
+                ON CONFLICT DO NOTHING RETURNING withdrawal_id
             """),{"wid":withdrawal_id,"reference":reference,
-                  "evidence":evidence,"transferred":transferred,"admin":admin_uid})
+                  "evidence":evidence,"transferred":transferred,"admin":admin_uid}).first()
+            if not proof_saved:
+                return {"success":False,"message":"Transfer proof already used; paid status not changed"}
         # Reject marks reservation released; paid stays a permanent spend.
         conn.execute(text("""
             UPDATE public.withdrawals SET status=:decision,processed_at=NOW()
