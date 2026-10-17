@@ -340,7 +340,10 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
             self.assertFalse(response.json()["success"])
             self.assertEqual(response.json()["message"],"Insufficient real CPA earnings")
             with patch("main.send_partner_notification",new=AsyncMock()):
-                r=client.post("/admin/withdrawals/1/paid")
+                r=client.post("/admin/withdrawals/1/paid",json={
+                    "external_transfer_id":"CI-HISTORY-FORBIDDEN-1",
+                    "evidence_reference":"CI-HISTORY-PROOF-1",
+                    "transferred_at":datetime.now(timezone.utc).isoformat()})
                 self.assertFalse(r.json()["success"])
                 self.assertIn("Historical",r.json()["message"])
         with engine.connect() as c:
@@ -459,6 +462,13 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
                   "uid":ADMIN,"eligible":T0+timedelta(days=1),
                   "approved":approval_time})
             post_approved_hold(c,cid)
+            c.execute(text("""
+              INSERT INTO public.cpa_network_receipts(conversion_id,
+                settlement_reference,verification_source,evidence_reference,
+                received_gross,received_at,verified_by)
+              VALUES (:cid,:ref,'bank_verified',:proof,100.00,clock_timestamp(),:admin)
+            """),{"cid":cid,"ref":"CI-HELD-SETTLEMENT-"+str(cid),
+                 "proof":"CI-bank-statement-"+str(cid),"admin":ADMIN})
         return cid
 
     def test_13_future_hold_release_contract_and_idempotency(self):
@@ -534,8 +544,11 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
                 balance=c.execute(text("""
                   SELECT balance FROM public.users WHERE telegram_id=:id
                 """),{"id":ADMIN}).scalar_one()
+            from cpa_real_withdrawals import funded_withdrawable
+            with engine.connect() as c:
+                cash=funded_withdrawable(c,ADMIN)
             self.assertAlmostEqual(payload["real_withdrawable"],
-                float(min(entitled,balance)),places=2)
+                float(min(entitled,cash,balance)),places=2)
             self.assertGreaterEqual(payload["available"],payload["real_withdrawable"])
 
 
