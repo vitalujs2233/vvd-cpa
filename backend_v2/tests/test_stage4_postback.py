@@ -109,6 +109,90 @@ class PostbackTests(unittest.TestCase):
           "tx":transaction,"state":status,"price":price,"ccy":ccy},
           headers={"X-VVD-Postback-Key":self.secret if secret is None else secret})
 
+    def test_00_full_link_postback_attribution_without_finance(self):
+        # Full synthetic chain: actual personal link -> redirect -> stored click -> authenticated postback.
+        # Only local PostgreSQL 17 fixture and TestClient; no partner redirect follows.
+        from urllib.parse import urlsplit, parse_qs
+        from neutral_links import neutral_click_redirect
+        from cpa_analytics import summarize, arguments
+        fixture_offer="chain-"+self.tag
+        owner2=900000006402
+        code2="VVD964002"
+        with engine.begin() as c:
+            c.execute(text("""CREATE TABLE IF NOT EXISTS smartlinks(
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id BIGINT NOT NULL,offer_id VARCHAR(80) NOT NULL,
+                suffix VARCHAR(100) NOT NULL UNIQUE,url TEXT NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW())"""))
+            c.execute(text("ALTER TABLE clicks ADD COLUMN IF NOT EXISTS smartlink_id UUID"))
+            c.execute(text("ALTER TABLE offers ADD COLUMN IF NOT EXISTS source_url TEXT"))
+            c.execute(text("ALTER TABLE offers ADD COLUMN IF NOT EXISTS offer_type VARCHAR(20)"))
+            c.execute(text("ALTER TABLE offers ADD COLUMN IF NOT EXISTS click_param_override VARCHAR(48)"))
+            c.execute(text("ALTER TABLE cpa_networks ADD COLUMN IF NOT EXISTS click_param VARCHAR(48)"))
+            c.execute(text("UPDATE cpa_networks SET click_param='ref_id',partner_param='sub1' WHERE id=:id"),{"id":self.network_id})
+            c.execute(text("INSERT INTO users(telegram_id,first_name,partner_code,status) VALUES(:uid,'Stage4Other',:code,'active') ON CONFLICT(telegram_id) DO UPDATE SET partner_code=:code,status='active'"),{"uid":owner2,"code":code2})
+            for suffix,uid,oid in (("s"+uuid.uuid4().hex,UID,self.offer),("s"+uuid.uuid4().hex,owner2,fixture_offer)):
+                if oid==fixture_offer:
+                    c.execute(text("""INSERT INTO offers(id,title,smartlink_suffix,vertical_slug,network_id,status,source_url,offer_type)
+                         VALUES(:offer,'Synthetic 2','synthetic-two','utilities',:net,'published',
+                         'https://example.com/path?original=preserved','smartlink')"""),{"offer":oid,"net":self.network_id})
+                else:
+                    c.execute(text("""UPDATE offers SET source_url='https://example.com/path?original=preserved',
+                         offer_type='smartlink' WHERE id=:offer"""),{"offer":oid})
+                c.execute(text("INSERT INTO smartlinks(user_id,offer_id,suffix,url) VALUES(:uid,:oid,:suffix,:url)"),
+                          {"uid":uid,"oid":oid,"suffix":suffix,"url":"https://vvd-cpa-v2.onrender.com/r/"+suffix})
+                if uid==UID: owner_suffix=suffix
+                else: other_suffix=suffix
+            before=tuple(c.execute(text("SELECT balance,hold,withdrawn FROM users WHERE telegram_id=:uid"),{"uid":UID}).one())
+            before_other=tuple(c.execute(text("SELECT balance,hold,withdrawn FROM users WHERE telegram_id=:uid"),{"uid":owner2}).one())
+        created=[]
+        try:
+            for suffix,expected_code in ((owner_suffix,"VVD964001"),(owner_suffix,"VVD964001"),(other_suffix,code2)):
+                r=client.get("/r/"+suffix)
+                self.assertEqual(r.status_code,302,r.text)
+                qs=parse_qs(urlsplit(r.headers["location"]).query)
+                self.assertEqual(qs["original"],["preserved"])
+                self.assertEqual(qs["sub1"],[expected_code])
+                click=qs["ref_id"][0]
+                uuid.UUID(click)
+                created.append((click,expected_code))
+            self.assertEqual(len({x[0] for x in created}),3)
+            for click,code in created:
+                uid=UID if code=="VVD964001" else owner2
+                with engine.connect() as c:
+                    recorded=c.execute(text("SELECT user_id,partner_code,network_id FROM clicks WHERE click_id=:click"),{"click":click}).one()
+                self.assertEqual((recorded[0],recorded[1],recorded[2]),(uid,code,self.network_id))
+            for i,(click,code) in enumerate(created):
+                # Verified gateway output uses the preexisting authenticated POST interface.
+                resp=client.post(f"/cpa/postback/{self.network_id}",
+                    json={"test_click":click,"tx":"synthetic-chain-"+self.tag+"-"+str(i),
+                          "state":"waiting","price":"0","ccy":"USD","sub1":"VVD999999"},
+                    headers={"X-VVD-Postback-Key":self.secret})
+                self.assertEqual(resp.status_code,200,resp.text)
+                self.assertTrue(resp.json()["created"])
+                duplicate=client.post(f"/cpa/postback/{self.network_id}",
+                    json={"test_click":click,"tx":"synthetic-chain-"+self.tag+"-"+str(i),
+                          "state":"waiting","price":"0","ccy":"USD","sub1":"VVD999999"},
+                    headers={"X-VVD-Postback-Key":self.secret})
+                self.assertEqual(duplicate.status_code,200)
+                self.assertTrue(duplicate.json()["duplicate"])
+                with engine.connect() as c:
+                    v=c.execute(text("SELECT user_id,partner_code,status,payout_net FROM conversions WHERE click_id=:click"),{"click":click}).one()
+                    self.assertEqual((v[0],v[1],v[2],v[3]),(UID if code=="VVD964001" else owner2,code,"pending",0))
+            with engine.connect() as c:
+                self.assertEqual(tuple(c.execute(text("SELECT balance,hold,withdrawn FROM users WHERE telegram_id=:uid"),{"uid":UID}).one()),before)
+                self.assertEqual(tuple(c.execute(text("SELECT balance,hold,withdrawn FROM users WHERE telegram_id=:uid"),{"uid":owner2}).one()),before_other)
+                self.assertEqual(c.execute(text("SELECT count(*) FROM conversions WHERE click_id IN (:a,:b,:d)"),
+                   {"a":created[0][0],"b":created[1][0],"d":created[2][0]}).scalar_one(),3)
+        finally:
+            with engine.begin() as c:
+                for click,_ in created:
+                    c.execute(text("DELETE FROM conversions WHERE click_id=:click"),{"click":click})
+                    c.execute(text("DELETE FROM clicks WHERE click_id=:click"),{"click":click})
+                c.execute(text("DELETE FROM smartlinks WHERE suffix IN (:a,:b)"),{"a":owner_suffix,"b":other_suffix})
+                c.execute(text("DELETE FROM offers WHERE id=:offer"),{"offer":fixture_offer})
+                c.execute(text("DELETE FROM users WHERE telegram_id=:uid"),{"uid":owner2})
+
     def test_get_requires_verified_sender_and_preserves_post(self):
         url=f"/cpa/postback/{self.network_id}"
         # A spoofed forwarded header and correct mapped fields never authenticate GET.
