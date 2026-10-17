@@ -78,7 +78,7 @@ class NeutralLinkTests(unittest.TestCase):
                DO UPDATE SET partner_code=EXCLUDED.partner_code,status='active'"""),
                {"id":SECOND,"code":"VVD951002"})
         network=client.post("/cpa/admin/networks",headers=headers(ADMIN),json={
-            "name":cls.network,"website":"https://example.com","click_param":"tracking_key",
+            "name":cls.network,"website":"https://example.com","click_param":"tracking_key","partner_param":"sub1",
             "is_active":True})
         if network.status_code!=200:raise AssertionError(network.text)
         cls.net_id=network.json()["id"]
@@ -146,6 +146,9 @@ class NeutralLinkTests(unittest.TestCase):
         aa=parse_qs(urlsplit(a.headers["location"]).query)
         bb=parse_qs(urlsplit(b.headers["location"]).query)
         self.assertEqual(aa["existing"],["keep"])
+        self.assertEqual(bb["existing"],["keep"])
+        self.assertEqual(aa["sub1"],["VVD951001"])
+        self.assertEqual(bb["sub1"],["VVD951001"])
         self.assertNotEqual(aa["tracking_key"],bb["tracking_key"])
         self.assertEqual(urlsplit(a.headers["location"]).hostname,"example.com")
         with engine.connect() as conn:
@@ -155,6 +158,36 @@ class NeutralLinkTests(unittest.TestCase):
         self.assertTrue(all(x["user_id"]==FIRST and x["partner_code"]=="VVD951001"
                 and x["network_id"]==self.net_id and x["vertical"]=="utilities" for x in values))
         self.assertEqual(len({x["click_id"] for x in values}),len(values))
+
+    def test_b2_distinct_webmasters_and_attribution(self):
+        a=client.post("/cpa/links/"+self.offers[0],headers=headers(FIRST)).json()["url"]
+        b=client.post("/cpa/links/"+self.offers[0],headers=headers(SECOND)).json()["url"]
+        one=client.get(urlsplit(a).path)
+        two=client.get(urlsplit(b).path)
+        self.assertEqual(one.status_code,302)
+        self.assertEqual(two.status_code,302)
+        x=parse_qs(urlsplit(one.headers["location"]).query)
+        y=parse_qs(urlsplit(two.headers["location"]).query)
+        self.assertEqual(x["sub1"],["VVD951001"])
+        self.assertEqual(y["sub1"],["VVD951002"])
+        self.assertEqual(x["existing"],["keep"])
+        self.assertEqual(y["existing"],["keep"])
+        self.assertNotEqual(x["tracking_key"],y["tracking_key"])
+        with engine.connect() as conn:
+            rows=conn.execute(text("SELECT click_id,partner_code,user_id FROM clicks WHERE click_id IN (:a,:b)"),
+              {"a":x["tracking_key"][0],"b":y["tracking_key"][0]}).mappings().all()
+        self.assertEqual({(r["partner_code"],r["user_id"]) for r in rows},
+                         {("VVD951001",FIRST),("VVD951002",SECOND)})
+
+    def test_b3_reject_collisions_and_existing_partner_query(self):
+        from neutral_links import _validated_destination
+        from fastapi import HTTPException
+        for source in ("https://example.com/item?sub1=forged",
+                       "https://example.com/item?tracking_key=forged"):
+            with self.assertRaises(HTTPException):
+                _validated_destination(source,"tracking_key","synthetic","sub1","VVD951001")
+        with self.assertRaises(HTTPException):
+            _validated_destination("https://example.com/item","sub1","synthetic","sub1","VVD951001")
 
     def test_c_disabled_blocks_and_keeps_old_routes(self):
         url=client.post("/cpa/links/"+self.offers[0],headers=headers(FIRST)).json()["url"]
