@@ -1,0 +1,43 @@
+name: Validate Withdrawals Security PostgreSQL 17
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend_v2/migrations/20261017_stage5_withdrawals_rls.sql'
+      - 'backend_v2/tests/test_stage5_withdrawals_security.py'
+      - '.github/workflows/validate-withdrawals-security.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  withdrawals:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: isolated_withdrawals
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/isolated_withdrawals
+      BOT_TOKEN: 123456:TEST_TOKEN_FOR_CI_ONLY
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install backend_v2
+        run: pip install -r backend_v2/requirements.txt
+      - name: Verify Python syntax
+        run: python -m compileall -q backend_v2
+      - name: Validate role security and withdrawal API with isolated PostgreSQL 17
+        run: python -m unittest discover -s backend_v2/tests -p 'test_stage5_withdrawals_security.py' -v
