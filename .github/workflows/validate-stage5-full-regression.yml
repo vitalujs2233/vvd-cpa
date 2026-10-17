@@ -1,0 +1,144 @@
+name: Stage 5 Draft PR23 Full Regression PostgreSQL 17
+on:
+  push:
+    branches:
+      - feat/stage5-real-withdrawable-draft
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migration-order:
+    name: Real PR22 -> PR21 -> PR23, no data changes
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cpa_withdrawals_isolated
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/cpa_withdrawals_isolated
+      BOT_TOKEN: 123456:TEST_TOKEN_FOR_CI_ONLY
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r backend_v2/requirements.txt
+      - name: Fetch exact PR22 SQL without changing the audit branch
+        run: |
+          git fetch --depth=1 origin fix/stage5-2-2-withdrawals-rls
+          git show FETCH_HEAD:backend_v2/migrations/20261017_stage5_withdrawals_rls.sql > /tmp/real_pr22_withdrawals.sql
+      - name: Verify migration order, idempotency, privacy, history, PG17 ACL/RLS
+        run: python .github/scripts/audit_stage5_compat.py
+
+  backend-regression:
+    name: Regression PG17 / ${{ matrix.suite }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          - test_ai_studio_v2
+          - test_stage1_auth
+          - test_stage2_catalog
+          - test_stage3_neutral_links
+          - test_stage4_postback
+          - test_stage5_ledger
+          - test_stage5_real_withdrawals
+          - test_stars
+          - test_tools_marketplace
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cpa_withdrawals_isolated
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/cpa_withdrawals_isolated
+      BOT_TOKEN: 123456:TEST_TOKEN_FOR_CI_ONLY
+      ADMIN_TELEGRAM_IDS: '232682307'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install existing backend
+        run: pip install -r backend_v2/requirements.txt
+      - name: Isolated users schema for legacy suites (never real-withdrawable fixture)
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: |
+          if [[ "$SUITE" != "test_stage5_real_withdrawals" && "$SUITE" != "test_stage5_ledger" ]]; then
+            export PGPASSWORD=postgres
+            psql -h 127.0.0.1 -U postgres -d cpa_withdrawals_isolated -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE TABLE public.users (
+            telegram_id BIGINT PRIMARY KEY,
+            first_name VARCHAR(255) NOT NULL,
+            last_name VARCHAR(255),
+            username VARCHAR(255),
+            photo_url TEXT,
+            partner_code VARCHAR(50) UNIQUE,
+            invited_by BIGINT,
+            role VARCHAR(30) NOT NULL DEFAULT 'user',
+            status VARCHAR(30) NOT NULL DEFAULT 'active',
+            balance NUMERIC(12,2) NOT NULL DEFAULT 0,
+            hold NUMERIC(12,2) NOT NULL DEFAULT 0,
+            withdrawn NUMERIC(12,2) NOT NULL DEFAULT 0,
+            referral_balance NUMERIC(12,2) DEFAULT 0,
+            referral_earned NUMERIC(12,2) DEFAULT 0
+          );
+          SQL
+          fi
+      - name: Restore prerequisite catalog schema for standalone Stage 4 suite
+        if: matrix.suite == 'test_stage4_postback'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from sqlalchemy import create_engine,text
+          import os
+          engine=create_engine(os.environ['DATABASE_URL'])
+          with engine.begin() as c:
+              c.execute(text("CREATE TABLE IF NOT EXISTS public.offers(id VARCHAR(80) PRIMARY KEY,title VARCHAR(200) NOT NULL)"))
+              for definition in ("description TEXT","icon_name VARCHAR(30)","geo VARCHAR(300)","smartlink_suffix VARCHAR(120) NOT NULL DEFAULT ''"):
+                  c.execute(text("ALTER TABLE public.offers ADD COLUMN IF NOT EXISTS "+definition))
+              sql=Path("backend_v2/migrations/20261016_stage2_catalog.sql").read_text()
+              sql="\n".join(x for x in sql.splitlines() if not x.lstrip().startswith("REVOKE "))
+              c.connection.cursor().execute(sql)
+              c.execute(text("ALTER TABLE public.cpa_networks ADD COLUMN IF NOT EXISTS click_param VARCHAR(48)"))
+              c.execute(text("ALTER TABLE public.offers ADD COLUMN IF NOT EXISTS click_param_override VARCHAR(48)"))
+          PY
+      - name: Run every existing backend test suite on own disposable PG17
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: python -m unittest discover -s backend_v2/tests -p "$SUITE.py" -v
+
+  frontend-regression:
+    name: Existing Mini App, AI Tools and USD Tools static checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-audit --no-fund
+      - run: node scripts/check-ui-placements.mjs
+      - run: npm run build
