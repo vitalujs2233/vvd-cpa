@@ -19,6 +19,7 @@ from cpa_catalog import router as cpa_catalog_router
 from neutral_links import router as neutral_links_router
 from cpa_postback import router as cpa_postback_router
 from cpa_real_withdrawals import create_real_withdrawal, mark_real_paid, mark_real_rejected, finance_balance_projection
+from sqlalchemy.exc import ProgrammingError
 from access_guard import access_guard
 from stars_payments import verified_telegram_id
 from urllib.parse import parse_qs
@@ -446,7 +447,21 @@ async def get_balance(telegram_id: int):
         """), {"uid":telegram_id}).first()
         if not user:
             return {"success":False,"message":"User not found"}
-        finance = finance_balance_projection(conn, telegram_id, user.balance)
+        try:
+            # A legacy-only DB has not received PR #23's additive schema yet.
+            # Savepoint preserves the existing /balance contract without
+            # masking unrelated SQL failures or treating old funds as real.
+            with conn.begin_nested():
+                finance = finance_balance_projection(conn, telegram_id, user.balance)
+        except ProgrammingError as exc:
+            if (getattr(exc.orig, "pgcode", None) != "42P01"
+                    or "cpa_finance_epoch" not in str(exc.orig)):
+                raise
+            finance = {
+                "real_withdrawable": 0.0,
+                "real_finance_active": False,
+                "real_finance_available": False,
+            }
         return {
             "available":float(user.balance),
             "hold":float(user.hold),
