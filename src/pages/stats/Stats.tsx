@@ -153,7 +153,7 @@ export const Stats:React.FC=()=>{
         <span className="text-[10px] text-textSecondary">Макс. в день: {maxVisible.toLocaleString('ru-RU')}</span>
       </div>
       <div className="h-24 w-full min-w-0 flex items-end gap-[2px] overflow-x-auto" aria-label="График кликов">
-        {visibleDays.length?visibleDays.map((d,i)=><div key={d.date+i} title={`${d.date}: ${d.clicks} кликов`} aria-label={`${d.date}: ${d.clicks} кликов`} className="shrink-0 w-[7px] rounded-t-sm bg-accentPurple border-t border-white/25" style={{height:`${Math.max(8,100*d.clicks/maxVisible)}%`}}/>)
+        {visibleDays.length?visibleDays.map((d,i)=><div key={d.date+i} title={`${d.date}: ${d.clicks} кликов`} aria-label={`${d.date}: ${d.clicks} кликов`} className="shrink-0 w-[7px] rounded-t-sm bg-accentGold border-t border-white/25" style={{height:`${Math.max(8,100*d.clicks/maxVisible)}%`}}/>)
           :<p className="self-center text-xs text-textSecondary">Нет переходов за период</p>}
       </div>
     </Card></div>
