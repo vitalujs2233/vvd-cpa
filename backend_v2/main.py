@@ -18,6 +18,8 @@ from ai_studio_v2 import router as ai_studio_router
 from cpa_catalog import router as cpa_catalog_router
 from neutral_links import router as neutral_links_router
 from cpa_postback import router as cpa_postback_router
+from cpa_real_withdrawals import create_real_withdrawal, mark_real_paid, mark_real_rejected, finance_balance_projection
+from sqlalchemy.exc import ProgrammingError
 from access_guard import access_guard
 from stars_payments import verified_telegram_id
 from urllib.parse import parse_qs
@@ -436,34 +438,37 @@ async def track_click(partner_code: str, vertical: str, request: Request):
 
 @app.get("/balance/{telegram_id}")
 async def get_balance(telegram_id: int):
-
+    # Keep historical balance contract for the rest of Mini App, but expose
+    # separate finance entitlement for the withdrawals page (never from balance).
     with engine.connect() as conn:
-
-        user = conn.execute(
-            text("""
-                SELECT
-                    balance,
-                    hold,
-                    withdrawn
-                FROM users
-                WHERE telegram_id = :telegram_id
-            """),
-            {
-                "telegram_id": telegram_id
+        user = conn.execute(text("""
+            SELECT balance,hold,withdrawn
+            FROM public.users WHERE telegram_id=:uid
+        """), {"uid":telegram_id}).first()
+        if not user:
+            return {"success":False,"message":"User not found"}
+        try:
+            # A legacy-only DB has not received PR #23's additive schema yet.
+            # Savepoint preserves the existing /balance contract without
+            # masking unrelated SQL failures or treating old funds as real.
+            with conn.begin_nested():
+                finance = finance_balance_projection(conn, telegram_id, user.balance)
+        except ProgrammingError as exc:
+            if (getattr(exc.orig, "pgcode", None) != "42P01"
+                    or "cpa_finance_epoch" not in str(exc.orig)):
+                raise
+            finance = {
+                "real_withdrawable": 0.0,
+                "real_finance_active": False,
+                "real_finance_available": False,
             }
-        ).fetchone()
-
-    if not user:
         return {
-            "success": False,
-            "message": "User not found"
+            "available":float(user.balance),
+            "hold":float(user.hold),
+            "paid":float(user.withdrawn),
+            **finance,
         }
 
-    return {
-        "available": float(user.balance),
-        "hold": float(user.hold),
-        "paid": float(user.withdrawn)
-    }
 @app.get("/referral/{telegram_id}")
 async def get_referral(telegram_id: int):
 
@@ -1379,111 +1384,11 @@ async def admin_users():
 
 @app.post("/withdrawals")
 async def create_withdrawal(data: WithdrawalRequest):
-    amount = round(float(data.amount or 0), 2)
-    partner_code = data.partner_code.strip()
-    method = data.payment_method.strip()
-    wallet = data.wallet.strip()
-
-    if amount < 50:
-        return {
-            "success": False,
-            "message": "Minimum withdrawal amount is $50"
-        }
-
-    if not partner_code:
-        return {
-            "success": False,
-            "message": "Partner code is required"
-        }
-
-    if not method or not wallet:
-        return {
-            "success": False,
-            "message": "Payment method and wallet are required"
-        }
-
-    with engine.begin() as conn:
-        user = conn.execute(
-            text("""
-                SELECT telegram_id, partner_code, balance
-                FROM users
-                WHERE partner_code = :partner_code
-                FOR UPDATE
-            """),
-            {
-                "partner_code": partner_code
-            }
-        ).fetchone()
-
-        if not user:
-            return {
-                "success": False,
-                "message": "Partner not found"
-            }
-
-        available = round(float(user.balance or 0), 2)
-
-        if amount > available:
-            return {
-                "success": False,
-                "message": "Insufficient available balance",
-                "available": available
-            }
-
-        row = conn.execute(
-            text("""
-                INSERT INTO withdrawals
-                (
-                    user_id,
-                    partner_code,
-                    amount,
-                    payment_method,
-                    wallet,
-                    status,
-                    created_at
-                )
-                VALUES
-                (
-                    :user_id,
-                    :partner_code,
-                    :amount,
-                    :method,
-                    :wallet,
-                    'pending',
-                    NOW()
-                )
-                RETURNING id, created_at
-            """),
-            {
-                "user_id": user.telegram_id,
-                "partner_code": user.partner_code,
-                "amount": amount,
-                "method": method,
-                "wallet": wallet
-            }
-        ).fetchone()
-
-        conn.execute(
-            text("""
-                UPDATE users
-                SET balance = balance - :amount
-                WHERE partner_code = :partner_code
-            """),
-            {
-                "amount": amount,
-                "partner_code": partner_code
-            }
-        )
-
-    return {
-        "success": True,
-        "withdrawal_id": int(row.id),
-        "partner_code": partner_code,
-        "amount": amount,
-        "status": "pending",
-        "created_at": str(row.created_at)
-    }
-
+    return create_real_withdrawal(
+        engine, partner_code=data.partner_code.strip(),
+        amount=data.amount, payment_method=data.payment_method.strip(),
+        wallet=data.wallet.strip(),
+    )
 
 @app.get("/withdrawals/{partner_code}")
 async def get_withdrawals(partner_code: str):
@@ -1517,7 +1422,8 @@ async def get_withdrawals(partner_code: str):
                     wallet,
                     status,
                     created_at,
-                    processed_at
+                    processed_at,
+                    cpa_real_epoch_at
                 FROM withdrawals
                 WHERE partner_code = :partner_code
                 ORDER BY created_at DESC
@@ -1537,6 +1443,7 @@ async def get_withdrawals(partner_code: str):
                 "payment_method": r.payment_method,
                 "wallet": r.wallet,
                 "status": r.status,
+                "is_real_finance": r.cpa_real_epoch_at is not None,
                 "created_at": str(r.created_at),
                 "processed_at": str(r.processed_at) if r.processed_at else None
             }
@@ -1551,6 +1458,7 @@ async def admin_withdrawals(status: str | None = None):
         rows = conn.execute(text("""
             SELECT w.id, w.user_id, w.amount, w.payment_method,
                    w.wallet, w.status, w.created_at, w.processed_at,
+                   w.cpa_real_epoch_at,
                    u.partner_code, u.first_name, u.last_name, u.username
             FROM withdrawals w
             LEFT JOIN users u ON u.telegram_id = w.user_id
@@ -1572,6 +1480,7 @@ async def admin_withdrawals(status: str | None = None):
             "payment_method": r.payment_method,
             "wallet": r.wallet,
             "status": r.status,
+            "is_real_finance": r.cpa_real_epoch_at is not None,
             "created_at": str(r.created_at),
             "processed_at": str(r.processed_at) if r.processed_at else None
         } for r in rows]
@@ -1607,92 +1516,34 @@ async def send_partner_notification(telegram_id: int, message: str):
 
 @app.post("/admin/withdrawals/{withdrawal_id}/paid")
 async def mark_withdrawal_paid(withdrawal_id: int):
-    with engine.begin() as conn:
-        row = conn.execute(text("""
-            SELECT id, user_id, amount, payment_method, status
-            FROM withdrawals WHERE id = :id FOR UPDATE
-        """), {"id": withdrawal_id}).fetchone()
-
-        if not row:
-            return {"success": False, "message": "Withdrawal not found"}
-        if row.status != "pending":
-            return {"success": False, "message": f"Already processed: {row.status}"}
-
-        conn.execute(text("""
-            UPDATE withdrawals
-            SET status = 'paid', processed_at = NOW()
-            WHERE id = :id
-        """), {"id": withdrawal_id})
-
-        conn.execute(text("""
-            UPDATE users
-            SET withdrawn = COALESCE(withdrawn, 0) + :amount
-            WHERE telegram_id = :uid
-        """), {"amount": row.amount, "uid": row.user_id})
-
+    result = mark_real_paid(engine, withdrawal_id)
+    if not result["success"]:
+        return result
     await send_partner_notification(
-        int(row.user_id),
-        (
-            "💸 <b>Выплата подтверждена</b>\n\n"
-            f"Сумма: <b>${float(row.amount or 0):.2f}</b>\n"
-            f"Метод: <b>{row.payment_method}</b>\n"
-            "Статус: <b>Выплачено ✅</b>"
-        )
+        result["user_id"],
+        "💸 <b>Выплата подтверждена</b>\n\n"
+        + "Сумма: <b>$" + format(result["amount"], ".2f") + "</b>\n"
+        + "Метод: <b>" + result["payment_method"] + "</b>\n"
+        + "Статус: <b>Выплачено ✅</b>",
     )
-
     return {"success": True, "withdrawal_id": withdrawal_id,
-            "status": "paid", "amount": float(row.amount or 0)}
+            "status": "paid", "amount": result["amount"]}
 
 
 @app.post("/admin/withdrawals/{withdrawal_id}/reject")
 async def reject_withdrawal(withdrawal_id: int):
-    with engine.begin() as conn:
-        row = conn.execute(text("""
-            SELECT id, user_id, amount, status
-            FROM withdrawals
-            WHERE id = :id
-            FOR UPDATE
-        """), {"id": withdrawal_id}).fetchone()
-
-        if not row:
-            return {"success": False, "message": "Withdrawal not found"}
-
-        if row.status != "pending":
-            return {
-                "success": False,
-                "message": f"Already processed: {row.status}"
-            }
-
-        conn.execute(text("""
-            UPDATE withdrawals
-            SET status = 'rejected', processed_at = NOW()
-            WHERE id = :id
-        """), {"id": withdrawal_id})
-
-        conn.execute(text("""
-            UPDATE users
-            SET balance = COALESCE(balance, 0) + :amount
-            WHERE telegram_id = :uid
-        """), {
-            "amount": row.amount,
-            "uid": row.user_id
-        })
-
+    result = mark_real_rejected(engine, withdrawal_id)
+    if not result["success"]:
+        return result
     await send_partner_notification(
-        int(row.user_id),
-        (
-            "❌ <b>Заявка на выплату отклонена</b>\n\n"
-            f"Сумма: <b>${float(row.amount or 0):.2f}</b>\n"
-            "Средства возвращены на ваш баланс."
-        )
+        result["user_id"],
+        "❌ <b>Заявка на выплату отклонена</b>\n\n"
+        + "Сумма: <b>$" + format(result["amount"], ".2f") + "</b>\n"
+        + "Средства возвращены на ваш баланс.",
     )
+    return {"success": True, "withdrawal_id": withdrawal_id,
+            "status": "rejected", "amount_returned": result["amount"]}
 
-    return {
-        "success": True,
-        "withdrawal_id": withdrawal_id,
-        "status": "rejected",
-        "amount_returned": float(row.amount or 0)
-    }
 
 @app.post("/chat/messages")
 async def create_chat_message(payload: dict):

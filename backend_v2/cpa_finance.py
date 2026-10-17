@@ -59,6 +59,33 @@ def ledger_events_for_conversion(conn, conversion_id: UUID | str) -> list[dict]:
     """), {"id": str(conversion_id)}).mappings()]
 
 
+def lock_finance_scope(conn, conversion_id: UUID | str):
+    """Acquire finance locks in one order: users -> conversions -> ledger.
+
+    An unlocked owner lookup is validated AFTER both locks; a concurrent owner
+    change aborts rather than shifting money to the wrong account.
+    Withdrawal creation/processing use the same users row lock first.
+    """
+    preliminary = conn.execute(text("""
+        SELECT user_id FROM public.conversions WHERE id=:id
+    """), {"id": str(conversion_id)}).first()
+    if not preliminary:
+        raise FinanceIneligible("Conversion not found")
+    wallet = conn.execute(text("""
+        SELECT balance,hold FROM public.users WHERE telegram_id=:id FOR UPDATE
+    """), {"id": preliminary.user_id}).mappings().first()
+    if wallet is None:
+        raise FinanceInconsistent("Missing finance owner")
+    row = conn.execute(text("""
+        SELECT id,user_id,is_test,status,finance_eligible_at,finance_approved_at,
+               payout_gross,payout_net,currency
+        FROM public.conversions WHERE id=:id FOR UPDATE
+    """), {"id": str(conversion_id)}).mappings().first()
+    if row is None or row["user_id"] != preliminary.user_id:
+        raise FinanceInconsistent("Conversion owner changed under finance locks")
+    return row, wallet
+
+
 def post_approved_hold(conn, conversion_id: UUID | str) -> dict:
     """Atomic building block for FUTURE stage 5.3; never called by live routes.
 
@@ -68,14 +95,7 @@ def post_approved_hold(conn, conversion_id: UUID | str) -> dict:
     """
     if not conn.in_transaction():
         raise RuntimeError("Caller must supply an active database transaction")
-    row = conn.execute(text("""
-      SELECT id,user_id,is_test,status,finance_eligible_at,finance_approved_at,
-             payout_gross,payout_net,currency
-        FROM public.conversions
-       WHERE id=:id FOR UPDATE
-    """), {"id": str(conversion_id)}).mappings().first()
-    if row is None:
-        raise FinanceIneligible("Conversion not found")
+    row, wallet = lock_finance_scope(conn, conversion_id)
     if (row["is_test"] or row["finance_eligible_at"] is None
             or row["status"] != "approved" or row["finance_approved_at"] is None
             or row["finance_approved_at"] < row["finance_eligible_at"]
@@ -101,9 +121,6 @@ def post_approved_hold(conn, conversion_id: UUID | str) -> dict:
             raise FinanceInconsistent("Partial or inconsistent approval ledger")
         return {"credited": False, "gross": gross, "fee": fee, "net": net}
 
-    wallet = conn.execute(text("""
-      SELECT balance,hold FROM public.users WHERE telegram_id=:id FOR UPDATE
-    """), {"id": row["user_id"]}).mappings().first()
     if wallet is None or wallet["balance"] < 0 or wallet["hold"] < 0:
         raise FinanceInconsistent("Missing user or negative legacy wallet")
     if wallet["balance"] > MAX_WALLET or wallet["hold"] + net > MAX_WALLET:

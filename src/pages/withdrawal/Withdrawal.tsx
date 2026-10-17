@@ -28,6 +28,7 @@ interface WithdrawalItem {
   status: 'pending' | 'paid' | 'rejected';
   created_at: string;
   processed_at: string | null;
+  is_real_finance?: boolean;
 }
 
 export const Withdrawal: React.FC = () => {
@@ -42,6 +43,9 @@ export const Withdrawal: React.FC = () => {
   const [wallet, setWallet] = useState('');
 
   const [available, setAvailable] = useState(0);
+  const [profileBalance, setProfileBalance] = useState(0);
+  const [realFinanceActive, setRealFinanceActive] = useState(false);
+  const [realFinanceAvailable, setRealFinanceAvailable] = useState(false);
   const [partnerCode, setPartnerCode] = useState('');
   const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>([]);
 
@@ -74,6 +78,10 @@ export const Withdrawal: React.FC = () => {
 
     try {
       setIsLoading(true);
+      // Fail closed on refresh or any unavailable/mismatched backend response.
+      setAvailable(0);
+      setRealFinanceActive(false);
+      setRealFinanceAvailable(false);
 
       const [balanceResponse, partnerResponse] =
         await Promise.all([
@@ -84,7 +92,18 @@ export const Withdrawal: React.FC = () => {
       const balanceData = await balanceResponse.json();
       const partnerData = await partnerResponse.json();
 
-      setAvailable(Number(balanceData.available || 0));
+      if (!balanceResponse.ok || !partnerResponse.ok ||
+          typeof balanceData.real_withdrawable !== 'number' ||
+          !Number.isFinite(balanceData.real_withdrawable) ||
+          typeof balanceData.real_finance_active !== 'boolean' ||
+          typeof balanceData.real_finance_available !== 'boolean') {
+        throw new Error('Не удалось получить подтверждённый доступный остаток');
+      }
+      setProfileBalance(Number(balanceData.available || 0));
+      setRealFinanceActive(balanceData.real_finance_active);
+      setRealFinanceAvailable(balanceData.real_finance_available);
+      setAvailable(balanceData.real_finance_active && balanceData.real_finance_available
+        ? Math.max(0, balanceData.real_withdrawable) : 0);
 
       const resolvedPartnerCode = String(
         partnerData.partner_code || ''
@@ -156,7 +175,11 @@ export const Withdrawal: React.FC = () => {
 
     const parsedAmount = Number(amount);
 
-    if (!partnerCode) {
+    if (!realFinanceActive) {
+      errors.amount = 'Реальные выплаты пока не активированы';
+    } else if (!realFinanceAvailable) {
+      errors.amount = 'Проверка доступных средств временно недоступна';
+    } else if (!partnerCode) {
       errors.amount = 'Не удалось определить партнерский код';
     } else if (
       !Number.isFinite(parsedAmount) ||
@@ -355,6 +378,18 @@ export const Withdrawal: React.FC = () => {
 
             </div>
 
+            <div className="text-[10px] text-textSecondary leading-relaxed">
+              {!realFinanceActive
+                ? 'Реальные CPA-выплаты пока не активированы.'
+                : !realFinanceAvailable
+                  ? 'Проверка реальных средств временно недоступна. Выплаты заблокированы.'
+                  : 'Сумма рассчитана по подтверждённым CPA-начислениям после холда.'}
+            </div>
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-textSecondary">Баланс профиля (включает историю)</span>
+              <span className="font-semibold text-white">${profileBalance.toFixed(2)}</span>
+            </div>
+
             <div className="h-[1px] bg-gray-800/40 w-full" />
 
             <div className="flex justify-between items-center text-xs">
@@ -479,6 +514,7 @@ export const Withdrawal: React.FC = () => {
             variant="success"
             size="lg"
             isLoading={isSubmitting}
+            disabled={isLoading || !realFinanceActive || !realFinanceAvailable || available < MIN_WITHDRAWAL}
             onClick={handleWithdrawSubmit}
           >
             Подать заявку на выплату
@@ -535,6 +571,9 @@ export const Withdrawal: React.FC = () => {
                       <span className="text-[9px] text-textSecondary mt-1">
                         {formatDate(tx.created_at)}
                       </span>
+                      {tx.is_real_finance === false && (
+                        <span className="text-[9px] text-textSecondary/70 mt-0.5">Историческая запись</span>
+                      )}
 
                       <span className="text-[8px] text-textSecondary mt-0.5 truncate max-w-[180px]">
                         {tx.wallet}
