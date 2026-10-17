@@ -109,6 +109,20 @@ class NeutralLinkTests(unittest.TestCase):
             conn.execute(text("DELETE FROM users WHERE telegram_id IN (:a,:b)"),
                          {"a":FIRST,"b":SECOND})
 
+    def test_00_active_offer_executes_real_postgres_sql(self):
+        # Execute the actual production SQL against isolated PostgreSQL 17.
+        from neutral_links import _active_offer
+        from fastapi import HTTPException
+        with engine.begin() as conn:
+            row=_active_offer(conn,self.offers[0])
+            self.assertEqual(row["id"],self.offers[0])
+            self.assertTrue(row["vertical_allowed"])
+            conn.execute(text("UPDATE cpa_verticals SET cpa_link_allowed=FALSE WHERE slug='utilities'"))
+            with self.assertRaises(HTTPException) as denied:
+                _active_offer(conn,self.offers[0])
+            self.assertEqual(denied.exception.status_code,404)
+            conn.execute(text("UPDATE cpa_verticals SET cpa_link_allowed=TRUE WHERE slug='utilities'"))
+
     def test_a_owners_unique_stable_and_separate_offers(self):
         first=client.post("/cpa/links/"+self.offers[0],headers=headers(FIRST))
         self.assertEqual(first.status_code,200,first.text)
