@@ -17,7 +17,7 @@ from stars_payments import require_telegram_id
 
 router=APIRouter(tags=["CPA neutral links"])
 API_ROOT="https://vvd-cpa-v2.onrender.com"
-NEUTRAL_VERTICALS=frozenset({"utilities","education","productivity","software","technology"})
+NEUTRAL_VERTICALS=frozenset({"utilities","education","productivity","software","technology"})  # legacy initial migration only
 PARAM_RE=re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,47}$")
 
 def _validated_destination(url: str, parameter: str, click_id: str) -> str:
@@ -50,7 +50,7 @@ def _active_offer(conn, offer_id: str):
     offer=conn.execute(text("""
        SELECT o.id,o.vertical_slug,o.source_url,o.network_id,o.status,
               o.click_param_override,n.click_param AS network_param,
-              u.is_active AS vertical_active,n.is_active AS network_active
+              u.is_active AS vertical_active,u.cpa_link_allowed AS vertical_allowed,\n              n.is_active AS network_active
        FROM offers o
        JOIN cpa_verticals u ON u.slug=o.vertical_slug
        JOIN cpa_networks n ON n.id=o.network_id
@@ -58,7 +58,7 @@ def _active_offer(conn, offer_id: str):
     """),{"offer_id":offer_id}).mappings().first()
     if not offer:
         raise HTTPException(404,"Предложение недоступно")
-    if (offer["vertical_slug"] not in NEUTRAL_VERTICALS or offer["status"]!="published"
+    if (not offer["vertical_allowed"] or offer["status"]!="published"
             or not offer["vertical_active"] or not offer["network_active"] or not offer["source_url"]):
         raise HTTPException(404,"Предложение недоступно")
     parameter=offer["click_param_override"] or offer["network_param"]
