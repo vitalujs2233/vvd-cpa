@@ -50,7 +50,8 @@ def _active_offer(conn, offer_id: str):
     offer=conn.execute(text("""
        SELECT o.id,o.vertical_slug,o.source_url,o.network_id,o.status,
               o.click_param_override,n.click_param AS network_param,
-              u.is_active AS vertical_active,u.cpa_link_allowed AS vertical_allowed,\n              n.is_active AS network_active
+              u.is_active AS vertical_active,u.cpa_link_allowed AS vertical_allowed,
+              n.is_active AS network_active
        FROM offers o
        JOIN cpa_verticals u ON u.slug=o.vertical_slug
        JOIN cpa_networks n ON n.id=o.network_id
