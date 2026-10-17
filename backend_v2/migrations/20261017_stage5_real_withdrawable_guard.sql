@@ -41,10 +41,10 @@ END $ddl$;
 
 -- TRUNCATE bypasses row-level DELETE triggers, so block it explicitly.
 CREATE OR REPLACE FUNCTION public.cpa_guard_finance_epoch_truncate()
-RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog,public AS $
+RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog,public AS $$
 BEGIN
   RAISE EXCEPTION 'Finance epoch cannot be truncated' USING ERRCODE='23514';
-END $;
+END $$;
 DO $ddl$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='public.cpa_finance_epoch'::regclass
                  AND tgname='trg_cpa_guard_finance_epoch_truncate' AND NOT tgisinternal) THEN
