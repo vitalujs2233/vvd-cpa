@@ -32,7 +32,7 @@ class PostbackTests(unittest.TestCase):
         with engine.begin() as c:
             c.execute(text("""CREATE TABLE IF NOT EXISTS users (
                 telegram_id BIGINT PRIMARY KEY,first_name TEXT,partner_code TEXT,
-                status TEXT NOT NULL DEFAULT 'active',
+                status TEXT NOT NULL DEFAULT 'active',role TEXT NOT NULL DEFAULT 'user',
                 balance NUMERIC(12,2) NOT NULL DEFAULT 0,
                 hold NUMERIC(12,2) NOT NULL DEFAULT 0,
                 withdrawn NUMERIC(12,2) NOT NULL DEFAULT 0)"""))
