@@ -163,6 +163,9 @@ def _accept(c,provider,raw,supplied_key,network_id,is_test=False):
             return {"ok":True,"duplicate":True,"status":state}
         if old in ("approved","rejected"):
             raise HTTPException(409,"Final conversion status cannot change")
+        if (schema_ready and existing["finance_eligible_at"] is not None
+                and state=="approved" and not eligible):
+            raise HTTPException(409,"Eligible conversion must retain its original USD attribution")
         if (eligible and existing["finance_eligible_at"] is not None
                 and state=="approved"):
             c.execute(text("""UPDATE conversions SET status=:status,
