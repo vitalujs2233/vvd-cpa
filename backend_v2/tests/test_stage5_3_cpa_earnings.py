@@ -164,14 +164,23 @@ class CPAStage53Integration(unittest.TestCase):
                  {"uid":UID}).scalar_one(),Decimal("80.03"))
 
     def test_04_old_click_even_after_epoch_does_not_credit(self):
-        # Old click has a different (historical) user attribution schema but
-        # remains in the database. No finance eligibility can be backfilled.
-        click=self.add_click("old",old=True)
-        response=self.send(click,"approved",transaction="old-conversion",gross="10")
-        self.assertEqual(response.status_code,404) # old click has no attributed network/offer
+        # This is an ATTRIBUTED historical click: source auth and network
+        # match, but the immutable click ID was <= the cutover maximum.
+        # It may remain in neutral analytics, NEVER in financial entitlement.
+        click="legacy-click-700"
+        with engine.begin() as c:
+            c.execute(text("""UPDATE public.clicks SET network_id=:net,
+                offer_id='stage53',vertical='utilities'
+                WHERE click_id=:click"""),{"net":self.network,"click":click})
+        response=self.send(click,"approved",transaction="old-conversion",gross="10.00")
+        self.assertEqual(response.status_code,200,response.text)
+        self.assertNotIn("hold_credited",response.json())
         with engine.connect() as c:
+            old=self.row(click)
+            self.assertIsNone(old["finance_eligible_at"])
+            self.assertEqual(len(ledger_events_for_conversion(c,old["id"])),0)
             self.assertEqual(c.execute(text("""SELECT count(*) FROM conversions
-               WHERE finance_eligible_at IS NULL""")).scalar_one(),25)
+               WHERE finance_eligible_at IS NULL""")).scalar_one(),26)
 
     def test_05_test_postback_has_zero_finance(self):
         click=self.add_click("test")
@@ -247,7 +256,7 @@ class CPAStage53Integration(unittest.TestCase):
         self.assertEqual(success.status_code,200,success.text)
 
     @classmethod
-    def seed_matured(cls,tag):
+    def seed_matured(cls,tag,approval_time=None):
         click=cls.add_click("matured-"+tag)
         cid=uuid.uuid4()
         with engine.begin() as c:
@@ -258,7 +267,7 @@ class CPAStage53Integration(unittest.TestCase):
                       :eligible,:approved)"""),
                 {"cid":cid,"click":click,"uid":UID,
                  "eligible":EPOCH+timedelta(hours=1),
-                 "approved":EPOCH+timedelta(days=2)})
+                 "approved":approval_time or EPOCH+timedelta(days=2)})
             credit=post_approved_hold(c,cid)
             assert credit["credited"]
         return cid
@@ -276,6 +285,19 @@ class CPAStage53Integration(unittest.TestCase):
             self.assertEqual(len([e for e in events if e["operation_type"]=="hold_release"]),1)
             self.assertGreaterEqual(real_withdrawable(c,UID),baseline+Decimal("80.00"))
         self.assertEqual(release_matured_holds(engine,limit=100)["released"],0)
+
+    def test_10a_exact_240_hour_boundary(self):
+        # 239h59m elapsed = no release, even if a job is invoked directly.
+        cid=self.seed_matured("boundary",datetime.now(timezone.utc)-timedelta(hours=239,minutes=59))
+        with engine.begin() as c:
+            created=c.execute(text("""SELECT hold_until FROM public.cpa_ledger
+              WHERE conversion_id=:id AND operation_type='hold_credit'"""),
+              {"id":cid}).scalar_one()
+            self.assertGreater(created,datetime.now(timezone.utc))
+        self.assertEqual(release_matured_holds(engine,limit=50)["released"],0)
+        with engine.connect() as c:
+            self.assertFalse(any(x["operation_type"]=="hold_release"
+                for x in ledger_events_for_conversion(c,cid)))
 
     def test_11_multiple_workers_do_not_double_release(self):
         cid=self.seed_matured("concurrent")
@@ -318,7 +340,7 @@ class CPAStage53Integration(unittest.TestCase):
     def test_13_activation_keeps_legacy_records_out(self):
         with engine.connect() as c:
             self.assertEqual(c.execute(text("""SELECT count(*)
-              FROM conversions WHERE finance_eligible_at IS NULL""")).scalar_one(),26)
+              FROM conversions WHERE finance_eligible_at IS NULL""")).scalar_one(),27)
             self.assertEqual(c.execute(text("""SELECT count(*)
               FROM withdrawals WHERE cpa_real_epoch_at IS NOT NULL""")).scalar_one(),0)
             self.assertEqual(c.execute(text("SELECT count(*) FROM users")).scalar_one(),12)
