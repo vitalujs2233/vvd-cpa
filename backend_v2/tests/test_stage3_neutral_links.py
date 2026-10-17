@@ -39,6 +39,12 @@ class NeutralLinkTests(unittest.TestCase):
         cls.offers=["neutral-"+cls.tag,"neutral2-"+cls.tag]
         cls.network="NeutralNet-"+cls.tag
         with engine.begin() as conn:
+            conn.execute(text("""CREATE TABLE IF NOT EXISTS users (
+                telegram_id BIGINT PRIMARY KEY,first_name TEXT,partner_code TEXT,
+                status TEXT NOT NULL DEFAULT 'active',
+                balance NUMERIC(12,2) NOT NULL DEFAULT 0,
+                hold NUMERIC(12,2) NOT NULL DEFAULT 0,
+                withdrawn NUMERIC(12,2) NOT NULL DEFAULT 0)"""))
             conn.execute(text("CREATE TABLE IF NOT EXISTS offers(id VARCHAR(80) PRIMARY KEY,title VARCHAR(200) NOT NULL)"))
             for definition in ("description TEXT","icon_name VARCHAR(30)","geo VARCHAR(300)"):
                 conn.execute(text("ALTER TABLE offers ADD COLUMN IF NOT EXISTS "+definition))
