@@ -8,7 +8,7 @@ All changes use the existing backend_v2 SQLAlchemy engine and users row lock.
 from decimal import Decimal
 from sqlalchemy import text
 
-from cpa_finance import money
+from cpa_finance import money, lock_finance_scope, FinanceIneligible, FinanceInconsistent
 
 
 class RealFinanceDisabled(RuntimeError):
@@ -92,6 +92,64 @@ def real_withdrawable(conn, user_id: int, epoch=None):
         raise RealFinanceInconsistent("Real CPA reservations exceed ledger releases")
     return raw.quantize(Decimal("0.01"))
 
+
+
+def release_matured_hold_contract(conn, conversion_id):
+    """TEST/FUTURE CONTRACT ONLY: never called from routes or a scheduler.
+
+    Caller owns the transaction. Lock users -> conversions -> ledger so this
+    future primitive is compatible with approval, claims and corrections.
+    PostgreSQL ledger trigger is the final authority on full 240-hour maturity.
+    """
+    if not conn.in_transaction():
+        raise RuntimeError("Finance release requires a caller-owned transaction")
+    row, wallet = lock_finance_scope(conn, conversion_id)
+    epoch = epoch_row(conn)
+    valid = conn.execute(text("""
+        SELECT 1 FROM public.conversions v
+        JOIN public.clicks k ON k.click_id=v.click_id
+        WHERE v.id=:id AND v.user_id=:uid
+          AND v.created_at >= :cutover AND v.finance_eligible_at >= :cutover
+          AND v.finance_approved_at >= v.finance_eligible_at
+          AND v.status='approved' AND v.is_test=FALSE AND v.currency='USD'
+          AND k.id > :old_click AND k.user_id=:uid
+    """), {"id":str(conversion_id),"uid":row["user_id"],
+           "cutover":epoch["activated_at"],
+           "old_click":epoch["legacy_max_click_row_id"]}).first()
+    if not valid:
+        raise FinanceIneligible("Conversion is not post-cutover real finance")
+    credit = conn.execute(text("""
+        SELECT id,amount,hold_until FROM public.cpa_ledger
+        WHERE conversion_id=:id AND operation_type='hold_credit' FOR UPDATE
+    """), {"id":str(conversion_id)}).mappings().first()
+    if not credit:
+        raise FinanceInconsistent("Approved hold entry absent")
+    existing = conn.execute(text("""
+        SELECT id FROM public.cpa_ledger WHERE original_entry_id=:source
+          AND operation_type='hold_release'
+    """), {"source":credit["id"]}).first()
+    if existing:
+        return {"released":False,"amount":credit["amount"]}
+    if wallet["hold"] < credit["amount"]:
+        raise FinanceInconsistent("Not enough held balance to release")
+    # Also checked by database trigger; do not rely only on application clock.
+    conn.execute(text("""
+        INSERT INTO public.cpa_ledger
+         (conversion_id,user_id,operation_type,event_key,amount,currency,
+          hold_delta,balance_delta,platform_fee_delta,original_entry_id,actor_type)
+        VALUES(:cid,:uid,'hold_release',:key,:amount,'USD',
+               :debit,:amount,0,:source,'scheduler')
+    """), {"cid":row["id"],"uid":row["user_id"],
+           "key":f"cpa:v1:{row['id']}:hold_release",
+           "amount":credit["amount"],"debit":-credit["amount"],
+           "source":credit["id"]})
+    changed=conn.execute(text("""
+        UPDATE public.users SET hold=hold-:amount, balance=balance+:amount
+        WHERE telegram_id=:uid AND hold>=:amount RETURNING telegram_id
+    """), {"uid":row["user_id"],"amount":credit["amount"]}).first()
+    if not changed:
+        raise FinanceInconsistent("User hold changed during release")
+    return {"released":True,"amount":credit["amount"]}
 
 def finance_balance_projection(conn, user_id, legacy_balance):
     """Read-only API projection. No historical value is rewritten."""
