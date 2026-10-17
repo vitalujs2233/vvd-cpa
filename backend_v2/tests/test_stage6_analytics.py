@@ -24,8 +24,8 @@ class Stage6AnalyticsTests(unittest.TestCase):
     def test_user_isolation_both_sources(self):
         self.assertIn("k.user_id=:uid",CLICK_ROWS)
         self.assertIn("v.user_id=:uid",CONVERSION_ROWS)
-        self.assertIn(":uid IS NULL",CLICK_ROWS)
-        self.assertIn(":uid IS NULL",CONVERSION_ROWS)
+        self.assertIn("CAST(:uid AS BIGINT) IS NULL",CLICK_ROWS)
+        self.assertIn("CAST(:uid AS BIGINT) IS NULL",CONVERSION_ROWS)
 
     def test_finance_epoch_is_required(self):
         self.assertIn("e.activated_at IS NOT NULL",CONVERSION_ROWS)
