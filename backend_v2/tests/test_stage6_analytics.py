@@ -45,8 +45,9 @@ class Stage6AnalyticsTests(unittest.TestCase):
         self.assertEqual(report["conversions"],0)
         self.assertEqual(report["cr"],0)
         self.assertEqual(report["epc"],0)
-        self.assertEqual(report["finance"]["hold"],0)
-        self.assertEqual(report["finance"]["released"],0)
+        self.assertEqual(report["on_hold"],0)
+        self.assertEqual(report["earned"],0)
+        self.assertNotIn("finance",report)
 
     def test_routes_are_read_only(self):
         route_methods={path:route.methods for route in router.routes for path in [route.path]}
