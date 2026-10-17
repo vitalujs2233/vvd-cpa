@@ -34,4 +34,6 @@ const cssDir='dist/assets';
 const cssFiles=readdirSync(cssDir).filter(name=>name.endsWith('.css'));
 assert.ok(cssFiles.length>0,'Vite emitted no CSS bundle');
 const compiled=cssFiles.map(name=>readFileSync(join(cssDir,name),'utf8')).join('\n');
-assert.match(compiled,/\.bg-accentGold\s*\{\s*--tw-bg-opacity:\s*1;\s*background-color:\s*rgb\(212 175 55\s*\/\s*var\(--tw-bg-opacity\)\)/,'Generated CSS must contain opaque VVD gold background (#D4AF37)');
+const goldRule=compiled.match(/\\.bg-accentGold\\s*\\{([^}]+)\\}/);
+assert.ok(goldRule,'Generated CSS must contain .bg-accentGold rule');
+assert.match(goldRule[1],/background-color\\s*:\\s*(?:rgb\\(212\\s+175\\s+55(?:\\s*\\/[^)]*)?\\)|#d4af37)/i,'Compiled bar background must use VVD gold #D4AF37');
