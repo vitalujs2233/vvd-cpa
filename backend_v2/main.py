@@ -20,7 +20,9 @@ from neutral_links import router as neutral_links_router
 from cpa_postback import router as cpa_postback_router
 from cpa_real_withdrawals import create_real_withdrawal, mark_real_paid, mark_real_rejected, finance_balance_projection
 from sqlalchemy.exc import ProgrammingError
-from access_guard import access_guard
+from access_guard import access_guard, authorized_admin
+from cpa_manual_hold import (read_partner_hold, record_verified_receipt,
+                             manual_release, ManualReleaseDenied)
 from stars_payments import verified_telegram_id
 from urllib.parse import parse_qs
 from aiogram.types import Update
@@ -1379,6 +1381,66 @@ async def admin_users():
             for row in users
         ]
     }
+
+
+# ==================== ADMIN CPA HOLD RELEASE ====================
+# Every route is also protected by signed Telegram initData middleware.
+# Verify the actor again here, never accept an admin ID from the request body.
+class CPAReceiptRequest(BaseModel):
+    conversion_id: str
+    settlement_reference: str
+    verification_source: str
+    evidence_reference: str
+    received_gross: str
+    received_at: str
+
+class CPAManualReleaseRequest(BaseModel):
+    conversion_id: str
+    amount: str
+    reason: str
+    request_id: str
+
+def _cpa_admin_actor(request: Request) -> int:
+    from stars_payments import TelegramAuthError
+    try:
+        uid=verified_telegram_id(request.headers.get("X-Telegram-Init-Data",""))
+    except TelegramAuthError as exc:
+        raise HTTPException(401,"Signed Telegram admin session required") from exc
+    if not authorized_admin(uid):
+        raise HTTPException(403,"Administrator access required")
+    return uid
+
+@app.get("/admin/cpa/partners/{partner_code}/hold")
+async def cpa_partner_hold(partner_code: str, request: Request):
+    _cpa_admin_actor(request)
+    try:
+        return {"success":True,**read_partner_hold(engine,partner_code)}
+    except ManualReleaseDenied as exc:
+        raise HTTPException(409,str(exc)) from exc
+
+@app.post("/admin/cpa/partners/{partner_code}/receipts")
+async def cpa_verify_receipt(partner_code: str, data: CPAReceiptRequest, request: Request):
+    admin_uid=_cpa_admin_actor(request)
+    try:
+        return record_verified_receipt(
+            engine,partner_code=partner_code,conversion_id=data.conversion_id,
+            settlement_reference=data.settlement_reference,
+            verification_source=data.verification_source,
+            evidence_reference=data.evidence_reference,
+            received_gross=data.received_gross,received_at=data.received_at,
+            admin_uid=admin_uid)
+    except (ManualReleaseDenied,ValueError) as exc:
+        raise HTTPException(409,str(exc)) from exc
+
+@app.post("/admin/cpa/partners/{partner_code}/release")
+async def cpa_release_hold(partner_code: str, data: CPAManualReleaseRequest, request: Request):
+    admin_uid=_cpa_admin_actor(request)
+    try:
+        return manual_release(engine,partner_code=partner_code,
+            conversion_id=data.conversion_id,amount=data.amount,
+            reason=data.reason,request_id=data.request_id,admin_uid=admin_uid)
+    except (ManualReleaseDenied,ValueError) as exc:
+        raise HTTPException(409,str(exc)) from exc
 
 # ==================== WITHDRAWALS ====================
 

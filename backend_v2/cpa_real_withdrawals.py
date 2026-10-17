@@ -51,7 +51,7 @@ def real_withdrawable(conn, user_id: int, epoch=None):
         JOIN public.conversions v ON v.id=l.conversion_id
         JOIN public.clicks k ON k.click_id=v.click_id
         WHERE l.user_id=:uid
-          AND l.operation_type IN ('hold_release','balance_reversal')
+          AND l.operation_type IN ('hold_release','manual_hold_release','balance_reversal')
           AND v.finance_eligible_at >= :cutover
           AND v.created_at >= :cutover
           AND v.finance_approved_at >= v.finance_eligible_at
@@ -95,7 +95,7 @@ def real_withdrawable(conn, user_id: int, epoch=None):
 
 
 def release_matured_hold_contract(conn, conversion_id):
-    """TEST/FUTURE CONTRACT ONLY: never called from routes or a scheduler.
+    """Stage 5.3 implementation: only callable from explicit backend invocation.
 
     Caller owns the transaction. Lock users -> conversions -> ledger so this
     future primitive is compatible with approval, claims and corrections.
@@ -124,15 +124,22 @@ def release_matured_hold_contract(conn, conversion_id):
     """), {"id":str(conversion_id)}).mappings().first()
     if not credit:
         raise FinanceInconsistent("Approved hold entry absent")
-    existing = conn.execute(text("""
-        SELECT id FROM public.cpa_ledger WHERE original_entry_id=:source
-          AND operation_type='hold_release'
+    old_auto=conn.execute(text("""
+        SELECT id FROM public.cpa_ledger
+        WHERE original_entry_id=:source AND operation_type='hold_release'
     """), {"source":credit["id"]}).first()
-    if existing:
-        return {"released":False,"amount":credit["amount"]}
-    if wallet["hold"] < credit["amount"]:
-        raise FinanceInconsistent("Not enough held balance to release")
-    # Also checked by database trigger; do not rely only on application clock.
+    manual_or_auto=conn.execute(text("""
+        SELECT COALESCE(sum(amount),0) FROM public.cpa_ledger
+        WHERE original_entry_id=:source
+          AND operation_type IN ('manual_hold_release','hold_release')
+    """), {"source":credit["id"]}).scalar_one()
+    remaining=credit["amount"]-Decimal(manual_or_auto)
+    if old_auto or remaining==ZERO:
+        return {"released":False,"amount":ZERO}
+    if remaining<ZERO or wallet["hold"]<remaining:
+        raise FinanceInconsistent("Hold balance inconsistent with remaining ledger credit")
+    # The trigger independently validates the full 240-hour maturity and
+    # releases ONLY the remaining amount after any prior manual partials.
     conn.execute(text("""
         INSERT INTO public.cpa_ledger
          (conversion_id,user_id,operation_type,event_key,amount,currency,
@@ -141,15 +148,68 @@ def release_matured_hold_contract(conn, conversion_id):
                :debit,:amount,0,:source,'scheduler')
     """), {"cid":row["id"],"uid":row["user_id"],
            "key":f"cpa:v1:{row['id']}:hold_release",
-           "amount":credit["amount"],"debit":-credit["amount"],
-           "source":credit["id"]})
+           "amount":remaining,"debit":-remaining,"source":credit["id"]})
     changed=conn.execute(text("""
         UPDATE public.users SET hold=hold-:amount, balance=balance+:amount
         WHERE telegram_id=:uid AND hold>=:amount RETURNING telegram_id
-    """), {"uid":row["user_id"],"amount":credit["amount"]}).first()
+    """), {"uid":row["user_id"],"amount":remaining}).first()
     if not changed:
         raise FinanceInconsistent("User hold changed during release")
-    return {"released":True,"amount":credit["amount"]}
+    return {"released":True,"amount":remaining}
+
+
+def release_matured_holds(engine, *, limit=100):
+    """Release eligible >=240h holds, synchronously, WITHOUT scheduling it.
+
+    Used by a future explicitly enabled job. Each conversion is processed in
+    its own transaction and follows users -> conversions -> ledger locks.
+    Concurrency, retries and multiple workers are safe: the one-release ledger
+    key, source-reference unique index and user row lock prevent double credit.
+    An inconsistent row aborts with its transaction rolled back; no silent
+    forgiveness, hidden debt or external payment is performed.
+    """
+    if isinstance(limit,bool) or not isinstance(limit,int) or not 1<=limit<=500:
+        raise ValueError("limit must be an integer between 1 and 500")
+    released=0
+    total=ZERO
+    for _ in range(limit):
+        with engine.begin() as conn:
+            epoch=epoch_row(conn)  # Disabled = do not even select candidates.
+            candidate=conn.execute(text("""
+                SELECT l.conversion_id
+                FROM public.cpa_ledger l
+                JOIN public.conversions v ON v.id=l.conversion_id
+                JOIN public.clicks k ON k.click_id=v.click_id
+                WHERE l.operation_type='hold_credit'
+                  AND l.hold_until <= clock_timestamp()
+                  AND v.status='approved' AND v.is_test=FALSE
+                  AND v.currency='USD'
+                  AND v.created_at >= :cutover
+                  AND v.finance_eligible_at >= :cutover
+                  AND v.finance_approved_at >= v.finance_eligible_at
+                  AND k.id>:legacy_click AND k.user_id=v.user_id
+                  AND NOT EXISTS (
+                    SELECT 1 FROM public.cpa_ledger lr
+                    WHERE lr.original_entry_id=l.id
+                      AND lr.operation_type IN ('hold_release','hold_reversal')
+                  )
+                  AND l.amount > (
+                    SELECT COALESCE(SUM(part.amount),0)
+                    FROM public.cpa_ledger part
+                    WHERE part.original_entry_id=l.id
+                      AND part.operation_type='manual_hold_release'
+                  )
+                ORDER BY l.hold_until,l.id LIMIT 1
+            """), {"cutover":epoch["activated_at"],
+                   "legacy_click":epoch["legacy_max_click_row_id"]}).scalar_one_or_none()
+            if candidate is None:
+                break
+            result=release_matured_hold_contract(conn,candidate)
+            if result["released"]:
+                released+=1
+                total+=result["amount"]
+    return {"released":released,"amount":total.quantize(Decimal("0.01"))}
+
 
 def finance_balance_projection(conn, user_id, legacy_balance):
     """Read-only API projection. No historical value is rewritten."""

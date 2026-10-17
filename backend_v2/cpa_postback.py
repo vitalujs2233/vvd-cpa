@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from database import engine
 from stars_payments import require_telegram_id
 from access_guard import authorized_admin
+from cpa_finance import post_approved_hold, FinanceIneligible, FinanceInconsistent
 
 router=APIRouter(prefix="/cpa",tags=["CPA secure postback"])
 LOG=logging.getLogger(__name__)
@@ -80,13 +81,21 @@ def rotate_provider_key(network_id:int,x_telegram_init_data:str|None=Header(None
     return {"secret_once":key,"postback_enabled":False}
 
 def _accept(c,provider,raw,supplied_key,network_id,is_test=False):
+    """One DB transaction for authenticated attribution, approval and ledger.
+
+    Until finance epoch activation this remains the original neutral postback:
+    no ledger credit and no historical balance changes.
+    """
     supplied=hashlib.sha256((supplied_key or "").encode()).hexdigest()
     if not hmac.compare_digest(supplied,provider["postback_key_hash"]):
         LOG.warning("cpa_postback_rejected reason=bad_auth network_id=%s",network_id)
         raise HTTPException(401,"Invalid source authentication")
     try:
         payload=json.loads(raw)
-        if not isinstance(payload,dict) or not all(isinstance(k,str) and isinstance(v,(str,int,float)) and not isinstance(v,bool) for k,v in payload.items()):
+        if not isinstance(payload,dict) or not all(
+            isinstance(k,str) and isinstance(v,(str,int,float)) and not isinstance(v,bool)
+            for k,v in payload.items()
+        ):
             raise ValueError("invalid fields")
         names=provider["postback_params"]
         click=str(payload[names["click"]])
@@ -97,51 +106,125 @@ def _accept(c,provider,raw,supplied_key,network_id,is_test=False):
         currency=str(payload.get(names["currency"],"USD")).upper()
     except (ValueError,TypeError,KeyError,InvalidOperation,OverflowError) as exc:
         raise HTTPException(422,"Invalid postback payload") from exc
-    if (not SAFE_ID.fullmatch(click) or not SAFE_ID.fullmatch(txn) or state not in ALLOWED
-            or not amount.is_finite() or amount<0 or amount>1000000
-            or amount.as_tuple().exponent< -2 or not re.fullmatch(r"[A-Z]{3}",currency)):
+    if (not SAFE_ID.fullmatch(click) or not SAFE_ID.fullmatch(txn)
+            or state not in ALLOWED or not amount.is_finite() or amount<0
+            or amount>1000000 or amount.as_tuple().exponent < -2
+            or not re.fullmatch(r"[A-Z]{3}",currency)):
         raise HTTPException(422,"Invalid postback fields")
-    found=c.execute(text("""SELECT c.user_id,c.partner_code,c.offer_id,c.vertical,c.network_id
-      FROM clicks c WHERE c.click_id=:click"""),{"click":click}).mappings().first()
+    found=c.execute(text("""SELECT c.id,c.user_id,c.partner_code,c.offer_id,
+      c.vertical,c.network_id FROM clicks c WHERE c.click_id=:click"""),
+      {"click":click}).mappings().first()
     if (not found or found["network_id"]!=network_id or not found["offer_id"]
             or found["vertical"] not in NEUTRAL):
         LOG.warning("cpa_postback_rejected reason=unattributed network_id=%s",network_id)
         raise HTTPException(404,"Attributed click not found")
-    existing=c.execute(text("""SELECT id,status,transaction_id,network_id,is_test FROM conversions
-         WHERE click_id=:click FOR UPDATE"""),{"click":click}).mappings().first()
+
+    # The PR23 schema is intentionally optional until its deployment. This
+    # preserves Stage 4 and legacy-backend test contracts before cutover.
+    schema_ready=c.execute(text(
+        "SELECT to_regclass('public.cpa_finance_epoch') IS NOT NULL"
+    )).scalar_one()
+    epoch=(c.execute(text("""SELECT activated_at,legacy_max_click_row_id
+        FROM public.cpa_finance_epoch WHERE id=1""")).mappings().first()
+        if schema_ready else None)
+    finance_active=bool(epoch and epoch["activated_at"] is not None)
+    if finance_active:
+        # All finance writers lock the user BEFORE a conversion and ledger.
+        user=c.execute(text("""SELECT telegram_id FROM public.users
+            WHERE telegram_id=:uid FOR UPDATE"""),
+            {"uid":found["user_id"]}).first()
+        if not user:
+            raise HTTPException(409,"Missing attributed user")
+    eligible=bool(finance_active and not is_test and currency=="USD" and
+                  found["id"] > epoch["legacy_max_click_row_id"])
+    if eligible:
+        # Production clicks.created_at is timestamp (UTC). Cross-check the
+        # immutable cutover timestamp, not only a sequence ID.
+        eligible=c.execute(text("""SELECT
+            (created_at AT TIME ZONE 'UTC') >= :cutover
+            FROM public.clicks WHERE id=:id"""),
+            {"id":found["id"],"cutover":epoch["activated_at"]}).scalar_one()
+
+    existing=c.execute(text("""SELECT id,status,transaction_id,network_id,is_test
+         """+(""",finance_eligible_at""" if schema_ready else "")+"""
+         FROM conversions WHERE click_id=:click FOR UPDATE"""),
+         {"click":click}).mappings().first()
     transaction=f"cpa:{network_id}:{txn}"
+    credit_id=None
     if existing:
         if existing["is_test"] and not is_test:
             raise HTTPException(409,"Test conversion cannot be updated by external postback")
-        if existing["transaction_id"]!=transaction or existing["network_id"]!=network_id or existing["status"] not in ALLOWED:
+        if (existing["transaction_id"]!=transaction
+                or existing["network_id"]!=network_id
+                or existing["status"] not in ALLOWED):
             raise HTTPException(409,"Conflicting conversion")
         old=existing["status"]
         if old==state:
             return {"ok":True,"duplicate":True,"status":state}
         if old in ("approved","rejected"):
             raise HTTPException(409,"Final conversion status cannot change")
-        c.execute(text("""UPDATE conversions SET status=:status,
-          payout_gross=:gross,currency=:currency,external_status=:external,
-          processed_at=now() WHERE id=:id"""),
-          {"id":existing["id"],"status":state,"gross":amount,
-           "currency":currency,"external":ext_status,"is_test":is_test})
+        if (schema_ready and existing["finance_eligible_at"] is not None
+                and state=="approved" and not eligible):
+            raise HTTPException(409,"Eligible conversion must retain its original USD attribution")
+        if (eligible and existing["finance_eligible_at"] is not None
+                and state=="approved"):
+            c.execute(text("""UPDATE conversions SET status=:status,
+                payout_gross=:gross,currency=:currency,external_status=:external,
+                finance_approved_at=clock_timestamp(),processed_at=now()
+                WHERE id=:id"""),
+                {"id":existing["id"],"status":state,"gross":amount,
+                 "currency":currency,"external":ext_status})
+            credit_id=existing["id"]
+        else:
+            c.execute(text("""UPDATE conversions SET status=:status,
+                payout_gross=:gross,currency=:currency,external_status=:external,
+                processed_at=now() WHERE id=:id"""),
+                {"id":existing["id"],"status":state,"gross":amount,
+                 "currency":currency,"external":ext_status})
         result={"ok":True,"updated":True,"status":state}
     else:
-        conflict=c.execute(text("SELECT id FROM conversions WHERE transaction_id=:txn"),{"txn":transaction}).first()
-        if conflict:raise HTTPException(409,"Transaction ID already used")
+        conflict=c.execute(text("SELECT id FROM conversions WHERE transaction_id=:txn"),
+                           {"txn":transaction}).first()
+        if conflict:
+            raise HTTPException(409,"Transaction ID already used")
+        args={"click":click,"uid":found["user_id"],"offer":found["offer_id"],
+              "amount":amount,"status":state,"txn":transaction,
+              "network":network_id,"vertical":found["vertical"],
+              "code":found["partner_code"],"currency":currency,
+              "external":ext_status,"is_test":is_test}
+        if eligible:
+            sql="""INSERT INTO conversions(click_id,user_id,offer_id,payout_gross,
+               payout_net,status,transaction_id,network_id,vertical_slug,
+               partner_code,currency,postback_source,external_status,is_test,
+               finance_eligible_at,finance_approved_at)
+               VALUES(:click,:uid,:offer,:amount,0,:status,:txn,:network,
+               :vertical,:code,:currency,'stage4',:external,:is_test,
+               clock_timestamp(),CASE WHEN :status='approved'
+                   THEN clock_timestamp() ELSE NULL END) RETURNING id"""
+        else:
+            sql="""INSERT INTO conversions(click_id,user_id,offer_id,payout_gross,
+               payout_net,status,transaction_id,network_id,vertical_slug,
+               partner_code,currency,postback_source,external_status,is_test)
+               VALUES(:click,:uid,:offer,:amount,0,:status,:txn,:network,
+               :vertical,:code,:currency,'stage4',:external,:is_test)
+               RETURNING id"""
         try:
-            c.execute(text("""INSERT INTO conversions(click_id,user_id,offer_id,payout_gross,
-            payout_net,status,transaction_id,network_id,vertical_slug,partner_code,currency,
-            postback_source,external_status,is_test)
-            VALUES(:click,:uid,:offer,:amount,0,:status,:txn,:network,:vertical,:code,
-            :currency,'stage4',:external,:is_test)"""),
-            {"click":click,"uid":found["user_id"],"offer":found["offer_id"],
-             "amount":amount,"status":state,"txn":transaction,"network":network_id,
-             "vertical":found["vertical"],"code":found["partner_code"],
-             "currency":currency,"external":ext_status,"is_test":is_test})
+            inserted_id=c.execute(text(sql),args).scalar_one()
+            if eligible and state=="approved":
+                credit_id=inserted_id
         except IntegrityError as exc:
             raise HTTPException(409,"Duplicate click or transaction") from exc
         result={"ok":True,"created":True,"status":state}
+
+    if credit_id is not None:
+        # No external transfer: these are internal accounting events only.
+        # A failure rolls back the conversion approval and hold/fee entries.
+        try:
+            hold=post_approved_hold(c,credit_id)
+        except (FinanceIneligible,FinanceInconsistent,ValueError) as exc:
+            LOG.error("cpa_finance_rejected reason=integrity network_id=%s",network_id)
+            raise HTTPException(409,"CPA finance validation failed") from exc
+        result["hold_credited"]=bool(hold["credited"])
     if not is_test:
         c.execute(text("UPDATE cpa_networks SET postback_last_received_at=now() WHERE id=:id"),
                   {"id":network_id})
