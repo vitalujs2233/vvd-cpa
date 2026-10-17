@@ -8,7 +8,7 @@ import re
 from decimal import Decimal
 from urllib.parse import urlsplit
 from fastapi import APIRouter, Header, HTTPException
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from database import engine
@@ -47,12 +47,18 @@ class NetworkIn(BaseModel):
     is_active:bool=True
     connection_notes:str=Field("",max_length=2000)
     click_param:str|None=None
-    @field_validator('click_param')
+    partner_param:str|None=None
+    @field_validator('click_param','partner_param')
     @classmethod
     def click_parameter(cls,v):
         if v and not PARAM_RE.fullmatch(v):
             raise ValueError('Некорректное имя параметра клика')
         return v or None
+    @model_validator(mode='after')
+    def distinct_tracking_parameters(self):
+        if self.partner_param and self.click_param and self.partner_param==self.click_param:
+            raise ValueError('Параметры click_id и partner_code должны различаться')
+        return self
     @field_validator("website")
     @classmethod
     def url(cls,v):
@@ -132,7 +138,7 @@ def public_offer(slug:str,offer_id:str):
 def networks(x_telegram_init_data:str|None=Header(None)):
     require_admin(x_telegram_init_data)
     with engine.connect() as conn:
-        rows=conn.execute(text("""SELECT n.id,n.name,n.website,n.description,n.is_active,n.connection_notes,n.click_param,
+        rows=conn.execute(text("""SELECT n.id,n.name,n.website,n.description,n.is_active,n.connection_notes,n.click_param,n.partner_param,
              COUNT(o.id) AS offers_count FROM cpa_networks n LEFT JOIN offers o ON o.network_id=n.id
              GROUP BY n.id ORDER BY n.name""")).mappings().all()
     return {"items":[dict(x) for x in rows]}
@@ -142,8 +148,8 @@ def create_network(payload:NetworkIn,x_telegram_init_data:str|None=Header(None))
     require_admin(x_telegram_init_data)
     try:
         with engine.begin() as conn:
-            row=conn.execute(text("""INSERT INTO cpa_networks(name,website,description,is_active,connection_notes,click_param)
-            VALUES(:name,:website,:description,:is_active,:connection_notes,:click_param) RETURNING id"""),payload.model_dump()).scalar_one()
+            row=conn.execute(text("""INSERT INTO cpa_networks(name,website,description,is_active,connection_notes,click_param,partner_param)
+            VALUES(:name,:website,:description,:is_active,:connection_notes,:click_param,:partner_param) RETURNING id"""),payload.model_dump()).scalar_one()
     except IntegrityError:
         raise HTTPException(409,"Партнёрская сеть с таким названием уже существует")
     return {"id":row}
@@ -153,7 +159,7 @@ def edit_network(network_id:int,payload:NetworkIn,x_telegram_init_data:str|None=
     require_admin(x_telegram_init_data)
     with engine.begin() as conn:
         row=conn.execute(text("""UPDATE cpa_networks SET name=:name,website=:website,
-          description=:description,is_active=:is_active,connection_notes=:connection_notes,click_param=:click_param
+          description=:description,is_active=:is_active,connection_notes=:connection_notes,click_param=:click_param,partner_param=:partner_param
           WHERE id=:id RETURNING id"""),{**payload.model_dump(),"id":network_id}).first()
     if not row:raise HTTPException(404,"Сеть не найдена")
     return {"ok":True}
@@ -204,8 +210,9 @@ def checked_offer(conn,payload):
         selected=payload.click_param_override
         if not selected and payload.network_id:
             selected=conn.execute(text('SELECT click_param FROM cpa_networks WHERE id=:id'),{'id':payload.network_id}).scalar()
+        partner_parameter=(conn.execute(text('SELECT partner_param FROM cpa_networks WHERE id=:id'),{'id':payload.network_id}).scalar() if payload.network_id else None)
         if selected:
-            _validated_destination(payload.source_url,selected,'configuration-check')
+            _validated_destination(payload.source_url,selected,'configuration-check',partner_parameter,'VVDTEST')
     if payload.status == "published" and payload.offer_type == "smartlink":
         authorized=conn.execute(text("SELECT is_active AND cpa_link_allowed FROM cpa_verticals WHERE slug=:slug"),{"slug":payload.vertical_slug}).scalar()
         if authorized is not True:
