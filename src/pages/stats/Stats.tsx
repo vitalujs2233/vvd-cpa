@@ -105,7 +105,9 @@ export const Stats:React.FC=()=>{
     </Card>
   );
   const series=useMemo(()=>[...daily].sort((a,b)=>a.date.localeCompare(b.date)),[daily]);
-  const max=Math.max(1,...series.map(d=>d.clicks));
+  const visibleDays=useMemo(()=>series.filter(d=>d.clicks>0),[series]);
+  const maxVisible=Math.max(1,...visibleDays.map(d=>d.clicks));
+  const totalVisible=series.reduce((sum,d)=>sum+d.clicks,0);
   const orderedCountries=useMemo(()=>sortCountries(countries,sort),[countries,sort]);
 
   return <div className="flex flex-col gap-3 px-3 pt-3 pb-28 select-none animate-fade-in" data-testid="compact-analysis">
@@ -146,8 +148,12 @@ export const Stats:React.FC=()=>{
     </Card>
     <div data-testid="click-chart"><Card padding="sm" className="!p-3">
       <div className="flex items-center gap-2 mb-2 text-xs font-semibold text-white"><TrendingUp size={14}/> Динамика кликов</div>
-      <div className="h-20 flex items-end gap-0.5" aria-label="График кликов">
-        {series.length?series.map((d,i)=><div key={d.date+i} title={`${d.date}: ${d.clicks} кликов`} className="flex-1 min-w-[2px] rounded-t-sm bg-accentPurple/65" style={{height:`${Math.max(3,100*d.clicks/max)}%`}}/>)
+      <div className="flex items-baseline justify-between gap-2 mb-2">
+        <span className="text-[10px] text-textSecondary">За период: {totalVisible.toLocaleString('ru-RU')} кликов</span>
+        <span className="text-[10px] text-textSecondary">Макс. в день: {maxVisible.toLocaleString('ru-RU')}</span>
+      </div>
+      <div className="h-24 w-full min-w-0 flex items-end gap-[2px] overflow-x-auto" aria-label="График кликов">
+        {visibleDays.length?visibleDays.map((d,i)=><div key={d.date+i} title={`${d.date}: ${d.clicks} кликов`} aria-label={`${d.date}: ${d.clicks} кликов`} className="shrink-0 w-[7px] rounded-t-sm bg-accentPurple border-t border-white/25" style={{height:`${Math.max(8,100*d.clicks/maxVisible)}%`}}/>)
           :<p className="self-center text-xs text-textSecondary">Нет переходов за период</p>}
       </div>
     </Card></div>
