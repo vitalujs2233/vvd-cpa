@@ -1,5 +1,6 @@
 import { authorizedFetch } from '@/shared/lib/api';
 import { CPAManager } from './CPAManager';
+import { CPAUserHold } from './CPAUserHold';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -971,6 +972,8 @@ const saveChatBanner = async () => {
               </div>
             </div>
           </Card>
+
+          {selectedUser.partner_code && <CPAUserHold partnerCode={selectedUser.partner_code} />}
 
           <div className="grid grid-cols-2 gap-3">
             <Card padding="sm" className="text-left">
