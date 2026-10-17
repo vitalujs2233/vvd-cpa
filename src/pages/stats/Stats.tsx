@@ -7,6 +7,8 @@ import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
 type Filter = 'today' | 'yesterday' | '7days' | '30days' | 'all';
 type Vertical = 'all' | 'adult' | 'mainstream' | 'webcam' | 'adult_games';
 type Stat = { date: string; clicks: number; conversions: number; income: number };
+type AnalyticsSummary = { clicks:number;conversions:number;cr:number;approved_cr:number;epc:number; statuses:{pending:number;approved:number;rejected:number;legacy:number};finance:{gross:number;fee:number;partner:number;hold:number;released:number;real_withdrawable:number};legacy_conversions:number };
+type Breakdown = {id:string|null;label:string;clicks:number;conversions:number;cr:number};
 type Country = { country_code: string; country_name: string; clicks: number; conversions: number; income: number };
 
 const API = 'https://vvd-cpa-v2.onrender.com';
@@ -46,6 +48,12 @@ export const Stats: React.FC = () => {
   const [filter, setFilter] = useState<Filter>('today');
   const [vertical, setVertical] = useState<Vertical>('all');
   const [stats, setStats] = useState<Stat[]>([]);
+  const [summary,setSummary] = useState<AnalyticsSummary|null>(null);
+  const [offers,setOffers] = useState<Breakdown[]>([]);
+  const [networks,setNetworks] = useState<Breakdown[]>([]);
+  const [offerId,setOfferId] = useState('');
+  const [fromDate,setFromDate] = useState('');
+  const [toDate,setToDate] = useState('');
   const [countries, setCountries] = useState<Country[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<string>('all');
   const [loading, setLoading] = useState(true);
@@ -59,27 +67,25 @@ export const Stats: React.FC = () => {
     try {
       const id = Number(getTelegramUser().id);
       if (!id) throw new Error('Не удалось определить Telegram ID');
-      const [s, c] = await Promise.all([
-        authorizedFetch(
-  `${API}/statistics/${id}${vertical !== 'all' ? `?vertical=${vertical}` : ''}`,
-  { cache: 'no-store' }
-),
-        authorizedFetch(
-  `${API}/statistics/${id}/countries${vertical !== 'all' ? `?vertical=${vertical}` : ''}`,
-  { cache: 'no-store' }
-)
+      const params = new URLSearchParams();
+      params.set('period', filter);
+      if (vertical !== 'all') params.set('vertical', vertical);
+      if (offerId) params.set('offer_id', offerId);
+      if (fromDate) params.set('from', fromDate);
+      if (toDate) params.set('to', toDate);
+      const suffix = '?' + params.toString();
+      const [s,c,b] = await Promise.all([
+        authorizedFetch(`${API}/statistics/${id}${suffix}`,{cache:'no-store'}),
+        authorizedFetch(`${API}/statistics/${id}/countries${suffix}`,{cache:'no-store'}),
+        authorizedFetch(`${API}/statistics/${id}/breakdown${suffix}`,{cache:'no-store'})
       ]);
-      if (!s.ok || !c.ok) throw new Error(`Ошибка API: statistics ${s.status}, countries ${c.status}`);
-      const sd = await s.json();
-      const cd = await c.json();
-      if (!sd.success || !cd.success) throw new Error('Backend вернул ошибку статистики');
-      setStats((sd.statistics || []).map((r: Stat) => ({
-        date: r.date, clicks: Number(r.clicks || 0), conversions: Number(r.conversions || 0), income: Number(r.income || 0)
-      })));
-      setCountries((cd.countries || []).map((r: Country) => ({
-        country_code: r.country_code, country_name: r.country_name, clicks: Number(r.clicks || 0),
-        conversions: Number(r.conversions || 0), income: Number(r.income || 0)
-      })));
+      if(!s.ok || !c.ok || !b.ok) throw new Error('Ошибка API аналитики');
+      const sd=await s.json(), cd=await c.json(), bd=await b.json();
+      if(!sd.success || !cd.success || !bd.success) throw new Error('Backend вернул ошибку аналитики');
+      setSummary(sd.summary || null);
+      setStats((sd.statistics || []).map((r:Stat)=>({date:r.date,clicks:Number(r.clicks||0),conversions:Number(r.conversions||0),income:0})));
+      setCountries((cd.countries||[]).map((r:Country)=>({country_code:r.country_code,country_name:r.country_name,clicks:Number(r.clicks||0),conversions:Number(r.conversions||0),income:0})));
+      setOffers(bd.offers || []);setNetworks(bd.networks || []);
       if (refresh) triggerHaptic.success();
     } catch (e) {
       console.error(e);
@@ -88,7 +94,7 @@ export const Stats: React.FC = () => {
     } finally {
       setLoading(false); setRefreshing(false);
     }
-  }, [vertical]);
+  }, [vertical,filter,offerId,fromDate,toDate]);
 
   useEffect(() => {
   void load();
@@ -102,7 +108,7 @@ export const Stats: React.FC = () => {
   };
 }, [load]);
 
-  const rows = useMemo(() => stats.filter(r => inPeriod(r.date, filter)), [stats, filter]);
+  const rows = useMemo(() => stats, [stats]);
   const selectedCountryData = useMemo(
     () => countries.find(c => c.country_code === selectedCountry),
     [countries, selectedCountry]
@@ -119,21 +125,14 @@ export const Stats: React.FC = () => {
     0
   );
 
-  const income = rows.reduce(
-    (total, row) => total + row.income,
-    0
-  );
+  const income = summary?.finance.released || 0;
 
   return {
     clicks,
     conversions,
     income,
-    cr: clicks > 0
-      ? (conversions / clicks) * 100
-      : 0,
-    epc: clicks > 0
-      ? income / clicks
-      : 0,
+    cr: summary?.cr || 0,
+    epc: summary?.epc || 0,
     ...chartPaths(rows)
   };
 }, [rows]);
@@ -179,6 +178,11 @@ export const Stats: React.FC = () => {
         </button>)}
       </div>
 
+      <div className="grid grid-cols-2 gap-2">
+        <label className="text-[10px] text-textSecondary">От даты<input aria-label="От даты" type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)} className="mt-1 w-full rounded-app-xs bg-bgCard/40 border border-white/10 p-2 text-white" /></label>
+        <label className="text-[10px] text-textSecondary">До даты<input aria-label="До даты" type="date" value={toDate} onChange={e=>setToDate(e.target.value)} className="mt-1 w-full rounded-app-xs bg-bgCard/40 border border-white/10 p-2 text-white" /></label>
+      </div>
+      <label className="text-[10px] text-textSecondary">Оффер<select aria-label="Оффер" value={offerId} onChange={e=>setOfferId(e.target.value)} className="mt-1 w-full rounded-app-xs bg-bgCard/40 border border-white/10 p-2 text-white"><option value="">Все офферы</option>{offers.filter(x=>x.id).map(x=><option key={x.id!} value={x.id!}>{x.label}</option>)}</select></label>
       <div className="flex flex-col gap-2">
   <span className="text-[10px] text-textSecondary font-bold uppercase tracking-wider px-1">
     Вертикаль
@@ -237,7 +241,7 @@ export const Stats: React.FC = () => {
 
       <Card variant="default" padding="none" className="relative flex flex-col p-4 overflow-hidden h-[230px] justify-between shadow-premium">
         <div className="flex items-center justify-between text-left">
-          <span className="text-xs font-bold text-white">Динамика прибыли</span>
+          <span className="text-xs font-bold text-white">Динамика CPA</span>
           <span className="text-[10px] text-textSecondary">{loading ? 'Загрузка...' : `${rows.length} записей`}</span>
         </div>
         <div className="w-full h-[120px] relative mt-4">
@@ -258,20 +262,33 @@ export const Stats: React.FC = () => {
         </div>
       </Card>
 
+      <p className="text-[10px] text-textSecondary">CPA: только новые реальные данные. EPC = подтверждённые начисления вебмастера / клики; выпущенный Hold учитывается отдельно. Исторические суммы и старые балансы не входят в EPC.</p>
       <div className="grid grid-cols-2 gap-3 text-left">
         {metric('Клики', data.clicks.toLocaleString('ru-RU'), <Eye size={12} />)}
-        {metric('Конверсии', data.conversions, <ShieldAlert size={12} />, `CR: ${data.cr.toFixed(2)}%`)}
-        {metric('Доход', `$${data.income.toFixed(2)}`, <Coins size={12} />)}
+        {metric('Конверсии', data.conversions, <ShieldAlert size={12} />, `CR (все): ${data.cr.toFixed(2)}% · Approved CR: ${(summary?.approved_cr||0).toFixed(2)}%`)}
+        {metric('CPA выпущено', `${data.income.toFixed(2)}`, <Coins size={12} />)}
         {metric('EPC', `$${data.epc.toFixed(2)}`, <BarChart2 size={12} />)}
       </div>
 
+      <div className="grid grid-cols-2 gap-3 text-left">
+        {metric('Pending',summary?.statuses.pending??0,<ShieldAlert size={12}/>)}
+        {metric('Approved',summary?.statuses.approved??0,<ShieldAlert size={12}/>)}
+        {metric('Rejected',summary?.statuses.rejected??0,<ShieldAlert size={12}/>)}
+        {metric('История',summary?.legacy_conversions??0,<Eye size={12}/>,'Не реальные CPA начисления')}
+        {metric('CPA Gross',`$${(summary?.finance.gross||0).toFixed(2)}`,<Coins size={12}/>)}
+        {metric('Комиссия VVD 20%',`$${(summary?.finance.fee||0).toFixed(2)}`,<Coins size={12}/>)}
+        {metric('Партнёр 80%',`$${(summary?.finance.partner||0).toFixed(2)}`,<Coins size={12}/>)}
+        {metric('CPA Hold',`$${(summary?.finance.hold||0).toFixed(2)}`,<Coins size={12}/>)}
+        {metric('Доступно реально',`$${(summary?.finance.real_withdrawable||0).toFixed(2)}`,<Coins size={12}/>)}
+      </div>
+      {([{label:'Офферы',items:offers},{label:'CPA-сети',items:networks}]).map(group=><Card key={group.label} padding="sm"><h2 className="text-sm font-bold text-white mb-2">{group.label}</h2>{group.items.length?group.items.map((x,i)=><div key={String(x.id)+i} className="flex justify-between gap-2 text-[11px] border-b border-white/5 py-2"><span className="text-white">{x.label}</span><span className="text-textSecondary">{x.clicks} кликов · {x.conversions} CPA · CR {x.cr.toFixed(2)}%</span></div>):<p className="text-xs text-textSecondary">Пока нет данных</p>}</Card>)}
       <div className="flex flex-col gap-3 text-left">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold text-white">Страны</h2>
           <span className="text-[10px] text-textSecondary">{countries.length} стран</span>
         </div>
         <Card padding="none" className="overflow-hidden border-white/5 shadow-glass-inner">
-          {!countries.length ? <div className="p-4 text-xs text-textSecondary">Статистика по странам пока отсутствует</div> :
+          {!countries.length ? <div className="p-4 text-xs text-textSecondary">Подтверждённые данные GEO пока отсутствуют</div> :
             [...countries].sort((a, b) => b.income - a.income).map((c, i) => {
               const cr = c.clicks ? c.conversions / c.clicks * 100 : 0;
               return <button

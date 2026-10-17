@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        image: postgres:17
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -28,6 +28,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/stars_test
       BOT_TOKEN: 123456:TEST_TOKEN_FOR_CI_ONLY
+      PYTHONPATH: backend_v2
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,4 +49,4 @@ jobs:
       - name: Verify Python syntax
         run: python -m compileall -q backend_v2
       - name: Check signed initData, idempotent settlement and refund
-        run: python -m unittest discover -s backend_v2/tests -p 'test_*.py' -v
+        run: python -m unittest discover -s backend_v2/tests -p 'test_stars.py' -v

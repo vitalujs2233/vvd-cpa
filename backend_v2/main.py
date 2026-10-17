@@ -24,6 +24,7 @@ from access_guard import access_guard, authorized_admin
 from cpa_manual_hold import (read_partner_hold, record_verified_receipt,
                              manual_release, ManualReleaseDenied)
 from cpa_finance_corrections import register_dispute, confirm_cancellation
+from cpa_analytics import router as cpa_analytics_router
 
 from stars_payments import verified_telegram_id
 from urllib.parse import parse_qs
@@ -44,6 +45,7 @@ app.include_router(ai_studio_router)
 app.include_router(cpa_catalog_router)
 app.include_router(neutral_links_router)
 app.include_router(cpa_postback_router)
+app.include_router(cpa_analytics_router)
 app.middleware('http')(access_guard)
 
 app.add_middleware(
@@ -1067,124 +1069,9 @@ async def postback_traffcore(
     }
 
 
-@app.get("/statistics/{telegram_id}")
-async def get_statistics(
-    telegram_id: int,
-    vertical: str | None = None
-):
-    with engine.connect() as conn:
-
-        query = """
-            SELECT
-                DATE(c.created_at) AS date,
-                COUNT(DISTINCT c.click_id) AS clicks,
-                COUNT(DISTINCT cv.id) AS conversions,
-                COALESCE(SUM(cv.payout_net), 0) AS income
-            FROM clicks c
-            LEFT JOIN conversions cv
-                ON cv.click_id = c.click_id
-                AND cv.user_id = c.user_id
-                AND cv.status = '1'
-                AND cv.is_test = FALSE
-            WHERE c.user_id = :telegram_id
-        """
-
-        params = {
-            "telegram_id": telegram_id
-        }
-
-        if vertical:
-            query += " AND c.vertical = :vertical"
-            params["vertical"] = vertical
-
-        query += """
-            GROUP BY DATE(c.created_at)
-            ORDER BY DATE(c.created_at) ASC
-        """
-
-        rows = conn.execute(
-            text(query),
-            params
-        ).fetchall()
-
-        statistics = []
-
-        for row in rows:
-            statistics.append({
-                "date": str(row.date),
-                "clicks": int(row.clicks or 0),
-                "conversions": int(row.conversions or 0),
-                "income": float(row.income or 0)
-            })
-
-        return {
-            "success": True,
-            "vertical": vertical or "all",
-            "statistics": statistics
-        }
-@app.get("/statistics/{telegram_id}/countries")
-async def get_country_statistics(
-    telegram_id: int,
-    vertical: str | None = None
-):
-
-    with engine.connect() as conn:
-
-        query = """
-            SELECT
-                c.country_code,
-                c.country_name,
-                COUNT(DISTINCT c.click_id) AS clicks,
-                COUNT(DISTINCT CASE
-                    WHEN CAST(cv.status AS TEXT) = '1'
-                    THEN cv.id
-                END) AS conversions,
-                COALESCE(SUM(
-                    CASE
-                        WHEN CAST(cv.status AS TEXT) = '1'
-                        THEN cv.payout_net
-                        ELSE 0
-                    END
-                ), 0) AS income
-            FROM clicks c
-            LEFT JOIN conversions cv
-                ON cv.click_id = c.click_id
-                AND cv.is_test = FALSE
-            WHERE c.user_id = :telegram_id
-        """
-
-        params = {
-            "telegram_id": telegram_id
-        }
-
-        if vertical:
-            query += " AND c.vertical = :vertical"
-            params["vertical"] = vertical
-
-        query += """
-            GROUP BY c.country_code, c.country_name
-            ORDER BY income DESC
-        """
-
-        countries = conn.execute(
-            text(query),
-            params
-        ).fetchall()
-
-    return {
-        "success": True,
-        "vertical": vertical or "all",
-        "countries": [
-            {
-                "country_code": row.country_code,
-                "country_name": row.country_name,
-                "clicks": int(row.clicks or 0),
-                "conversions": int(row.conversions or 0),
-                "income": float(row.income or 0)
-            }
-            for row in countries
-        ]
-    }
+# Stage 6: authenticated read-only analytics; existing URLs retained for Mini App.
+# Aggregates are computed from clicks, conversions and CPA ledger without
+# folding legacy demo income into real CPA figures.
 @app.get("/chat/banner")
 async def get_chat_banner():
     with engine.connect() as conn:
