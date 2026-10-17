@@ -18,7 +18,7 @@ from ai_studio_v2 import router as ai_studio_router
 from cpa_catalog import router as cpa_catalog_router
 from neutral_links import router as neutral_links_router
 from cpa_postback import router as cpa_postback_router
-from cpa_real_withdrawals import create_real_withdrawal, mark_real_paid, mark_real_rejected
+from cpa_real_withdrawals import create_real_withdrawal, mark_real_paid, mark_real_rejected, finance_balance_projection
 from access_guard import access_guard
 from stars_payments import verified_telegram_id
 from urllib.parse import parse_qs
@@ -437,34 +437,23 @@ async def track_click(partner_code: str, vertical: str, request: Request):
 
 @app.get("/balance/{telegram_id}")
 async def get_balance(telegram_id: int):
-
+    # Keep historical balance contract for the rest of Mini App, but expose
+    # separate finance entitlement for the withdrawals page (never from balance).
     with engine.connect() as conn:
-
-        user = conn.execute(
-            text("""
-                SELECT
-                    balance,
-                    hold,
-                    withdrawn
-                FROM users
-                WHERE telegram_id = :telegram_id
-            """),
-            {
-                "telegram_id": telegram_id
-            }
-        ).fetchone()
-
-    if not user:
+        user = conn.execute(text("""
+            SELECT balance,hold,withdrawn
+            FROM public.users WHERE telegram_id=:uid
+        """), {"uid":telegram_id}).first()
+        if not user:
+            return {"success":False,"message":"User not found"}
+        finance = finance_balance_projection(conn, telegram_id, user.balance)
         return {
-            "success": False,
-            "message": "User not found"
+            "available":float(user.balance),
+            "hold":float(user.hold),
+            "paid":float(user.withdrawn),
+            **finance,
         }
 
-    return {
-        "available": float(user.balance),
-        "hold": float(user.hold),
-        "paid": float(user.withdrawn)
-    }
 @app.get("/referral/{telegram_id}")
 async def get_referral(telegram_id: int):
 
@@ -1418,7 +1407,8 @@ async def get_withdrawals(partner_code: str):
                     wallet,
                     status,
                     created_at,
-                    processed_at
+                    processed_at,
+                    cpa_real_epoch_at
                 FROM withdrawals
                 WHERE partner_code = :partner_code
                 ORDER BY created_at DESC
@@ -1438,6 +1428,7 @@ async def get_withdrawals(partner_code: str):
                 "payment_method": r.payment_method,
                 "wallet": r.wallet,
                 "status": r.status,
+                "is_real_finance": r.cpa_real_epoch_at is not None,
                 "created_at": str(r.created_at),
                 "processed_at": str(r.processed_at) if r.processed_at else None
             }
