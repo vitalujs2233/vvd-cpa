@@ -159,7 +159,11 @@ pending=client.post("/withdrawals",headers=h,json={
   "payment_method":"TEST","wallet":"SYNTHETIC-NOT-PAYABLE"
 })
 assert pending.status_code==200 and pending.json()["success"] is False,pending.text
-confirmed=client.post("/admin/withdrawals/1/paid",headers=h)
+confirmed=client.post("/admin/withdrawals/1/paid",headers=h,json={
+  "external_transfer_id":"CI-AUDIT-BLOCK-OLD-0001",
+  "evidence_reference":"CI-AUDIT-RECEIPT-OLD-0001",
+  "transferred_at":"2026-10-01T12:00:00+00:00"
+})
 assert confirmed.status_code==200 and confirmed.json()["success"] is False,confirmed.text
 rejected=client.post("/admin/withdrawals/1/reject",headers=h)
 assert rejected.status_code==200 and rejected.json()["success"] is False,rejected.text
