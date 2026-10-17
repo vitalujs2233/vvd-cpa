@@ -205,6 +205,7 @@ def existing_statistics(telegram_id:int,period:str="all",vertical:str|None=None,
                         offer_id:str|None=None,network_id:int|None=None,
                         date_from:date|None=Query(None,alias="from"),
                         date_to:date|None=Query(None,alias="to")):
+    if date_from and date_to and date_from>date_to: raise HTTPException(422,'Invalid date range')
     params=arguments(period,date_from,date_to,vertical,offer_id,network_id)
     with engine.connect() as conn:
         summary=summarize(conn,telegram_id,params)
