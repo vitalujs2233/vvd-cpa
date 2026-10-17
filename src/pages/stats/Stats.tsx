@@ -7,7 +7,7 @@ import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
 type Filter = 'today' | 'yesterday' | '7days' | '30days' | 'all';
 type Vertical = 'all' | 'adult' | 'mainstream' | 'webcam' | 'adult_games';
 type Stat = { date: string; clicks: number; conversions: number; income: number };
-type AnalyticsSummary = { clicks:number;conversions:number;cr:number;epc:number; statuses:{pending:number;approved:number;rejected:number;legacy:number};finance:{gross:number;fee:number;partner:number;hold:number;released:number;real_withdrawable:number};legacy_conversions:number };
+type AnalyticsSummary = { clicks:number;conversions:number;cr:number;approved_cr:number;epc:number; statuses:{pending:number;approved:number;rejected:number;legacy:number};finance:{gross:number;fee:number;partner:number;hold:number;released:number;real_withdrawable:number};legacy_conversions:number };
 type Breakdown = {id:string|null;label:string;clicks:number;conversions:number;cr:number};
 type Country = { country_code: string; country_name: string; clicks: number; conversions: number; income: number };
 
@@ -262,10 +262,10 @@ export const Stats: React.FC = () => {
         </div>
       </Card>
 
-      <p className="text-[10px] text-textSecondary">CPA: только новые реальные данные. Исторические суммы и старые балансы не входят в EPC.</p>
+      <p className="text-[10px] text-textSecondary">CPA: только новые реальные данные. EPC = подтверждённые начисления вебмастера / клики; выпущенный Hold учитывается отдельно. Исторические суммы и старые балансы не входят в EPC.</p>
       <div className="grid grid-cols-2 gap-3 text-left">
         {metric('Клики', data.clicks.toLocaleString('ru-RU'), <Eye size={12} />)}
-        {metric('Конверсии', data.conversions, <ShieldAlert size={12} />, `CR: ${data.cr.toFixed(2)}%`)}
+        {metric('Конверсии', data.conversions, <ShieldAlert size={12} />, `CR (все): ${data.cr.toFixed(2)}% · Approved CR: ${(summary?.approved_cr||0).toFixed(2)}%`)}
         {metric('CPA выпущено', `${data.income.toFixed(2)}`, <Coins size={12} />)}
         {metric('EPC', `$${data.epc.toFixed(2)}`, <BarChart2 size={12} />)}
       </div>
