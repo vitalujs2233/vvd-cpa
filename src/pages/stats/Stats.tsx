@@ -147,13 +147,13 @@ export const Stats:React.FC=()=>{
         <span>Отклонены: <strong className="text-white">{summary?.statuses.rejected??0}</strong></span>
       </div>
     </Card>
-    <Card padding="sm" className="!p-3" data-testid="click-chart">
+    <div data-testid="click-chart"><Card padding="sm" className="!p-3">
       <div className="flex items-center gap-2 mb-2 text-xs font-semibold text-white"><TrendingUp size={14}/> Динамика кликов</div>
       <div className="h-20 flex items-end gap-0.5" aria-label="График кликов">
         {series.length?series.map((d,i)=><div key={d.date+i} title={`${d.date}: ${d.clicks} кликов`} className="flex-1 min-w-[2px] rounded-t-sm bg-accentPurple/65" style={{height:`${Math.max(3,100*d.clicks/max)}%`}}/>)
           :<p className="self-center text-xs text-textSecondary">Нет переходов за период</p>}
       </div>
-    </Card>
+    </Card></div>
     <Card padding="sm" className="!p-3">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-bold text-white">География трафика</h2>
