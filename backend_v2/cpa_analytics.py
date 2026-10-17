@@ -81,7 +81,7 @@ def scalar(value):
     return float(value or ZERO)
 
 
-def summarize(conn, uid, params):
+def summarize(conn, uid, params, *, admin=False):
     bind = {**params, "uid": uid}
     clicks = conn.execute(text("SELECT count(*) FROM ("+CLICK_ROWS+") k"), bind).scalar_one()
     conv = conn.execute(text("SELECT normalized_status,is_test,is_real,status,id FROM ("+CONVERSION_ROWS+") v"), bind).mappings().all()
@@ -122,7 +122,7 @@ def summarize(conn, uid, params):
             "real_withdrawable":scalar(finance["real_withdrawable"]),
             "legacy_conversions":statuses["legacy"],"test_conversions":sum(bool(row["is_test"]) for row in conv),
             "historical_income_included":False}
-    if uid is None:
+    if admin:
         result["finance"]={key:scalar(value) for key,value in finance.items()}
     return result
 
@@ -296,7 +296,7 @@ def admin_analytics(telegram_id:int|None=None,period:str="all",vertical:str|None
     if date_from and date_to and date_from>date_to: raise HTTPException(422,'Invalid date range')
     params=arguments(period,date_from,date_to,vertical,offer_id,network_id)
     with engine.connect() as conn:
-        return {"success":True,"summary":summarize(conn,telegram_id,params),
+        return {"success":True,"summary":summarize(conn,telegram_id,params,admin=True),
                 "daily":daily(conn,telegram_id,params),
                 "offers":grouped(conn,telegram_id,params,"offers"),
                 "networks":grouped(conn,telegram_id,params,"networks"),
