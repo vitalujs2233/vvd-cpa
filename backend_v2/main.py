@@ -23,6 +23,8 @@ from sqlalchemy.exc import ProgrammingError
 from access_guard import access_guard, authorized_admin
 from cpa_manual_hold import (read_partner_hold, record_verified_receipt,
                              manual_release, ManualReleaseDenied)
+from cpa_finance_corrections import register_dispute, confirm_cancellation
+
 from stars_payments import verified_telegram_id
 from urllib.parse import parse_qs
 from aiogram.types import Update
@@ -1440,6 +1442,36 @@ async def cpa_release_hold(partner_code: str, data: CPAManualReleaseRequest, req
         return manual_release(engine,partner_code=partner_code,
             conversion_id=data.conversion_id,amount=data.amount,
             reason=data.reason,request_id=data.request_id,admin_uid=admin_uid)
+    except (ManualReleaseDenied,ValueError) as exc:
+        raise HTTPException(409,str(exc)) from exc
+
+# ==================== CPA FINANCIAL CORRECTIONS ====================
+class CPADisputeRequest(BaseModel):
+    case_reference: str
+    reason: str
+    evidence_reference: str
+
+class CPACancellationRequest(BaseModel):
+    case_reference: str
+    evidence_reference: str
+
+@app.post("/admin/cpa/conversions/{conversion_id}/dispute")
+async def cpa_open_dispute(conversion_id: str, data: CPADisputeRequest, request: Request):
+    admin_uid=_cpa_admin_actor(request)
+    try:
+        return register_dispute(engine,conversion_id=conversion_id,
+          case_reference=data.case_reference,reason=data.reason,
+          evidence_reference=data.evidence_reference,admin_uid=admin_uid)
+    except (ManualReleaseDenied,ValueError) as exc:
+        raise HTTPException(409,str(exc)) from exc
+
+@app.post("/admin/cpa/conversions/{conversion_id}/cancel")
+async def cpa_confirm_cancellation(conversion_id: str, data: CPACancellationRequest, request: Request):
+    admin_uid=_cpa_admin_actor(request)
+    try:
+        return confirm_cancellation(engine,conversion_id=conversion_id,
+          case_reference=data.case_reference,evidence_reference=data.evidence_reference,
+          admin_uid=admin_uid)
     except (ManualReleaseDenied,ValueError) as exc:
         raise HTTPException(409,str(exc)) from exc
 
