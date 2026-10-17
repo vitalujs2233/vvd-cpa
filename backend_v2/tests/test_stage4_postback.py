@@ -73,7 +73,7 @@ class PostbackTests(unittest.TestCase):
             migration=(ROOT/"migrations/20261016_stage4_admin_postback_probe.sql").read_text()
             c.connection.cursor().execute(migration)
             c.execute(text("INSERT INTO users(telegram_id,first_name,partner_code,status) VALUES(:uid,'Stage4','VVD964001','active') ON CONFLICT(telegram_id) DO UPDATE SET status='active'"),{"uid":UID})
-            c.execute(text("INSERT INTO cpa_verticals(slug,title,is_active) VALUES('utilities','Utilities',TRUE) ON CONFLICT(slug) DO NOTHING"))
+            c.execute(text("INSERT INTO cpa_verticals(slug,title,is_active,cpa_link_allowed) VALUES('utilities','Utilities',TRUE,TRUE) ON CONFLICT(slug) DO UPDATE SET cpa_link_allowed=TRUE"))
         added=client.post("/cpa/admin/networks",headers=auth(ADMIN),json={"name":cls.net,"is_active":True})
         if added.status_code!=200:raise AssertionError(added.text)
         cls.network_id=added.json()["id"]
