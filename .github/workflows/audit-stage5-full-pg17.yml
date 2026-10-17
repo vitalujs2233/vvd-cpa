@@ -108,6 +108,24 @@ jobs:
           );
           SQL
           fi
+      - name: Restore prerequisite catalog schema for standalone Stage 4 suite
+        if: matrix.suite == 'test_stage4_postback'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from sqlalchemy import create_engine,text
+          import os
+          engine=create_engine(os.environ['DATABASE_URL'])
+          with engine.begin() as c:
+              c.execute(text("CREATE TABLE IF NOT EXISTS public.offers(id VARCHAR(80) PRIMARY KEY,title VARCHAR(200) NOT NULL)"))
+              for definition in ("description TEXT","icon_name VARCHAR(30)","geo VARCHAR(300)","smartlink_suffix VARCHAR(120) NOT NULL DEFAULT ''"):
+                  c.execute(text("ALTER TABLE public.offers ADD COLUMN IF NOT EXISTS "+definition))
+              sql=Path("backend_v2/migrations/20261016_stage2_catalog.sql").read_text()
+              sql="\n".join(x for x in sql.splitlines() if not x.lstrip().startswith("REVOKE "))
+              c.connection.cursor().execute(sql)
+              c.execute(text("ALTER TABLE public.cpa_networks ADD COLUMN IF NOT EXISTS click_param VARCHAR(48)"))
+              c.execute(text("ALTER TABLE public.offers ADD COLUMN IF NOT EXISTS click_param_override VARCHAR(48)"))
+          PY
       - name: Run every existing backend test suite on own disposable PG17
         env:
           SUITE: ${{ matrix.suite }}
