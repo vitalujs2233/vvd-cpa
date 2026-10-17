@@ -38,7 +38,8 @@ class Stage6AnalyticsTests(unittest.TestCase):
         conn=MagicMock()
         click_result=MagicMock();click_result.scalar_one.return_value=0
         conversion_result=MagicMock();conversion_result.mappings.return_value.all.return_value=[]
-        conn.execute.side_effect=[click_result,conversion_result]
+        account_result=MagicMock();account_result.scalar.return_value=None
+        conn.execute.side_effect=[click_result,conversion_result,account_result]
         report=summarize(conn,42,{"start":None,"end":None,"vertical":None,"offer":None,"network":None})
         self.assertEqual(report["clicks"],0)
         self.assertEqual(report["conversions"],0)
