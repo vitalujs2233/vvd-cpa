@@ -21,8 +21,8 @@ def _enabled():
         raise ManualReleaseDenied("Early release disabled until network receipt verification is enabled")
 
 def _validate_reason(reason):
-    if not isinstance(reason,str) or not 12<=len(reason.strip())<=500:
-        raise ManualReleaseDenied("Provide a mandatory reason (12–500 characters)")
+    if not isinstance(reason,str) or not 12<=len(reason.strip())<=60:
+        raise ManualReleaseDenied("Provide a mandatory reason (12–60 characters)")
     return reason.strip()
 
 def _parse_uuid(raw):
