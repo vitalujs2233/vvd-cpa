@@ -1,0 +1,42 @@
+name: Audit production-shaped PG17 PR22 PR21 PR23 (synthetic only)
+on:
+  push:
+    branches: [audit/stage5-production-shape-pg17-20261017]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  production-shape-replay:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cpa_withdrawals_isolated
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/cpa_withdrawals_isolated
+      BOT_TOKEN: 123456:TEST_TOKEN_FOR_CI_ONLY
+      ADMIN_TELEGRAM_IDS: '900000007100'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install existing backend_v2 dependencies
+        run: pip install -r backend_v2/requirements.txt
+      - name: Read approved PR22 SQL verbatim from source branch
+        run: |
+          git fetch --depth=1 origin fix/stage5-2-2-withdrawals-rls
+          git show FETCH_HEAD:backend_v2/migrations/20261017_stage5_withdrawals_rls.sql > /tmp/real_pr22_withdrawals.sql
+      - name: Isolated replay on PostgreSQL 17, synthetic only
+        run: python .github/scripts/audit_stage5_production_shape.py
