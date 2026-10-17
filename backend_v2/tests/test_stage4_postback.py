@@ -193,6 +193,47 @@ class PostbackTests(unittest.TestCase):
                 c.execute(text("DELETE FROM offers WHERE id=:offer"),{"offer":fixture_offer})
                 c.execute(text("DELETE FROM users WHERE telegram_id=:uid"),{"uid":owner2})
 
+    def test_gateway_post_for_get_query_requires_existing_secret(self):
+        # Isolated PG17: GET_QUERY accepts ONLY authenticated JSON POST;
+        # direct GET remains unavailable, including spoofed IP headers.
+        endpoint=f"/cpa/postback/{self.network_id}"
+        config={"postback_enabled":False,
+                "postback_method":"GET_QUERY",
+                "postback_params":{"click":"test_click","transaction":"tx",
+                    "status":"state","amount":"price","currency":"ccy"},
+                "postback_status_map":{"waiting":"pending","paid":"approved","cancel":"rejected"}}
+        data={"test_click":self.click,"tx":"gateway-"+self.tag,
+              "state":"waiting","price":"0","ccy":"USD"}
+        try:
+            updated=client.put(f"/cpa/admin/networks/{self.network_id}/postback",
+                headers=auth(ADMIN),json=config)
+            self.assertEqual(updated.status_code,200,updated.text)
+            # Existing administrative fail-closed GET_QUERY enable prohibition
+            # is kept. Simulate a configured gateway on isolated PG17 only.
+            with engine.begin() as c:
+                c.execute(text("UPDATE cpa_networks SET postback_enabled=TRUE WHERE id=:id"),
+                    {"id":self.network_id})
+            self.assertEqual(client.get(endpoint,params=data,headers={
+                "X-Forwarded-For":"203.0.113.5",
+                "CF-Connecting-IP":"203.0.113.5"}).status_code,403)
+            self.assertEqual(client.post(endpoint,json=data).status_code,401)
+            self.assertEqual(client.post(endpoint,json=data,headers={
+                "X-VVD-Postback-Key":"fake"}).status_code,401)
+            ok=client.post(endpoint,json=data,headers={
+                "X-VVD-Postback-Key":self.secret})
+            self.assertEqual(ok.status_code,200,ok.text)
+            self.assertTrue(ok.json()["created"])
+            with engine.connect() as c:
+                row=c.execute(text("SELECT user_id,partner_code,payout_net FROM conversions WHERE click_id=:id"),
+                   {"id":self.click}).one()
+            self.assertEqual((row[0],row[1],row[2]),(UID,"VVD964001",0))
+        finally:
+            with engine.begin() as c:
+                c.execute(text("DELETE FROM conversions WHERE transaction_id=:tx"),
+                   {"tx":"cpa:"+str(self.network_id)+":gateway-"+self.tag})
+                c.execute(text("UPDATE cpa_networks SET postback_enabled=TRUE,postback_method='POST_JSON' WHERE id=:id"),
+                   {"id":self.network_id})
+
     def test_get_requires_verified_sender_and_preserves_post(self):
         url=f"/cpa/postback/{self.network_id}"
         # A spoofed forwarded header and correct mapped fields never authenticate GET.
