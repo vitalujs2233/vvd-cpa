@@ -37,5 +37,4 @@ const compiled=cssFiles.map(name=>readFileSync(join(cssDir,name),'utf8')).join('
 const goldRule=compiled.match(/\.bg-accentGold\s*\{([^}]+)\}/);
 assert.ok(goldRule,'Generated CSS must contain .bg-accentGold rule');
 assert.ok(/background-color/.test(goldRule[1]),'Compiled CSS must set background-color');
-console.log('COMPILED_GOLD_RULE:',goldRule[1]);
-assert.ok(/212\\s+175\\s+55|#d4af37/i.test(goldRule[1]),'Compiled bar background must use VVD gold #D4AF37');
+assert.ok(/212\s+175\s+55|#d4af37/i.test(goldRule[1]),'Compiled bar background must use VVD gold #D4AF37');
