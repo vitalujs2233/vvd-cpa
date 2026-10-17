@@ -21,6 +21,7 @@ with engine.begin() as c:
     END $r$;"""))
     c.execute(text("""CREATE TABLE public.users(
          telegram_id BIGINT PRIMARY KEY, first_name TEXT NOT NULL,
+         last_name TEXT, username TEXT, status TEXT NOT NULL DEFAULT 'active',
          partner_code TEXT UNIQUE, balance NUMERIC(12,2) DEFAULT 0 NOT NULL,
          hold NUMERIC(12,2) DEFAULT 0 NOT NULL, withdrawn NUMERIC(12,2) DEFAULT 0 NOT NULL,
          role TEXT NOT NULL DEFAULT 'user')"""))
@@ -51,6 +52,8 @@ with engine.begin() as c:
             {"uid":900000007100+i,"code":"VVD-AUDIT-"+str(i),
              "balance":"833.48" if i==0 else ("62.50" if i==11 else "0.00"),
              "withdrawn":"350.00" if i==0 else ("50.00" if i==11 else "0.00")})
+        if i==0:
+            c.execute(text("UPDATE public.users SET role=\'admin\' WHERE telegram_id=900000007100"))
     c.execute(text("""INSERT INTO public.clicks(user_id,partner_code,click_id)
          SELECT 900000007100,'VVD-AUDIT-0','legacy-'||n FROM generate_series(1,700) n"""))
     c.execute(text("""INSERT INTO public.conversions(click_id,user_id,offer_id,payout_gross,payout_net,status,currency,is_test)
@@ -84,6 +87,9 @@ def snapshot(c):
         "SELECT md5(coalesce(string_agg(md5(jsonb_build_array(t.telegram_id,t.first_name,t.partner_code,t.balance,t.hold,t.withdrawn,t.role)::text),'|' ORDER BY telegram_id),'')) FROM public.users t",
         "SELECT md5(coalesce(string_agg(md5(jsonb_build_array(t.id,t.click_id,t.user_id,t.offer_id,t.payout_gross,t.payout_net,t.status,t.currency,t.is_test,t.created_at)::text),'|' ORDER BY id),'')) FROM public.conversions t",
         "SELECT md5(coalesce(string_agg(md5(jsonb_build_array(t.id,t.user_id,t.partner_code,t.click_id,t.created_at)::text),'|' ORDER BY id),'')) FROM public.clicks t",
+        "SELECT md5(coalesce(string_agg(md5(jsonb_build_array(t.id,t.income)::text),'|' ORDER BY id),'')) FROM public.statistics t",
+        "SELECT md5(coalesce(string_agg(md5(jsonb_build_array(t.id,t.income)::text),'|' ORDER BY id),'')) FROM public.country_statistics t",
+        "SELECT md5(coalesce(string_agg(md5(jsonb_build_array(t.id,t.balance)::text),'|' ORDER BY id),'')) FROM public.tool_wallets t",
     ))
 
 with engine.begin() as c:
@@ -112,4 +118,44 @@ with engine.begin() as c:
     c.connection.cursor().execute(sql21)
     c.connection.cursor().execute(sql23)
     assert snapshot(c)==before
+
+# Same database, now migrated with the exact three-PR sequence; signed,
+# isolated FastAPI routes must never create/approve real finance before launch.
+import hmac
+import time
+from urllib.parse import urlencode
+from fastapi.testclient import TestClient
+from main import app
+
+def signed(uid):
+    fields={"auth_date":str(int(time.time())),"user":json.dumps({"id":uid},separators=(",",":"))}
+    string="\n".join(f"{k}={v}" for k,v in sorted(fields.items()))
+    digest=hmac.new(b"WebAppData",os.environ["BOT_TOKEN"].encode(),hashlib.sha256).digest()
+    fields["hash"]=hmac.new(digest,string.encode(),hashlib.sha256).hexdigest()
+    return {"X-Telegram-Init-Data":urlencode(fields)}
+
+client=TestClient(app)
+h=signed(900000007100)
+read_balance=client.get("/balance/900000007100",headers=h)
+assert read_balance.status_code==200,read_balance.status_code
+assert read_balance.json()["available"]==833.48,read_balance.json()
+history=client.get("/withdrawals/VVD-AUDIT-0",headers=h)
+assert history.status_code==200 and len(history.json()["withdrawals"])==22
+admin_history=client.get("/admin/withdrawals",headers=h)
+assert admin_history.status_code==200,admin_history.status_code
+assert len(admin_history.json()["withdrawals"])==22
+assert all(row["is_real_finance"] is False for row in admin_history.json()["withdrawals"])
+pending=client.post("/withdrawals",headers=h,json={
+  "partner_code":"VVD-AUDIT-0","amount":50,
+  "payment_method":"TEST","wallet":"SYNTHETIC-NOT-PAYABLE"
+})
+assert pending.status_code==200 and pending.json()["success"] is False,pending.text
+confirmed=client.post("/admin/withdrawals/1/paid",headers=h)
+assert confirmed.status_code==200 and confirmed.json()["success"] is False,confirmed.text
+rejected=client.post("/admin/withdrawals/1/reject",headers=h)
+assert rejected.status_code==200 and rejected.json()["success"] is False,rejected.text
+with engine.connect() as c:
+    assert snapshot(c)==before,"HTTP audit modified historical financial state"
+print("PASS: fully migrated schema + signed backend reads; 22 legacy requests; no real payout when cutover disabled; legacy balance still exposed to UI")
+
 print("PASS: exact PR22 => PR21 => PR23; PG17 isolated; 12/22/25/700 and both statistics tables preserved; RLS intact; epoch disabled; no ledger credits")
