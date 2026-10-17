@@ -39,6 +39,21 @@ DO $ddl$ BEGIN
   END IF;
 END $ddl$;
 
+-- TRUNCATE bypasses row-level DELETE triggers, so block it explicitly.
+CREATE OR REPLACE FUNCTION public.cpa_guard_finance_epoch_truncate()
+RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog,public AS $
+BEGIN
+  RAISE EXCEPTION 'Finance epoch cannot be truncated' USING ERRCODE='23514';
+END $;
+DO $ddl$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='public.cpa_finance_epoch'::regclass
+                 AND tgname='trg_cpa_guard_finance_epoch_truncate' AND NOT tgisinternal) THEN
+    CREATE TRIGGER trg_cpa_guard_finance_epoch_truncate BEFORE TRUNCATE
+    ON public.cpa_finance_epoch FOR EACH STATEMENT
+    EXECUTE FUNCTION public.cpa_guard_finance_epoch_truncate();
+  END IF;
+END $ddl$;
+
 -- Manual future launch only: call inside its OWN dedicated authorized transaction.
 -- Lock click, conversion and withdrawal writes while capturing one immutable boundary.
 CREATE OR REPLACE FUNCTION public.cpa_activate_finance_epoch()
@@ -114,7 +129,8 @@ END $ddl$;
 ALTER TABLE public.cpa_finance_epoch ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.cpa_finance_epoch FROM PUBLIC,anon,authenticated,service_role;
 REVOKE EXECUTE ON FUNCTION public.cpa_activate_finance_epoch(),
- public.cpa_guard_finance_epoch(),public.cpa_guard_real_withdrawal()
+ public.cpa_guard_finance_epoch(),public.cpa_guard_finance_epoch_truncate(),
+ public.cpa_guard_real_withdrawal()
  FROM PUBLIC,anon,authenticated,service_role;
 -- Do NOT weaken previously applied PR #22 withdrawals RLS/ACLs.
 -- No UPDATE/DELETE of historical finance rows and no balance credit or release.
