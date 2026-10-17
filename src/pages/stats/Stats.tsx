@@ -3,6 +3,7 @@ import { RefreshCw, TrendingUp } from 'lucide-react';
 import { authorizedFetch } from '@/shared/lib/api';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
 import { Card } from '@/shared/ui/Card';
+import { sortCountries } from './countrySorting';
 
 type Period = 'today'|'yesterday'|'7days'|'30days'|'all';
 type Day = {date:string;clicks:number;conversions:number};
@@ -17,10 +18,6 @@ const countryFlag=(value:string|null)=>{
   if (!value || !/^[A-Z]{2}$/.test(value) || value==='XX' || value==='ZZ') return '🌐';
   return String.fromCodePoint(...[...value].map(letter=>127397+letter.charCodeAt(0)));
 };
-export const sortCountries=(countries:Country[],direction:'desc'|'asc')=>
-  [...countries].sort((a,b)=>direction==='desc'
-    ? b.clicks-a.clicks || a.country_name.localeCompare(b.country_name,'ru')
-    : a.clicks-b.clicks || a.country_name.localeCompare(b.country_name,'ru'));
 
 const money=(n:number)=>'$'+Number(n||0).toFixed(2);
 const periods:{id:Period;label:string}[]=[
