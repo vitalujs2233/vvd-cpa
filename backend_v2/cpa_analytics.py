@@ -53,12 +53,12 @@ CLICK_ROWS = """
  SELECT k.id,k.user_id,k.click_id,k.created_at::date AS event_date,
         k.offer_id,k.network_id,k.vertical,k.country_code,k.country_name
  FROM public.clicks k
- WHERE (:uid IS NULL OR k.user_id=:uid)
- AND (:start IS NULL OR k.created_at::date>=:start)
- AND (:end IS NULL OR k.created_at::date<=:end)
- AND (:vertical IS NULL OR k.vertical=:vertical)
- AND (:offer IS NULL OR k.offer_id=:offer)
- AND (:network IS NULL OR k.network_id=:network)
+ WHERE (CAST(:uid AS BIGINT) IS NULL OR k.user_id=:uid)
+ AND (CAST(:start AS DATE) IS NULL OR k.created_at::date>=:start)
+ AND (CAST(:end AS DATE) IS NULL OR k.created_at::date<=:end)
+ AND (CAST(:vertical AS TEXT) IS NULL OR k.vertical=:vertical)
+ AND (CAST(:offer AS TEXT) IS NULL OR k.offer_id=:offer)
+ AND (CAST(:network AS BIGINT) IS NULL OR k.network_id=:network)
 """
 CONVERSION_ROWS = """
  SELECT v.id,v.user_id,v.click_id,v.created_at::date AS event_date,
@@ -68,12 +68,12 @@ CONVERSION_ROWS = """
         """ + STATE + """ AS normalized_status,
         CASE WHEN """ + REAL + """ THEN TRUE ELSE FALSE END AS is_real
  FROM public.conversions v CROSS JOIN public.cpa_finance_epoch e
- WHERE e.id=1 AND (:uid IS NULL OR v.user_id=:uid)
- AND (:start IS NULL OR v.created_at::date>=:start)
- AND (:end IS NULL OR v.created_at::date<=:end)
- AND (:vertical IS NULL OR v.vertical_slug=:vertical)
- AND (:offer IS NULL OR v.offer_id=:offer)
- AND (:network IS NULL OR v.network_id=:network)
+ WHERE e.id=1 AND (CAST(:uid AS BIGINT) IS NULL OR v.user_id=:uid)
+ AND (CAST(:start AS DATE) IS NULL OR v.created_at::date>=:start)
+ AND (CAST(:end AS DATE) IS NULL OR v.created_at::date<=:end)
+ AND (CAST(:vertical AS TEXT) IS NULL OR v.vertical_slug=:vertical)
+ AND (CAST(:offer AS TEXT) IS NULL OR v.offer_id=:offer)
+ AND (CAST(:network AS BIGINT) IS NULL OR v.network_id=:network)
 """
 
 
@@ -100,7 +100,7 @@ def summarize(conn, uid, params):
         # Finance earnings only from actual ledger events, never assumed based on approvals.
         finance["partner"] = sum((row["hold_delta"] for row in ledger if row["operation_type"]=="hold_credit"), ZERO)
         finance["fee"] = sum((row["platform_fee_delta"] for row in ledger if row["operation_type"]=="platform_fee_accrual"), ZERO)
-        finance["hold"] = sum((row["hold_delta"] for row in ledger), ZERO)
+        finance["hold"] = sum((row["hold_delta"] for row in ledger if row["operation_type"] in ("hold_credit","hold_release","manual_hold_release","hold_reversal")), ZERO)
         finance["released"] = sum((row["balance_delta"] for row in ledger if row["operation_type"] in ("hold_release","manual_hold_release")), ZERO)
     if uid is not None:
         # Respect the stage 5 real finance entitlement, including reservations and
@@ -114,9 +114,10 @@ def summarize(conn, uid, params):
                 for s in ("pending","approved","rejected","legacy","unknown")}
     count = sum(statuses[x] for x in ("pending","approved","rejected"))
     # Real EPC never uses the historic/demo earnings.
-    return {"clicks":int(clicks),"conversions":count,"statuses":statuses,
+    return {"clicks":int(clicks),"conversions":count,"approved_conversions":statuses["approved"],"statuses":statuses,
             "cr":round(100*count/clicks,2) if clicks else 0.0,
-            "epc":scalar(finance["released"] / clicks) if clicks else 0.0,
+            "approved_cr":round(100*statuses["approved"]/clicks,2) if clicks else 0.0,
+            "epc":scalar(finance["partner"] / clicks) if clicks else 0.0,
             "finance":{key:scalar(value) for key,value in finance.items()},
             "legacy_conversions":statuses["legacy"],"test_conversions":sum(bool(row["is_test"]) for row in conv),
             "historical_income_included":False}
