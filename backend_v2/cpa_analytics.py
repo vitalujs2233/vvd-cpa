@@ -94,11 +94,6 @@ def summarize(conn, uid, params):
                  l.platform_fee_delta
           FROM public.cpa_ledger l WHERE l.conversion_id=ANY(:ids)
         """), {"ids": ids}).mappings().all()
-        approved = {row["id"] for row in conv if row["is_real"] and row["status"]=="approved"}
-        totals = conn.execute(text("""
-          SELECT COALESCE(SUM(payout_gross),0) gross FROM public.conversions
-          WHERE id=ANY(:ids) AND status='approved'
-        """), {"ids": list(approved)}).one()
         # Gross is recognized only when a finance hold credit is actually posted.
         recognized = {r["conversion_id"] for r in ledger if r["operation_type"]=="hold_credit"}
         finance["gross"] = sum((Decimal(str(row["payout_gross"])) for row in conn.execute(text("SELECT id,payout_gross FROM public.conversions WHERE id=ANY(:ids)"),{"ids":list(recognized)}).mappings()), ZERO)
@@ -113,7 +108,7 @@ def summarize(conn, uid, params):
         from cpa_real_withdrawals import finance_balance_projection
         old = conn.execute(text("SELECT balance FROM public.users WHERE telegram_id=:uid"),
                            {"uid":uid}).scalar()
-        if old is not None:
+        if old is not None and conn.execute(text("SELECT activated_at IS NOT NULL FROM public.cpa_finance_epoch WHERE id=1")).scalar():
             finance["real_withdrawable"] = Decimal(str(finance_balance_projection(conn,uid,old)["real_withdrawable"]))
     statuses = {s:sum(1 for row in conv if row["normalized_status"]==s)
                 for s in ("pending","approved","rejected","legacy","unknown")}
