@@ -110,11 +110,11 @@ class PostbackTests(unittest.TestCase):
 
     def test_get_requires_verified_sender_and_preserves_post(self):
         url=f"/cpa/postback/{self.network_id}"
-        # A user-controlled forward header and correctly mapped query do not authenticate GET.
-        r=client.get(url,params={"test_click":self.click,"tx":"probe-get",
+        # A spoofed forwarded header and correct mapped fields never authenticate GET.
+        response=client.get(url,params={"test_click":self.click,"tx":"probe-get",
             "state":"waiting","price":"0","ccy":"USD"},
             headers={"X-Forwarded-For":"203.0.113.5"})
-        self.assertIn(r.status_code,(403,404))
+        self.assertIn(response.status_code,(403,404))
         settings=client.put(f"/cpa/admin/networks/{self.network_id}/postback",
             headers=auth(ADMIN),json={"postback_enabled":True,
                 "postback_method":"GET_QUERY",
@@ -123,8 +123,11 @@ class PostbackTests(unittest.TestCase):
                 "postback_status_map":{"waiting":"pending","hold":"pending",
                     "paid":"approved","cancel":"rejected"}})
         self.assertEqual(settings.status_code,422)
-        # Legacy POST remains fully functional after a rejected GET switch.
-        self.assertEqual(self.send(self.click,transaction="probe-post").status_code,200)
+        # A rejected GET change must leave the established POST method in place.
+        config=client.get(f"/cpa/admin/networks/{self.network_id}/postback",headers=auth(ADMIN))
+        self.assertEqual(config.status_code,200)
+        self.assertEqual(config.json()["postback_method"],"POST_JSON")
+        self.assertTrue(config.json()["postback_enabled"])
 
     def test_legacy_postbacks_fail_closed_without_financial_changes(self):
         # A known partner_code/click_id is NOT proof of the sender's identity.
