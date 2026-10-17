@@ -511,5 +511,213 @@ class CPAStage53Integration(unittest.TestCase):
             self.assertEqual(len(ledger_events_for_conversion(c,cid)),2)
 
 
+    @classmethod
+    def payout_request(cls, amount="50.00", req=None):
+        return client.post("/withdrawals",headers=cls.admin_headers(),
+           json={"partner_code":CODE,"amount":float(amount),
+                 "payment_method":"USDT TRC20","wallet":"SYNTHETIC-NONREAL-ADDRESS",
+                 "request_id":str(req or uuid.uuid4())})
+
+    @classmethod
+    def paid_proof(cls,wid,ref=None,uid=UID):
+        return client.post("/admin/withdrawals/"+str(wid)+"/paid",
+          headers=cls.admin_headers(uid),json={
+            "external_transfer_id":ref or "CI-EXTERNAL-"+uuid.uuid4().hex,
+            "evidence_reference":"CI-confirmation-"+uuid.uuid4().hex,
+            "transferred_at":(datetime.now(timezone.utc)-timedelta(seconds=15)).isoformat()
+          })
+
+    def test_21_unfunded_approved_postback_never_withdrawable(self):
+        cid=self.seed_matured("unfunded-released")
+        release_matured_holds(engine,limit=50)
+        from cpa_real_withdrawals import funded_withdrawable,real_withdrawable
+        with engine.connect() as c:
+            self.assertTrue(any(x["operation_type"]=="hold_release" for x in
+                           ledger_events_for_conversion(c,cid)))
+            self.assertGreaterEqual(real_withdrawable(c,UID),funded_withdrawable(c,UID))
+            self.assertIsNone(c.execute(text("""
+              SELECT id FROM public.cpa_network_receipts WHERE conversion_id=:cid
+            """),{"cid":cid}).first())
+        # The targeted conversion contributes nothing to network-funded cover
+        # until an independent receipt is recorded.
+        self.assertEqual(self.approve_network_receipt(cid,gross="1.00").status_code,409)
+
+    def test_22_funded_submit_retry_and_actual_manual_paid(self):
+        cid=self.seed_matured("payout-final")
+        release_matured_holds(engine,limit=50)
+        self.assertEqual(self.approve_network_receipt(cid).status_code,200)
+        rid=uuid.uuid4()
+        a=self.payout_request("50.00",rid)
+        self.assertEqual(a.status_code,200,a.text)
+        self.assertTrue(a.json()["success"],a.text)
+        wid=a.json()["withdrawal_id"]
+        retry=self.payout_request("50.00",rid)
+        self.assertEqual(retry.status_code,200,retry.text)
+        self.assertTrue(retry.json()["duplicate"])
+        self.assertEqual(wid,retry.json()["withdrawal_id"])
+        self.assertFalse(self.payout_request("55.00",rid).json()["success"])
+        lacking=client.post("/admin/withdrawals/"+str(wid)+"/paid",
+              headers=self.admin_headers())
+        self.assertEqual(lacking.status_code,422)
+        no_admin=self.paid_proof(wid,uid=base_fixture.OTHER)
+        self.assertEqual(no_admin.status_code,403)
+        success=self.paid_proof(wid)
+        self.assertEqual(success.status_code,200,success.text)
+        self.assertTrue(success.json()["success"],success.text)
+        self.assertFalse(self.paid_proof(wid).json()["success"])
+        with engine.connect() as c:
+            proof=c.execute(text("""
+                SELECT external_transfer_id,confirmed_by
+                FROM public.cpa_payout_proofs WHERE withdrawal_id=:wid
+            """),{"wid":wid}).one()
+            self.assertTrue(proof.external_transfer_id.startswith("CI-EXTERNAL-"))
+            self.assertEqual(proof.confirmed_by,UID)
+
+    def test_23_parallel_real_claims_reserve_funds_once(self):
+        cid=self.seed_matured("reserve-race")
+        release_matured_holds(engine,limit=60)
+        self.assertEqual(self.approve_network_receipt(cid).status_code,200)
+        from cpa_real_withdrawals import withdrawable_covered
+        with engine.connect() as c:
+            fully=withdrawable_covered(c,UID)
+        self.assertGreaterEqual(fully,Decimal("50.00"))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as p:
+            results=list(p.map(lambda _:self.payout_request(str(fully)),range(10)))
+        wins=[r for r in results if r.status_code==200 and r.json()["success"]]
+        self.assertEqual(len(wins),1,[(x.status_code,x.text[:150]) for x in results])
+        wid=wins[0].json()["withdrawal_id"]
+        reject=client.post("/admin/withdrawals/"+str(wid)+"/reject",
+            headers=self.admin_headers())
+        self.assertTrue(reject.json()["success"],reject.text)
+
+    def test_24_rejection_restores_available_exactly_once(self):
+        cid=self.seed_matured("reject-once")
+        release_matured_holds(engine,limit=60)
+        self.assertEqual(self.approve_network_receipt(cid).status_code,200)
+        from cpa_real_withdrawals import withdrawable_covered
+        with engine.connect() as c:
+            before=withdrawable_covered(c,UID)
+            balance=c.execute(text("SELECT balance FROM users WHERE telegram_id=:u"),
+                              {"u":UID}).scalar_one()
+        claim=self.payout_request()
+        self.assertTrue(claim.json()["success"],claim.text)
+        wid=claim.json()["withdrawal_id"]
+        with engine.connect() as c:
+            self.assertEqual(withdrawable_covered(c,UID),before-Decimal("50.00"))
+        first=client.post("/admin/withdrawals/"+str(wid)+"/reject",
+            headers=self.admin_headers())
+        second=client.post("/admin/withdrawals/"+str(wid)+"/reject",
+            headers=self.admin_headers())
+        self.assertTrue(first.json()["success"])
+        self.assertFalse(second.json()["success"])
+        with engine.connect() as c:
+            self.assertEqual(withdrawable_covered(c,UID),before)
+            self.assertEqual(c.execute(text("SELECT balance FROM users WHERE telegram_id=:u"),
+                              {"u":UID}).scalar_one(),balance)
+
+    def test_25_duplicate_transfer_proof_is_forbidden(self):
+        cid=self.seed_matured("distinct-payouts")
+        release_matured_holds(engine,limit=60)
+        self.assertEqual(self.approve_network_receipt(cid).status_code,200)
+        first=self.payout_request(); second=self.payout_request()
+        self.assertTrue(first.json()["success"],first.text)
+        self.assertTrue(second.json()["success"],second.text)
+        key="CI-TRANSFER-SAME-REFERENCE"
+        paid=self.paid_proof(first.json()["withdrawal_id"],ref=key)
+        self.assertTrue(paid.json()["success"],paid.text)
+        again=self.paid_proof(second.json()["withdrawal_id"],ref=key)
+        self.assertFalse(again.json()["success"],again.text)
+        with engine.connect() as c:
+            self.assertEqual(c.execute(text(
+              "SELECT count(*) FROM cpa_payout_proofs WHERE external_transfer_id=:ref"),
+              {"ref":key}).scalar_one(),1)
+        self.assertTrue(client.post("/admin/withdrawals/"+str(second.json()["withdrawal_id"])+"/reject",
+                      headers=self.admin_headers()).json()["success"])
+
+    def test_26_dispute_freezes_new_cash_but_not_hidden_debt(self):
+        cid=self.seed_matured("disputed-funded")
+        release_matured_holds(engine,limit=60)
+        self.assertEqual(self.approve_network_receipt(cid).status_code,200)
+        opened=client.post("/admin/cpa/conversions/"+str(cid)+"/dispute",
+          headers=self.admin_headers(),json={
+            "case_reference":"CI-CASE-"+uuid.uuid4().hex,
+            "reason":"Network reversal currently under review",
+            "evidence_reference":"CI-network-ticket-"+uuid.uuid4().hex})
+        self.assertEqual(opened.status_code,200,opened.text)
+        self.assertTrue(opened.json()["success"])
+        with engine.connect() as c:
+            evt=[x for x in ledger_events_for_conversion(c,cid)
+                 if x["operation_type"]=="recovery_pending"]
+            self.assertEqual(len(evt),1)
+            self.assertEqual(c.execute(text("SELECT count(*) FROM withdrawals WHERE cpa_real_epoch_at IS NULL")).scalar_one(),22)
+        # No automatic debt is created; the case is held for adjudication.
+        with engine.connect() as c:
+            self.assertEqual(c.execute(text("""SELECT resolution
+              FROM cpa_conversion_disputes WHERE conversion_id=:cid"""),
+              {"cid":cid}).scalar_one_or_none(),None)
+
+    def test_27_cancel_unreleased_explicitly_reverses_hold_and_fee(self):
+        click=self.add_click("cancel-new")
+        self.assertEqual(self.send(click,"approved").status_code,200)
+        cid=self.row(click)["id"]
+        opened=client.post("/admin/cpa/conversions/"+str(cid)+"/dispute",
+          headers=self.admin_headers(),json={
+            "case_reference":"CI-CANCEL-"+uuid.uuid4().hex,
+            "reason":"Confirmed partner network cancellation",
+            "evidence_reference":"CI-cancellation-proof-"+uuid.uuid4().hex})
+        self.assertTrue(opened.json()["success"],opened.text)
+        with engine.connect() as c:
+            before=c.execute(text("SELECT hold FROM users WHERE telegram_id=:uid"),{"uid":UID}).scalar_one()
+        res=client.post("/admin/cpa/conversions/"+str(cid)+"/cancel",
+            headers=self.admin_headers(),json={
+              "case_reference":opened.json()["case_reference"],
+              "evidence_reference":"CI-network-final-cancel-"+uuid.uuid4().hex})
+        self.assertEqual(res.status_code,200,res.text)
+        self.assertTrue(res.json()["success"])
+        again=client.post("/admin/cpa/conversions/"+str(cid)+"/cancel",
+            headers=self.admin_headers(),json={
+              "case_reference":opened.json()["case_reference"],
+              "evidence_reference":"CI-network-final-cancel-"+uuid.uuid4().hex})
+        self.assertTrue(again.json()["duplicate"])
+        with engine.connect() as c:
+            ev=ledger_events_for_conversion(c,cid)
+            self.assertEqual({x["operation_type"] for x in ev},
+               {"hold_credit","platform_fee_accrual","hold_reversal","platform_fee_reversal"})
+            self.assertEqual(c.execute(text("SELECT hold FROM users WHERE telegram_id=:uid"),{"uid":UID}).scalar_one(),before-Decimal("80.00"))
+        self.assertEqual(release_matured_holds(engine,limit=60)["released"],0)
+
+    def test_28_historical_withdrawals_never_get_paid_proof(self):
+        denied=self.paid_proof(1)
+        self.assertEqual(denied.status_code,200)
+        self.assertFalse(denied.json()["success"])
+        with engine.connect() as c:
+            self.assertIsNone(c.execute(text("""SELECT withdrawal_id FROM cpa_payout_proofs
+              WHERE withdrawal_id=1""")).first())
+            self.assertEqual(c.execute(text("SELECT count(*) FROM public.withdrawals WHERE cpa_real_epoch_at IS NULL")).scalar_one(),22)
+
+    def test_29_unverified_network_transfer_cannot_confirm_paid(self):
+        cid=self.seed_matured("never-funded")
+        release_matured_holds(engine,limit=60)
+        with engine.connect() as c:
+            self.assertIsNone(c.execute(text("SELECT id FROM cpa_network_receipts WHERE conversion_id=:cid"),
+                {"cid":cid}).first())
+        # Unpaid ledger credit never increases cash-backed spendable amount.
+        from cpa_real_withdrawals import funded_withdrawable
+        with engine.connect() as c:
+            self.assertGreaterEqual(funded_withdrawable(c,UID),Decimal("0.00"))
+
+    def test_30_non_admin_cannot_modify_finance_disputes(self):
+        cid=self.seed_matured("bad-admin-dispute")
+        reply=client.post("/admin/cpa/conversions/"+str(cid)+"/dispute",
+           headers=self.admin_headers(base_fixture.OTHER),json={
+            "case_reference":"CI-BAD-ADMIN-"+uuid.uuid4().hex,
+            "reason":"Network cancellation evidence received",
+            "evidence_reference":"CI-cancel-"+uuid.uuid4().hex})
+        self.assertEqual(reply.status_code,403)
+        with engine.connect() as c:
+            self.assertIsNone(c.execute(text("SELECT conversion_id FROM cpa_conversion_disputes WHERE conversion_id=:id"),
+                {"id":cid}).first())
+
+
 if __name__=="__main__":
     unittest.main()

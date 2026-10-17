@@ -49,6 +49,9 @@ interface Withdrawal {
   payment_method?: string | null;
   wallet?: string | null;
   status: string;
+  is_real_finance: boolean;
+  external_transfer_id?: string | null;
+  transferred_at?: string | null;
   created_at?: string | null;
   processed_at?: string | null;
 }
@@ -94,6 +97,7 @@ export const Admin: React.FC = () => {
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
   const [withdrawalFilter, setWithdrawalFilter] = useState<'all' | 'pending' | 'paid' | 'rejected'>('all');
+  const [withdrawalOrigin, setWithdrawalOrigin] = useState<'real'|'historical'>('real');
   const [withdrawalSearch, setWithdrawalSearch] = useState('');
   const [processingWithdrawalId, setProcessingWithdrawalId] = useState<number | null>(null);
   const [chatBanner, setChatBanner] = useState<ChatBanner | null>(null);
@@ -281,49 +285,67 @@ const saveChatBanner = async () => {
 };
   
   const processWithdrawal = async (withdrawalId: number, action: 'pay' | 'reject') => {
-    const question = action === 'pay'
-      ? 'Подтвердить выплату?'
-      : 'Отклонить заявку и вернуть средства?';
-
-    if (!window.confirm(question)) return;
-
+    const item = withdrawals.find(x => x.id === withdrawalId);
+    if (!item || !item.is_real_finance || item.status !== 'pending') {
+      window.alert('Исторические и уже обработанные заявки нельзя провести как реальные');
+      return;
+    }
+    let proof: {external_transfer_id:string;evidence_reference:string;transferred_at:string}|null = null;
+    if (action === 'pay') {
+      const reference = window.prompt('Только после ФАКТИЧЕСКОГО ручного перевода!\nВведите идентификатор выполненного перевода:');
+      if (!reference) return;
+      const evidence = window.prompt('Введите номер квитанции или подтверждения (не секретные реквизиты):');
+      if (!evidence) return;
+      const transferDate = window.prompt('Дата и время выполненного перевода в ISO 8601 (с часовым поясом):',
+        new Date().toISOString());
+      if (!transferDate) return;
+      if (reference.trim().length < 8 || evidence.trim().length < 8 ||
+          !Number.isFinite(Date.parse(transferDate))) {
+        window.alert('Укажите достоверные идентификаторы и дату перевода');
+        return;
+      }
+      proof = { external_transfer_id:reference.trim(),
+                evidence_reference:evidence.trim(), transferred_at:transferDate };
+    }
+    const confirmText = action === 'pay'
+      ? 'Подтвердить, что деньги действительно переведены ВНЕ приложения?\n' +
+        'Вебмастер: ' + (item.partner_code || item.telegram_id) +
+        '\nСумма: $' + item.amount.toFixed(2) +
+        '\nТранзакция: ' + proof?.external_transfer_id +
+        '\nПосле подтверждения заявка станет PAID без повторного перевода.'
+      : 'Отклонить реальную заявку и вернуть зарезервированные $' +
+        item.amount.toFixed(2) + ' ровно один раз?';
+    if (!window.confirm(confirmText)) return;
     try {
       triggerHaptic.lightImpact();
       setProcessingWithdrawalId(withdrawalId);
-
       const response = await authorizedFetch(
-        `https://vvd-cpa-v2.onrender.com/admin/withdrawals/${withdrawalId}/${action === 'pay' ? 'paid' : 'reject'}`,
-        { method: 'POST' }
+        'https://vvd-cpa-v2.onrender.com/admin/withdrawals/' + withdrawalId +
+          '/' + (action === 'pay' ? 'paid' : 'reject'),
+        { method:'POST', ...(proof ? {
+            headers: {'Content-Type':'application/json'},
+            body:JSON.stringify(proof),
+          } : {}) }
       );
       const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || data.detail || 'Ошибка обработки заявки');
-      }
-
-      setWithdrawals(prev =>
-        prev.map(item =>
-          item.id === withdrawalId
-            ? {
-                ...item,
-                status: action === 'pay' ? 'paid' : 'rejected',
-                processed_at: new Date().toISOString(),
-              }
-            : item
-        )
-      );
+      if (!response.ok || !data.success) throw new Error(data.message || data.detail || 'Ошибка обработки заявки');
+      setWithdrawals(prev => prev.map(x => x.id === withdrawalId
+        ? { ...x,status:action === 'pay' ? 'paid' : 'rejected',
+            external_transfer_id:proof?.external_transfer_id ?? x.external_transfer_id,
+            processed_at:new Date().toISOString() }
+        : x));
     } catch (error) {
       console.error('Ошибка обработки выплаты:', error);
       window.alert(error instanceof Error ? error.message : 'Ошибка обработки выплаты');
-    } finally {
-      setProcessingWithdrawalId(null);
-    }
+    } finally { setProcessingWithdrawalId(null); }
   };
 
   const filteredWithdrawals = useMemo(() => {
     const query = withdrawalSearch.toLowerCase().trim();
 
     return withdrawals.filter(item => {
+      if (withdrawalOrigin === 'real' && !item.is_real_finance) return false;
+      if (withdrawalOrigin === 'historical' && item.is_real_finance) return false;
       const matchesFilter = withdrawalFilter === 'all' || item.status === withdrawalFilter;
       const matchesSearch =
         !query ||
@@ -333,7 +355,7 @@ const saveChatBanner = async () => {
 
       return matchesFilter && matchesSearch;
     });
-  }, [withdrawals, withdrawalFilter, withdrawalSearch]);
+  }, [withdrawals, withdrawalFilter, withdrawalSearch, withdrawalOrigin]);
 
   const handleBackToProfile = () => {
     triggerHaptic.lightImpact();
@@ -835,6 +857,18 @@ const saveChatBanner = async () => {
             icon={<Search size={16} />}
           />
 
+          <div className="grid grid-cols-2 gap-2">
+            {(['real','historical'] as const).map(origin => (
+              <button key={origin} onClick={() => setWithdrawalOrigin(origin)}
+                className={'min-h-10 rounded-xl border text-xs font-bold ' +
+                  (withdrawalOrigin === origin
+                    ? 'bg-accentPurple/15 border-accentPurple/40 text-accentPurple'
+                    : 'bg-bgCard/40 border-white/10 text-textSecondary')}>
+                {origin === 'real' ? 'Реальные CPA' : 'Тестовая история'}
+              </button>
+            ))}
+          </div>
+
           <div className="grid grid-cols-4 gap-2">
             {([
               ['all', 'Все'],
@@ -893,6 +927,12 @@ const saveChatBanner = async () => {
                     </div>
                   </div>
 
+                  <div className="text-[10px] text-textSecondary">
+                    {item.is_real_finance ? 'Реальная CPA-заявка' : 'Историческая тестовая запись'}
+                    {item.external_transfer_id && <div className="text-success break-all">
+                      Подтверждение перевода: {item.external_transfer_id}
+                    </div>}
+                  </div>
                   <div className="border-t border-white/[0.05] pt-3">
                     <span className="text-[8px] text-textSecondary uppercase block">Кошелёк</span>
                     <span className="text-[10px] font-semibold text-white break-all">
@@ -906,7 +946,7 @@ const saveChatBanner = async () => {
                     </span>
                   )}
 
-                  {item.status === 'pending' && (
+                  {item.status === 'pending' && item.is_real_finance && (
                     <div className="grid grid-cols-2 gap-2 border-t border-white/[0.05] pt-3">
                       <Button
                         size="md"

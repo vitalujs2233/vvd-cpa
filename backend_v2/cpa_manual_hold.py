@@ -59,6 +59,11 @@ def _remaining(conn,hold_id,credit_amount):
 def _disputed(conn,conversion_id):
     # Do not release if ANY dispute, correction or financial recovery is
     # present for this conversion; human resolution is required first.
+    if conn.execute(text("""
+        SELECT 1 FROM public.cpa_conversion_disputes
+        WHERE conversion_id=:id AND resolution IS DISTINCT FROM 'cleared'
+    """),{"id":str(conversion_id)}).first():
+        return True
     return bool(conn.execute(text("""
         SELECT 1 FROM public.cpa_ledger WHERE conversion_id=:id
         AND operation_type IN ('recovery_pending','hold_reversal',

@@ -138,6 +138,10 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
             c.connection.cursor().execute(sql2)
             # Prove DDL migration can be re-applied.
             c.connection.cursor().execute(sql2)
+            # Draft Stage 5.4 + 5.5 additive financial-proof schema.
+            for extra in ("20261017_stage5_manual_hold_release.sql",
+                          "20261017_stage5_settled_payouts.sql"):
+                c.connection.cursor().execute((ROOT/"migrations"/extra).read_text())
             # Exercise the real activation function, but roll it back in CI.
             save=c.begin_nested()
             c.execute(text("SELECT public.cpa_activate_finance_epoch()"))
@@ -216,6 +220,15 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
                  "approved":T0+timedelta(days=2)})
             res=post_approved_hold(c,new_id)
             assert res["credited"] is True
+            c.execute(text("""
+              INSERT INTO public.cpa_network_receipts(conversion_id,
+                settlement_reference,verification_source,evidence_reference,
+                received_gross,received_at,verified_by)
+              VALUES (:id,:ref,'bank_verified',:proof,:gross,
+                clock_timestamp(),:admin)
+            """),{"id":new_id,"ref":"CI-SETTLED-"+str(new_id),
+                  "proof":"CI-bank-evidence-"+str(new_id),
+                  "gross":Decimal(gross),"admin":ADMIN})
             entries=ledger_events_for_conversion(c,new_id)
             hold=next(x for x in entries if x["operation_type"]=="hold_credit")
             c.execute(text("""INSERT INTO public.cpa_ledger
@@ -259,9 +272,15 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
 
     def test_05_admin_paid_twice_and_historical_denied(self):
         wid=self.first_request
-        paid=mark_real_paid(engine,wid)
+        paid=mark_real_paid(engine,wid,admin_uid=ADMIN,
+            transfer_reference="CI-TRANSFER-TEST-0001",
+            evidence_reference="CI-PAYOUT-PROOF-0001",
+            transferred_at=datetime.now(timezone.utc).isoformat())
         self.assertTrue(paid["success"],paid)
-        self.assertFalse(mark_real_paid(engine,wid)["success"])
+        self.assertFalse(mark_real_paid(engine,wid,admin_uid=ADMIN,
+            transfer_reference="CI-TRANSFER-TEST-0001",
+            evidence_reference="CI-PAYOUT-PROOF-0001",
+            transferred_at=datetime.now(timezone.utc).isoformat())["success"])
         self.assertFalse(mark_real_rejected(engine,wid)["success"])
         self.assertEqual(paid["amount"],50.0)
         with engine.connect() as c:
@@ -320,8 +339,11 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
             self.assertEqual(response.status_code,200)
             self.assertFalse(response.json()["success"])
             self.assertEqual(response.json()["message"],"Insufficient real CPA earnings")
-            with patch("main.send_partner_notification",new=AsyncMock()):
-                r=client.post("/admin/withdrawals/1/paid")
+            with patch("main.send_partner_notification",new=AsyncMock()), patch("main.verified_telegram_id",return_value=ADMIN):
+                r=client.post("/admin/withdrawals/1/paid",json={
+                    "external_transfer_id":"CI-HISTORY-FORBIDDEN-1",
+                    "evidence_reference":"CI-HISTORY-PROOF-1",
+                    "transferred_at":datetime.now(timezone.utc).isoformat()})
                 self.assertFalse(r.json()["success"])
                 self.assertIn("Historical",r.json()["message"])
         with engine.connect() as c:
@@ -440,6 +462,13 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
                   "uid":ADMIN,"eligible":T0+timedelta(days=1),
                   "approved":approval_time})
             post_approved_hold(c,cid)
+            c.execute(text("""
+              INSERT INTO public.cpa_network_receipts(conversion_id,
+                settlement_reference,verification_source,evidence_reference,
+                received_gross,received_at,verified_by)
+              VALUES (:cid,:ref,'bank_verified',:proof,100.00,clock_timestamp(),:admin)
+            """),{"cid":cid,"ref":"CI-HELD-SETTLEMENT-"+str(cid),
+                 "proof":"CI-bank-statement-"+str(cid),"admin":ADMIN})
         return cid
 
     def test_13_future_hold_release_contract_and_idempotency(self):
@@ -515,8 +544,11 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
                 balance=c.execute(text("""
                   SELECT balance FROM public.users WHERE telegram_id=:id
                 """),{"id":ADMIN}).scalar_one()
+            from cpa_real_withdrawals import funded_withdrawable
+            with engine.connect() as c:
+                cash=funded_withdrawable(c,ADMIN)
             self.assertAlmostEqual(payload["real_withdrawable"],
-                float(min(entitled,balance)),places=2)
+                float(min(entitled,cash,balance)),places=2)
             self.assertGreaterEqual(payload["available"],payload["real_withdrawable"])
 
 

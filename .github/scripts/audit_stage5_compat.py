@@ -118,6 +118,13 @@ with engine.begin() as c:
     c.connection.cursor().execute(sql21)
     c.connection.cursor().execute(sql23)
     assert snapshot(c)==before
+    # Complete additive stage-5 chain, including funding and payout proofs.
+    for version in ("20261017_stage5_manual_hold_release.sql",
+                    "20261017_stage5_settled_payouts.sql"):
+        c.connection.cursor().execute((root/version).read_text())
+    assert snapshot(c)==before,"Stage 5.4/5.5 changed historic finance data"
+    assert c.execute(text("SELECT count(*) FROM public.cpa_payout_proofs")).scalar_one()==0
+    assert c.execute(text("SELECT count(*) FROM public.cpa_conversion_disputes")).scalar_one()==0
 
 # Same database, now migrated with the exact three-PR sequence; signed,
 # isolated FastAPI routes must never create/approve real finance before launch.
@@ -152,7 +159,11 @@ pending=client.post("/withdrawals",headers=h,json={
   "payment_method":"TEST","wallet":"SYNTHETIC-NOT-PAYABLE"
 })
 assert pending.status_code==200 and pending.json()["success"] is False,pending.text
-confirmed=client.post("/admin/withdrawals/1/paid",headers=h)
+confirmed=client.post("/admin/withdrawals/1/paid",headers=h,json={
+  "external_transfer_id":"CI-AUDIT-BLOCK-OLD-0001",
+  "evidence_reference":"CI-AUDIT-RECEIPT-OLD-0001",
+  "transferred_at":"2026-10-01T12:00:00+00:00"
+})
 assert confirmed.status_code==200 and confirmed.json()["success"] is False,confirmed.text
 rejected=client.post("/admin/withdrawals/1/reject",headers=h)
 assert rejected.status_code==200 and rejected.json()["success"] is False,rejected.text

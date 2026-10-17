@@ -6,6 +6,8 @@ legacy users.balance is a separate technical solvency ceiling, never entitlement
 All changes use the existing backend_v2 SQLAlchemy engine and users row lock.
 """
 from decimal import Decimal
+from datetime import datetime,timezone
+from uuid import UUID
 from sqlalchemy import text
 
 from cpa_finance import money, lock_finance_scope, FinanceIneligible, FinanceInconsistent
@@ -92,6 +94,92 @@ def real_withdrawable(conn, user_id: int, epoch=None):
         raise RealFinanceInconsistent("Real CPA reservations exceed ledger releases")
     return raw.quantize(Decimal("0.01"))
 
+
+
+def funded_withdrawable(conn, user_id, epoch=None):
+    """Cash coverage, independent of postback approval, with no repeat funding.
+
+    A settlement reference is UNIQUE globally and each receipt belongs to ONE
+    real eligible conversion. One gross payment can never cover two partners.
+    Count released USD *net* only after that conversion's complete gross
+    has been independently matched to bank/processor records by admin.
+    Pending/paid real requests consume this coverage permanently until rejected.
+    """
+    epoch=epoch or epoch_row(conn)
+    funded=conn.execute(text("""
+      SELECT COALESCE(SUM(l.balance_delta),0)
+      FROM public.cpa_ledger l
+      JOIN public.conversions v ON v.id=l.conversion_id
+      JOIN public.clicks k ON k.click_id=v.click_id
+      JOIN public.cpa_network_receipts r ON r.conversion_id=v.id
+      WHERE l.user_id=:uid
+        AND l.operation_type IN ('hold_release','manual_hold_release','balance_reversal')
+        AND r.received_gross>=v.payout_gross
+        AND v.finance_eligible_at>=:cutover
+        AND v.created_at>=:cutover
+        AND v.finance_approved_at>=v.finance_eligible_at
+        AND v.status='approved' AND v.is_test=FALSE AND v.currency='USD'
+        AND k.id>:old_click AND k.user_id=v.user_id
+    """),{"uid":user_id,"cutover":epoch["activated_at"],
+          "old_click":epoch["legacy_max_click_row_id"]}).scalar_one()
+    # Reserve all unresolved disputed funds, even if the receipt was verified.
+    pending=conn.execute(text("""
+      SELECT COALESCE(SUM(p.amount),0)
+      FROM public.cpa_ledger p
+      JOIN public.conversions v ON v.id=p.conversion_id
+      JOIN public.clicks k ON k.click_id=v.click_id
+      JOIN public.cpa_network_receipts r ON r.conversion_id=v.id
+      WHERE p.user_id=:uid AND p.operation_type='recovery_pending'
+        AND r.received_gross>=v.payout_gross
+        AND v.finance_eligible_at>=:cutover AND v.created_at>=:cutover
+        AND v.finance_approved_at>=v.finance_eligible_at
+        AND v.status='approved' AND v.is_test=FALSE AND v.currency='USD'
+        AND k.id>:old_click AND k.user_id=v.user_id
+        AND NOT EXISTS(
+          SELECT 1 FROM public.cpa_ledger b
+          WHERE b.original_entry_id=p.original_entry_id
+            AND b.operation_type='balance_reversal'
+        )
+    """),{"uid":user_id,"cutover":epoch["activated_at"],
+          "old_click":epoch["legacy_max_click_row_id"]}).scalar_one()
+    committed=conn.execute(text("""
+      SELECT COALESCE(SUM(amount),0) FROM public.withdrawals
+      WHERE user_id=:uid AND cpa_real_epoch_at=:cutover
+        AND id>:old_withdrawal AND status IN ('pending','paid')
+    """),{"uid":user_id,"cutover":epoch["activated_at"],
+          "old_withdrawal":epoch["legacy_max_withdrawal_id"]}).scalar_one()
+    raw=Decimal(funded)-Decimal(pending)-Decimal(committed)
+    if raw<ZERO:
+        raise RealFinanceInconsistent("Real pending/paid obligations exceed verified network funds")
+    return raw.quantize(Decimal("0.01"))
+
+
+def withdrawable_covered(conn,uid,epoch=None):
+    epoch=epoch or epoch_row(conn)
+    return min(real_withdrawable(conn,uid,epoch),funded_withdrawable(conn,uid,epoch))
+
+def _request_uuid(value):
+    if value is None:
+        return None
+    try:
+        return UUID(str(value))
+    except (TypeError,ValueError) as exc:
+        raise ValueError("Invalid withdrawal request ID") from exc
+
+def _validate_transfer_proof(reference,evidence,transferred_at):
+    if not isinstance(reference,str) or not 8<=len(reference.strip())<=160:
+        raise ValueError("External transfer reference (8–160 characters) required")
+    if not isinstance(evidence,str) or not 8<=len(evidence.strip())<=200:
+        raise ValueError("Transfer confirmation reference (8–200 characters) required")
+    try:
+        if not isinstance(transferred_at,str):
+            raise ValueError()
+        t=datetime.fromisoformat(transferred_at.replace("Z","+00:00"))
+        if t.tzinfo is None or t>datetime.now(timezone.utc):
+            raise ValueError()
+    except ValueError as exc:
+        raise ValueError("Valid past transfer time with timezone required") from exc
+    return reference.strip(),evidence.strip(),t
 
 
 def release_matured_hold_contract(conn, conversion_id):
@@ -193,6 +281,11 @@ def release_matured_holds(engine, *, limit=100):
                     WHERE lr.original_entry_id=l.id
                       AND lr.operation_type IN ('hold_release','hold_reversal')
                   )
+                  AND NOT EXISTS (
+                    SELECT 1 FROM public.cpa_conversion_disputes d
+                    WHERE d.conversion_id=l.conversion_id
+                      AND d.resolution IS DISTINCT FROM 'cleared'
+                  )
                   AND l.amount > (
                     SELECT COALESCE(SUM(part.amount),0)
                     FROM public.cpa_ledger part
@@ -219,7 +312,7 @@ def finance_balance_projection(conn, user_id, legacy_balance):
         return {"real_withdrawable": 0.0, "real_finance_active": False,
                 "real_finance_available": False}
     try:
-        entitlement = real_withdrawable(conn, user_id, epoch)
+        entitlement = withdrawable_covered(conn, user_id, epoch)
         spendable = max(ZERO, min(entitlement, Decimal(legacy_balance)))
         return {"real_withdrawable": float(spendable),
                 "real_finance_active": True, "real_finance_available": True}
@@ -229,12 +322,16 @@ def finance_balance_projection(conn, user_id, legacy_balance):
                 "real_finance_available": False}
 
 
-def create_real_withdrawal(engine, *, partner_code, amount, payment_method, wallet):
+def create_real_withdrawal(engine, *, partner_code, amount, payment_method, wallet, request_id=None):
     """Atomic server-side replacement for the existing POST /withdrawals route."""
     try:
         requested = money(str(amount))
     except ValueError:
         return {"success": False, "message": "Invalid withdrawal amount"}
+    try:
+        request_key=_request_uuid(request_id)
+    except ValueError:
+        return {"success":False,"message":"Invalid withdrawal request ID"}
     if requested < Decimal("50.00"):
         return {"success": False, "message": "Minimum withdrawal amount is $50"}
     if not partner_code:
@@ -248,9 +345,21 @@ def create_real_withdrawal(engine, *, partner_code, amount, payment_method, wall
         """), {"code":partner_code}).mappings().first()
         if not user:
             return {"success":False,"message":"Partner not found"}
+        if request_key is not None:
+            existing=conn.execute(text("""
+                SELECT id,amount,payment_method,wallet,status FROM public.withdrawals
+                WHERE user_id=:uid AND cpa_request_id=:key
+            """),{"uid":user["telegram_id"],"key":request_key}).mappings().first()
+            if existing:
+                if (Decimal(existing["amount"])!=requested or
+                    existing["payment_method"]!=payment_method or
+                    existing["wallet"]!=wallet):
+                    return {"success":False,"message":"Withdrawal idempotency key conflict"}
+                return {"success":True,"duplicate":True,"withdrawal_id":int(existing["id"]),
+                        "amount":float(requested),"status":existing["status"]}
         try:
             epoch = epoch_row(conn)
-            entitled = real_withdrawable(conn,int(user["telegram_id"]),epoch)
+            entitled = withdrawable_covered(conn,int(user["telegram_id"]),epoch)
         except (RealFinanceDisabled, RealFinanceInconsistent):
             return {"success":False,"message":"Real CPA finance unavailable"}
         # Ledger is the actual entitlement; balance is only an extra safety ceiling.
@@ -261,12 +370,12 @@ def create_real_withdrawal(engine, *, partner_code, amount, payment_method, wall
         row = conn.execute(text("""
             INSERT INTO public.withdrawals
              (user_id,partner_code,amount,payment_method,wallet,status,
-              created_at,cpa_real_epoch_at)
-            VALUES(:uid,:code,:amount,:method,:wallet,'pending',NOW(),:cutover)
+              created_at,cpa_real_epoch_at,cpa_request_id)
+            VALUES(:uid,:code,:amount,:method,:wallet,'pending',NOW(),:cutover,:request_id)
             RETURNING id,created_at
         """), {"uid":user["telegram_id"],"code":user["partner_code"],
                "amount":requested,"method":payment_method,"wallet":wallet,
-               "cutover":epoch["activated_at"]}).one()
+               "cutover":epoch["activated_at"],"request_id":request_key}).one()
         changed = conn.execute(text("""
             UPDATE public.users SET balance=balance-:amount
             WHERE telegram_id=:uid AND balance>=:amount
@@ -279,10 +388,20 @@ def create_real_withdrawal(engine, *, partner_code, amount, payment_method, wall
                 "status":"pending","created_at":str(row.created_at)}
 
 
-def _process_real_withdrawal(engine, withdrawal_id, decision):
+def _process_real_withdrawal(engine, withdrawal_id, decision, *,
+                             admin_uid=None, transfer_reference=None,
+                             evidence_reference=None, transferred_at=None):
     """Mark one *real* pending request once, atomically; never pay externally."""
     if decision not in ("paid","rejected"):
         raise ValueError("Unsupported withdrawal status")
+    if decision=="paid":
+        if admin_uid is None:
+            return {"success":False,"message":"Signed admin confirmation is required"}
+        try:
+            reference,evidence,transferred=_validate_transfer_proof(
+                transfer_reference,evidence_reference,transferred_at)
+        except ValueError as exc:
+            return {"success":False,"message":str(exc)}
     with engine.begin() as conn:
         # Read user id without a lock, then lock user BEFORE withdrawal.
         # This follows the same lock order as request creation.
@@ -314,9 +433,24 @@ def _process_real_withdrawal(engine, withdrawal_id, decision):
         # Reversals can invalidate an already-reserved payment before it is paid.
         if decision == "paid":
             try:
-                real_withdrawable(conn, int(row["user_id"]), epoch)
+                # Zero available is legitimate after a fully reserved request;
+                # BOTH reservations must be solvent before cash is marked paid.
+                real_withdrawable(conn,int(row["user_id"]),epoch)
+                funded_withdrawable(conn,int(row["user_id"]),epoch)
             except RealFinanceInconsistent:
-                return {"success":False,"message":"CPA release was reversed; payment blocked"}
+                return {"success":False,"message":"Unfunded or disputed CPA obligation; payment blocked"}
+            # Insert immutable evidence BEFORE status changes. The separate
+            # PostgreSQL trigger forbids bypassing proof from any SQL route.
+            proof_saved=conn.execute(text("""
+                INSERT INTO public.cpa_payout_proofs
+                (withdrawal_id,external_transfer_id,evidence_reference,
+                 transferred_at,confirmed_by)
+                VALUES(:wid,:reference,:evidence,:transferred,:admin)
+                ON CONFLICT DO NOTHING RETURNING withdrawal_id
+            """),{"wid":withdrawal_id,"reference":reference,
+                  "evidence":evidence,"transferred":transferred,"admin":admin_uid}).first()
+            if not proof_saved:
+                return {"success":False,"message":"Transfer proof already used; paid status not changed"}
         # Reject marks reservation released; paid stays a permanent spend.
         conn.execute(text("""
             UPDATE public.withdrawals SET status=:decision,processed_at=NOW()
@@ -337,8 +471,11 @@ def _process_real_withdrawal(engine, withdrawal_id, decision):
                 "user_id":int(row["user_id"]),"payment_method":row["payment_method"]}
 
 
-def mark_real_paid(engine, withdrawal_id):
-    return _process_real_withdrawal(engine,withdrawal_id,"paid")
+def mark_real_paid(engine, withdrawal_id, *, admin_uid=None,
+                   transfer_reference=None,evidence_reference=None,transferred_at=None):
+    return _process_real_withdrawal(engine,withdrawal_id,"paid",
+        admin_uid=admin_uid,transfer_reference=transfer_reference,
+        evidence_reference=evidence_reference,transferred_at=transferred_at)
 
 
 def mark_real_rejected(engine, withdrawal_id):

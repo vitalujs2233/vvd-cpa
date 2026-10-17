@@ -23,6 +23,8 @@ from sqlalchemy.exc import ProgrammingError
 from access_guard import access_guard, authorized_admin
 from cpa_manual_hold import (read_partner_hold, record_verified_receipt,
                              manual_release, ManualReleaseDenied)
+from cpa_finance_corrections import register_dispute, confirm_cancellation
+
 from stars_payments import verified_telegram_id
 from urllib.parse import parse_qs
 from aiogram.types import Update
@@ -127,6 +129,7 @@ class WithdrawalRequest(BaseModel):
     amount: float
     payment_method: str
     wallet: str
+    request_id: str | None = None
 
 
 @app.post("/auth")
@@ -1442,6 +1445,36 @@ async def cpa_release_hold(partner_code: str, data: CPAManualReleaseRequest, req
     except (ManualReleaseDenied,ValueError) as exc:
         raise HTTPException(409,str(exc)) from exc
 
+# ==================== CPA FINANCIAL CORRECTIONS ====================
+class CPADisputeRequest(BaseModel):
+    case_reference: str
+    reason: str
+    evidence_reference: str
+
+class CPACancellationRequest(BaseModel):
+    case_reference: str
+    evidence_reference: str
+
+@app.post("/admin/cpa/conversions/{conversion_id}/dispute")
+async def cpa_open_dispute(conversion_id: str, data: CPADisputeRequest, request: Request):
+    admin_uid=_cpa_admin_actor(request)
+    try:
+        return register_dispute(engine,conversion_id=conversion_id,
+          case_reference=data.case_reference,reason=data.reason,
+          evidence_reference=data.evidence_reference,admin_uid=admin_uid)
+    except (ManualReleaseDenied,ValueError) as exc:
+        raise HTTPException(409,str(exc)) from exc
+
+@app.post("/admin/cpa/conversions/{conversion_id}/cancel")
+async def cpa_confirm_cancellation(conversion_id: str, data: CPACancellationRequest, request: Request):
+    admin_uid=_cpa_admin_actor(request)
+    try:
+        return confirm_cancellation(engine,conversion_id=conversion_id,
+          case_reference=data.case_reference,evidence_reference=data.evidence_reference,
+          admin_uid=admin_uid)
+    except (ManualReleaseDenied,ValueError) as exc:
+        raise HTTPException(409,str(exc)) from exc
+
 # ==================== WITHDRAWALS ====================
 
 @app.post("/withdrawals")
@@ -1449,7 +1482,7 @@ async def create_withdrawal(data: WithdrawalRequest):
     return create_real_withdrawal(
         engine, partner_code=data.partner_code.strip(),
         amount=data.amount, payment_method=data.payment_method.strip(),
-        wallet=data.wallet.strip(),
+        wallet=data.wallet.strip(),request_id=data.request_id,
     )
 
 @app.get("/withdrawals/{partner_code}")
@@ -1485,7 +1518,7 @@ async def get_withdrawals(partner_code: str):
                     status,
                     created_at,
                     processed_at,
-                    cpa_real_epoch_at
+                    cpa_real_epoch_at,cpa_request_id
                 FROM withdrawals
                 WHERE partner_code = :partner_code
                 ORDER BY created_at DESC
@@ -1520,9 +1553,12 @@ async def admin_withdrawals(status: str | None = None):
         rows = conn.execute(text("""
             SELECT w.id, w.user_id, w.amount, w.payment_method,
                    w.wallet, w.status, w.created_at, w.processed_at,
-                   w.cpa_real_epoch_at,
+                   w.cpa_real_epoch_at,p.external_transfer_id,
+                   p.evidence_reference AS transfer_evidence,
+                   p.transferred_at,
                    u.partner_code, u.first_name, u.last_name, u.username
             FROM withdrawals w
+            LEFT JOIN public.cpa_payout_proofs p ON p.withdrawal_id=w.id
             LEFT JOIN users u ON u.telegram_id = w.user_id
             WHERE (:status IS NULL OR w.status = :status)
             ORDER BY CASE WHEN w.status = 'pending' THEN 0 ELSE 1 END,
@@ -1543,6 +1579,9 @@ async def admin_withdrawals(status: str | None = None):
             "wallet": r.wallet,
             "status": r.status,
             "is_real_finance": r.cpa_real_epoch_at is not None,
+            "external_transfer_id": r.external_transfer_id,
+            "transfer_evidence": r.transfer_evidence,
+            "transferred_at": str(r.transferred_at) if r.transferred_at else None,
             "created_at": str(r.created_at),
             "processed_at": str(r.processed_at) if r.processed_at else None
         } for r in rows]
@@ -1576,9 +1615,17 @@ async def send_partner_notification(telegram_id: int, message: str):
         print("Telegram notification error:", error)
 
 
+class CPAExternalTransferProof(BaseModel):
+    external_transfer_id: str
+    evidence_reference: str
+    transferred_at: str
+
 @app.post("/admin/withdrawals/{withdrawal_id}/paid")
-async def mark_withdrawal_paid(withdrawal_id: int):
-    result = mark_real_paid(engine, withdrawal_id)
+async def mark_withdrawal_paid(withdrawal_id: int, data: CPAExternalTransferProof, request: Request):
+    admin_uid=_cpa_admin_actor(request)
+    result = mark_real_paid(engine, withdrawal_id,
+        admin_uid=admin_uid,transfer_reference=data.external_transfer_id,
+        evidence_reference=data.evidence_reference,transferred_at=data.transferred_at)
     if not result["success"]:
         return result
     await send_partner_notification(
