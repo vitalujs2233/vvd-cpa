@@ -1,5 +1,6 @@
 name: VVD CPA encrypted PG17 backup and restore trial
 on:
+  workflow_dispatch:
   push:
     branches: [ops/verified-backup-20261017]
 permissions:
@@ -7,6 +8,7 @@ permissions:
 jobs:
   encrypted-backup:
     name: Read-only full dump + isolated PostgreSQL 17 restore
+    if: github.ref == 'refs/heads/ops/verified-backup-20261017'
     runs-on: ubuntu-latest
     environment: vvd-backup-20261017
     timeout-minutes: 35
@@ -59,10 +61,20 @@ jobs:
             --passphrase-file "$RUNNER_TEMP/passphrase" --symmetric \
             --cipher-algo AES256 --s2k-digest-algo SHA256 \
             --output "$RUNNER_TEMP/vvd-backup-20261017.tar.gpg" "$RUNNER_TEMP/vvd-backup.tar"
+          # Decrypt the ciphertext and verify the checksums of BOTH original
+          # database dump and globals; abort BEFORE trial restore or upload
+          # if integrity validation fails. Never print database contents.
+          mkdir -m 700 "$RUNNER_TEMP/vvd-verified"
           gpg --batch --yes --pinentry-mode loopback \
             --passphrase-file "$RUNNER_TEMP/passphrase" \
-            --decrypt "$RUNNER_TEMP/vvd-backup-20261017.tar.gpg" 2>/dev/null | tar -t >/dev/null
-          rm -f "$RUNNER_TEMP/passphrase"
+            --output "$RUNNER_TEMP/vvd-verified.tar" \
+            --decrypt "$RUNNER_TEMP/vvd-backup-20261017.tar.gpg"
+          tar -xf "$RUNNER_TEMP/vvd-verified.tar" -C "$RUNNER_TEMP/vvd-verified"
+          (cd "$RUNNER_TEMP/vvd-verified" && sha256sum --check --status SHA256SUMS)
+          cmp "$RUNNER_TEMP/vvd-private/full.dump" "$RUNNER_TEMP/vvd-verified/full.dump"
+          cmp "$RUNNER_TEMP/vvd-private/roles.sql" "$RUNNER_TEMP/vvd-verified/roles.sql"
+          rm -f "$RUNNER_TEMP/vvd-verified.tar" "$RUNNER_TEMP/passphrase"
+          echo "::notice::Encrypted archive decrypted and SHA-256 verified"
       - name: Trial restore public schema to isolated PostgreSQL 17
         shell: bash
         run: |
@@ -84,7 +96,7 @@ jobs:
               ||' clicks='||(SELECT count(*) FROM public.clicks)"
           echo "::notice::PG17 test restored public schema; full Supabase-native restore still requires independent validation"
       - name: Upload ONLY encrypted artifact (7-day retention)
-        if: ${{ always() }}
+        if: ${{ success() }}
         uses: actions/upload-artifact@v4
         with:
           name: VVD-CPA-ENCRYPTED-POSTGRES17
@@ -95,5 +107,5 @@ jobs:
         if: ${{ always() }}
         shell: bash
         run: |
-          rm -rf "$RUNNER_TEMP/vvd-private" "$RUNNER_TEMP/vvd-backup.tar" "$RUNNER_TEMP/passphrase"
+          rm -rf "$RUNNER_TEMP/vvd-private" "$RUNNER_TEMP/vvd-verified" "$RUNNER_TEMP/vvd-verified.tar" "$RUNNER_TEMP/vvd-backup.tar" "$RUNNER_TEMP/passphrase"
           docker rm -f vvd-pg17-restore >/dev/null 2>&1 || true
