@@ -151,6 +151,8 @@ class PostbackTests(unittest.TestCase):
             c.execute(text("CREATE TABLE IF NOT EXISTS public.cpa_finance_epoch (id SMALLINT PRIMARY KEY,activated_at TIMESTAMPTZ,legacy_max_click_row_id BIGINT)"))
             c.execute(text("INSERT INTO public.cpa_finance_epoch(id,activated_at) VALUES(1,NULL) ON CONFLICT(id) DO NOTHING"))
             c.execute(text("CREATE TABLE IF NOT EXISTS public.cpa_ledger (id BIGSERIAL PRIMARY KEY,conversion_id UUID,user_id BIGINT,operation_type TEXT,hold_delta NUMERIC(12,2) DEFAULT 0,balance_delta NUMERIC(12,2) DEFAULT 0,platform_fee_delta NUMERIC(12,2) DEFAULT 0)"))
+            c.execute(text("ALTER TABLE public.clicks ADD COLUMN IF NOT EXISTS country_code VARCHAR(2)"))
+            c.execute(text("ALTER TABLE public.clicks ADD COLUMN IF NOT EXISTS country_name TEXT"))
             c.execute(text("ALTER TABLE public.conversions ADD COLUMN IF NOT EXISTS finance_eligible_at TIMESTAMPTZ"))
             c.execute(text("ALTER TABLE public.conversions ADD COLUMN IF NOT EXISTS finance_approved_at TIMESTAMPTZ"))
             ledger_before=c.execute(text("SELECT COUNT(*) FROM public.cpa_ledger")).scalar_one()
