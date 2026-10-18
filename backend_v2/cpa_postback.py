@@ -271,7 +271,7 @@ async def receive_get_postback(network_id:int,request:Request,
     if len(raw_query)>4096:
         raise HTTPException(413,"Query too large")
     params=request.query_params
-    if len(params)!=len(set(params.keys())):
+    if len(list(params.multi_items()))!=len(set(params.keys())):
         raise HTTPException(422,"Duplicate postback fields")
     if any(k.lower() in ("key","secret","token","password","api_key",
                          "x_vvd_postback_key") for k in params.keys()):
