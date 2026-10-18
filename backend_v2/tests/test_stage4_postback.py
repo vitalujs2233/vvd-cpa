@@ -228,7 +228,11 @@ class PostbackTests(unittest.TestCase):
         with engine.begin() as c:
             c.execute(text("UPDATE cpa_networks SET postback_method='GET_QUERY' WHERE id=:id"),
                 {"id":self.network_id})
-        data={"test_click":self.click2,"tx":"get-post-"+self.tag,
+        unique_click='get-test-'+self.tag
+        with engine.begin() as c:
+            c.execute(text("INSERT INTO clicks(user_id,partner_code,click_id,vertical,offer_id,network_id) VALUES(:uid,'VVD964001',:click,'utilities',:offer,:network)"),
+                      {'uid':UID,'click':unique_click,'offer':self.offer,'network':self.network_id})
+        data={'test_click':unique_click,'tx':'get-post-'+self.tag,
               "state":"waiting","price":"0","ccy":"USD"}
         endpoint=f"/cpa/postback/{self.network_id}"
         try:
@@ -251,7 +255,7 @@ class PostbackTests(unittest.TestCase):
             with engine.connect() as c:
                 row=c.execute(text("""SELECT user_id,partner_code,status,is_test,
                     payout_net,payout_gross FROM conversions WHERE click_id=:click"""),
-                    {"click":self.click2}).mappings().one()
+                    {"click":unique_click}).mappings().one()
                 self.assertEqual((row["user_id"],row["partner_code"],row["status"]),
                                  (UID,"VVD964001","pending"))
                 self.assertTrue(row["is_test"])
@@ -259,7 +263,8 @@ class PostbackTests(unittest.TestCase):
         finally:
             with engine.begin() as c:
                 c.execute(text("DELETE FROM conversions WHERE click_id=:click"),
-                    {"click":self.click2})
+                    {"click":unique_click})
+                c.execute(text("DELETE FROM clicks WHERE click_id=:click"),{"click":unique_click})
                 c.execute(text("UPDATE cpa_networks SET postback_method='POST_JSON' WHERE id=:id"),
                     {"id":self.network_id})
 
