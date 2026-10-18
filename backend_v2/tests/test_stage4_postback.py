@@ -146,6 +146,13 @@ class PostbackTests(unittest.TestCase):
             before=tuple(c.execute(text("SELECT balance,hold,withdrawn FROM users WHERE telegram_id=:uid"),{"uid":UID}).one())
             before_other=tuple(c.execute(text("SELECT balance,hold,withdrawn FROM users WHERE telegram_id=:uid"),{"uid":owner2}).one())
         created=[]
+        # Finance epoch and ledger exist only in the isolated PG17 fixture.
+        with engine.begin() as c:
+            c.execute(text("CREATE TABLE IF NOT EXISTS public.cpa_finance_epoch (id SMALLINT PRIMARY KEY,activated_at TIMESTAMPTZ,legacy_max_click_row_id BIGINT)"))
+            c.execute(text("INSERT INTO public.cpa_finance_epoch(id,activated_at) VALUES(1,NULL) ON CONFLICT(id) DO NOTHING"))
+            c.execute(text("CREATE TABLE IF NOT EXISTS public.cpa_ledger (id BIGSERIAL PRIMARY KEY,conversion_id UUID,user_id BIGINT,operation_type TEXT,hold_delta NUMERIC(12,2) DEFAULT 0,balance_delta NUMERIC(12,2) DEFAULT 0,platform_fee_delta NUMERIC(12,2) DEFAULT 0)"))
+            ledger_before=c.execute(text("SELECT COUNT(*) FROM public.cpa_ledger")).scalar_one()
+            payouts_before=c.execute(text("SELECT COUNT(*) FROM public.withdrawals")).scalar_one()
         try:
             for suffix,expected_code in ((owner_suffix,"VVD964001"),(owner_suffix,"VVD964001"),(other_suffix,code2)):
                 r=client.get("/r/"+suffix)
@@ -184,6 +191,23 @@ class PostbackTests(unittest.TestCase):
                 self.assertEqual(tuple(c.execute(text("SELECT balance,hold,withdrawn FROM users WHERE telegram_id=:uid"),{"uid":owner2}).one()),before_other)
                 self.assertEqual(c.execute(text("SELECT count(*) FROM conversions WHERE click_id IN (:a,:b,:d)"),
                    {"a":created[0][0],"b":created[1][0],"d":created[2][0]}).scalar_one(),3)
+                self.assertEqual(c.execute(text("SELECT COUNT(*) FROM public.cpa_ledger")).scalar_one(),ledger_before)
+                self.assertEqual(c.execute(text("SELECT COUNT(*) FROM public.withdrawals")).scalar_one(),payouts_before)
+            first=client.get(f"/statistics/{UID}",headers=auth(UID),
+                params={"offer_id":self.offer,"network_id":self.network_id})
+            second=client.get(f"/statistics/{owner2}",headers=auth(owner2),
+                params={"offer_id":fixture_offer,"network_id":self.network_id})
+            self.assertEqual(first.status_code,200,first.text)
+            self.assertEqual(second.status_code,200,second.text)
+            a=first.json()["summary"]
+            b=second.json()["summary"]
+            self.assertEqual((a["clicks"],a["conversions"],a["statuses"]["pending"]),(2,2,2))
+            self.assertEqual((b["clicks"],b["conversions"],b["statuses"]["pending"]),(1,1,1))
+            for summary in (a,b):
+                self.assertEqual(summary["earned"],0)
+                self.assertEqual(summary["on_hold"],0)
+                self.assertEqual(summary["real_withdrawable"],0)
+                self.assertEqual(summary["epc"],0)
         finally:
             with engine.begin() as c:
                 for click,_ in created:
