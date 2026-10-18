@@ -21,7 +21,7 @@ ALLOWED={"pending","approved","rejected"}
 PARAM=re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,47}$")
 SAFE_ID=re.compile(r"^[\w:.\-]{1,120}$",re.ASCII)
 EXTERNAL_STATUS=re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,47}$")
-NEUTRAL=frozenset({"utilities","education","productivity","software","technology"})
+
 DEFAULT_PARAMS={"click":"click_id","transaction":"transaction_id","status":"status","amount":"amount","currency":"currency"}
 DEFAULT_MAP={"pending":"pending","approved":"approved","rejected":"rejected"}
 
@@ -32,12 +32,14 @@ def admin(raw):
 
 class ProviderConfig(BaseModel):
     postback_enabled:bool=False
+    postback_method:str=Field("POST_JSON",pattern="^(POST_JSON|GET_QUERY)$")
     postback_params:dict[str,str]=Field(default_factory=lambda:dict(DEFAULT_PARAMS))
     postback_status_map:dict[str,str]=Field(default_factory=lambda:dict(DEFAULT_MAP))
     @field_validator("postback_params")
     @classmethod
     def params_valid(cls,v):
-        if set(v)!=set(DEFAULT_PARAMS) or len(set(v.values()))!=len(v) or not all(PARAM.fullmatch(x) for x in v.values()):
+        if (set(v)!=set(DEFAULT_PARAMS) or len(set(v.values()))!=len(v)
+            or not all(PARAM.fullmatch(x) and x.lower()!="vvd_key" for x in v.values())):
             raise ValueError("Invalid/duplicate parameter names")
         return v
     @field_validator("postback_status_map")
@@ -51,20 +53,26 @@ class ProviderConfig(BaseModel):
 def get_provider(network_id:int,x_telegram_init_data:str|None=Header(None)):
     admin(x_telegram_init_data)
     with engine.connect() as c:
-        row=c.execute(text("""SELECT postback_enabled,postback_params,postback_status_map,
+        row=c.execute(text("""SELECT postback_enabled,postback_method,postback_params,postback_status_map,
              postback_key_hash IS NOT NULL AS configured,postback_last_received_at
              FROM cpa_networks WHERE id=:id"""),{"id":network_id}).mappings().first()
     if not row:raise HTTPException(404,"Network not found")
-    return {**dict(row),"endpoint":f"https://vvd-cpa-v2.onrender.com/cpa/postback/{network_id}"}
+    # Per-network bearer secret: providers that cannot send headers can put it
+    # in the HTTPS GET callback URL as vvd_key. Never return its plaintext.
+    return {**dict(row),"get_auth_ready":bool(row["configured"]),
+        "get_auth_reason":"Создайте индивидуальный секрет для GET-ссылки",
+        "endpoint":f"https://vvd-cpa-v2.onrender.com/cpa/postback/{network_id}"}
 
 @router.put("/admin/networks/{network_id}/postback")
 def configure_provider(network_id:int,payload:ProviderConfig,x_telegram_init_data:str|None=Header(None)):
     admin(x_telegram_init_data)
+    # GET_QUERY networks may receive authenticated POST/JSON from the existing gateway.
+    # Direct GET authentication remains enforced separately.
     with engine.begin() as c:
         row=c.execute(text("""UPDATE cpa_networks SET postback_enabled=:enabled,
-          postback_params=CAST(:params AS jsonb),postback_status_map=CAST(:map AS jsonb)
+          postback_method=:method,postback_params=CAST(:params AS jsonb),postback_status_map=CAST(:map AS jsonb)
           WHERE id=:id RETURNING id"""),{"id":network_id,"enabled":payload.postback_enabled,
-          "params":json.dumps(payload.postback_params),"map":json.dumps(payload.postback_status_map)}).first()
+          "method":payload.postback_method,"params":json.dumps(payload.postback_params),"map":json.dumps(payload.postback_status_map)}).first()
     if not row:raise HTTPException(404,"Network not found")
     return {"ok":True}
 
@@ -112,10 +120,13 @@ def _accept(c,provider,raw,supplied_key,network_id,is_test=False):
             or not re.fullmatch(r"[A-Z]{3}",currency)):
         raise HTTPException(422,"Invalid postback fields")
     found=c.execute(text("""SELECT c.id,c.user_id,c.partner_code,c.offer_id,
-      c.vertical,c.network_id FROM clicks c WHERE c.click_id=:click"""),
+      c.vertical,c.network_id,u.cpa_link_allowed AND u.is_active AS allowed
+      FROM clicks c JOIN offers o ON o.id=c.offer_id
+      JOIN cpa_verticals u ON u.slug=o.vertical_slug
+      WHERE c.click_id=:click AND o.network_id=c.network_id AND o.vertical_slug=c.vertical"""),
       {"click":click}).mappings().first()
     if (not found or found["network_id"]!=network_id or not found["offer_id"]
-            or found["vertical"] not in NEUTRAL):
+            or not found["allowed"]):
         LOG.warning("cpa_postback_rejected reason=unattributed network_id=%s",network_id)
         raise HTTPException(404,"Attributed click not found")
 
@@ -244,11 +255,56 @@ async def receive_postback(network_id:int,request:Request,
     if len(raw)>4096:raise HTTPException(413,"Payload too large")
     with engine.begin() as c:
         provider=c.execute(text("""SELECT id,postback_enabled,postback_key_hash,
-          postback_params,postback_status_map FROM cpa_networks WHERE id=:id FOR UPDATE"""),
+          postback_method,postback_params,postback_status_map FROM cpa_networks WHERE id=:id FOR UPDATE"""),
           {"id":network_id}).mappings().first()
         if not provider or not provider["postback_enabled"] or not provider["postback_key_hash"]:
             raise HTTPException(404,"Source unavailable")
+        if provider["postback_method"] not in ("POST_JSON","GET_QUERY"):
+            raise HTTPException(405,"Unsupported postback method")
+        # GET_QUERY labels the provider's inbound format; only authenticated
+        # POST/JSON from the trusted gateway reaches this handler.
+        # Direct GET remains denied and no client-supplied IP is trusted.
         return _accept(c,provider,raw,x_vvd_postback_key,network_id)
+
+@router.get("/postback/{network_id}")
+async def receive_get_postback(network_id:int,request:Request,
+                               x_vvd_postback_key:str|None=Header(None)):
+    # Accept either the existing network-specific HTTPS header or a high-entropy
+    # per-network bearer key in a provider's HTTPS callback URL. Do not accept
+    # unauthenticated financial events or trust client-controlled IP headers.
+    raw_query=request.scope.get("query_string",b"")
+    if len(raw_query)>4096:
+        raise HTTPException(413,"Query too large")
+    params=request.query_params
+    # Minimise accidental disclosure in downstream access logging. Reverse
+    # proxies may still log the original URL, so the bearer token is sensitive.
+    request.scope["query_string"]=b""
+    if len(list(params.multi_items()))!=len(set(params.keys())):
+        raise HTTPException(422,"Duplicate postback fields")
+    if any(k.lower() in ("key","secret","token","password","api_key",
+                         "x_vvd_postback_key") for k in params.keys()):
+        raise HTTPException(422,"Unexpected secret parameter")
+    query_key=params.get("vvd_key")
+    if query_key is not None and x_vvd_postback_key is not None:
+        raise HTTPException(422,"Use one postback authentication method")
+    auth_key=query_key if query_key is not None else x_vvd_postback_key
+    cleaned=dict(params)
+    cleaned.pop("vvd_key",None)
+    raw=json.dumps(cleaned,separators=(",",":")).encode()
+    if len(raw)>4096:
+        raise HTTPException(413,"Payload too large")
+    with engine.begin() as c:
+        provider=c.execute(text("""SELECT id,postback_enabled,postback_key_hash,
+          postback_method,postback_params,postback_status_map
+          FROM cpa_networks WHERE id=:id FOR UPDATE"""),
+          {"id":network_id}).mappings().first()
+        if (not provider or not provider["postback_enabled"]
+                or not provider["postback_key_hash"]
+                or provider["postback_method"]!="GET_QUERY"):
+            raise HTTPException(404,"Source unavailable")
+        # Both authenticated GET formats reuse existing attribution, status,
+        # duplicate handling and financial eligibility decisions.
+        return _accept(c,provider,raw,auth_key,network_id)
 
 def _snapshot(c):
     return tuple(c.execute(text(q)).scalar_one() for q in (

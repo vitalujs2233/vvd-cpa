@@ -8,11 +8,11 @@ import re
 from decimal import Decimal
 from urllib.parse import urlsplit
 from fastapi import APIRouter, Header, HTTPException
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from database import engine
-from neutral_links import PARAM_RE, NEUTRAL_VERTICALS, _validated_destination
+from neutral_links import PARAM_RE, _validated_destination
 from stars_payments import require_telegram_id
 from access_guard import authorized_admin
 
@@ -47,12 +47,18 @@ class NetworkIn(BaseModel):
     is_active:bool=True
     connection_notes:str=Field("",max_length=2000)
     click_param:str|None=None
-    @field_validator('click_param')
+    partner_param:str|None=None
+    @field_validator('click_param','partner_param')
     @classmethod
     def click_parameter(cls,v):
         if v and not PARAM_RE.fullmatch(v):
             raise ValueError('Некорректное имя параметра клика')
         return v or None
+    @model_validator(mode='after')
+    def distinct_tracking_parameters(self):
+        if self.partner_param and self.click_param and self.partner_param==self.click_param:
+            raise ValueError('Параметры click_id и partner_code должны различаться')
+        return self
     @field_validator("website")
     @classmethod
     def url(cls,v):
@@ -65,6 +71,7 @@ class VerticalIn(BaseModel):
     icon_name:str=Field("layers",pattern=r"^(layers|heart|sparkles|video|gamepad|smartphone|globe)$")
     display_order:int=Field(0,ge=-9999,le=9999)
     is_active:bool=False
+    cpa_link_allowed:bool=False
 
 class OfferIn(BaseModel):
     id:str=Field(min_length=2,max_length=80,pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_-]*$")
@@ -110,7 +117,7 @@ def catalog():
 @router.get("/catalog/{slug}")
 def public_vertical(slug:str):
     with engine.connect() as conn:
-        vertical=conn.execute(text("SELECT slug,title,description,icon_name FROM cpa_verticals WHERE slug=:slug AND is_active=true"),
+        vertical=conn.execute(text("SELECT slug,title,description,icon_name,is_active,cpa_link_allowed FROM cpa_verticals WHERE slug=:slug AND is_active=true"),
                               {"slug":slug}).mappings().first()
         if not vertical:raise HTTPException(404,"Вертикаль недоступна")
         offers=conn.execute(text("""SELECT o.id,o.title,o.description,o.icon_name,o.image_url,o.offer_type,
@@ -131,7 +138,7 @@ def public_offer(slug:str,offer_id:str):
 def networks(x_telegram_init_data:str|None=Header(None)):
     require_admin(x_telegram_init_data)
     with engine.connect() as conn:
-        rows=conn.execute(text("""SELECT n.id,n.name,n.website,n.description,n.is_active,n.connection_notes,n.click_param,
+        rows=conn.execute(text("""SELECT n.id,n.name,n.website,n.description,n.is_active,n.connection_notes,n.click_param,n.partner_param,
              COUNT(o.id) AS offers_count FROM cpa_networks n LEFT JOIN offers o ON o.network_id=n.id
              GROUP BY n.id ORDER BY n.name""")).mappings().all()
     return {"items":[dict(x) for x in rows]}
@@ -141,8 +148,8 @@ def create_network(payload:NetworkIn,x_telegram_init_data:str|None=Header(None))
     require_admin(x_telegram_init_data)
     try:
         with engine.begin() as conn:
-            row=conn.execute(text("""INSERT INTO cpa_networks(name,website,description,is_active,connection_notes,click_param)
-            VALUES(:name,:website,:description,:is_active,:connection_notes,:click_param) RETURNING id"""),payload.model_dump()).scalar_one()
+            row=conn.execute(text("""INSERT INTO cpa_networks(name,website,description,is_active,connection_notes,click_param,partner_param)
+            VALUES(:name,:website,:description,:is_active,:connection_notes,:click_param,:partner_param) RETURNING id"""),payload.model_dump()).scalar_one()
     except IntegrityError:
         raise HTTPException(409,"Партнёрская сеть с таким названием уже существует")
     return {"id":row}
@@ -152,7 +159,7 @@ def edit_network(network_id:int,payload:NetworkIn,x_telegram_init_data:str|None=
     require_admin(x_telegram_init_data)
     with engine.begin() as conn:
         row=conn.execute(text("""UPDATE cpa_networks SET name=:name,website=:website,
-          description=:description,is_active=:is_active,connection_notes=:connection_notes,click_param=:click_param
+          description=:description,is_active=:is_active,connection_notes=:connection_notes,click_param=:click_param,partner_param=:partner_param
           WHERE id=:id RETURNING id"""),{**payload.model_dump(),"id":network_id}).first()
     if not row:raise HTTPException(404,"Сеть не найдена")
     return {"ok":True}
@@ -171,8 +178,8 @@ def create_vertical(payload:VerticalIn,x_telegram_init_data:str|None=Header(None
     require_admin(x_telegram_init_data)
     try:
         with engine.begin() as conn:
-            conn.execute(text("""INSERT INTO cpa_verticals(slug,title,description,icon_name,display_order,is_active)
-             VALUES(:slug,:title,:description,:icon_name,:display_order,:is_active)"""),payload.model_dump())
+            conn.execute(text("""INSERT INTO cpa_verticals(slug,title,description,icon_name,display_order,is_active,cpa_link_allowed)
+             VALUES(:slug,:title,:description,:icon_name,:display_order,:is_active,:cpa_link_allowed)"""),payload.model_dump())
     except IntegrityError:
         raise HTTPException(409,"Вертикаль с таким адресом уже существует")
     return {"ok":True}
@@ -183,8 +190,8 @@ def edit_vertical(slug:str,payload:VerticalIn,x_telegram_init_data:str|None=Head
     if slug!=payload.slug:raise HTTPException(422,"Идентификатор вертикали не изменяется")
     with engine.begin() as conn:
         row=conn.execute(text("""UPDATE cpa_verticals SET title=:title,description=:description,
-           icon_name=:icon_name,display_order=:display_order,is_active=:is_active
-           WHERE slug=:slug RETURNING slug"""),payload.model_dump()).first()
+           icon_name=:icon_name,display_order=:display_order,is_active=:is_active,
+           cpa_link_allowed=:cpa_link_allowed WHERE slug=:slug RETURNING slug"""),payload.model_dump()).first()
     if not row:raise HTTPException(404,"Вертикаль не найдена")
     return {"ok":True}
 
@@ -199,13 +206,17 @@ def offers_admin(x_telegram_init_data:str|None=Header(None)):
     return {"items":[{**dict(x),"commission_percent":str(x["commission_percent"])} for x in rows]}
 
 def checked_offer(conn,payload):
-    if payload.status=='published' and payload.vertical_slug in NEUTRAL_VERTICALS and payload.source_url:
+    if payload.status=='published' and payload.source_url:
         selected=payload.click_param_override
         if not selected and payload.network_id:
             selected=conn.execute(text('SELECT click_param FROM cpa_networks WHERE id=:id'),{'id':payload.network_id}).scalar()
+        partner_parameter=(conn.execute(text('SELECT partner_param FROM cpa_networks WHERE id=:id'),{'id':payload.network_id}).scalar() if payload.network_id else None)
         if selected:
-            _validated_destination(payload.source_url,selected,'configuration-check')
+            _validated_destination(payload.source_url,selected,'configuration-check',partner_parameter,'VVDTEST')
     if payload.status == "published" and payload.offer_type == "smartlink":
+        authorized=conn.execute(text("SELECT is_active AND cpa_link_allowed FROM cpa_verticals WHERE slug=:slug"),{"slug":payload.vertical_slug}).scalar()
+        if authorized is not True:
+            raise HTTPException(422,"Вертикаль не разрешена для CPA-переходов")
         if not payload.source_url:
             raise HTTPException(422, "Для публикации Smartlink укажите действующую исходную HTTPS-ссылку")
         if not payload.network_id:

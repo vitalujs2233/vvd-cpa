@@ -39,6 +39,13 @@ class NeutralLinkTests(unittest.TestCase):
         cls.offers=["neutral-"+cls.tag,"neutral2-"+cls.tag]
         cls.network="NeutralNet-"+cls.tag
         with engine.begin() as conn:
+            conn.execute(text("""CREATE TABLE IF NOT EXISTS users (
+                telegram_id BIGINT PRIMARY KEY,first_name TEXT,partner_code TEXT,
+                status TEXT NOT NULL DEFAULT 'active',role TEXT NOT NULL DEFAULT 'user',
+                balance NUMERIC(12,2) NOT NULL DEFAULT 0,
+                hold NUMERIC(12,2) NOT NULL DEFAULT 0,
+                withdrawn NUMERIC(12,2) NOT NULL DEFAULT 0)"""))
+            conn.execute(text("INSERT INTO users(telegram_id,first_name,partner_code,status,role) VALUES(232682307,'TestAdmin','VVDADMIN','active','admin') ON CONFLICT(telegram_id) DO UPDATE SET role='admin'"))
             conn.execute(text("CREATE TABLE IF NOT EXISTS offers(id VARCHAR(80) PRIMARY KEY,title VARCHAR(200) NOT NULL)"))
             for definition in ("description TEXT","icon_name VARCHAR(30)","geo VARCHAR(300)"):
                 conn.execute(text("ALTER TABLE offers ADD COLUMN IF NOT EXISTS "+definition))
@@ -59,6 +66,9 @@ class NeutralLinkTests(unittest.TestCase):
             stage3=(ROOT/"migrations/20261016_stage3_neutral_links.sql").read_text()
             stage3="\n".join(x for x in stage3.splitlines() if not x.lstrip().startswith("REVOKE "))
             conn.connection.cursor().execute(stage3)
+            conn.execute(text("ALTER TABLE cpa_networks ADD COLUMN IF NOT EXISTS click_param VARCHAR(48)"))
+            conn.connection.cursor().execute((ROOT/"migrations/20261017_universal_cpa_integrations.sql").read_text())
+            conn.execute(text("UPDATE cpa_verticals SET cpa_link_allowed=TRUE WHERE slug='utilities'"))
             conn.execute(text("""INSERT INTO users(telegram_id,first_name,partner_code,status)
                VALUES(:id,'Tester',:code,'active') ON CONFLICT(telegram_id)
                DO UPDATE SET partner_code=EXCLUDED.partner_code,status='active'"""),
@@ -68,14 +78,14 @@ class NeutralLinkTests(unittest.TestCase):
                DO UPDATE SET partner_code=EXCLUDED.partner_code,status='active'"""),
                {"id":SECOND,"code":"VVD951002"})
         network=client.post("/cpa/admin/networks",headers=headers(ADMIN),json={
-            "name":cls.network,"website":"https://example.com","click_param":"tracking_key",
+            "name":cls.network,"website":"https://example.com","click_param":"tracking_key","partner_param":"sub1",
             "is_active":True})
         if network.status_code!=200:raise AssertionError(network.text)
         cls.net_id=network.json()["id"]
         vert=client.post("/cpa/admin/verticals",headers=headers(ADMIN),json={
-            "slug":"utilities","title":"Utilities","is_active":True})
+            "slug":"utilities","title":"Utilities","is_active":True,"cpa_link_allowed":True})
         if vert.status_code==409:
-            pass
+            client.put("/cpa/admin/verticals/utilities",headers=headers(ADMIN),json={"slug":"utilities","title":"Utilities","is_active":True,"cpa_link_allowed":True})
         elif vert.status_code!=200:
             raise AssertionError(vert.text)
         with engine.begin() as conn:
@@ -98,6 +108,20 @@ class NeutralLinkTests(unittest.TestCase):
             conn.execute(text("DELETE FROM cpa_networks WHERE id=:id"),{"id":cls.net_id})
             conn.execute(text("DELETE FROM users WHERE telegram_id IN (:a,:b)"),
                          {"a":FIRST,"b":SECOND})
+
+    def test_00_active_offer_executes_real_postgres_sql(self):
+        # Execute the actual production SQL against isolated PostgreSQL 17.
+        from neutral_links import _active_offer
+        from fastapi import HTTPException
+        with engine.begin() as conn:
+            row=_active_offer(conn,self.offers[0])
+            self.assertEqual(row["id"],self.offers[0])
+            self.assertTrue(row["vertical_allowed"])
+            conn.execute(text("UPDATE cpa_verticals SET cpa_link_allowed=FALSE WHERE slug='utilities'"))
+            with self.assertRaises(HTTPException) as denied:
+                _active_offer(conn,self.offers[0])
+            self.assertEqual(denied.exception.status_code,404)
+            conn.execute(text("UPDATE cpa_verticals SET cpa_link_allowed=TRUE WHERE slug='utilities'"))
 
     def test_a_owners_unique_stable_and_separate_offers(self):
         first=client.post("/cpa/links/"+self.offers[0],headers=headers(FIRST))
@@ -122,15 +146,48 @@ class NeutralLinkTests(unittest.TestCase):
         aa=parse_qs(urlsplit(a.headers["location"]).query)
         bb=parse_qs(urlsplit(b.headers["location"]).query)
         self.assertEqual(aa["existing"],["keep"])
+        self.assertEqual(bb["existing"],["keep"])
+        self.assertEqual(aa["sub1"],["VVD951001"])
+        self.assertEqual(bb["sub1"],["VVD951001"])
         self.assertNotEqual(aa["tracking_key"],bb["tracking_key"])
         self.assertEqual(urlsplit(a.headers["location"]).hostname,"example.com")
         with engine.connect() as conn:
             values=conn.execute(text("""SELECT user_id,partner_code,offer_id,vertical,
                  network_id,click_id FROM clicks WHERE offer_id=:id"""),{"id":self.offers[0]}).mappings().all()
         self.assertGreaterEqual(len(values),2)
-        self.assertTrue(all(x["user_id"]==FIRST and x["partner_code"]=="VVD951001"
-                and x["network_id"]==self.net_id and x["vertical"]=="utilities" for x in values))
+        self.assertTrue(all(x["network_id"]==self.net_id and x["vertical"]=="utilities" for x in values))
+        self.assertTrue(all(x["partner_code"]==("VVD951001" if x["user_id"]==FIRST else "VVD951002") for x in values))
         self.assertEqual(len({x["click_id"] for x in values}),len(values))
+
+    def test_b2_distinct_webmasters_and_attribution(self):
+        a=client.post("/cpa/links/"+self.offers[0],headers=headers(FIRST)).json()["url"]
+        b=client.post("/cpa/links/"+self.offers[0],headers=headers(SECOND)).json()["url"]
+        one=client.get(urlsplit(a).path)
+        two=client.get(urlsplit(b).path)
+        self.assertEqual(one.status_code,302)
+        self.assertEqual(two.status_code,302)
+        x=parse_qs(urlsplit(one.headers["location"]).query)
+        y=parse_qs(urlsplit(two.headers["location"]).query)
+        self.assertEqual(x["sub1"],["VVD951001"])
+        self.assertEqual(y["sub1"],["VVD951002"])
+        self.assertEqual(x["existing"],["keep"])
+        self.assertEqual(y["existing"],["keep"])
+        self.assertNotEqual(x["tracking_key"],y["tracking_key"])
+        with engine.connect() as conn:
+            rows=conn.execute(text("SELECT click_id,partner_code,user_id FROM clicks WHERE click_id IN (:a,:b)"),
+              {"a":x["tracking_key"][0],"b":y["tracking_key"][0]}).mappings().all()
+        self.assertEqual({(r["partner_code"],r["user_id"]) for r in rows},
+                         {("VVD951001",FIRST),("VVD951002",SECOND)})
+
+    def test_b3_reject_collisions_and_existing_partner_query(self):
+        from neutral_links import _validated_destination
+        from fastapi import HTTPException
+        for source in ("https://example.com/item?sub1=forged",
+                       "https://example.com/item?tracking_key=forged"):
+            with self.assertRaises(HTTPException):
+                _validated_destination(source,"tracking_key","synthetic","sub1","VVD951001")
+        with self.assertRaises(HTTPException):
+            _validated_destination("https://example.com/item","sub1","synthetic","sub1","VVD951001")
 
     def test_c_disabled_blocks_and_keeps_old_routes(self):
         url=client.post("/cpa/links/"+self.offers[0],headers=headers(FIRST)).json()["url"]

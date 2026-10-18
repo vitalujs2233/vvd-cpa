@@ -18,7 +18,7 @@ from ai_studio_v2 import router as ai_studio_router
 from cpa_catalog import router as cpa_catalog_router
 from neutral_links import router as neutral_links_router
 from cpa_postback import router as cpa_postback_router
-from cpa_real_withdrawals import create_real_withdrawal, mark_real_paid, mark_real_rejected, finance_balance_projection
+from cpa_real_withdrawals import create_real_withdrawal, mark_real_paid, mark_real_rejected, finance_balance_projection, release_matured_holds, RealFinanceDisabled
 from sqlalchemy.exc import ProgrammingError
 from access_guard import access_guard, authorized_admin
 from cpa_manual_hold import (read_partner_hold, record_verified_receipt,
@@ -445,6 +445,11 @@ async def track_click(partner_code: str, vertical: str, request: Request):
 
 @app.get("/balance/{telegram_id}")
 async def get_balance(telegram_id: int):
+    # On-demand, scoped, bounded release. Finish its transactions before reading balances.
+    try:
+        release_matured_holds(engine,limit=25,user_id=telegram_id)
+    except RealFinanceDisabled:
+        pass
     # Keep historical balance contract for the rest of Mini App, but expose
     # separate finance entitlement for the withdrawals page (never from balance).
     with engine.connect() as conn:

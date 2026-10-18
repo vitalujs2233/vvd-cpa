@@ -30,6 +30,13 @@ class PostbackTests(unittest.TestCase):
         cls.click="pbclick-"+cls.tag
         cls.click2="pbclick2-"+cls.tag
         with engine.begin() as c:
+            c.execute(text("""CREATE TABLE IF NOT EXISTS users (
+                telegram_id BIGINT PRIMARY KEY,first_name TEXT,partner_code TEXT,
+                status TEXT NOT NULL DEFAULT 'active',role TEXT NOT NULL DEFAULT 'user',
+                balance NUMERIC(12,2) NOT NULL DEFAULT 0,
+                hold NUMERIC(12,2) NOT NULL DEFAULT 0,
+                withdrawn NUMERIC(12,2) NOT NULL DEFAULT 0)"""))
+            c.execute(text("INSERT INTO users(telegram_id,first_name,partner_code,status,role) VALUES(232682307,'TestAdmin','VVDADMIN','active','admin') ON CONFLICT(telegram_id) DO UPDATE SET role='admin'"))
             c.execute(text("CREATE TABLE IF NOT EXISTS offers(id VARCHAR(80) PRIMARY KEY,title VARCHAR(200) NOT NULL)"))
             for defn in ("description TEXT","icon_name VARCHAR(30)","geo VARCHAR(300)","smartlink_suffix VARCHAR(120) NOT NULL DEFAULT ''"):
                 c.execute(text("ALTER TABLE offers ADD COLUMN IF NOT EXISTS "+defn))
@@ -62,10 +69,12 @@ class PostbackTests(unittest.TestCase):
             stage4=(ROOT/"migrations/20261016_stage4_postback.sql").read_text()
             stage4="\n".join(line for line in stage4.splitlines() if not line.lstrip().startswith("REVOKE "))
             c.connection.cursor().execute(stage4)
+            c.execute(text("ALTER TABLE cpa_networks ADD COLUMN IF NOT EXISTS click_param VARCHAR(48)"))
+            c.connection.cursor().execute((ROOT/"migrations/20261017_universal_cpa_integrations.sql").read_text())
             migration=(ROOT/"migrations/20261016_stage4_admin_postback_probe.sql").read_text()
             c.connection.cursor().execute(migration)
             c.execute(text("INSERT INTO users(telegram_id,first_name,partner_code,status) VALUES(:uid,'Stage4','VVD964001','active') ON CONFLICT(telegram_id) DO UPDATE SET status='active'"),{"uid":UID})
-            c.execute(text("INSERT INTO cpa_verticals(slug,title,is_active) VALUES('utilities','Utilities',TRUE) ON CONFLICT(slug) DO NOTHING"))
+            c.execute(text("INSERT INTO cpa_verticals(slug,title,is_active,cpa_link_allowed) VALUES('utilities','Utilities',TRUE,TRUE) ON CONFLICT(slug) DO UPDATE SET cpa_link_allowed=TRUE"))
         added=client.post("/cpa/admin/networks",headers=auth(ADMIN),json={"name":cls.net,"is_active":True})
         if added.status_code!=200:raise AssertionError(added.text)
         cls.network_id=added.json()["id"]
@@ -99,6 +108,266 @@ class PostbackTests(unittest.TestCase):
         return client.post(f"/cpa/postback/{self.network_id}",json={"test_click":click,
           "tx":transaction,"state":status,"price":price,"ccy":ccy},
           headers={"X-VVD-Postback-Key":self.secret if secret is None else secret})
+
+    def test_00_full_link_postback_attribution_without_finance(self):
+        # Full synthetic chain: actual personal link -> redirect -> stored click -> authenticated postback.
+        # Only local PostgreSQL 17 fixture and TestClient; no partner redirect follows.
+        from urllib.parse import urlsplit, parse_qs
+        from neutral_links import neutral_click_redirect
+        from cpa_analytics import summarize, arguments
+        fixture_offer="chain-"+self.tag
+        owner2=900000006402
+        code2="VVD964002"
+        with engine.begin() as c:
+            c.execute(text("""CREATE TABLE IF NOT EXISTS smartlinks(
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id BIGINT NOT NULL,offer_id VARCHAR(80) NOT NULL,
+                suffix VARCHAR(100) NOT NULL UNIQUE,url TEXT NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW())"""))
+            c.execute(text("ALTER TABLE clicks ADD COLUMN IF NOT EXISTS smartlink_id UUID"))
+            c.execute(text("ALTER TABLE offers ADD COLUMN IF NOT EXISTS source_url TEXT"))
+            c.execute(text("ALTER TABLE offers ADD COLUMN IF NOT EXISTS offer_type VARCHAR(20)"))
+            c.execute(text("ALTER TABLE offers ADD COLUMN IF NOT EXISTS click_param_override VARCHAR(48)"))
+            c.execute(text("ALTER TABLE cpa_networks ADD COLUMN IF NOT EXISTS click_param VARCHAR(48)"))
+            c.execute(text("UPDATE cpa_networks SET click_param='ref_id',partner_param='sub1' WHERE id=:id"),{"id":self.network_id})
+            c.execute(text("INSERT INTO users(telegram_id,first_name,partner_code,status) VALUES(:uid,'Stage4Other',:code,'active') ON CONFLICT(telegram_id) DO UPDATE SET partner_code=:code,status='active'"),{"uid":owner2,"code":code2})
+            for suffix,uid,oid in (("s"+uuid.uuid4().hex,UID,self.offer),("s"+uuid.uuid4().hex,owner2,fixture_offer)):
+                if oid==fixture_offer:
+                    c.execute(text("""INSERT INTO offers(id,title,smartlink_suffix,vertical_slug,network_id,status,source_url,offer_type)
+                         VALUES(:offer,'Synthetic 2','synthetic-two','utilities',:net,'published',
+                         'https://example.com/path?original=preserved','smartlink')"""),{"offer":oid,"net":self.network_id})
+                else:
+                    c.execute(text("""UPDATE offers SET source_url='https://example.com/path?original=preserved',
+                         offer_type='smartlink' WHERE id=:offer"""),{"offer":oid})
+                c.execute(text("INSERT INTO smartlinks(user_id,offer_id,suffix,url) VALUES(:uid,:oid,:suffix,:url)"),
+                          {"uid":uid,"oid":oid,"suffix":suffix,"url":"https://vvd-cpa-v2.onrender.com/r/"+suffix})
+                if uid==UID: owner_suffix=suffix
+                else: other_suffix=suffix
+            before=tuple(c.execute(text("SELECT balance,hold,withdrawn FROM users WHERE telegram_id=:uid"),{"uid":UID}).one())
+            before_other=tuple(c.execute(text("SELECT balance,hold,withdrawn FROM users WHERE telegram_id=:uid"),{"uid":owner2}).one())
+        created=[]
+        # Finance epoch and ledger exist only in the isolated PG17 fixture.
+        with engine.begin() as c:
+            c.execute(text("CREATE TABLE IF NOT EXISTS public.cpa_finance_epoch (id SMALLINT PRIMARY KEY,activated_at TIMESTAMPTZ,legacy_max_click_row_id BIGINT)"))
+            c.execute(text("INSERT INTO public.cpa_finance_epoch(id,activated_at) VALUES(1,NULL) ON CONFLICT(id) DO NOTHING"))
+            c.execute(text("CREATE TABLE IF NOT EXISTS public.cpa_ledger (id BIGSERIAL PRIMARY KEY,conversion_id UUID,user_id BIGINT,operation_type TEXT,hold_delta NUMERIC(12,2) DEFAULT 0,balance_delta NUMERIC(12,2) DEFAULT 0,platform_fee_delta NUMERIC(12,2) DEFAULT 0)"))
+            c.execute(text("ALTER TABLE public.clicks ADD COLUMN IF NOT EXISTS country_code VARCHAR(2)"))
+            c.execute(text("ALTER TABLE public.clicks ADD COLUMN IF NOT EXISTS country_name TEXT"))
+            c.execute(text("ALTER TABLE public.conversions ADD COLUMN IF NOT EXISTS finance_eligible_at TIMESTAMPTZ"))
+            c.execute(text("ALTER TABLE public.conversions ADD COLUMN IF NOT EXISTS finance_approved_at TIMESTAMPTZ"))
+            ledger_before=c.execute(text("SELECT COUNT(*) FROM public.cpa_ledger")).scalar_one()
+            payouts_before=c.execute(text("SELECT COUNT(*) FROM public.withdrawals")).scalar_one()
+        try:
+            for suffix,expected_code in ((owner_suffix,"VVD964001"),(owner_suffix,"VVD964001"),(other_suffix,code2)):
+                r=client.get("/r/"+suffix)
+                self.assertEqual(r.status_code,302,r.text)
+                qs=parse_qs(urlsplit(r.headers["location"]).query)
+                self.assertEqual(qs["original"],["preserved"])
+                self.assertEqual(qs["sub1"],[expected_code])
+                click=qs["ref_id"][0]
+                uuid.UUID(click)
+                created.append((click,expected_code))
+            self.assertEqual(len({x[0] for x in created}),3)
+            for click,code in created:
+                uid=UID if code=="VVD964001" else owner2
+                with engine.connect() as c:
+                    recorded=c.execute(text("SELECT user_id,partner_code,network_id FROM clicks WHERE click_id=:click"),{"click":click}).one()
+                self.assertEqual((recorded[0],recorded[1],recorded[2]),(uid,code,self.network_id))
+            for i,(click,code) in enumerate(created):
+                # Verified gateway output uses the preexisting authenticated POST interface.
+                resp=client.post(f"/cpa/postback/{self.network_id}",
+                    json={"test_click":click,"tx":"synthetic-chain-"+self.tag+"-"+str(i),
+                          "state":"waiting","price":"0","ccy":"USD","sub1":"VVD999999"},
+                    headers={"X-VVD-Postback-Key":self.secret})
+                self.assertEqual(resp.status_code,200,resp.text)
+                self.assertTrue(resp.json()["created"])
+                duplicate=client.post(f"/cpa/postback/{self.network_id}",
+                    json={"test_click":click,"tx":"synthetic-chain-"+self.tag+"-"+str(i),
+                          "state":"waiting","price":"0","ccy":"USD","sub1":"VVD999999"},
+                    headers={"X-VVD-Postback-Key":self.secret})
+                self.assertEqual(duplicate.status_code,200)
+                self.assertTrue(duplicate.json()["duplicate"])
+                with engine.connect() as c:
+                    v=c.execute(text("SELECT user_id,partner_code,status,payout_net FROM conversions WHERE click_id=:click"),{"click":click}).one()
+                    self.assertEqual((v[0],v[1],v[2],v[3]),(UID if code=="VVD964001" else owner2,code,"pending",0))
+            with engine.connect() as c:
+                self.assertEqual(tuple(c.execute(text("SELECT balance,hold,withdrawn FROM users WHERE telegram_id=:uid"),{"uid":UID}).one()),before)
+                self.assertEqual(tuple(c.execute(text("SELECT balance,hold,withdrawn FROM users WHERE telegram_id=:uid"),{"uid":owner2}).one()),before_other)
+                self.assertEqual(c.execute(text("SELECT count(*) FROM conversions WHERE click_id IN (:a,:b,:d)"),
+                   {"a":created[0][0],"b":created[1][0],"d":created[2][0]}).scalar_one(),3)
+                self.assertEqual(c.execute(text("SELECT COUNT(*) FROM public.cpa_ledger")).scalar_one(),ledger_before)
+                self.assertEqual(c.execute(text("SELECT COUNT(*) FROM public.withdrawals")).scalar_one(),payouts_before)
+            first=client.get(f"/statistics/{UID}",headers=auth(UID),
+                params={"offer_id":self.offer,"network_id":self.network_id})
+            second=client.get(f"/statistics/{owner2}",headers=auth(owner2),
+                params={"offer_id":fixture_offer,"network_id":self.network_id})
+            self.assertEqual(first.status_code,200,first.text)
+            self.assertEqual(second.status_code,200,second.text)
+            a=first.json()["summary"]
+            b=second.json()["summary"]
+            # Two pre-existing synthetic clicks for the same fixture user remain visible.
+            self.assertEqual((a["clicks"],a["conversions"],a["statuses"]["pending"]),(4,2,2))
+            self.assertEqual((b["clicks"],b["conversions"],b["statuses"]["pending"]),(1,1,1))
+            for summary in (a,b):
+                self.assertEqual(summary["earned"],0)
+                self.assertEqual(summary["on_hold"],0)
+                self.assertEqual(summary["real_withdrawable"],0)
+                self.assertEqual(summary["epc"],0)
+        finally:
+            with engine.begin() as c:
+                for click,_ in created:
+                    c.execute(text("DELETE FROM conversions WHERE click_id=:click"),{"click":click})
+                    c.execute(text("DELETE FROM clicks WHERE click_id=:click"),{"click":click})
+                c.execute(text("DELETE FROM smartlinks WHERE suffix IN (:a,:b)"),{"a":owner_suffix,"b":other_suffix})
+                c.execute(text("DELETE FROM offers WHERE id=:offer"),{"offer":fixture_offer})
+                c.execute(text("DELETE FROM users WHERE telegram_id=:uid"),{"uid":owner2})
+
+    def test_get_and_post_share_conversion_handler_with_zero_finance(self):
+        # Isolated PostgreSQL: GET accepts a provider's HTTPS callback token
+        # or the existing header; POST keeps its header. Both use the same ledger path.
+        with engine.begin() as c:
+            c.execute(text("UPDATE cpa_networks SET postback_method='GET_QUERY' WHERE id=:id"),
+                {"id":self.network_id})
+        unique_click='get-test-'+self.tag
+        url_click='get-url-'+self.tag
+        with engine.begin() as c:
+            for click in (unique_click,url_click):
+                c.execute(text("INSERT INTO clicks(user_id,partner_code,click_id,vertical,offer_id,network_id) VALUES(:uid,'VVD964001',:click,'utilities',:offer,:network)"),
+                          {'uid':UID,'click':click,'offer':self.offer,'network':self.network_id})
+        data={'test_click':unique_click,'tx':'get-post-'+self.tag,
+              "state":"paid","price":"1.00","ccy":"USD"}
+        endpoint=f"/cpa/postback/{self.network_id}"
+        try:
+            self.assertEqual(client.get(endpoint,params=data).status_code,401)
+            self.assertEqual(client.get(endpoint,params={**data,"vvd_key":"incorrect"}).status_code,401)
+            self.assertEqual(client.get(endpoint,params={**data,"vvd_key":self.secret},
+                headers={"X-VVD-Postback-Key":self.secret}).status_code,422)
+            self.assertEqual(client.get(endpoint,params={**data,"price":"-1"},
+                headers={"X-VVD-Postback-Key":self.secret}).status_code,422)
+            self.assertEqual(client.get(endpoint,params=[*data.items(),("tx","spoof")],
+                headers={"X-VVD-Postback-Key":self.secret}).status_code,422)
+            self.assertEqual(client.get(endpoint,params={**data,"secret":"x"},
+                headers={"X-VVD-Postback-Key":self.secret}).status_code,422)
+            first=client.get(endpoint,params=data,headers={"X-VVD-Postback-Key":self.secret})
+            self.assertEqual(first.status_code,200,first.text)
+            self.assertTrue(first.json().get("created"))
+            repeated=client.get(endpoint,params=data,headers={"X-VVD-Postback-Key":self.secret})
+            self.assertEqual(repeated.status_code,200)
+            self.assertTrue(repeated.json().get("duplicate"))
+            post=client.post(endpoint,json=data,headers={"X-VVD-Postback-Key":self.secret})
+            self.assertEqual(post.status_code,200)
+            self.assertTrue(post.json().get("duplicate"))
+            # One click cannot be attributed to a different transaction.
+            # A separate fresh click still works with POST via the same handler.
+            post_click="post-test-"+self.tag
+            with engine.begin() as c:
+                c.execute(text("INSERT INTO clicks(user_id,partner_code,click_id,vertical,offer_id,network_id) VALUES(:uid,'VVD964001',:click,'utilities',:offer,:network)"),
+                    {"uid":UID,"click":post_click,"offer":self.offer,"network":self.network_id})
+            posted=client.post(endpoint,json={**data,"test_click":post_click,"tx":"post-only-"+self.tag},headers={"X-VVD-Postback-Key":self.secret})
+            self.assertEqual(posted.status_code,200,posted.text)
+            self.assertTrue(posted.json().get("created"))
+            # Query-token GET is the compatible format for networks with only a URL field.
+            url_data={**data,"test_click":url_click,"tx":"get-url-tx-"+self.tag,"price":"1.20"}
+            by_url=client.get(endpoint,params={**url_data,"vvd_key":self.secret})
+            self.assertEqual(by_url.status_code,200,by_url.text)
+            self.assertTrue(by_url.json().get("created"))
+            duplicate_url=client.get(endpoint,params={**url_data,"vvd_key":self.secret})
+            self.assertEqual(duplicate_url.status_code,200,duplicate_url.text)
+            self.assertTrue(duplicate_url.json().get("duplicate"))
+            with engine.connect() as c:
+                url_row=c.execute(text("SELECT user_id,partner_code,status,is_test,payout_gross FROM conversions WHERE click_id=:click"),{"click":url_click}).mappings().one()
+                self.assertEqual((url_row["user_id"],url_row["partner_code"],url_row["status"]),
+                                 (UID,"VVD964001","approved"))
+                self.assertFalse(url_row["is_test"])
+                self.assertEqual(url_row["payout_gross"],Decimal("1.20"))
+            with engine.connect() as c:
+                row=c.execute(text("""SELECT user_id,partner_code,status,is_test,
+                    payout_net,payout_gross FROM conversions WHERE click_id=:click"""),
+                    {"click":unique_click}).mappings().one()
+                self.assertEqual((row["user_id"],row["partner_code"],row["status"]),
+                                 (UID,"VVD964001","approved"))
+                self.assertFalse(row["is_test"])
+                self.assertEqual(row["payout_gross"],1)
+        finally:
+            with engine.begin() as c:
+                c.execute(text("DELETE FROM conversions WHERE click_id=:click"),{"click":post_click})
+                c.execute(text("DELETE FROM clicks WHERE click_id=:click"),{"click":post_click})
+                c.execute(text("DELETE FROM conversions WHERE click_id=:click"),
+                    {"click":unique_click})
+                c.execute(text("DELETE FROM clicks WHERE click_id=:click"),{"click":unique_click})
+                c.execute(text("DELETE FROM conversions WHERE click_id=:click"),{"click":url_click})
+                c.execute(text("DELETE FROM clicks WHERE click_id=:click"),{"click":url_click})
+                c.execute(text("UPDATE cpa_networks SET postback_method='POST_JSON' WHERE id=:id"),
+                    {"id":self.network_id})
+
+    def test_gateway_post_for_get_query_requires_existing_secret(self):
+        # Isolated PG17: GET_QUERY accepts ONLY authenticated JSON POST;
+        # direct GET remains unavailable, including spoofed IP headers.
+        endpoint=f"/cpa/postback/{self.network_id}"
+        config={"postback_enabled":False,
+                "postback_method":"GET_QUERY",
+                "postback_params":{"click":"test_click","transaction":"tx",
+                    "status":"state","amount":"price","currency":"ccy"},
+                "postback_status_map":{"waiting":"pending","paid":"approved","cancel":"rejected"}}
+        unique_click="gateway-click-"+self.tag
+        with engine.begin() as c:
+            c.execute(text("INSERT INTO clicks(user_id,partner_code,click_id,vertical,offer_id,network_id) VALUES(:uid,'VVD964001',:click,'utilities',:offer,:network)"),
+                {"uid":UID,"click":unique_click,"offer":self.offer,"network":self.network_id})
+        data={"test_click":unique_click,"tx":"gateway-"+self.tag,
+              "state":"waiting","price":"0","ccy":"USD"}
+        try:
+            updated=client.put(f"/cpa/admin/networks/{self.network_id}/postback",
+                headers=auth(ADMIN),json=config)
+            self.assertEqual(updated.status_code,200,updated.text)
+            # Existing administrative fail-closed GET_QUERY enable prohibition
+            # is kept. Simulate a configured gateway on isolated PG17 only.
+            with engine.begin() as c:
+                c.execute(text("UPDATE cpa_networks SET postback_enabled=TRUE WHERE id=:id"),
+                    {"id":self.network_id})
+            self.assertEqual(client.get(endpoint,params=data,headers={
+                "X-Forwarded-For":"203.0.113.5",
+                "CF-Connecting-IP":"203.0.113.5"}).status_code,401)
+            self.assertEqual(client.post(endpoint,json=data).status_code,401)
+            self.assertEqual(client.post(endpoint,json=data,headers={
+                "X-VVD-Postback-Key":"fake"}).status_code,401)
+            ok=client.post(endpoint,json=data,headers={
+                "X-VVD-Postback-Key":self.secret})
+            self.assertEqual(ok.status_code,200,ok.text)
+            self.assertTrue(ok.json()["created"])
+            with engine.connect() as c:
+                row=c.execute(text("SELECT user_id,partner_code,payout_net FROM conversions WHERE click_id=:id"),
+                   {"id":self.click}).one()
+            self.assertEqual((row[0],row[1],row[2]),(UID,"VVD964001",0))
+        finally:
+            with engine.begin() as c:
+                c.execute(text("DELETE FROM conversions WHERE transaction_id=:tx"),
+                   {"tx":"cpa:"+str(self.network_id)+":gateway-"+self.tag})
+                c.execute(text("DELETE FROM clicks WHERE click_id=:click"),{"click":unique_click})
+                c.execute(text("UPDATE cpa_networks SET postback_enabled=TRUE,postback_method='POST_JSON' WHERE id=:id"),
+                   {"id":self.network_id})
+
+    def test_get_requires_verified_sender_and_preserves_post(self):
+        url=f"/cpa/postback/{self.network_id}"
+        # A spoofed forwarded header and correct mapped fields never authenticate GET.
+        response=client.get(url,params={"test_click":self.click,"tx":"probe-get",
+            "state":"waiting","price":"0","ccy":"USD"},
+            headers={"X-Forwarded-For":"203.0.113.5"})
+        self.assertIn(response.status_code,(403,404))
+        settings=client.put(f"/cpa/admin/networks/{self.network_id}/postback",
+            headers=auth(ADMIN),json={"postback_enabled":True,
+                "postback_method":"GET_QUERY",
+                "postback_params":{"click":"test_click","transaction":"tx",
+                  "status":"state","amount":"price","currency":"ccy"},
+                "postback_status_map":{"waiting":"pending","hold":"pending",
+                    "paid":"approved","cancel":"rejected"}})
+        self.assertEqual(settings.status_code,200)
+        # A rejected GET change must leave the established POST method in place.
+        config=client.get(f"/cpa/admin/networks/{self.network_id}/postback",headers=auth(ADMIN))
+        self.assertEqual(config.status_code,200)
+        self.assertEqual(config.json()["postback_method"],"GET_QUERY")
+        self.assertTrue(config.json()["postback_enabled"])
+        with engine.begin() as c:
+            c.execute(text("UPDATE cpa_networks SET postback_method='POST_JSON' WHERE id=:id"),{"id":self.network_id})
 
     def test_legacy_postbacks_fail_closed_without_financial_changes(self):
         # A known partner_code/click_id is NOT proof of the sender's identity.
