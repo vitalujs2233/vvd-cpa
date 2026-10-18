@@ -38,7 +38,8 @@ class ProviderConfig(BaseModel):
     @field_validator("postback_params")
     @classmethod
     def params_valid(cls,v):
-        if set(v)!=set(DEFAULT_PARAMS) or len(set(v.values()))!=len(v) or not all(PARAM.fullmatch(x) for x in v.values()):
+        if (set(v)!=set(DEFAULT_PARAMS) or len(set(v.values()))!=len(v)
+            or not all(PARAM.fullmatch(x) and x.lower()!="vvd_key" for x in v.values())):
             raise ValueError("Invalid/duplicate parameter names")
         return v
     @field_validator("postback_status_map")
@@ -56,7 +57,11 @@ def get_provider(network_id:int,x_telegram_init_data:str|None=Header(None)):
              postback_key_hash IS NOT NULL AS configured,postback_last_received_at
              FROM cpa_networks WHERE id=:id"""),{"id":network_id}).mappings().first()
     if not row:raise HTTPException(404,"Network not found")
-    return {**dict(row),"get_auth_ready":False,"get_auth_reason":"GET requires verified sender authentication; IP headers and URL secrets are not trusted","endpoint":f"https://vvd-cpa-v2.onrender.com/cpa/postback/{network_id}"}
+    # Per-network bearer secret: providers that cannot send headers can put it
+    # in the HTTPS GET callback URL as vvd_key. Never return its plaintext.
+    return {**dict(row),"get_auth_ready":bool(row["configured"]),
+        "get_auth_reason":"Создайте индивидуальный секрет для GET-ссылки",
+        "endpoint":f"https://vvd-cpa-v2.onrender.com/cpa/postback/{network_id}"}
 
 @router.put("/admin/networks/{network_id}/postback")
 def configure_provider(network_id:int,payload:ProviderConfig,x_telegram_init_data:str|None=Header(None)):
@@ -264,19 +269,28 @@ async def receive_postback(network_id:int,request:Request,
 @router.get("/postback/{network_id}")
 async def receive_get_postback(network_id:int,request:Request,
                                x_vvd_postback_key:str|None=Header(None)):
-    # Authenticated GET is explicitly test-only until sender verification is
-    # available. Never trust client-provided IP headers, query-string secrets
-    # or an unverified request for financial eligibility.
+    # Accept either the existing network-specific HTTPS header or a high-entropy
+    # per-network bearer key in a provider's HTTPS callback URL. Do not accept
+    # unauthenticated financial events or trust client-controlled IP headers.
     raw_query=request.scope.get("query_string",b"")
     if len(raw_query)>4096:
         raise HTTPException(413,"Query too large")
     params=request.query_params
+    # Minimise accidental disclosure in downstream access logging. Reverse
+    # proxies may still log the original URL, so the bearer token is sensitive.
+    request.scope["query_string"]=b""
     if len(list(params.multi_items()))!=len(set(params.keys())):
         raise HTTPException(422,"Duplicate postback fields")
     if any(k.lower() in ("key","secret","token","password","api_key",
                          "x_vvd_postback_key") for k in params.keys()):
-        raise HTTPException(422,"Secrets must not be sent in URL")
-    raw=json.dumps(dict(params),separators=(",",":")).encode()
+        raise HTTPException(422,"Unexpected secret parameter")
+    query_key=params.get("vvd_key")
+    if query_key is not None and x_vvd_postback_key is not None:
+        raise HTTPException(422,"Use one postback authentication method")
+    auth_key=query_key if query_key is not None else x_vvd_postback_key
+    cleaned=dict(params)
+    cleaned.pop("vvd_key",None)
+    raw=json.dumps(cleaned,separators=(",",":")).encode()
     if len(raw)>4096:
         raise HTTPException(413,"Payload too large")
     with engine.begin() as c:
@@ -288,10 +302,9 @@ async def receive_get_postback(network_id:int,request:Request,
                 or not provider["postback_key_hash"]
                 or provider["postback_method"]!="GET_QUERY"):
             raise HTTPException(404,"Source unavailable")
-        # Direct GET requires a network-specific secret in an HTTPS header.
-        # Never trust URL secrets or spoofable IP headers for attribution.
-        # Plain GET providers unable to send headers must use a verified gateway.
-        return _accept(c,provider,raw,x_vvd_postback_key,network_id)
+        # Both authenticated GET formats reuse existing attribution, status,
+        # duplicate handling and financial eligibility decisions.
+        return _accept(c,provider,raw,auth_key,network_id)
 
 def _snapshot(c):
     return tuple(c.execute(text(q)).scalar_one() for q in (
