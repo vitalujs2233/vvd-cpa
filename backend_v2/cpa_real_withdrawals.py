@@ -246,10 +246,10 @@ def release_matured_hold_contract(conn, conversion_id):
     return {"released":True,"amount":remaining}
 
 
-def release_matured_holds(engine, *, limit=100):
+def release_matured_holds(engine, *, limit=100, user_id=None):
     """Release eligible >=240h holds, synchronously, WITHOUT scheduling it.
 
-    Used by a future explicitly enabled job. Each conversion is processed in
+    Optional user_id limits processing to the current user. Each conversion is processed in
     its own transaction and follows users -> conversions -> ledger locks.
     Concurrency, retries and multiple workers are safe: the one-release ledger
     key, source-reference unique index and user row lock prevent double credit.
@@ -258,6 +258,8 @@ def release_matured_holds(engine, *, limit=100):
     """
     if isinstance(limit,bool) or not isinstance(limit,int) or not 1<=limit<=500:
         raise ValueError("limit must be an integer between 1 and 500")
+    if user_id is not None and (isinstance(user_id,bool) or not isinstance(user_id,int) or user_id<=0):
+        raise ValueError('user_id must be a positive integer')
     released=0
     total=ZERO
     for _ in range(limit):
@@ -269,6 +271,7 @@ def release_matured_holds(engine, *, limit=100):
                 JOIN public.conversions v ON v.id=l.conversion_id
                 JOIN public.clicks k ON k.click_id=v.click_id
                 WHERE l.operation_type='hold_credit'
+                  AND (CAST(:uid AS BIGINT) IS NULL OR l.user_id=:uid)
                   AND l.hold_until <= clock_timestamp()
                   AND v.status='approved' AND v.is_test=FALSE
                   AND v.currency='USD'
@@ -294,7 +297,7 @@ def release_matured_holds(engine, *, limit=100):
                   )
                 ORDER BY l.hold_until,l.id LIMIT 1
             """), {"cutover":epoch["activated_at"],
-                   "legacy_click":epoch["legacy_max_click_row_id"]}).scalar_one_or_none()
+                   "legacy_click":epoch["legacy_max_click_row_id"],"uid":user_id}).scalar_one_or_none()
             if candidate is None:
                 break
             result=release_matured_hold_contract(conn,candidate)
@@ -338,6 +341,15 @@ def create_real_withdrawal(engine, *, partner_code, amount, payment_method, wall
         return {"success": False, "message": "Partner code is required"}
     if not payment_method or not wallet:
         return {"success": False, "message": "Payment method and wallet are required"}
+    # Release before locking the user for reservation; avoid lock inversion.
+    with engine.connect() as lookup:
+        uid=lookup.execute(text("SELECT telegram_id FROM public.users WHERE partner_code=:code"),{"code":partner_code}).scalar_one_or_none()
+    if uid is None:
+        return {"success":False,"message":"Partner not found"}
+    try:
+        release_matured_holds(engine,limit=25,user_id=int(uid))
+    except RealFinanceDisabled:
+        pass
     with engine.begin() as conn:
         user = conn.execute(text("""
             SELECT telegram_id,partner_code,balance FROM public.users
