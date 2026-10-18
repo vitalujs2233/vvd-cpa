@@ -288,19 +288,10 @@ async def receive_get_postback(network_id:int,request:Request,
                 or not provider["postback_key_hash"]
                 or provider["postback_method"]!="GET_QUERY"):
             raise HTTPException(404,"Source unavailable")
-        # A shared secret in an HTTPS header authenticates the configured
-        # sender, but only isolated zero-value pending events can use GET.
-        # Real GET conversion reception still requires verified edge ingress.
-        names=provider["postback_params"]
-        mapped=provider["postback_status_map"]
-        try:
-            external=params[names["status"]]
-            amount=Decimal(params.get(names["amount"],"0"))
-        except (KeyError,InvalidOperation,ValueError):
-            raise HTTPException(422,"Invalid postback payload")
-        if mapped.get(external)!="pending" or amount!=0:
-            raise HTTPException(403,"GET financial events require verified gateway")
-        return _accept(c,provider,raw,x_vvd_postback_key,network_id,is_test=True)
+        # Direct GET requires a network-specific secret in an HTTPS header.
+        # Never trust URL secrets or spoofable IP headers for attribution.
+        # Plain GET providers unable to send headers must use a verified gateway.
+        return _accept(c,provider,raw,x_vvd_postback_key,network_id)
 
 def _snapshot(c):
     return tuple(c.execute(text(q)).scalar_one() for q in (
