@@ -224,7 +224,7 @@ class PostbackTests(unittest.TestCase):
 
     def test_get_and_post_share_conversion_handler_with_zero_finance(self):
         # Isolated PostgreSQL: configurable names/statuses, no URL secrets.
-        # GET is explicitly a test-only, zero-value pending event.
+        # GET requires the same network secret as POST and supports money and statuses.
         with engine.begin() as c:
             c.execute(text("UPDATE cpa_networks SET postback_method='GET_QUERY' WHERE id=:id"),
                 {"id":self.network_id})
@@ -233,12 +233,12 @@ class PostbackTests(unittest.TestCase):
             c.execute(text("INSERT INTO clicks(user_id,partner_code,click_id,vertical,offer_id,network_id) VALUES(:uid,'VVD964001',:click,'utilities',:offer,:network)"),
                       {'uid':UID,'click':unique_click,'offer':self.offer,'network':self.network_id})
         data={'test_click':unique_click,'tx':'get-post-'+self.tag,
-              "state":"waiting","price":"0","ccy":"USD"}
+              "state":"paid","price":"1.00","ccy":"USD"}
         endpoint=f"/cpa/postback/{self.network_id}"
         try:
             self.assertEqual(client.get(endpoint,params=data).status_code,401)
-            self.assertEqual(client.get(endpoint,params={**data,"price":"1"},
-                headers={"X-VVD-Postback-Key":self.secret}).status_code,403)
+            self.assertEqual(client.get(endpoint,params={**data,"price":"-1"},
+                headers={"X-VVD-Postback-Key":self.secret}).status_code,422)
             self.assertEqual(client.get(endpoint,params=[*data.items(),("tx","spoof")],
                 headers={"X-VVD-Postback-Key":self.secret}).status_code,422)
             self.assertEqual(client.get(endpoint,params={**data,"secret":"x"},
@@ -250,8 +250,9 @@ class PostbackTests(unittest.TestCase):
             self.assertEqual(repeated.status_code,200)
             self.assertTrue(repeated.json().get("duplicate"))
             post=client.post(endpoint,json=data,headers={"X-VVD-Postback-Key":self.secret})
-            self.assertEqual(post.status_code,409)
-            # A synthetic GET record cannot be converted into a real POST record.
+            self.assertEqual(post.status_code,200)
+            self.assertTrue(post.json().get("duplicate"))
+            # One click cannot be attributed to a different transaction.
             # A separate fresh click still works with POST via the same handler.
             post_click="post-test-"+self.tag
             with engine.begin() as c:
@@ -265,9 +266,9 @@ class PostbackTests(unittest.TestCase):
                     payout_net,payout_gross FROM conversions WHERE click_id=:click"""),
                     {"click":unique_click}).mappings().one()
                 self.assertEqual((row["user_id"],row["partner_code"],row["status"]),
-                                 (UID,"VVD964001","pending"))
-                self.assertTrue(row["is_test"])
-                self.assertEqual((row["payout_net"],row["payout_gross"]),(0,0))
+                                 (UID,"VVD964001","approved"))
+                self.assertFalse(row["is_test"])
+                self.assertEqual(row["payout_gross"],1)
         finally:
             with engine.begin() as c:
                 c.execute(text("DELETE FROM conversions WHERE click_id=:click"),{"click":post_click})
