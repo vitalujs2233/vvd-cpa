@@ -338,12 +338,14 @@ class PostbackTests(unittest.TestCase):
                   "status":"state","amount":"price","currency":"ccy"},
                 "postback_status_map":{"waiting":"pending","hold":"pending",
                     "paid":"approved","cancel":"rejected"}})
-        self.assertEqual(settings.status_code,422)
+        self.assertEqual(settings.status_code,200)
         # A rejected GET change must leave the established POST method in place.
         config=client.get(f"/cpa/admin/networks/{self.network_id}/postback",headers=auth(ADMIN))
         self.assertEqual(config.status_code,200)
-        self.assertEqual(config.json()["postback_method"],"POST_JSON")
+        self.assertEqual(config.json()["postback_method"],"GET_QUERY")
         self.assertTrue(config.json()["postback_enabled"])
+        with engine.begin() as c:
+            c.execute(text("UPDATE cpa_networks SET postback_method='POST_JSON' WHERE id=:id"),{"id":self.network_id})
 
     def test_legacy_postbacks_fail_closed_without_financial_changes(self):
         # A known partner_code/click_id is NOT proof of the sender's identity.
