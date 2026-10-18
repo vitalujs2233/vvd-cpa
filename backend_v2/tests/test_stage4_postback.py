@@ -223,20 +223,25 @@ class PostbackTests(unittest.TestCase):
                 c.execute(text("DELETE FROM users WHERE telegram_id=:uid"),{"uid":owner2})
 
     def test_get_and_post_share_conversion_handler_with_zero_finance(self):
-        # Isolated PostgreSQL: configurable names/statuses, no URL secrets.
-        # GET requires the same network secret as POST and supports money and statuses.
+        # Isolated PostgreSQL: GET accepts a provider's HTTPS callback token
+        # or the existing header; POST keeps its header. Both use the same ledger path.
         with engine.begin() as c:
             c.execute(text("UPDATE cpa_networks SET postback_method='GET_QUERY' WHERE id=:id"),
                 {"id":self.network_id})
         unique_click='get-test-'+self.tag
+        url_click='get-url-'+self.tag
         with engine.begin() as c:
-            c.execute(text("INSERT INTO clicks(user_id,partner_code,click_id,vertical,offer_id,network_id) VALUES(:uid,'VVD964001',:click,'utilities',:offer,:network)"),
-                      {'uid':UID,'click':unique_click,'offer':self.offer,'network':self.network_id})
+            for click in (unique_click,url_click):
+                c.execute(text("INSERT INTO clicks(user_id,partner_code,click_id,vertical,offer_id,network_id) VALUES(:uid,'VVD964001',:click,'utilities',:offer,:network)"),
+                          {'uid':UID,'click':click,'offer':self.offer,'network':self.network_id})
         data={'test_click':unique_click,'tx':'get-post-'+self.tag,
               "state":"paid","price":"1.00","ccy":"USD"}
         endpoint=f"/cpa/postback/{self.network_id}"
         try:
             self.assertEqual(client.get(endpoint,params=data).status_code,401)
+            self.assertEqual(client.get(endpoint,params={**data,"vvd_key":"incorrect"}).status_code,401)
+            self.assertEqual(client.get(endpoint,params={**data,"vvd_key":self.secret},
+                headers={"X-VVD-Postback-Key":self.secret}).status_code,422)
             self.assertEqual(client.get(endpoint,params={**data,"price":"-1"},
                 headers={"X-VVD-Postback-Key":self.secret}).status_code,422)
             self.assertEqual(client.get(endpoint,params=[*data.items(),("tx","spoof")],
@@ -261,6 +266,20 @@ class PostbackTests(unittest.TestCase):
             posted=client.post(endpoint,json={**data,"test_click":post_click,"tx":"post-only-"+self.tag},headers={"X-VVD-Postback-Key":self.secret})
             self.assertEqual(posted.status_code,200,posted.text)
             self.assertTrue(posted.json().get("created"))
+            # Query-token GET is the compatible format for networks with only a URL field.
+            url_data={**data,"test_click":url_click,"tx":"get-url-tx-"+self.tag,"price":"1.20"}
+            by_url=client.get(endpoint,params={**url_data,"vvd_key":self.secret})
+            self.assertEqual(by_url.status_code,200,by_url.text)
+            self.assertTrue(by_url.json().get("created"))
+            duplicate_url=client.get(endpoint,params={**url_data,"vvd_key":self.secret})
+            self.assertEqual(duplicate_url.status_code,200,duplicate_url.text)
+            self.assertTrue(duplicate_url.json().get("duplicate"))
+            with engine.connect() as c:
+                url_row=c.execute(text("SELECT user_id,partner_code,status,is_test,payout_gross FROM conversions WHERE click_id=:click"),{"click":url_click}).mappings().one()
+                self.assertEqual((url_row["user_id"],url_row["partner_code"],url_row["status"]),
+                                 (UID,"VVD964001","approved"))
+                self.assertFalse(url_row["is_test"])
+                self.assertEqual(url_row["payout_gross"],Decimal("1.20"))
             with engine.connect() as c:
                 row=c.execute(text("""SELECT user_id,partner_code,status,is_test,
                     payout_net,payout_gross FROM conversions WHERE click_id=:click"""),
@@ -276,6 +295,8 @@ class PostbackTests(unittest.TestCase):
                 c.execute(text("DELETE FROM conversions WHERE click_id=:click"),
                     {"click":unique_click})
                 c.execute(text("DELETE FROM clicks WHERE click_id=:click"),{"click":unique_click})
+                c.execute(text("DELETE FROM conversions WHERE click_id=:click"),{"click":url_click})
+                c.execute(text("DELETE FROM clicks WHERE click_id=:click"),{"click":url_click})
                 c.execute(text("UPDATE cpa_networks SET postback_method='POST_JSON' WHERE id=:id"),
                     {"id":self.network_id})
 
