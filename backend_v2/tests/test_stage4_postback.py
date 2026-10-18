@@ -222,6 +222,47 @@ class PostbackTests(unittest.TestCase):
                 c.execute(text("DELETE FROM offers WHERE id=:offer"),{"offer":fixture_offer})
                 c.execute(text("DELETE FROM users WHERE telegram_id=:uid"),{"uid":owner2})
 
+    def test_get_and_post_share_conversion_handler_with_zero_finance(self):
+        # Isolated PostgreSQL: configurable names/statuses, no URL secrets.
+        # GET is explicitly a test-only, zero-value pending event.
+        with engine.begin() as c:
+            c.execute(text("UPDATE cpa_networks SET postback_method='GET_QUERY' WHERE id=:id"),
+                {"id":self.network_id})
+        data={"test_click":self.click2,"tx":"get-post-"+self.tag,
+              "state":"waiting","price":"0","ccy":"USD"}
+        endpoint=f"/cpa/postback/{self.network_id}"
+        try:
+            self.assertEqual(client.get(endpoint,params=data).status_code,401)
+            self.assertEqual(client.get(endpoint,params={**data,"price":"1"},
+                headers={"X-VVD-Postback-Key":self.secret}).status_code,403)
+            self.assertEqual(client.get(endpoint,params=[*data.items(),("tx","spoof")],
+                headers={"X-VVD-Postback-Key":self.secret}).status_code,422)
+            self.assertEqual(client.get(endpoint,params={**data,"secret":"x"},
+                headers={"X-VVD-Postback-Key":self.secret}).status_code,422)
+            first=client.get(endpoint,params=data,headers={"X-VVD-Postback-Key":self.secret})
+            self.assertEqual(first.status_code,200,first.text)
+            self.assertTrue(first.json().get("created"))
+            repeated=client.get(endpoint,params=data,headers={"X-VVD-Postback-Key":self.secret})
+            self.assertEqual(repeated.status_code,200)
+            self.assertTrue(repeated.json().get("duplicate"))
+            post=client.post(endpoint,json=data,headers={"X-VVD-Postback-Key":self.secret})
+            self.assertEqual(post.status_code,200)
+            self.assertTrue(post.json().get("duplicate"))
+            with engine.connect() as c:
+                row=c.execute(text("""SELECT user_id,partner_code,status,is_test,
+                    payout_net,payout_gross FROM conversions WHERE click_id=:click"""),
+                    {"click":self.click2}).mappings().one()
+                self.assertEqual((row["user_id"],row["partner_code"],row["status"]),
+                                 (UID,"VVD964001","pending"))
+                self.assertTrue(row["is_test"])
+                self.assertEqual((row["payout_net"],row["payout_gross"]),(0,0))
+        finally:
+            with engine.begin() as c:
+                c.execute(text("DELETE FROM conversions WHERE click_id=:click"),
+                    {"click":self.click2})
+                c.execute(text("UPDATE cpa_networks SET postback_method='POST_JSON' WHERE id=:id"),
+                    {"id":self.network_id})
+
     def test_gateway_post_for_get_query_requires_existing_secret(self):
         # Isolated PG17: GET_QUERY accepts ONLY authenticated JSON POST;
         # direct GET remains unavailable, including spoofed IP headers.
