@@ -253,7 +253,11 @@ class PostbackTests(unittest.TestCase):
             self.assertEqual(post.status_code,409)
             # A synthetic GET record cannot be converted into a real POST record.
             # A separate fresh click still works with POST via the same handler.
-            posted=client.post(endpoint,json={**data,"test_click":self.click2,"tx":"post-only-"+self.tag},headers={"X-VVD-Postback-Key":self.secret})
+            post_click="post-test-"+self.tag
+            with engine.begin() as c:
+                c.execute(text("INSERT INTO clicks(user_id,partner_code,click_id,vertical,offer_id,network_id) VALUES(:uid,'VVD964001',:click,'utilities',:offer,:network)"),
+                    {"uid":UID,"click":post_click,"offer":self.offer,"network":self.network_id})
+            posted=client.post(endpoint,json={**data,"test_click":post_click,"tx":"post-only-"+self.tag},headers={"X-VVD-Postback-Key":self.secret})
             self.assertEqual(posted.status_code,200,posted.text)
             self.assertTrue(posted.json().get("created"))
             with engine.connect() as c:
@@ -266,7 +270,8 @@ class PostbackTests(unittest.TestCase):
                 self.assertEqual((row["payout_net"],row["payout_gross"]),(0,0))
         finally:
             with engine.begin() as c:
-                c.execute(text("DELETE FROM conversions WHERE click_id=:click"),{"click":self.click2})
+                c.execute(text("DELETE FROM conversions WHERE click_id=:click"),{"click":post_click})
+                c.execute(text("DELETE FROM clicks WHERE click_id=:click"),{"click":post_click})
                 c.execute(text("DELETE FROM conversions WHERE click_id=:click"),
                     {"click":unique_click})
                 c.execute(text("DELETE FROM clicks WHERE click_id=:click"),{"click":unique_click})
