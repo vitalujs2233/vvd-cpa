@@ -14,8 +14,9 @@ export const NetworkPostback:React.FC<{id:number}>=({id})=>{
  const check=async()=>{if(id!==2||busy||checkState?.completed)return;if(!window.confirm('Запустить серверную проверку на одном существующем клике VVD Test Network? Будет создана одна помеченная тестовая конверсия pending без начислений. Продолжить?'))return;
  setBusy(true);setCheckError('');setNotice('');try{const r=await cpaApi.checkPostback(id);setNotice('Postback: '+r.http_first+'; повтор: '+r.http_duplicate+'; неверный секрет: '+r.http_bad_secret+'; неизвестный клик: '+r.http_unknown_click+'; атрибуция: '+(r.attribution?'OK':'Ошибка')+'; финансы: '+(r.financial_unchanged?'не изменены':'Ошибка')+'. Приём выключен.');setCheckState(await cpaApi.getPostbackCheck(id))}catch(e){if(e instanceof Error&&'status' in e&&(e as Error&{status:number}).status===409){setCheckError('Проверка уже выполнена. Повторное создание тестовой конверсии заблокировано.');try{setCheckState(await cpaApi.getPostbackCheck(id))}catch{}}else setCheckError('Не удалось выполнить проверку: '+String(e))}finally{setBusy(false)}};
  const rotate=async()=>{if(!window.confirm('Старый секрет перестанет действовать, а приём postback отключится. Продолжить?'))return;setBusy(true);setError('');
- try{const result=await cpaApi.rotatePostback(id);setSecret(result.secret_once);setData(d=>d?{...d,postback_enabled:false,configured:true}:d);setNotice('Новый секрет показан один раз. Сохраните его в кабинете партнёрской сети.')}
+ try{const result=await cpaApi.rotatePostback(id);setSecret(result.secret_once);setData(d=>d?{...d,postback_enabled:false,configured:true,get_auth_ready:true}:d);setNotice('Новый секрет показан один раз. Сохраните его в настройках Postback партнёрской сети.')}
  catch(e){setError(String(e))}finally{setBusy(false)}};
+ const getUrl=secret&&data?data.endpoint+'?vvd_key='+encodeURIComponent(secret):'';
  return <div className="rounded-app-xs border border-accentPurple/20 bg-accentPurple/5 p-3 space-y-3">
   <h3 className="font-bold text-sm">Postback · входящие конверсии</h3>
   {error&&<p role="alert" className="text-xs text-textSecondary">{error}</p>}
@@ -25,10 +26,11 @@ export const NetworkPostback:React.FC<{id:number}>=({id})=>{
    <label className="block text-xs text-textSecondary">Формат Postback
      <select className={control+' mt-1'} value={data.postback_method} onChange={e=>setData({...data,postback_method:e.target.value as 'POST_JSON'|'GET_QUERY',postback_enabled:false})}>
        <option value="POST_JSON">POST / JSON (совместимый)</option>
-       <option value="GET_QUERY">GET / Query (требует проверки отправителя)</option>
+       <option value="GET_QUERY">GET / Query (секрет в HTTPS-адресе)</option>
      </select>
    </label>
-   {data.postback_method==='GET_QUERY'&&!data.get_auth_ready&&<p role="alert" className="text-xs text-textSecondary">GET приём отключён: {data.get_auth_reason}. X-Forwarded-For не подтверждает отправителя; секрет в URL не допускается.</p>}
+   {data.postback_method==='GET_QUERY'&&!data.get_auth_ready&&<p role="alert" className="text-xs text-textSecondary">{data.get_auth_reason}. Создайте секрет кнопкой ниже.</p>}
+   {data.postback_method==='GET_QUERY'&&<p className="text-xs text-textSecondary">Для GET без дополнительных заголовков используется индивидуальный ключ vvd_key в HTTPS Postback URL. Он секретный; никому не пересылайте ссылку и не публикуйте её.</p>}
    <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={data.postback_enabled} disabled={!data.configured||(data.postback_method==='GET_QUERY'&&!data.get_auth_ready)} onChange={e=>setData({...data,postback_enabled:e.target.checked})}/>Принимать Postback</label>
    {fieldNames.map(k=><label key={k} className="block text-xs text-textSecondary">Параметр: {k}<input className={control+' mt-1'} value={data.postback_params[k]} onChange={e=>setData({...data,postback_params:{...data.postback_params,[k]:e.target.value}})}/></label>)}
    <label className="block text-xs text-textSecondary">Соответствие статусов (JSON)
@@ -41,9 +43,10 @@ export const NetworkPostback:React.FC<{id:number}>=({id})=>{
     <button type="button" disabled={busy||checkState===null||checkState.completed} onClick={()=>void check()} className="w-full rounded-app-xs border border-accentPurple/50 p-2 text-xs disabled:opacity-60">{checkState?.completed?"Проверка уже выполнена":"Проверить Postback"}</button>
    </div>}
    <button type="button" disabled={busy} onClick={()=>void rotate()} className="w-full rounded-app-xs border border-white/10 p-2 text-xs">Создать / заменить секрет</button>
-   {secret&&<div className="space-y-2"><p className="text-xs text-textSecondary">Однократный показ секрета для заголовка X-VVD-Postback-Key. Не передавайте его в чат.</p>
+   {secret&&<div className="space-y-2"><p className="text-xs text-textSecondary">Секрет показывается один раз. Для POST передавайте его в заголовке X-VVD-Postback-Key. Для GET используйте HTTPS-ссылку с vvd_key. Не передавайте секрет в чат.</p>
      <p className="break-all select-text text-xs">{secret}</p>
      <button type="button" onClick={()=>void navigator.clipboard.writeText(secret)} className="rounded-app-xs border border-accentPurple/50 px-3 py-2 text-xs">Скопировать секрет</button>
+     {data.postback_method==='GET_QUERY'&&getUrl&&<><p className="break-all select-text text-xs text-textSecondary">Основа GET Postback URL (добавьте параметры и макросы сети): {getUrl}</p><button type="button" onClick={()=>void navigator.clipboard.writeText(getUrl)} className="rounded-app-xs border border-accentPurple/50 px-3 py-2 text-xs">Скопировать GET URL</button></>}
      <button type="button" onClick={()=>setSecret('')} className="rounded-app-xs border border-white/10 px-3 py-2 text-xs">Скрыть</button></div>}
   </>}
   {notice&&<p role="status" className="text-xs text-textSecondary">{notice}</p>}
