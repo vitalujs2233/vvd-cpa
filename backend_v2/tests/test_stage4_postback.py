@@ -205,7 +205,8 @@ class PostbackTests(unittest.TestCase):
             self.assertEqual(second.status_code,200,second.text)
             a=first.json()["summary"]
             b=second.json()["summary"]
-            self.assertEqual((a["clicks"],a["conversions"],a["statuses"]["pending"]),(2,2,2))
+            # Two pre-existing synthetic clicks for the same fixture user remain visible.
+            self.assertEqual((a["clicks"],a["conversions"],a["statuses"]["pending"]),(4,2,2))
             self.assertEqual((b["clicks"],b["conversions"],b["statuses"]["pending"]),(1,1,1))
             for summary in (a,b):
                 self.assertEqual(summary["earned"],0)
