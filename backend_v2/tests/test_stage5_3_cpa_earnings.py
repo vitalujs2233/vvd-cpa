@@ -67,6 +67,11 @@ class CPAStage53Integration(unittest.TestCase):
             c.connection.cursor().execute(stage4)
             c.execute(text("""INSERT INTO public.cpa_verticals(slug,title,is_active)
                VALUES('utilities','Utilities',TRUE) ON CONFLICT DO NOTHING"""))
+            # The live GET handler reads these existing universal CPA columns.
+            # Only the disposable CI PostgreSQL database is migrated here.
+            c.connection.cursor().execute(
+                (ROOT/"migrations/20261017_universal_cpa_integrations.sql").read_text()
+            )
             cls.network=c.execute(text("""INSERT INTO public.cpa_networks(
               name,is_active,postback_enabled,postback_key_hash)
               VALUES('Stage53 CI',TRUE,TRUE,:sha) RETURNING id"""),
@@ -743,6 +748,84 @@ class CPAStage53Integration(unittest.TestCase):
         with engine.connect() as c:
             self.assertIsNone(c.execute(text("SELECT conversion_id FROM cpa_conversion_disputes WHERE conversion_id=:id"),
                 {"id":cid}).first())
+
+
+    def test_31_authenticated_get_one_usd_creates_exact_hold_and_fee(self):
+        """Full HTTP GET -> existing conversion -> 80/20 ledger -> 240h hold.
+
+        Disposable PostgreSQL 17 only. SECRET and epoch are synthetic CI data;
+        no live providers, user balances, payments, or production activation.
+        """
+        click=self.add_click("get-one-dollar")
+        params={"click_id":click,
+                "transaction_id":"get-1usd-"+uuid.uuid4().hex[:12],
+                "status":"approved","amount":"1.00","currency":"USD",
+                "vvd_key":SECRET}
+        endpoint=f"/cpa/postback/{self.network}"
+        with engine.begin() as c:
+            c.execute(text("""UPDATE public.cpa_networks
+                SET postback_method='GET_QUERY' WHERE id=:net"""),
+                {"net":self.network})
+        try:
+            with engine.connect() as c:
+                previous=c.execute(text(
+                    "SELECT balance,hold FROM public.users WHERE telegram_id=:uid"),
+                    {"uid":UID}).one()
+                before_withdrawable=real_withdrawable(c,UID)
+
+            invalid=client.get(endpoint,params={**params,"vvd_key":"invalid"})
+            self.assertEqual(invalid.status_code,401,invalid.text)
+            first=client.get(endpoint,params=params)
+            self.assertEqual(first.status_code,200,first.text)
+            self.assertTrue(first.json().get("created"),first.text)
+            self.assertTrue(first.json().get("hold_credited"),first.text)
+            self.assertEqual(first.json()["status"],"approved")
+
+            second=client.get(endpoint,params=params)
+            self.assertEqual(second.status_code,200,second.text)
+            self.assertTrue(second.json().get("duplicate"),second.text)
+            self.assertFalse(second.json().get("hold_credited",False))
+
+            with engine.connect() as c:
+                row=c.execute(text("""SELECT id,user_id,partner_code,network_id,
+                        offer_id,status,is_test,payout_gross,payout_net,
+                        finance_eligible_at,finance_approved_at
+                    FROM public.conversions WHERE click_id=:click"""),
+                    {"click":click}).mappings().one()
+                self.assertEqual(row["user_id"],UID)
+                self.assertEqual(row["partner_code"],CODE)
+                self.assertEqual(row["network_id"],self.network)
+                self.assertEqual(row["offer_id"],"stage53")
+                self.assertEqual(row["status"],"approved")
+                self.assertFalse(row["is_test"])
+                self.assertEqual(row["payout_gross"],Decimal("1.00"))
+                self.assertEqual(row["payout_net"],Decimal("0.80"))
+                self.assertIsNotNone(row["finance_eligible_at"])
+                self.assertIsNotNone(row["finance_approved_at"])
+
+                events=ledger_events_for_conversion(c,row["id"])
+                self.assertEqual(len(events),2)
+                holds=[e for e in events if e["operation_type"]=="hold_credit"]
+                fees=[e for e in events if e["operation_type"]=="platform_fee_accrual"]
+                self.assertEqual(len(holds),1)
+                self.assertEqual(len(fees),1)
+                self.assertEqual(holds[0]["amount"],Decimal("0.80"))
+                self.assertEqual(holds[0]["hold_delta"],Decimal("0.80"))
+                self.assertEqual(fees[0]["amount"],Decimal("0.20"))
+                self.assertEqual(fees[0]["platform_fee_delta"],Decimal("0.20"))
+                self.assertEqual(holds[0]["hold_until"]-holds[0]["approved_at"],
+                                 timedelta(hours=240))
+                current=c.execute(text(
+                    "SELECT balance,hold FROM public.users WHERE telegram_id=:uid"),
+                    {"uid":UID}).one()
+                self.assertEqual(current.balance,previous.balance)
+                self.assertEqual(current.hold,previous.hold+Decimal("0.80"))
+                self.assertEqual(real_withdrawable(c,UID),before_withdrawable)
+        finally:
+            with engine.begin() as c:
+                c.execute(text("""UPDATE public.cpa_networks
+                    SET postback_method='POST_JSON' WHERE id=:net"""),
+                    {"net":self.network})
 
 
 if __name__=="__main__":
