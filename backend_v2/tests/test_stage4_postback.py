@@ -250,8 +250,12 @@ class PostbackTests(unittest.TestCase):
             self.assertEqual(repeated.status_code,200)
             self.assertTrue(repeated.json().get("duplicate"))
             post=client.post(endpoint,json=data,headers={"X-VVD-Postback-Key":self.secret})
-            self.assertEqual(post.status_code,200)
-            self.assertTrue(post.json().get("duplicate"))
+            self.assertEqual(post.status_code,409)
+            # A synthetic GET record cannot be converted into a real POST record.
+            # A separate fresh click still works with POST via the same handler.
+            posted=client.post(endpoint,json={**data,"test_click":self.click2,"tx":"post-only-"+self.tag},headers={"X-VVD-Postback-Key":self.secret})
+            self.assertEqual(posted.status_code,200,posted.text)
+            self.assertTrue(posted.json().get("created"))
             with engine.connect() as c:
                 row=c.execute(text("""SELECT user_id,partner_code,status,is_test,
                     payout_net,payout_gross FROM conversions WHERE click_id=:click"""),
@@ -262,6 +266,7 @@ class PostbackTests(unittest.TestCase):
                 self.assertEqual((row["payout_net"],row["payout_gross"]),(0,0))
         finally:
             with engine.begin() as c:
+                c.execute(text("DELETE FROM conversions WHERE click_id=:click"),{"click":self.click2})
                 c.execute(text("DELETE FROM conversions WHERE click_id=:click"),
                     {"click":unique_click})
                 c.execute(text("DELETE FROM clicks WHERE click_id=:click"),{"click":unique_click})
