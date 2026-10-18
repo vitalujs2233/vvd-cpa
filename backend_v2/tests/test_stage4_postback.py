@@ -289,7 +289,7 @@ class PostbackTests(unittest.TestCase):
                     {"id":self.network_id})
             self.assertEqual(client.get(endpoint,params=data,headers={
                 "X-Forwarded-For":"203.0.113.5",
-                "CF-Connecting-IP":"203.0.113.5"}).status_code,403)
+                "CF-Connecting-IP":"203.0.113.5"}).status_code,401)
             self.assertEqual(client.post(endpoint,json=data).status_code,401)
             self.assertEqual(client.post(endpoint,json=data,headers={
                 "X-VVD-Postback-Key":"fake"}).status_code,401)
