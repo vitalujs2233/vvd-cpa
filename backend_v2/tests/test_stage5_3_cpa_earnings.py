@@ -279,6 +279,32 @@ class CPAStage53Integration(unittest.TestCase):
             assert credit["credited"]
         return cid
 
+    def test_09a_balance_view_releases_only_signed_user_matured_holds(self):
+        cid=self.seed_matured("lazy-balance")
+        with engine.connect() as c:
+            old_events=ledger_events_for_conversion(c,cid)
+            self.assertFalse(any(e["operation_type"]=="hold_release" for e in old_events))
+        r=client.get(f"/balance/{UID}",headers=self.user_headers())
+        self.assertEqual(r.status_code,200,r.text)
+        with engine.connect() as c:
+            events=ledger_events_for_conversion(c,cid)
+            self.assertEqual(len([e for e in events if e["operation_type"]=="hold_release"]),1)
+        again=client.get(f"/balance/{UID}",headers=self.user_headers())
+        self.assertEqual(again.status_code,200)
+        with engine.connect() as c:
+            self.assertEqual(len([e for e in ledger_events_for_conversion(c,cid) if e["operation_type"]=="hold_release"]),1)
+
+    def test_09b_request_releases_matured_hold_before_reservation(self):
+        cid=self.seed_matured("lazy-claim")
+        self.assertEqual(self.approve_network_receipt(cid).status_code,200)
+        request=self.payout_request("50.00")
+        self.assertEqual(request.status_code,200,request.text)
+        self.assertTrue(request.json()["success"],request.text)
+        with engine.connect() as c:
+            events=ledger_events_for_conversion(c,cid)
+            self.assertEqual(len([e for e in events if e["operation_type"]=="hold_release"]),1)
+        self.assertTrue(client.post("/admin/withdrawals/"+str(request.json()["withdrawal_id"])+"/reject",headers=self.admin_headers()).json()["success"])
+
     def test_10_maturity_240_hours_and_real_withdrawable(self):
         # Conversion was created after cutover in isolated CI; approval is
         # backdated to simulate the full DB-enforced 240 hours.
