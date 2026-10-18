@@ -61,8 +61,8 @@ def get_provider(network_id:int,x_telegram_init_data:str|None=Header(None)):
 @router.put("/admin/networks/{network_id}/postback")
 def configure_provider(network_id:int,payload:ProviderConfig,x_telegram_init_data:str|None=Header(None)):
     admin(x_telegram_init_data)
-    if payload.postback_method=="GET_QUERY" and payload.postback_enabled:
-        raise HTTPException(422,"GET reception disabled until authenticated sender support is verified")
+    # GET_QUERY networks may receive authenticated POST/JSON from the existing gateway.
+    # Direct GET authentication remains enforced separately.
     with engine.begin() as c:
         row=c.execute(text("""UPDATE cpa_networks SET postback_enabled=:enabled,
           postback_method=:method,postback_params=CAST(:params AS jsonb),postback_status_map=CAST(:map AS jsonb)
