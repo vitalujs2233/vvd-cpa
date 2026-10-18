@@ -117,7 +117,7 @@ def catalog():
 @router.get("/catalog/{slug}")
 def public_vertical(slug:str):
     with engine.connect() as conn:
-        vertical=conn.execute(text("SELECT slug,title,description,icon_name FROM cpa_verticals WHERE slug=:slug AND is_active=true"),
+        vertical=conn.execute(text("SELECT slug,title,description,icon_name,is_active,cpa_link_allowed FROM cpa_verticals WHERE slug=:slug AND is_active=true"),
                               {"slug":slug}).mappings().first()
         if not vertical:raise HTTPException(404,"Вертикаль недоступна")
         offers=conn.execute(text("""SELECT o.id,o.title,o.description,o.icon_name,o.image_url,o.offer_type,
