@@ -1,0 +1,44 @@
+name: VVD CPA GET to Hold End-to-End PostgreSQL 17
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend_v2/tests/test_stage5_3_cpa_earnings.py'
+      - '.github/workflows/validate-cpa-get-hold.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  get-dollar-hold:
+    name: GET $1 -> 80/20 -> Hold 240h (disposable PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cpa_withdrawals_isolated
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/cpa_withdrawals_isolated
+      BOT_TOKEN: 123456:TEST_TOKEN_FOR_CI_ONLY
+      ADMIN_TELEGRAM_IDS: '232682307'
+      VVD_CPA_EARLY_RELEASE_ENABLED: '1'
+      PYTHONPATH: backend_v2:backend_v2/tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r backend_v2/requirements.txt
+      - name: Run isolated authenticated GET plus finance/hold regression
+        run: python -m unittest discover -s backend_v2/tests -p 'test_stage5_3_cpa_earnings.py' -v
