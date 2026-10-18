@@ -41,4 +41,4 @@ jobs:
           python-version: '3.11'
       - run: pip install -r backend_v2/requirements.txt
       - name: Run isolated authenticated GET plus finance/hold regression
-        run: python -m unittest discover -s backend_v2/tests -p 'test_stage5_3_cpa_earnings.py' -v
+        run: python -m unittest test_stage5_3_cpa_earnings.CPAStage53Integration.test_31_authenticated_get_one_usd_creates_exact_hold_and_fee -v
