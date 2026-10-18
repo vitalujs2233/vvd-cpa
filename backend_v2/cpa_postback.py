@@ -262,17 +262,45 @@ async def receive_postback(network_id:int,request:Request,
         return _accept(c,provider,raw,x_vvd_postback_key,network_id)
 
 @router.get("/postback/{network_id}")
-async def receive_get_postback(network_id:int,request:Request):
-    # Fail closed: arbitrary X-Forwarded-For or query parameters are not identity.
-    # Do not emit or log sensitive query strings.
-    if len(request.scope.get("query_string",b""))>4096:
+async def receive_get_postback(network_id:int,request:Request,
+                               x_vvd_postback_key:str|None=Header(None)):
+    # Authenticated GET is explicitly test-only until sender verification is
+    # available. Never trust client-provided IP headers, query-string secrets
+    # or an unverified request for financial eligibility.
+    raw_query=request.scope.get("query_string",b"")
+    if len(raw_query)>4096:
         raise HTTPException(413,"Query too large")
-    with engine.connect() as c:
-        provider=c.execute(text("""SELECT postback_method,postback_enabled
-            FROM cpa_networks WHERE id=:id"""),{"id":network_id}).mappings().first()
-    if not provider or provider["postback_method"]!="GET_QUERY":
-        raise HTTPException(404,"Source unavailable")
-    raise HTTPException(403,"GET sender authentication not configured")
+    params=request.query_params
+    if len(params)!=len(set(params.keys())):
+        raise HTTPException(422,"Duplicate postback fields")
+    if any(k.lower() in ("key","secret","token","password","api_key",
+                         "x_vvd_postback_key") for k in params.keys()):
+        raise HTTPException(422,"Secrets must not be sent in URL")
+    raw=json.dumps(dict(params),separators=(",",":")).encode()
+    if len(raw)>4096:
+        raise HTTPException(413,"Payload too large")
+    with engine.begin() as c:
+        provider=c.execute(text("""SELECT id,postback_enabled,postback_key_hash,
+          postback_method,postback_params,postback_status_map
+          FROM cpa_networks WHERE id=:id FOR UPDATE"""),
+          {"id":network_id}).mappings().first()
+        if (not provider or not provider["postback_enabled"]
+                or not provider["postback_key_hash"]
+                or provider["postback_method"]!="GET_QUERY"):
+            raise HTTPException(404,"Source unavailable")
+        # A shared secret in an HTTPS header authenticates the configured
+        # sender, but only isolated zero-value pending events can use GET.
+        # Real GET conversion reception still requires verified edge ingress.
+        names=provider["postback_params"]
+        mapped=provider["postback_status_map"]
+        try:
+            external=params[names["status"]]
+            amount=Decimal(params.get(names["amount"],"0"))
+        except (KeyError,InvalidOperation,ValueError):
+            raise HTTPException(422,"Invalid postback payload")
+        if mapped.get(external)!="pending" or amount!=0:
+            raise HTTPException(403,"GET financial events require verified gateway")
+        return _accept(c,provider,raw,x_vvd_postback_key,network_id,is_test=True)
 
 def _snapshot(c):
     return tuple(c.execute(text(q)).scalar_one() for q in (
