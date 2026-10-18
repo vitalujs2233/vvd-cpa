@@ -13,7 +13,7 @@ export const OfferDetail:React.FC=()=>{
   task.then(r=>{if(active){setVertical(r.vertical);setOffers(r.offers);setOffer(r.offer)}}).catch(e=>{if(active)setError(e instanceof Error?e.message:'Ошибка загрузки')}).finally(()=>{if(active)setLoading(false)});
   return()=>{active=false};
  },[id,offerId]);
- const allowedNeutral=['utilities','education','productivity','software','technology'].includes(id||'');
+ const allowedNeutral=Boolean(vertical?.is_active&&vertical?.cpa_link_allowed);
  useEffect(()=>{setLink(null);setLinkError('');if(!offerId||!allowedNeutral)return;let active=true;
   cpaApi.getLink(offerId).then(r=>{if(active)setLink(r.url)}).catch(e=>{if(active)setLinkError(e instanceof Error?e.message:'Не удалось загрузить ссылку')});
   return()=>{active=false};
