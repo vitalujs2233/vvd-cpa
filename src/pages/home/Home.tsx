@@ -10,6 +10,15 @@ export const Home: React.FC = () => {
   const navigate = useNavigate();
   const user = getTelegramUser();
   console.log("Telegram User:", user);
+const [conversionCount,setConversionCount]=useState<number|null>(null);
+useEffect(() => {
+  let active=true;
+  authorizedFetch(`https://vvd-cpa-v2.onrender.com/statistics/${user.id}`)
+    .then(async r=>{if(!r.ok)throw new Error('statistics unavailable');return r.json()})
+    .then(d=>{if(active)setConversionCount(Number(d?.summary?.conversions??0))})
+    .catch(()=>{if(active)setConversionCount(null)});
+  return()=>{active=false};
+},[user.id]);
 const [balance, setBalance] = useState({
   available: 0,
   hold: 0,
@@ -190,73 +199,17 @@ const res = await authorizedFetch(
         </div>
       </Card>
 
-      {/* Секция: Последние конверсии */}
+      {/* Данные существующего пользовательского API статистики, без демонстрационных событий */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between px-1">
-          <span className="text-sm font-bold text-white">Последние конверсии</span>
-          <button
-            onClick={() => { triggerHaptic.lightImpact(); navigate('/stats'); }}
-            className="text-xs text-accentGoldBright hover:text-accentGold hover:scale-[1.01] flex items-center gap-1 transition-all font-semibold"
-          >
-            Смотреть все
-            <ArrowRight size={12} />
-          </button>
+          <span className="text-sm font-bold text-white">Конверсии</span>
+          <button onClick={() => { triggerHaptic.lightImpact(); navigate('/stats'); }}
+            className="text-xs text-accentGoldBright font-semibold flex items-center gap-1">Смотреть все <ArrowRight size={12}/></button>
         </div>
-
-        <Card padding="none" variant="default" className="divide-y divide-white/[0.04] shadow-premium">
-          {/* Конверсия 1: Adult Dating */}
-          <div className="flex items-center justify-between p-4 text-left hover-lift cursor-pointer">
-            <div className="flex items-center gap-3">
-              {/* Премиальная сияющая золотая иконка сердца */}
-              <div className="w-10 h-10 rounded-full bg-accentGold/10 border border-accentGold/20 flex items-center justify-center text-accentGold shadow-[0_0_10px_rgba(212,175,55,0.15)]">
-                <Heart size={16} className="drop-shadow-[0_0_4px_#D4AF37]" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-textPrimary">Adult Dating</span>
-                <span className="text-[10px] text-textSecondary flex items-center gap-1.5 mt-0.5">
-                  <Clock size={10} />
-                  2 минуты назад
-                </span>
-              </div>
-            </div>
-            <span className="text-sm font-bold text-success">+$12.50</span>
-          </div>
-
-          {/* Конверсия 2: Nutra Offer */}
-          <div className="flex items-center justify-between p-4 text-left hover-lift cursor-pointer">
-            <div className="flex items-center gap-3">
-              {/* Премиальная сияющая золотая иконка капсулы */}
-              <div className="w-10 h-10 rounded-full bg-accentGold/10 border border-accentGold/20 flex items-center justify-center text-accentGold shadow-[0_0_10px_rgba(212,175,55,0.15)]">
-                <Pill size={16} className="drop-shadow-[0_0_4px_#D4AF37]" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-textPrimary">Nutra Offer</span>
-                <span className="text-[10px] text-textSecondary flex items-center gap-1.5 mt-0.5">
-                  <Clock size={10} />
-                  15 минут назад
-                </span>
-              </div>
-            </div>
-            <span className="text-sm font-bold text-success">+$8.30</span>
-          </div>
-
-          {/* ... */}
-          <div className="flex items-center justify-between p-4 text-left hover-lift cursor-pointer">
-            <div className="flex items-center gap-3">
-              {/* Премиальная сияющая золотая иконка монет */}
-              <div className="w-10 h-10 rounded-full bg-accentGold/10 border border-accentGold/20 flex items-center justify-center text-accentGold shadow-[0_0_10px_rgba(212,175,55,0.15)]">
-                <Coins size={16} className="drop-shadow-[0_0_4px_#D4AF37]" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-textPrimary">Crypto Trading</span>
-                <span className="text-[10px] text-textSecondary flex items-center gap-1.5 mt-0.5">
-                  <Clock size={10} />
-                  1 час назад
-                </span>
-              </div>
-            </div>
-            <span className="text-sm font-bold text-success">+$15.20</span>
-          </div>
+        <Card padding="lg" variant="default" className="text-left space-y-2">
+          <p className="text-xs text-textSecondary">По данным CPA-статистики</p>
+          <p className="text-lg font-bold text-white">{conversionCount === null ? 'Загрузка…' : conversionCount}</p>
+          <p className="text-xs text-textSecondary">Атрибутированные конверсии, включая ожидающие подтверждения</p>
         </Card>
       </div>
 
