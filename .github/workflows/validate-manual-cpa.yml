@@ -28,6 +28,7 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/cpa_withdrawals_isolated
       BOT_TOKEN: 123456:TEST_TOKEN_FOR_CI_ONLY
       PYTHONPATH: backend_v2
+      VVD_CPA_EARLY_RELEASE_ENABLED: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

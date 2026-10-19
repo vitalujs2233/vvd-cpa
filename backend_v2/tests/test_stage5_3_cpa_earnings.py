@@ -67,6 +67,7 @@ class CPAStage53Integration(unittest.TestCase):
             c.connection.cursor().execute(stage4)
             c.execute(text("""INSERT INTO public.cpa_verticals(slug,title,is_active)
                VALUES('utilities','Utilities',TRUE) ON CONFLICT DO NOTHING"""))
+            c.connection.cursor().execute((ROOT/"migrations/20261017_universal_cpa_integrations.sql").read_text())
             cls.network=c.execute(text("""INSERT INTO public.cpa_networks(
               name,is_active,postback_enabled,postback_key_hash)
               VALUES('Stage53 CI',TRUE,TRUE,:sha) RETURNING id"""),
@@ -287,12 +288,12 @@ class CPAStage53Integration(unittest.TestCase):
         with engine.connect() as c:
             old_events=ledger_events_for_conversion(c,cid)
             self.assertFalse(any(e["operation_type"]=="hold_release" for e in old_events))
-        r=client.get(f"/balance/{UID}",headers=self.user_headers())
+        r=client.get(f"/balance/{UID}",headers=self.admin_headers())
         self.assertEqual(r.status_code,200,r.text)
         with engine.connect() as c:
             events=ledger_events_for_conversion(c,cid)
             self.assertEqual(len([e for e in events if e["operation_type"]=="hold_release"]),1)
-        again=client.get(f"/balance/{UID}",headers=self.user_headers())
+        again=client.get(f"/balance/{UID}",headers=self.admin_headers())
         self.assertEqual(again.status_code,200)
         with engine.connect() as c:
             self.assertEqual(len([e for e in ledger_events_for_conversion(c,cid) if e["operation_type"]=="hold_release"]),1)
