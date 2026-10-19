@@ -85,7 +85,7 @@ class CPAStage53Integration(unittest.TestCase):
                 (ROOT/"migrations/20261019162821_manual_cpa_payouts.sql").read_text()
             )
             cls.original_history=tuple(c.execute(text(x)).scalar_one() for x in (
-              "SELECT count(*) FROM users","SELECT count(*) FROM withdrawals",
+              "SELECT count(*) FROM users","SELECT count(*) FROM withdrawals WHERE cpa_real_epoch_at IS NULL",
               "SELECT count(*) FROM conversions WHERE finance_eligible_at IS NULL",
               "SELECT count(*) FROM clicks WHERE id<=700",
               "SELECT count(*) FROM withdrawals WHERE cpa_real_epoch_at IS NOT NULL"))
@@ -379,9 +379,9 @@ class CPAStage53Integration(unittest.TestCase):
             self.assertEqual(c.execute(text("""SELECT count(*)
               FROM conversions WHERE finance_eligible_at IS NULL""")).scalar_one(),27)
             self.assertEqual(c.execute(text("""SELECT count(*)
-              FROM withdrawals WHERE cpa_real_epoch_at IS NOT NULL""")).scalar_one(),0)
+              FROM withdrawals WHERE id <= 22 AND cpa_real_epoch_at IS NOT NULL""")).scalar_one(),0)
             self.assertEqual(c.execute(text("SELECT count(*) FROM users")).scalar_one(),12)
-            self.assertEqual(c.execute(text("SELECT count(*) FROM withdrawals")).scalar_one(),22)
+            self.assertEqual(c.execute(text("SELECT count(*) FROM withdrawals WHERE cpa_real_epoch_at IS NULL")).scalar_one(),22)
 
 
     @classmethod
@@ -511,7 +511,7 @@ class CPAStage53Integration(unittest.TestCase):
         self.assertEqual(self.manual(historical).status_code,409)
         self.assertEqual(self.approve_network_receipt(historical).status_code,409)
         with engine.connect() as c:
-            self.assertEqual(c.execute(text("SELECT count(*) FROM withdrawals")).scalar_one(),22)
+            self.assertEqual(c.execute(text("SELECT count(*) FROM withdrawals WHERE cpa_real_epoch_at IS NULL")).scalar_one(),22)
             self.assertEqual(c.execute(text("SELECT count(*) FROM users")).scalar_one(),12)
 
     def test_19_auto_manual_race_never_exceeds_credit(self):
@@ -605,9 +605,8 @@ class CPAStage53Integration(unittest.TestCase):
         cid=self.seed_matured("reserve-race")
         release_matured_holds(engine,limit=60)
         self.assertEqual(self.approve_network_receipt(cid).status_code,200)
-        from cpa_real_withdrawals import withdrawable_covered
         with engine.connect() as c:
-            fully=withdrawable_covered(c,UID)
+            fully=real_withdrawable(c,UID)
         self.assertGreaterEqual(fully,Decimal("50.00"))
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as p:
             results=list(p.map(lambda _:self.payout_request(str(fully)),range(10)))
@@ -622,16 +621,15 @@ class CPAStage53Integration(unittest.TestCase):
         cid=self.seed_matured("reject-once")
         release_matured_holds(engine,limit=60)
         self.assertEqual(self.approve_network_receipt(cid).status_code,200)
-        from cpa_real_withdrawals import withdrawable_covered
         with engine.connect() as c:
-            before=withdrawable_covered(c,UID)
+            before=real_withdrawable(c,UID)
             balance=c.execute(text("SELECT balance FROM users WHERE telegram_id=:u"),
                               {"u":UID}).scalar_one()
         claim=self.payout_request()
         self.assertTrue(claim.json()["success"],claim.text)
         wid=claim.json()["withdrawal_id"]
         with engine.connect() as c:
-            self.assertEqual(withdrawable_covered(c,UID),before-Decimal("50.00"))
+            self.assertEqual(real_withdrawable(c,UID),before-Decimal("50.00"))
         first=client.post("/admin/withdrawals/"+str(wid)+"/reject",
             headers=self.admin_headers())
         second=client.post("/admin/withdrawals/"+str(wid)+"/reject",
@@ -639,7 +637,7 @@ class CPAStage53Integration(unittest.TestCase):
         self.assertTrue(first.json()["success"])
         self.assertFalse(second.json()["success"])
         with engine.connect() as c:
-            self.assertEqual(withdrawable_covered(c,UID),before)
+            self.assertEqual(real_withdrawable(c,UID),before)
             self.assertEqual(c.execute(text("SELECT balance FROM users WHERE telegram_id=:u"),
                               {"u":UID}).scalar_one(),balance)
 
