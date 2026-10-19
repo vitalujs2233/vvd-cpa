@@ -27,11 +27,11 @@ interface AdminUser {
 }
 
 interface CountryStat {
-  country_code: string;
+  country_code: string | null;
   country_name: string;
   clicks: number;
-  conversions: number;
-  income: number;
+  conversions?: number;
+  income?: number;
 }
 
 interface FinanceStat {
@@ -361,20 +361,9 @@ const saveChatBanner = async () => {
     setUserStatsLoading(true);
 
     try {
-      const [usersResponse, countriesResponse] = await Promise.all([
-        authorizedFetch('https://vvd-cpa-v2.onrender.com/admin/users'),
-        authorizedFetch(`https://vvd-cpa-v2.onrender.com/statistics/${user.telegram_id}/countries`)
-      ]);
-
-      const usersData = await usersResponse.json();
+      const countriesResponse = await authorizedFetch(
+        `https://vvd-cpa-v2.onrender.com/statistics/${user.telegram_id}/countries`);
       const countriesData = await countriesResponse.json();
-
-      if (usersData.success && Array.isArray(usersData.users)) {
-        const freshUser = usersData.users.find(
-          (item: AdminUser) => item.telegram_id === user.telegram_id
-        );
-        if (freshUser) setSelectedUser(freshUser);
-      }
 
       if (countriesData.success && Array.isArray(countriesData.countries)) {
         setCountryStats(countriesData.countries);
@@ -1021,7 +1010,7 @@ const saveChatBanner = async () => {
               <div className="py-16 text-center text-textSecondary text-xs">Загрузка статистики...</div>
             ) : countryStats.length > 0 ? (
               countryStats.map((country) => {
-                const cr = country.clicks > 0 ? (country.conversions / country.clicks) * 100 : 0;
+                const cr = country.conversions == null ? null : country.clicks > 0 ? (country.conversions / country.clicks) * 100 : 0;
                 return (
                   <Card key={`${country.country_code}-${country.country_name}`} padding="sm" className="text-left">
                     <div className="flex items-center justify-between gap-3">
@@ -1029,12 +1018,12 @@ const saveChatBanner = async () => {
                         <span className="text-xs font-bold text-white">{country.country_name || country.country_code}</span>
                         <span className="text-[9px] text-textSecondary">{country.country_code}</span>
                       </div>
-                      <span className="text-xs font-bold text-success">${country.income.toFixed(2)}</span>
+                      <span className="text-xs font-bold text-success">{country.income == null ? '—' : '$' + Number(country.income).toFixed(2)}</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2 border-t border-white/[0.05] pt-3 mt-3">
                       <div><span className="text-[8px] text-textSecondary uppercase block">Клики</span><span className="text-xs font-bold text-white">{country.clicks}</span></div>
-                      <div><span className="text-[8px] text-textSecondary uppercase block">Конверсии</span><span className="text-xs font-bold text-white">{country.conversions}</span></div>
-                      <div><span className="text-[8px] text-textSecondary uppercase block">CR</span><span className="text-xs font-bold text-white">{cr.toFixed(2)}%</span></div>
+                      <div><span className="text-[8px] text-textSecondary uppercase block">Конверсии</span><span className="text-xs font-bold text-white">{country.conversions ?? '—'}</span></div>
+                      <div><span className="text-[8px] text-textSecondary uppercase block">CR</span><span className="text-xs font-bold text-white">{cr == null ? '—' : cr.toFixed(2) + '%'}</span></div>
                     </div>
                   </Card>
                 );

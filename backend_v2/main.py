@@ -1214,20 +1214,30 @@ async def admin_finance():
 @app.get("/admin/users")
 async def admin_users():
 
-    from cpa_analytics import summarize, arguments
-    params = arguments("all", None, None, None, None, None)
+    from cpa_analytics import CONVERSION_ROWS, arguments
+    params = {**arguments("all", None, None, None, None, None), "uid": None}
     with engine.connect() as conn:
-        users = conn.execute(text("""
-            SELECT telegram_id,partner_code,first_name,last_name,username,status
-            FROM public.users ORDER BY telegram_id
-        """)).mappings().all()
-        result = []
-        for user in users:
-            stats = summarize(conn, user["telegram_id"], params)
-            result.append({**dict(user), "clicks":stats["clicks"],
-                           "conversions":stats["conversions"],
-                           "income":stats["earned"], "cr":stats["cr"]})
-    return {"success":True, "users":sorted(result, key=lambda u:(u["income"],u["clicks"]), reverse=True)}
+        rows = conn.execute(text("""
+            WITH clicks AS (SELECT user_id,count(*) AS clicks FROM public.clicks GROUP BY user_id),
+            conversions AS (""" + CONVERSION_ROWS + """),
+            counts AS (SELECT user_id,count(*) FILTER (
+                WHERE NOT is_test AND normalized_status IN ('pending','approved','rejected')) AS conversions
+                FROM conversions GROUP BY user_id),
+            earnings AS (SELECT v.user_id,sum(CASE
+                WHEN l.operation_type IN ('hold_credit','hold_reversal') THEN l.hold_delta
+                WHEN l.operation_type='balance_reversal' THEN l.balance_delta ELSE 0 END) AS income
+                FROM conversions v JOIN public.cpa_ledger l ON l.conversion_id=v.id
+                WHERE v.is_real GROUP BY v.user_id)
+            SELECT u.telegram_id,u.partner_code,u.first_name,u.last_name,u.username,u.status,
+                coalesce(k.clicks,0) AS clicks,coalesce(c.conversions,0) AS conversions,
+                coalesce(f.income,0) AS income
+            FROM public.users u LEFT JOIN clicks k ON k.user_id=u.telegram_id
+            LEFT JOIN counts c ON c.user_id=u.telegram_id
+            LEFT JOIN earnings f ON f.user_id=u.telegram_id
+            ORDER BY income DESC,clicks DESC,u.telegram_id
+        """), params).mappings().all()
+    return {"success": True, "users": [{**dict(r), "income":float(r["income"]),
+        "cr":round(100*r["conversions"]/r["clicks"],2) if r["clicks"] else 0.0} for r in rows]}
 
 
 # ==================== ADMIN CPA HOLD RELEASE ====================
