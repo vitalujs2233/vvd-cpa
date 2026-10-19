@@ -315,7 +315,7 @@ def finance_balance_projection(conn, user_id, legacy_balance):
         return {"real_withdrawable": 0.0, "real_finance_active": False,
                 "real_finance_available": False}
     try:
-        entitlement = withdrawable_covered(conn, user_id, epoch)
+        entitlement = real_withdrawable(conn, user_id, epoch)
         spendable = max(ZERO, min(entitlement, Decimal(legacy_balance)))
         return {"real_withdrawable": float(spendable),
                 "real_finance_active": True, "real_finance_available": True}
@@ -371,7 +371,7 @@ def create_real_withdrawal(engine, *, partner_code, amount, payment_method, wall
                         "amount":float(requested),"status":existing["status"]}
         try:
             epoch = epoch_row(conn)
-            entitled = withdrawable_covered(conn,int(user["telegram_id"]),epoch)
+            entitled = real_withdrawable(conn,int(user["telegram_id"]),epoch)
         except (RealFinanceDisabled, RealFinanceInconsistent):
             return {"success":False,"message":"Real CPA finance unavailable"}
         # Ledger is the actual entitlement; balance is only an extra safety ceiling.
@@ -402,7 +402,7 @@ def create_real_withdrawal(engine, *, partner_code, amount, payment_method, wall
 
 def _process_real_withdrawal(engine, withdrawal_id, decision, *,
                              admin_uid=None, transfer_reference=None,
-                             evidence_reference=None, transferred_at=None):
+                             evidence_reference=None, transferred_at=None, confirmed_manual=False):
     """Mark one *real* pending request once, atomically; never pay externally."""
     if decision not in ("paid","rejected"):
         raise ValueError("Unsupported withdrawal status")
@@ -410,7 +410,7 @@ def _process_real_withdrawal(engine, withdrawal_id, decision, *,
         if admin_uid is None:
             return {"success":False,"message":"Signed admin confirmation is required"}
         try:
-            reference,evidence,transferred=_validate_transfer_proof(
+            reference,evidence,transferred = (None,None,None) if confirmed_manual else _validate_transfer_proof(
                 transfer_reference,evidence_reference,transferred_at)
         except ValueError as exc:
             return {"success":False,"message":str(exc)}
@@ -446,28 +446,30 @@ def _process_real_withdrawal(engine, withdrawal_id, decision, *,
         if decision == "paid":
             try:
                 # Zero available is legitimate after a fully reserved request;
-                # BOTH reservations must be solvent before cash is marked paid.
+                # Released earnings must still cover the reserved requests.
                 real_withdrawable(conn,int(row["user_id"]),epoch)
-                funded_withdrawable(conn,int(row["user_id"]),epoch)
             except RealFinanceInconsistent:
-                return {"success":False,"message":"Unfunded or disputed CPA obligation; payment blocked"}
-            # Insert immutable evidence BEFORE status changes. The separate
-            # PostgreSQL trigger forbids bypassing proof from any SQL route.
-            proof_saved=conn.execute(text("""
-                INSERT INTO public.cpa_payout_proofs
-                (withdrawal_id,external_transfer_id,evidence_reference,
-                 transferred_at,confirmed_by)
-                VALUES(:wid,:reference,:evidence,:transferred,:admin)
-                ON CONFLICT DO NOTHING RETURNING withdrawal_id
-            """),{"wid":withdrawal_id,"reference":reference,
-                  "evidence":evidence,"transferred":transferred,"admin":admin_uid}).first()
-            if not proof_saved:
-                return {"success":False,"message":"Transfer proof already used; paid status not changed"}
+                return {"success":False,"message":"Disputed CPA obligation; payment blocked"}
+            if not confirmed_manual:
+                # Insert immutable evidence BEFORE status changes. The separate
+                # PostgreSQL trigger forbids bypassing proof from any SQL route.
+                proof_saved=conn.execute(text("""
+                    INSERT INTO public.cpa_payout_proofs
+                    (withdrawal_id,external_transfer_id,evidence_reference,
+                     transferred_at,confirmed_by)
+                    VALUES(:wid,:reference,:evidence,:transferred,:admin)
+                    ON CONFLICT DO NOTHING RETURNING withdrawal_id
+                """),{"wid":withdrawal_id,"reference":reference,
+                      "evidence":evidence,"transferred":transferred,"admin":admin_uid}).first()
+                if not proof_saved:
+                    return {"success":False,"message":"Transfer proof already used; paid status not changed"}
         # Reject marks reservation released; paid stays a permanent spend.
         conn.execute(text("""
-            UPDATE public.withdrawals SET status=:decision,processed_at=NOW()
+            UPDATE public.withdrawals SET status=:decision,processed_at=NOW(),
+              manual_paid_by=CASE WHEN :manual THEN :admin ELSE manual_paid_by END,
+              manual_paid_at=CASE WHEN :manual THEN clock_timestamp() ELSE manual_paid_at END
             WHERE id=:id AND status='pending'
-        """), {"decision":decision,"id":withdrawal_id})
+        """), {"decision":decision,"id":withdrawal_id,"manual":decision=="paid" and confirmed_manual,"admin":admin_uid})
         if decision == "paid":
             conn.execute(text("""
                 UPDATE public.users SET withdrawn=withdrawn+:amount
@@ -484,10 +486,10 @@ def _process_real_withdrawal(engine, withdrawal_id, decision, *,
 
 
 def mark_real_paid(engine, withdrawal_id, *, admin_uid=None,
-                   transfer_reference=None,evidence_reference=None,transferred_at=None):
+                   transfer_reference=None,evidence_reference=None,transferred_at=None,confirmed_manual=False):
     return _process_real_withdrawal(engine,withdrawal_id,"paid",
         admin_uid=admin_uid,transfer_reference=transfer_reference,
-        evidence_reference=evidence_reference,transferred_at=transferred_at)
+        evidence_reference=evidence_reference,transferred_at=transferred_at,confirmed_manual=confirmed_manual)
 
 
 def mark_real_rejected(engine, withdrawal_id):

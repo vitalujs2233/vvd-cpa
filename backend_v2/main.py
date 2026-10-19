@@ -474,12 +474,19 @@ async def get_balance(telegram_id: int):
                 "real_finance_active": False,
                 "real_finance_available": False,
             }
-        return {
-            "available":float(user.balance),
-            "hold":float(user.hold),
-            "paid":float(user.withdrawn),
-            **finance,
-        }
+        hold = conn.execute(text("""SELECT COALESCE(SUM(l.hold_delta),0)
+            FROM public.cpa_ledger l JOIN public.conversions v ON v.id=l.conversion_id
+            JOIN public.cpa_finance_epoch e ON e.id=1
+            WHERE l.user_id=:uid AND v.is_test=FALSE AND v.currency='USD'
+              AND v.finance_eligible_at>=e.activated_at AND v.created_at>=e.activated_at
+            """), {"uid":telegram_id}).scalar_one()
+        paid = conn.execute(text("""SELECT COALESCE(SUM(w.amount),0)
+            FROM public.withdrawals w JOIN public.cpa_finance_epoch e
+              ON w.cpa_real_epoch_at=e.activated_at
+            WHERE w.user_id=:uid AND w.status='paid' AND e.id=1
+              AND w.id>e.legacy_max_withdrawal_id"""), {"uid":telegram_id}).scalar_one()
+        return {"available":finance["real_withdrawable"], "hold":float(hold),
+                "paid":float(paid), "historical_balance":float(user.balance), **finance}
 
 @app.get("/referral/{telegram_id}")
 async def get_referral(telegram_id: int):
@@ -1195,87 +1202,32 @@ async def update_chat_banner(payload: dict):
 @app.get("/admin/finance")
 async def admin_finance():
 
+    from cpa_analytics import summarize, arguments
     with engine.connect() as conn:
-        finance = conn.execute(
-            text("""
-                SELECT
-                    COALESCE(SUM(
-                        CASE WHEN CAST(status AS TEXT) = '1'
-                        THEN payout_gross ELSE 0 END
-                    ), 0) AS gross_income,
-                    COALESCE(SUM(
-                        CASE WHEN CAST(status AS TEXT) = '1'
-                        THEN payout_net ELSE 0 END
-                    ), 0) AS partner_income
-                FROM conversions WHERE is_test = FALSE
-            """)
-        ).fetchone()
-
-    gross_income = round(float(finance.gross_income or 0), 2)
-    partner_income = round(float(finance.partner_income or 0), 2)
-    service_income = round(gross_income - partner_income, 2)
-
-    return {
-        "success": True,
-        "gross_income": gross_income,
-        "partner_income": partner_income,
-        "service_income": service_income,
-        "service_fee_percent": 20
-    }
+        report = summarize(conn, None, arguments("all", None, None, None, None, None), admin=True)
+    finance = report["finance"]
+    return {"success": True, "gross_income": finance["gross"],
+            "partner_income": finance["partner"], "service_income": finance["fee"],
+            "service_fee_percent": 20}
 
 
 @app.get("/admin/users")
 async def admin_users():
 
+    from cpa_analytics import summarize, arguments
+    params = arguments("all", None, None, None, None, None)
     with engine.connect() as conn:
-
-        users = conn.execute(
-            text("""
-                SELECT
-                    u.telegram_id,
-                    u.partner_code,
-                    u.first_name,
-                    u.last_name,
-                    u.username,
-                    u.status,
-                    COALESCE(SUM(s.clicks), 0) AS clicks,
-                    COALESCE(SUM(s.conversions), 0) AS conversions,
-                    COALESCE(SUM(s.income), 0) AS income
-                FROM users u
-                LEFT JOIN statistics s
-                    ON s.user_id = u.telegram_id
-                GROUP BY
-                    u.telegram_id,
-                    u.partner_code,
-                    u.first_name,
-                    u.last_name,
-                    u.username,
-                    u.status
-                ORDER BY income DESC, clicks DESC
-            """)
-        ).fetchall()
-
-    return {
-        "success": True,
-        "users": [
-            {
-                "telegram_id": int(row.telegram_id),
-                "partner_code": row.partner_code,
-                "first_name": row.first_name,
-                "last_name": row.last_name,
-                "username": row.username,
-                "status": row.status,
-                "clicks": int(row.clicks or 0),
-                "conversions": int(row.conversions or 0),
-                "income": float(row.income or 0),
-                "cr": round(
-                    (int(row.conversions or 0) / int(row.clicks or 0)) * 100,
-                    2
-                ) if int(row.clicks or 0) > 0 else 0
-            }
-            for row in users
-        ]
-    }
+        users = conn.execute(text("""
+            SELECT telegram_id,partner_code,first_name,last_name,username,status
+            FROM public.users ORDER BY telegram_id
+        """)).mappings().all()
+        result = []
+        for user in users:
+            stats = summarize(conn, user["telegram_id"], params)
+            result.append({**dict(user), "clicks":stats["clicks"],
+                           "conversions":stats["conversions"],
+                           "income":stats["earned"], "cr":stats["cr"]})
+    return {"success":True, "users":sorted(result, key=lambda u:(u["income"],u["clicks"]), reverse=True)}
 
 
 # ==================== ADMIN CPA HOLD RELEASE ====================
@@ -1508,16 +1460,18 @@ async def send_partner_notification(telegram_id: int, message: str):
 
 
 class CPAExternalTransferProof(BaseModel):
-    external_transfer_id: str
-    evidence_reference: str
-    transferred_at: str
+    confirmed_manual: bool = False
+    external_transfer_id: str | None = None
+    evidence_reference: str | None = None
+    transferred_at: str | None = None
 
 @app.post("/admin/withdrawals/{withdrawal_id}/paid")
 async def mark_withdrawal_paid(withdrawal_id: int, data: CPAExternalTransferProof, request: Request):
     admin_uid=_cpa_admin_actor(request)
     result = mark_real_paid(engine, withdrawal_id,
         admin_uid=admin_uid,transfer_reference=data.external_transfer_id,
-        evidence_reference=data.evidence_reference,transferred_at=data.transferred_at)
+        evidence_reference=data.evidence_reference,transferred_at=data.transferred_at,
+        confirmed_manual=data.confirmed_manual)
     if not result["success"]:
         return result
     await send_partner_notification(

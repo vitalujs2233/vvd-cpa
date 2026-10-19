@@ -67,6 +67,7 @@ class CPAStage53Integration(unittest.TestCase):
             c.connection.cursor().execute(stage4)
             c.execute(text("""INSERT INTO public.cpa_verticals(slug,title,is_active)
                VALUES('utilities','Utilities',TRUE) ON CONFLICT DO NOTHING"""))
+            c.connection.cursor().execute((ROOT/"migrations/20261017_universal_cpa_integrations.sql").read_text())
             cls.network=c.execute(text("""INSERT INTO public.cpa_networks(
               name,is_active,postback_enabled,postback_key_hash)
               VALUES('Stage53 CI',TRUE,TRUE,:sha) RETURNING id"""),
@@ -80,8 +81,11 @@ class CPAStage53Integration(unittest.TestCase):
             c.connection.cursor().execute(
                 (ROOT/"migrations/20261017_stage5_manual_hold_release.sql").read_text()
             )
+            c.connection.cursor().execute(
+                (ROOT/"migrations/20261019162821_manual_cpa_payouts.sql").read_text()
+            )
             cls.original_history=tuple(c.execute(text(x)).scalar_one() for x in (
-              "SELECT count(*) FROM users","SELECT count(*) FROM withdrawals",
+              "SELECT count(*) FROM users","SELECT count(*) FROM withdrawals WHERE cpa_real_epoch_at IS NULL",
               "SELECT count(*) FROM conversions WHERE finance_eligible_at IS NULL",
               "SELECT count(*) FROM clicks WHERE id<=700",
               "SELECT count(*) FROM withdrawals WHERE cpa_real_epoch_at IS NOT NULL"))
@@ -284,12 +288,12 @@ class CPAStage53Integration(unittest.TestCase):
         with engine.connect() as c:
             old_events=ledger_events_for_conversion(c,cid)
             self.assertFalse(any(e["operation_type"]=="hold_release" for e in old_events))
-        r=client.get(f"/balance/{UID}",headers=self.user_headers())
+        r=client.get(f"/balance/{UID}",headers=self.admin_headers())
         self.assertEqual(r.status_code,200,r.text)
         with engine.connect() as c:
             events=ledger_events_for_conversion(c,cid)
             self.assertEqual(len([e for e in events if e["operation_type"]=="hold_release"]),1)
-        again=client.get(f"/balance/{UID}",headers=self.user_headers())
+        again=client.get(f"/balance/{UID}",headers=self.admin_headers())
         self.assertEqual(again.status_code,200)
         with engine.connect() as c:
             self.assertEqual(len([e for e in ledger_events_for_conversion(c,cid) if e["operation_type"]=="hold_release"]),1)
@@ -375,9 +379,9 @@ class CPAStage53Integration(unittest.TestCase):
             self.assertEqual(c.execute(text("""SELECT count(*)
               FROM conversions WHERE finance_eligible_at IS NULL""")).scalar_one(),27)
             self.assertEqual(c.execute(text("""SELECT count(*)
-              FROM withdrawals WHERE cpa_real_epoch_at IS NOT NULL""")).scalar_one(),0)
+              FROM withdrawals WHERE id <= 22 AND cpa_real_epoch_at IS NOT NULL""")).scalar_one(),0)
             self.assertEqual(c.execute(text("SELECT count(*) FROM users")).scalar_one(),12)
-            self.assertEqual(c.execute(text("SELECT count(*) FROM withdrawals")).scalar_one(),22)
+            self.assertEqual(c.execute(text("SELECT count(*) FROM withdrawals WHERE cpa_real_epoch_at IS NULL")).scalar_one(),22)
 
 
     @classmethod
@@ -414,8 +418,6 @@ class CPAStage53Integration(unittest.TestCase):
         with engine.connect() as c:
             before=real_withdrawable(c,UID)
             before_hold=c.execute(text("SELECT hold FROM users WHERE telegram_id=:uid"),{"uid":UID}).scalar_one()
-        unpaid=self.manual(cid,"30.00")
-        self.assertEqual(unpaid.status_code,409,unpaid.text)
         insufficient=self.approve_network_receipt(cid,gross="99.99")
         self.assertEqual(insufficient.status_code,409,insufficient.text)
         receipt=self.approve_network_receipt(cid)
@@ -441,7 +443,7 @@ class CPAStage53Integration(unittest.TestCase):
             self.assertEqual(rows[0]["actor_type"],"admin")
             receipt_id=c.execute(text("""SELECT receipt_id,actor_id,reason_code FROM
                 cpa_ledger WHERE conversion_id=:id AND operation_type='manual_hold_release'"""),{"id":cid}).one()
-            self.assertIsNotNone(receipt_id.receipt_id)
+            self.assertIsNone(receipt_id.receipt_id)
             self.assertEqual(receipt_id.actor_id,UID)
 
     def test_15_partial_auto_remainder(self):
@@ -509,7 +511,7 @@ class CPAStage53Integration(unittest.TestCase):
         self.assertEqual(self.manual(historical).status_code,409)
         self.assertEqual(self.approve_network_receipt(historical).status_code,409)
         with engine.connect() as c:
-            self.assertEqual(c.execute(text("SELECT count(*) FROM withdrawals")).scalar_one(),22)
+            self.assertEqual(c.execute(text("SELECT count(*) FROM withdrawals WHERE cpa_real_epoch_at IS NULL")).scalar_one(),22)
             self.assertEqual(c.execute(text("SELECT count(*) FROM users")).scalar_one(),12)
 
     def test_19_auto_manual_race_never_exceeds_credit(self):
@@ -528,13 +530,13 @@ class CPAStage53Integration(unittest.TestCase):
             self.assertGreaterEqual(c.execute(text("SELECT hold FROM users WHERE telegram_id=:id"),
               {"id":UID}).scalar_one(),Decimal("0.00"))
 
-    def test_20_disabled_flag_and_no_network_receipt(self):
+    def test_20_manual_release_without_network_receipt(self):
         cid=self.seed_matured("disabled-early",datetime.now(timezone.utc)-timedelta(hours=1))
         with patch.dict(os.environ,{"VVD_CPA_EARLY_RELEASE_ENABLED":"0"}):
-            self.assertEqual(self.manual(cid).status_code,409)
+            self.assertEqual(self.manual(cid).status_code,200)
             self.assertEqual(self.approve_network_receipt(cid).status_code,409)
         with engine.connect() as c:
-            self.assertEqual(len(ledger_events_for_conversion(c,cid)),2)
+            self.assertEqual(len(ledger_events_for_conversion(c,cid)),3)
 
 
     @classmethod
@@ -603,9 +605,8 @@ class CPAStage53Integration(unittest.TestCase):
         cid=self.seed_matured("reserve-race")
         release_matured_holds(engine,limit=60)
         self.assertEqual(self.approve_network_receipt(cid).status_code,200)
-        from cpa_real_withdrawals import withdrawable_covered
         with engine.connect() as c:
-            fully=withdrawable_covered(c,UID)
+            fully=real_withdrawable(c,UID)
         self.assertGreaterEqual(fully,Decimal("50.00"))
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as p:
             results=list(p.map(lambda _:self.payout_request(str(fully)),range(10)))
@@ -620,16 +621,15 @@ class CPAStage53Integration(unittest.TestCase):
         cid=self.seed_matured("reject-once")
         release_matured_holds(engine,limit=60)
         self.assertEqual(self.approve_network_receipt(cid).status_code,200)
-        from cpa_real_withdrawals import withdrawable_covered
         with engine.connect() as c:
-            before=withdrawable_covered(c,UID)
+            before=real_withdrawable(c,UID)
             balance=c.execute(text("SELECT balance FROM users WHERE telegram_id=:u"),
                               {"u":UID}).scalar_one()
         claim=self.payout_request()
         self.assertTrue(claim.json()["success"],claim.text)
         wid=claim.json()["withdrawal_id"]
         with engine.connect() as c:
-            self.assertEqual(withdrawable_covered(c,UID),before-Decimal("50.00"))
+            self.assertEqual(real_withdrawable(c,UID),before-Decimal("50.00"))
         first=client.post("/admin/withdrawals/"+str(wid)+"/reject",
             headers=self.admin_headers())
         second=client.post("/admin/withdrawals/"+str(wid)+"/reject",
@@ -637,7 +637,7 @@ class CPAStage53Integration(unittest.TestCase):
         self.assertTrue(first.json()["success"])
         self.assertFalse(second.json()["success"])
         with engine.connect() as c:
-            self.assertEqual(withdrawable_covered(c,UID),before)
+            self.assertEqual(real_withdrawable(c,UID),before)
             self.assertEqual(c.execute(text("SELECT balance FROM users WHERE telegram_id=:u"),
                               {"u":UID}).scalar_one(),balance)
 

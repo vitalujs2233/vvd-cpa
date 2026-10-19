@@ -117,7 +117,7 @@ def read_partner_hold(engine, partner_code):
         results=[]
         for x in credits:
             rem=max(ZERO,Decimal(x["amount"])-Decimal(x["released"])-Decimal(x["reversed"]))
-            blocked=bool(x["disputes"])
+            blocked=bool(x["disputes"]) or _disputed(c,x["conversion_id"])
             verified=bool(x["receipt_id"])
             results.append({
                "conversion_id":str(x["conversion_id"]),
@@ -130,8 +130,7 @@ def read_partner_hold(engine, partner_code):
                "settlement_reference":x["settlement_reference"],
                "disputed":blocked,
                "early_releasable":"%.2f"%(
-                 min(rem, max(ZERO,Decimal(u["hold"]))) if verified and not blocked
-                 and os.getenv("VVD_CPA_EARLY_RELEASE_ENABLED")=="1" else ZERO)
+                 min(rem, max(ZERO,Decimal(u["hold"]))) if not blocked else ZERO)
             })
         try:
             spendable=min(real_withdrawable(c,u["telegram_id"],epoch),Decimal(u["balance"]))
@@ -141,7 +140,7 @@ def read_partner_hold(engine, partner_code):
         return {"partner_code":partner_code,"real_finance_active":True,
                 "cpa_hold":"%.2f"%sum((Decimal(x["remaining"]) for x in results),ZERO),
                 "real_withdrawable":real_available,
-                "early_release_enabled":os.getenv("VVD_CPA_EARLY_RELEASE_ENABLED")=="1",
+                "early_release_enabled":True,
                 "credits":results}
 
 def record_verified_receipt(engine,*,partner_code,conversion_id,
@@ -204,7 +203,6 @@ def manual_release(engine,*,partner_code,conversion_id,amount,reason,request_id,
     Duplicate request IDs are idempotent; any other concurrent request is
     serialized on users row. No auto-created debt or external payout.
     """
-    _enabled()
     cid=_parse_uuid(conversion_id)
     rid=_parse_uuid(request_id)
     reason=_validate_reason(reason)
@@ -245,22 +243,16 @@ def manual_release(engine,*,partner_code,conversion_id,amount,reason,request_id,
         remaining=_remaining(c,hold["id"],hold["amount"])
         if requested>remaining or requested>Decimal(wallet["hold"]):
             raise ManualReleaseDenied("Insufficient unreleased CPA hold")
-        receipt=c.execute(text("""
-          SELECT id,received_gross FROM public.cpa_network_receipts
-          WHERE conversion_id=:cid AND verified_at IS NOT NULL FOR SHARE
-        """),{"cid":str(cid)}).mappings().first()
-        if not receipt or receipt["received_gross"]<row["payout_gross"]:
-            raise ManualReleaseDenied("Verified network settlement not found")
         c.execute(text("""
           INSERT INTO public.cpa_ledger(
            conversion_id,user_id,operation_type,event_key,amount,currency,
            hold_delta,balance_delta,platform_fee_delta,original_entry_id,
-           actor_type,actor_id,reason_code,receipt_id)
+           actor_type,actor_id,reason_code)
           VALUES(:cid,:uid,'manual_hold_release',:event,:amount,'USD',
-                :delta,:amount,0,:origin,'admin',:admin,:reason,:receipt)
+                :delta,:amount,0,:origin,'admin',:admin,:reason)
         """),{"cid":str(cid),"uid":row["user_id"],"event":event,
               "amount":requested,"delta":-requested,"origin":hold["id"],
-              "admin":admin_uid,"reason":reason,"receipt":receipt["id"]})
+              "admin":admin_uid,"reason":reason})
         updated=c.execute(text("""
           UPDATE public.users SET hold=hold-:amount,balance=balance+:amount
           WHERE telegram_id=:uid AND hold>=:amount

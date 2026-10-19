@@ -1,0 +1,48 @@
+name: Validate manual CPA workflow
+on:
+  push:
+    branches: [fix/manual-cpa-workflow]
+  pull_request:
+    branches: [main]
+    paths: ['backend_v2/**', 'src/**', '.github/workflows/validate-manual-cpa.yml']
+permissions:
+  contents: read
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        suite: [test_stage5_real_withdrawals.py, test_manual_cpa_workflow.py, test_stage5_3_cpa_earnings.py]
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cpa_withdrawals_isolated
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/cpa_withdrawals_isolated
+      BOT_TOKEN: 123456:TEST_TOKEN_FOR_CI_ONLY
+      PYTHONPATH: backend_v2
+      VVD_CPA_EARLY_RELEASE_ENABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r backend_v2/requirements.txt
+      - run: python -m unittest discover -s backend_v2/tests -p '${{ matrix.suite }}' -v
+      - run: python -m unittest discover -s backend_v2/tests -p 'test_stage6_analytics.py' -v
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --ignore-scripts --package-lock=false
+      - run: npm run build

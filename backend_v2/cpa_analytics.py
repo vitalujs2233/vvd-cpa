@@ -94,23 +94,21 @@ def summarize(conn, uid, params, *, admin=False):
                  l.platform_fee_delta
           FROM public.cpa_ledger l WHERE l.conversion_id=ANY(:ids)
         """), {"ids": ids}).mappings().all()
-        # Gross is recognized only when a finance hold credit is actually posted.
-        recognized = {r["conversion_id"] for r in ledger if r["operation_type"]=="hold_credit"}
-        finance["gross"] = sum((Decimal(str(row["payout_gross"])) for row in conn.execute(text("SELECT id,payout_gross FROM public.conversions WHERE id=ANY(:ids)"),{"ids":list(recognized)}).mappings()), ZERO)
         # Finance earnings only from actual ledger events, never assumed based on approvals.
-        finance["partner"] = sum((row["hold_delta"] for row in ledger if row["operation_type"]=="hold_credit"), ZERO)
-        finance["fee"] = sum((row["platform_fee_delta"] for row in ledger if row["operation_type"]=="platform_fee_accrual"), ZERO)
+        finance["partner"] = sum((row["hold_delta"] for row in ledger if row["operation_type"] in ("hold_credit","hold_reversal")), ZERO) + sum((row["balance_delta"] for row in ledger if row["operation_type"]=="balance_reversal"), ZERO)
+        finance["fee"] = sum((row["platform_fee_delta"] for row in ledger if row["operation_type"] in ("platform_fee_accrual","platform_fee_reversal")), ZERO)
+        finance["gross"] = finance["partner"] + finance["fee"]
         finance["hold"] = sum((row["hold_delta"] for row in ledger if row["operation_type"] in ("hold_credit","hold_release","manual_hold_release","hold_reversal")), ZERO)
-        finance["released"] = sum((row["balance_delta"] for row in ledger if row["operation_type"] in ("hold_release","manual_hold_release")), ZERO)
+        finance["released"] = sum((row["balance_delta"] for row in ledger if row["operation_type"] in ("hold_release","manual_hold_release","balance_reversal")), ZERO)
     if uid is not None:
         # Respect the stage 5 real finance entitlement, including reservations and
-        # verified funding. Do not use the legacy user.balance column.
+        # withdrawal reservations. Never count demo balance as earnings.
         from cpa_real_withdrawals import finance_balance_projection
         old = conn.execute(text("SELECT balance FROM public.users WHERE telegram_id=:uid"),
                            {"uid":uid}).scalar()
         if old is not None and conn.execute(text("SELECT activated_at IS NOT NULL FROM public.cpa_finance_epoch WHERE id=1")).scalar():
             finance["real_withdrawable"] = Decimal(str(finance_balance_projection(conn,uid,old)["real_withdrawable"]))
-    statuses = {s:sum(1 for row in conv if row["normalized_status"]==s)
+    statuses = {s:sum(1 for row in conv if row["normalized_status"]==s and not row["is_test"])
                 for s in ("pending","approved","rejected","legacy","unknown")}
     count = sum(statuses[x] for x in ("pending","approved","rejected"))
     # Real EPC never uses the historic/demo earnings.
@@ -132,19 +130,28 @@ def daily(conn, uid, params):
     rows=conn.execute(text("""
       WITH c AS (SELECT event_date,count(*) clicks FROM ("""+CLICK_ROWS+""") x GROUP BY event_date),
            v AS (SELECT event_date,
-                     count(*) FILTER(WHERE normalized_status IN ('pending','approved','rejected')) conversions,
-                     count(*) FILTER(WHERE normalized_status='pending') pending,
-                     count(*) FILTER(WHERE normalized_status='approved') approved,
-                     count(*) FILTER(WHERE normalized_status='rejected') rejected
+                     count(*) FILTER(WHERE NOT is_test AND normalized_status IN ('pending','approved','rejected')) conversions,
+                     count(*) FILTER(WHERE NOT is_test AND normalized_status='pending') pending,
+                     count(*) FILTER(WHERE NOT is_test AND normalized_status='approved') approved,
+                     count(*) FILTER(WHERE NOT is_test AND normalized_status='rejected') rejected
                  FROM ("""+CONVERSION_ROWS+""") x GROUP BY event_date)
       SELECT COALESCE(c.event_date,v.event_date) AS event_day,COALESCE(c.clicks,0) clicks,
              COALESCE(v.conversions,0) conversions,COALESCE(v.pending,0) pending,
              COALESCE(v.approved,0) approved,COALESCE(v.rejected,0) rejected
       FROM c FULL JOIN v ON c.event_date=v.event_date ORDER BY event_day
     """),bind).mappings().all()
+    income = {}
+    finance_rows = conn.execute(text("""
+      SELECT v.event_date, COALESCE(SUM(CASE
+        WHEN l.operation_type IN ('hold_credit','hold_reversal') THEN l.hold_delta
+        WHEN l.operation_type='balance_reversal' THEN l.balance_delta ELSE 0 END),0) AS earned
+      FROM ("""+CONVERSION_ROWS+""") v JOIN public.cpa_ledger l ON l.conversion_id=v.id
+      WHERE v.is_real GROUP BY v.event_date
+    """), bind).mappings().all()
+    income = {r["event_date"]:scalar(r["earned"]) for r in finance_rows}
     return [{"date":str(r["event_day"]),"clicks":r["clicks"],
              "conversions":r["conversions"],"pending":r["pending"],
-             "approved":r["approved"],"rejected":r["rejected"],"income":0.0}
+             "approved":r["approved"],"rejected":r["rejected"],"income":income.get(r["event_day"],0.0)}
             for r in rows]
 
 
@@ -160,10 +167,10 @@ def grouped(conn, uid, params, field):
     rows=conn.execute(text("""
       WITH c AS (SELECT """+key+""" AS k,count(*) clicks FROM ("""+CLICK_ROWS+""") x GROUP BY k),
            v AS (SELECT """+key+""" AS k,
-              count(*) FILTER(WHERE normalized_status IN ('pending','approved','rejected')) conversions,
-              count(*) FILTER(WHERE normalized_status='approved') approved,
-              count(*) FILTER(WHERE normalized_status='pending') pending,
-              count(*) FILTER(WHERE normalized_status='rejected') rejected
+              count(*) FILTER(WHERE NOT is_test AND normalized_status IN ('pending','approved','rejected')) conversions,
+              count(*) FILTER(WHERE NOT is_test AND normalized_status='approved') approved,
+              count(*) FILTER(WHERE NOT is_test AND normalized_status='pending') pending,
+              count(*) FILTER(WHERE NOT is_test AND normalized_status='rejected') rejected
               FROM ("""+CONVERSION_ROWS+""") x GROUP BY k)
       SELECT COALESCE(c.k,v.k) AS item_id,t."""+title_column+""" label,
          COALESCE(c.clicks,0) clicks,COALESCE(v.conversions,0) conversions,
