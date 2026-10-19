@@ -140,7 +140,8 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
             c.connection.cursor().execute(sql2)
             # Draft Stage 5.4 + 5.5 additive financial-proof schema.
             for extra in ("20261017_stage5_manual_hold_release.sql",
-                          "20261017_stage5_settled_payouts.sql"):
+                          "20261017_stage5_settled_payouts.sql",
+                          "20261019162821_manual_cpa_payouts.sql"):
                 c.connection.cursor().execute((ROOT/"migrations"/extra).read_text())
             # Exercise the real activation function, but roll it back in CI.
             save=c.begin_nested()
@@ -170,7 +171,8 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
             client=TestClient(app)
             balance=client.get(f"/balance/{ADMIN}")
             self.assertEqual(balance.status_code,200)
-            self.assertEqual(balance.json()["available"],833.48)
+            self.assertEqual(balance.json()["available"],0.0)
+            self.assertEqual(balance.json()["historical_balance"],833.48)
             self.assertEqual(balance.json()["real_withdrawable"],0.0)
             self.assertFalse(balance.json()["real_finance_active"])
             self.assertFalse(balance.json()["real_finance_available"])
@@ -548,7 +550,7 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
             with engine.connect() as c:
                 cash=funded_withdrawable(c,ADMIN)
             self.assertAlmostEqual(payload["real_withdrawable"],
-                float(min(entitled,cash,balance)),places=2)
+                float(min(entitled,balance)),places=2)
             self.assertGreaterEqual(payload["available"],payload["real_withdrawable"])
 
 

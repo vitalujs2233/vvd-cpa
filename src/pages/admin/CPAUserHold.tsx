@@ -11,9 +11,6 @@ const API='https://vvd-cpa-v2.onrender.com';
 export const CPAUserHold:React.FC<{partnerCode:string}>=({partnerCode})=>{
   const [data,setData]=useState<Snapshot|null>(null),[chosen,setChosen]=useState('');
   const [amount,setAmount]=useState(''),[reason,setReason]=useState('');
-  const [reference,setReference]=useState(''),[evidence,setEvidence]=useState('');
-  const [gross,setGross]=useState(''),[date,setDate]=useState('');
-  const [source,setSource]=useState('bank_verified');
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState('');
   const [requestId,setRequestId]=useState<string|null>(null);
   const base=API+'/admin/cpa/partners/'+encodeURIComponent(partnerCode);
@@ -35,20 +32,6 @@ export const CPAUserHold:React.FC<{partnerCode:string}>=({partnerCode})=>{
     const json=await r.json();
     if(!r.ok||!json.success)throw new Error(typeof json.detail==='string'?json.detail:'Операция отклонена');
     return json;
-  };
-  const verify=async()=>{
-    if(!selected||busy||!data?.early_release_enabled)return;
-    if(!window.confirm('Администратор проверил реальное поступление от CPA-сети по выписке? USD '+
-      gross+'; номер '+reference+'?'))return;
-    setBusy(true);setNotice('');
-    try{
-      await send('/receipts',{conversion_id:chosen,
-        settlement_reference:reference.trim(),verification_source:source,
-        evidence_reference:evidence.trim(),received_gross:gross.trim(),
-        received_at:new Date(date).toISOString()});
-      setNotice('Подтверждение денег от CPA-сети сохранено.');await load();
-    }catch(e){setNotice(e instanceof Error?e.message:'Подтверждение не прошло');}
-    finally{setBusy(false);}
   };
   const release=async()=>{
     if(!selected||busy||!data?.early_release_enabled||!data.real_finance_active)return;
@@ -89,52 +72,29 @@ export const CPAUserHold:React.FC<{partnerCode:string}>=({partnerCode})=>{
       {!data.real_finance_active&&<div className="text-xs text-yellow-300">
         Финансовая граница неактивна. Ручной выпуск запрещён.</div>}
       {data.real_finance_active&&!data.early_release_enabled&&<div className="text-xs text-yellow-300">
-        Ручной выпуск отключён до проверки поступлений CPA-сети.</div>}
+        Ручной выпуск сейчас недоступен.</div>}
       <label className="text-xs text-textSecondary">Конкретное подтверждённое начисление
         <select aria-label="CPA начисление" value={chosen}
           onChange={e=>{setChosen(e.target.value);setRequestId(null);}}
           className="w-full mt-1 rounded-lg bg-black/40 border border-white/20 p-2 text-xs text-white">
           <option value="">Выберите начисление</option>
           {data.credits.map(x=><option key={x.conversion_id} value={x.conversion_id}>
-            {x.conversion_id.slice(0,8)} · USD {x.remaining} · {x.disputed?'спор':x.network_verified?'оплачено':'нет оплаты'}
+            {x.conversion_id.slice(0,8)} · USD {x.remaining} · {x.disputed?'спор':'в холде'}
           </option>)}
         </select>
       </label>
       {selected&&<>
         <div className="text-xs text-textSecondary">
           Обычная дата выпуска: {new Date(selected.hold_until).toLocaleString('ru-RU')}
-          <div>Остаток: USD {selected.remaining}; безопасно досрочно: USD {selected.early_releasable}</div>
+          <div>Остаток: USD {selected.remaining}; доступно досрочно: USD {selected.early_releasable}</div>
           {selected.disputed&&<div className="text-red-400">Спорные средства нельзя выпускать.</div>}
         </div>
-        {!selected.network_verified&&<div className="flex flex-col gap-2 border border-yellow-500/20 p-2 rounded-lg">
-          <div className="text-xs text-yellow-300">Получение средств от CPA-сети</div>
-          <div className="text-[10px] text-textSecondary">
-            Сверьте банк или процессор. Введите только номера доказательств, не реквизиты/секреты.
-          </div>
-          {field('Номер платежа сети',reference,setReference)}
-          {field('Номер выписки/доказательства',evidence,setEvidence)}
-          {field('Получено USD',gross,setGross)}
-          <input aria-label="Дата поступления" type="datetime-local" value={date}
-            onChange={e=>setDate(e.target.value)}
-            className="w-full rounded-lg bg-black/40 border border-white/20 p-2 text-xs text-white"/>
-          <select aria-label="Источник подтверждения" value={source}
-            onChange={e=>setSource(e.target.value)}
-            className="w-full rounded-lg bg-black/40 border border-white/20 p-2 text-xs text-white">
-            <option value="bank_verified">Банковская выписка</option>
-            <option value="processor_verified">Платёжный процессор</option>
-          </select>
-          <Button variant="outline" onClick={verify} disabled={busy||!data.early_release_enabled||
-            selected.disputed||!reference||!evidence||!gross||!date}>
-            Подтвердить поступление</Button>
-        </div>}
-        {selected.network_verified&&<div className="text-xs text-success">
-          Поступление подтверждено: {selected.settlement_reference}</div>}
         {field('Сумма досрочного выпуска USD',amount,v=>{setAmount(v);setRequestId(null);})}
         <textarea aria-label="Причина досрочного выпуска" placeholder="Обязательная причина (12–60 символов)"
           value={reason} rows={2} onChange={e=>{setReason(e.target.value);setRequestId(null);}}
           className="rounded-lg bg-black/40 border border-white/20 p-2 text-xs text-white"/>
         <Button onClick={release} disabled={busy||!data.real_finance_active||
-          !data.early_release_enabled||!selected.network_verified||selected.disputed||
+          !data.early_release_enabled||selected.disputed||
           Number(selected.early_releasable)<=0}>
           {busy?'Проверка...':'Выпустить из холда'}
         </Button>

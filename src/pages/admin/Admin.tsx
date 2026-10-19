@@ -290,31 +290,11 @@ const saveChatBanner = async () => {
       window.alert('Исторические и уже обработанные заявки нельзя провести как реальные');
       return;
     }
-    let proof: {external_transfer_id:string;evidence_reference:string;transferred_at:string}|null = null;
-    if (action === 'pay') {
-      const reference = window.prompt('Только после ФАКТИЧЕСКОГО ручного перевода!\nВведите идентификатор выполненного перевода:');
-      if (!reference) return;
-      const evidence = window.prompt('Введите номер квитанции или подтверждения (не секретные реквизиты):');
-      if (!evidence) return;
-      const transferDate = window.prompt('Дата и время выполненного перевода в ISO 8601 (с часовым поясом):',
-        new Date().toISOString());
-      if (!transferDate) return;
-      if (reference.trim().length < 8 || evidence.trim().length < 8 ||
-          !Number.isFinite(Date.parse(transferDate))) {
-        window.alert('Укажите достоверные идентификаторы и дату перевода');
-        return;
-      }
-      proof = { external_transfer_id:reference.trim(),
-                evidence_reference:evidence.trim(), transferred_at:transferDate };
-    }
     const confirmText = action === 'pay'
-      ? 'Подтвердить, что деньги действительно переведены ВНЕ приложения?\n' +
-        'Вебмастер: ' + (item.partner_code || item.telegram_id) +
-        '\nСумма: $' + item.amount.toFixed(2) +
-        '\nТранзакция: ' + proof?.external_transfer_id +
-        '\nПосле подтверждения заявка станет PAID без повторного перевода.'
-      : 'Отклонить реальную заявку и вернуть зарезервированные $' +
-        item.amount.toFixed(2) + ' ровно один раз?';
+      ? 'Вы уже перевели деньги вебмастеру вручную?\nВебмастер: ' +
+        (item.partner_code || item.telegram_id) + '\nСумма: $' + item.amount.toFixed(2) +
+        '\nОтметить заявку оплаченной?'
+      : 'Отклонить заявку и вернуть $' + item.amount.toFixed(2) + ' на баланс?';
     if (!window.confirm(confirmText)) return;
     try {
       triggerHaptic.lightImpact();
@@ -322,16 +302,13 @@ const saveChatBanner = async () => {
       const response = await authorizedFetch(
         'https://vvd-cpa-v2.onrender.com/admin/withdrawals/' + withdrawalId +
           '/' + (action === 'pay' ? 'paid' : 'reject'),
-        { method:'POST', ...(proof ? {
-            headers: {'Content-Type':'application/json'},
-            body:JSON.stringify(proof),
-          } : {}) }
+        { method:'POST', headers: {'Content-Type':'application/json'},
+          body:JSON.stringify({confirmed_manual: action === 'pay'}) }
       );
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.message || data.detail || 'Ошибка обработки заявки');
       setWithdrawals(prev => prev.map(x => x.id === withdrawalId
         ? { ...x,status:action === 'pay' ? 'paid' : 'rejected',
-            external_transfer_id:proof?.external_transfer_id ?? x.external_transfer_id,
             processed_at:new Date().toISOString() }
         : x));
     } catch (error) {

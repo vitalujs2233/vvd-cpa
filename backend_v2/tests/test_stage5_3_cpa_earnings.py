@@ -80,6 +80,9 @@ class CPAStage53Integration(unittest.TestCase):
             c.connection.cursor().execute(
                 (ROOT/"migrations/20261017_stage5_manual_hold_release.sql").read_text()
             )
+            c.connection.cursor().execute(
+                (ROOT/"migrations/20261019162821_manual_cpa_payouts.sql").read_text()
+            )
             cls.original_history=tuple(c.execute(text(x)).scalar_one() for x in (
               "SELECT count(*) FROM users","SELECT count(*) FROM withdrawals",
               "SELECT count(*) FROM conversions WHERE finance_eligible_at IS NULL",
@@ -414,8 +417,6 @@ class CPAStage53Integration(unittest.TestCase):
         with engine.connect() as c:
             before=real_withdrawable(c,UID)
             before_hold=c.execute(text("SELECT hold FROM users WHERE telegram_id=:uid"),{"uid":UID}).scalar_one()
-        unpaid=self.manual(cid,"30.00")
-        self.assertEqual(unpaid.status_code,409,unpaid.text)
         insufficient=self.approve_network_receipt(cid,gross="99.99")
         self.assertEqual(insufficient.status_code,409,insufficient.text)
         receipt=self.approve_network_receipt(cid)
@@ -441,7 +442,7 @@ class CPAStage53Integration(unittest.TestCase):
             self.assertEqual(rows[0]["actor_type"],"admin")
             receipt_id=c.execute(text("""SELECT receipt_id,actor_id,reason_code FROM
                 cpa_ledger WHERE conversion_id=:id AND operation_type='manual_hold_release'"""),{"id":cid}).one()
-            self.assertIsNotNone(receipt_id.receipt_id)
+            self.assertIsNone(receipt_id.receipt_id)
             self.assertEqual(receipt_id.actor_id,UID)
 
     def test_15_partial_auto_remainder(self):
@@ -528,13 +529,13 @@ class CPAStage53Integration(unittest.TestCase):
             self.assertGreaterEqual(c.execute(text("SELECT hold FROM users WHERE telegram_id=:id"),
               {"id":UID}).scalar_one(),Decimal("0.00"))
 
-    def test_20_disabled_flag_and_no_network_receipt(self):
+    def test_20_manual_release_without_network_receipt(self):
         cid=self.seed_matured("disabled-early",datetime.now(timezone.utc)-timedelta(hours=1))
         with patch.dict(os.environ,{"VVD_CPA_EARLY_RELEASE_ENABLED":"0"}):
-            self.assertEqual(self.manual(cid).status_code,409)
+            self.assertEqual(self.manual(cid).status_code,200)
             self.assertEqual(self.approve_network_receipt(cid).status_code,409)
         with engine.connect() as c:
-            self.assertEqual(len(ledger_events_for_conversion(c,cid)),2)
+            self.assertEqual(len(ledger_events_for_conversion(c,cid)),3)
 
 
     @classmethod
