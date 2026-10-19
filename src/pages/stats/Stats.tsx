@@ -184,7 +184,7 @@ export const Stats:React.FC=()=>{
           </div>
         </details>):<p className="text-xs text-textSecondary py-3">{countrySearch?'Страна не найдена':'Нет данных за период'}</p>}
       </div>
-      <p className="text-[10px] text-textSecondary mt-2">Нажми на страну — статусы, Hold, CR и EPC. Заработок указан после комиссии платформы.</p>
+      <p className="text-[10px] text-textSecondary mt-2">Нажми на страну — статусы, Hold, CR и EPC.</p>
     </Card>
     <Card padding="sm" className="!p-3"><details>
       <summary className="text-sm font-bold cursor-pointer">Статистика по дням</summary>

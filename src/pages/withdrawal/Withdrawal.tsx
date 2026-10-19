@@ -502,17 +502,7 @@ export const Withdrawal: React.FC = () => {
 
             </div>
 
-            <div className="flex justify-between items-center text-xs">
 
-              <span className="text-textSecondary">
-                Системная комиссия
-              </span>
-
-              <span className="font-bold text-success">
-                0 USDT
-              </span>
-
-            </div>
 
           </Card>
 
