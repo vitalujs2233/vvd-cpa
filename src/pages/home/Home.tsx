@@ -1,7 +1,7 @@
 import { authorizedFetch } from '@/shared/lib/api';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wallet, History, ArrowRight, Clock, TrendingUp, Sparkles, Bell, Flame, Crown, Heart, Pill, Coins } from 'lucide-react';
+import { Wallet, History, Sparkles, Bell, Flame, Crown } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
@@ -10,15 +10,6 @@ export const Home: React.FC = () => {
   const navigate = useNavigate();
   const user = getTelegramUser();
   console.log("Telegram User:", user);
-const [conversionCount,setConversionCount]=useState<number|null>(null);
-useEffect(() => {
-  let active=true;
-  authorizedFetch(`https://vvd-cpa-v2.onrender.com/statistics/${user.id}`)
-    .then(async r=>{if(!r.ok)throw new Error('statistics unavailable');return r.json()})
-    .then(d=>{if(active)setConversionCount(Number(d?.summary?.conversions??0))})
-    .catch(()=>{if(active)setConversionCount(null)});
-  return()=>{active=false};
-},[user.id]);
 const [balance, setBalance] = useState({
   available: 0,
   hold: 0,
@@ -199,71 +190,6 @@ const res = await authorizedFetch(
         </div>
       </Card>
 
-      {/* Данные существующего пользовательского API статистики, без демонстрационных событий */}
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between px-1">
-          <span className="text-sm font-bold text-white">Конверсии</span>
-          <button onClick={() => { triggerHaptic.lightImpact(); navigate('/stats'); }}
-            className="text-xs text-accentGoldBright font-semibold flex items-center gap-1">Смотреть все <ArrowRight size={12}/></button>
-        </div>
-        <Card padding="lg" variant="default" className="text-left space-y-2">
-          <p className="text-xs text-textSecondary">По данным CPA-статистики</p>
-          <p className="text-lg font-bold text-white">{conversionCount === null ? 'Загрузка…' : conversionCount}</p>
-          <p className="text-xs text-textSecondary">Атрибутированные конверсии, включая ожидающие подтверждения</p>
-        </Card>
-      </div>
-
-      {/* Секция: Новые офферы */}
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between px-1">
-          <span className="text-sm font-bold text-white">Новые офферы</span>
-          <button
-            onClick={() => { triggerHaptic.lightImpact(); navigate('/offers'); }}
-            className="text-xs text-accentGoldBright hover:text-accentGold hover:scale-[1.01] flex items-center gap-1 transition-all font-semibold"
-          >
-            Все офферы
-            <ArrowRight size={12} />
-          </button>
-        </div>
-
-        <Card padding="none" variant="default" className="divide-y divide-white/[0.04] shadow-premium">
-          {/* Новый оффер 1 */}
-          <div className="flex items-center justify-between p-4 text-left hover-lift cursor-pointer">
-            <div className="flex items-center gap-3">
-              {/* Премиальная сияющая золотая иконка звезд */}
-              <div className="w-10 h-10 rounded-full bg-accentGold/10 border border-accentGold/20 flex items-center justify-center text-accentGold shadow-[0_0_10px_rgba(212,175,55,0.15)]">
-                <Sparkles size={16} className="drop-shadow-[0_0_4px_#D4AF37]" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-textPrimary">Mainstream Dating</span>
-                <span className="text-[10px] text-textSecondary mt-0.5">Высокая выплата за регистрацию</span>
-              </div>
-            </div>
-            <div className="flex flex-col items-end">
-              <span className="text-sm font-bold text-accentGoldBright">$0.85</span>
-              <span className="text-[8px] text-textSecondary font-semibold tracking-wider mt-0.5 uppercase">EPC: $0.12</span>
-            </div>
-          </div>
-
-          {/* Новый оффер 2 */}
-          <div className="flex items-center justify-between p-4 text-left hover-lift cursor-pointer">
-            <div className="flex items-center gap-3">
-              {/* Премиальная сияющая золотая иконка капсулы */}
-              <div className="w-10 h-10 rounded-full bg-accentGold/10 border border-accentGold/20 flex items-center justify-center text-accentGold shadow-[0_0_10px_rgba(212,175,55,0.15)]">
-                <Pill size={16} className="drop-shadow-[0_0_4px_#D4AF37]" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-textPrimary">Nutra Sweepstakes</span>
-                <span className="text-[10px] text-textSecondary mt-0.5">Выплата за CC-Submit (кредитки)</span>
-              </div>
-            </div>
-            <div className="flex flex-col items-end">
-              <span className="text-sm font-bold text-accentGoldBright">$0.75</span>
-              <span className="text-[8px] text-textSecondary font-semibold tracking-wider mt-0.5 uppercase">EPC: $0.09</span>
-            </div>
-          </div>
-        </Card>
-      </div>
     </div>
   );
 };
