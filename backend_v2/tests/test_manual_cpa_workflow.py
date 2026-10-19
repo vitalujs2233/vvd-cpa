@@ -10,7 +10,7 @@ import test_stage5_real_withdrawals as fixture
 from cpa_real_withdrawals import create_real_withdrawal, mark_real_rejected
 from cpa_finance import post_approved_hold
 from cpa_manual_hold import manual_release, read_partner_hold
-from cpa_analytics import summarize, arguments, daily
+from cpa_analytics import summarize, arguments, daily, countries
 from main import app
 
 engine = fixture.engine
@@ -69,6 +69,26 @@ class ManualWorkflowTests(unittest.TestCase):
             self.assertEqual(report['finance']['fee'],20.20)
             self.assertEqual(report['on_hold'],0)
             self.assertEqual(sum(r['income'] for r in daily(c,ADMIN,arguments('all',None,None,None,None,None))),80.80)
+            params=arguments('all',None,None,None,None,None)
+            # Multiple release/fee ledger entries must never multiply clicks or conversions.
+            geo=countries(c,ADMIN,params)
+            self.assertEqual(sum(r['clicks'] for r in geo), report['clicks'])
+            self.assertEqual(sum(r['conversions'] for r in geo), report['conversions'])
+            self.assertEqual(sum(r['income'] for r in geo), report['earned'])
+            self.assertEqual(sum(r['hold'] for r in geo), report['on_hold'])
+            c.execute(text("UPDATE clicks SET country_code='LV',country_name='Latvia' WHERE click_id=(SELECT click_id FROM conversions WHERE id=:id)"),{'id':cid})
+            lv=next(r for r in countries(c,ADMIN,params) if r['country_code']=='LV')
+            self.assertEqual((lv['clicks'],lv['conversions'],lv['approved'],lv['income'],lv['hold']),(1,1,1,.8,0))
+            self.assertEqual(lv['cr'],100)
+            self.assertEqual(lv['epc'],.8)
+            # A conversion still belongs to its original country when the click is outside the period.
+            c.execute(text("UPDATE clicks SET created_at=now()-interval '30 days' WHERE click_id=(SELECT click_id FROM conversions WHERE id=:id)"),{'id':cid})
+            lv=next(r for r in countries(c,ADMIN,arguments('today',None,None,None,None,None)) if r['country_code']=='LV')
+            self.assertEqual((lv['clicks'],lv['conversions'],lv['income']),(0,1,.8))
+            self.assertIsNone(lv['cr'])
+            self.assertIsNone(lv['epc'])
+            # Connection context rolls these fixture-only edits back.
+
         request_key=str(uuid.uuid4())
         args=dict(partner_code=CODE,amount='50.00',payment_method='TEST',wallet='test-only',request_id=request_key)
         made=create_real_withdrawal(engine,**args)

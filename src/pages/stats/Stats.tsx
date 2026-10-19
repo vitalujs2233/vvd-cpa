@@ -3,13 +3,12 @@ import { RefreshCw, TrendingUp } from 'lucide-react';
 import { authorizedFetch } from '@/shared/lib/api';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
 import { Card } from '@/shared/ui/Card';
-import { sortCountries } from './countrySorting';
 
 type Period = 'today'|'yesterday'|'7days'|'30days'|'all';
-type Day = {date:string;clicks:number;conversions:number};
+type Day = {date:string;clicks:number;conversions:number;income:number;pending:number;approved:number;rejected:number};
 type Statuses = {pending:number;approved:number;rejected:number};
 type Summary = {clicks:number;conversions:number;cr:number;epc:number;earned:number;on_hold:number;real_withdrawable:number;statuses:Statuses};
-type Country = {country_code:string|null;country_name:string;clicks:number};
+type Country = {country_code:string|null;country_name:string;clicks:number;conversions:number;pending:number;approved:number;rejected:number;income:number;hold:number;cr:number|null;epc:number|null};
 type Click = {created_at:string;country_code:string|null;country_name:string;offer_name:string|null};
 type Offer = {id:string|null;label:string};
 const userTimezone=Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
@@ -34,7 +33,8 @@ export const Stats:React.FC=()=>{
   const [summary,setSummary]=useState<Summary|null>(null);
   const [daily,setDaily]=useState<Day[]>([]);
   const [countries,setCountries]=useState<Country[]>([]);
-  const [sort,setSort]=useState<'desc'|'asc'>('desc');
+  const [sort,setSort]=useState<'clicks'|'conversions'|'income'>('clicks');
+  const [countrySearch,setCountrySearch]=useState('');
   const [clicks,setClicks]=useState<Click[]>([]);
   const [offset,setOffset]=useState(0);
   const [hasMore,setHasMore]=useState(false);
@@ -57,10 +57,12 @@ export const Stats:React.FC=()=>{
     setError('');
     try{
       const suffix='?'+params.toString();
+      const offerParams=new URLSearchParams(params);
+      offerParams.delete('offer_id');
       const endpoints=[
         `${API}/statistics/${id}${suffix}`,
         `${API}/statistics/${id}/countries${suffix}`,
-        `${API}/statistics/${id}/breakdown${suffix}`,
+        `${API}/statistics/${id}/breakdown?${offerParams}`,
         `${API}/statistics/${id}/clicks${suffix}&limit=10&offset=0`
       ];
       const response=await Promise.all(endpoints.map(url=>authorizedFetch(url,{cache:'no-store'})));
@@ -109,7 +111,7 @@ export const Stats:React.FC=()=>{
   const visibleDays=useMemo(()=>series.filter(d=>d.clicks>0),[series]);
   const maxVisible=Math.max(1,...visibleDays.map(d=>d.clicks));
   const totalVisible=series.reduce((sum,d)=>sum+d.clicks,0);
-  const orderedCountries=useMemo(()=>sortCountries(countries,sort),[countries,sort]);
+  const orderedCountries=useMemo(()=>countries.filter(c=>(c.country_name+' '+(c.country_code||'')).toLowerCase().includes(countrySearch.trim().toLowerCase())).sort((a,b)=>b[sort]-a[sort]||a.country_name.localeCompare(b.country_name,'ru')),[countries,sort,countrySearch]);
 
   return <div className="flex flex-col gap-3 px-3 pt-3 pb-28 select-none animate-fade-in" data-testid="compact-analysis">
     <div className="flex items-center justify-between">
@@ -162,20 +164,37 @@ export const Stats:React.FC=()=>{
     <Card padding="sm" className="!p-3">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-bold text-white">География трафика</h2>
-        <select aria-label="Сортировка стран" value={sort} onChange={e=>setSort(e.target.value as 'asc'|'desc')}
-          className="min-w-0 max-w-[55%] bg-bgCard/60 text-textSecondary text-[11px] border border-white/10 rounded-app-xs p-1.5">
-          <option value="desc">Больше кликов</option><option value="asc">Меньше кликов</option>
+        <select aria-label="Сортировка стран" value={sort} onChange={e=>setSort(e.target.value as 'clicks'|'conversions'|'income')}
+          className="min-w-0 max-w-[48%] bg-bgCard/60 text-textSecondary text-[11px] border border-white/10 rounded-app-xs p-1.5">
+          <option value="clicks">По кликам</option><option value="conversions">По конверсиям</option><option value="income">По заработку</option>
         </select>
       </div>
-      <div data-testid="geo-scroll-list" className="mt-2 max-h-[300px] overflow-y-auto overflow-x-hidden overscroll-y-auto touch-pan-y min-w-0" style={{WebkitOverflowScrolling:'touch'}}>
-        {orderedCountries.length?orderedCountries.map((c,i)=><div key={(c.country_code||'unknown')+i} className="flex items-center justify-between min-w-0 gap-2 py-2 border-b border-white/5 last:border-0 text-xs">
-          <span className="text-white min-w-0 break-words">{countryFlag(c.country_code)} {c.country_name}</span>
-          <span className="text-textSecondary whitespace-nowrap shrink-0">{c.clicks.toLocaleString('ru-RU')} кликов</span>
-        </div>):<div className="text-xs text-textSecondary py-2">Нет переходов за период</div>}
+      <input aria-label="Поиск страны" placeholder="Страна или код, например LV" value={countrySearch} onChange={e=>setCountrySearch(e.target.value)} className="w-full mt-2 p-2 text-xs bg-bgCard/40 border border-white/10 rounded-app-xs"/>
+      <div className="grid grid-cols-[minmax(0,1.4fr)_0.7fr_0.8fr_1fr] gap-1 mt-3 text-[10px] text-textSecondary text-right"><span className="text-left">Страна</span><span>Клики</span><span>Конв.</span><span>Заработок</span></div>
+      <div data-testid="geo-scroll-list" className="mt-1 max-h-[360px] overflow-y-auto overscroll-y-auto min-w-0" style={{WebkitOverflowScrolling:'touch'}}>
+        {orderedCountries.length?orderedCountries.map(c=><details key={c.country_code||'unknown'} className="border-b border-white/5 last:border-0">
+          <summary className="grid grid-cols-[minmax(0,1.4fr)_0.7fr_0.8fr_1fr] gap-1 py-3 text-[11px] text-right cursor-pointer list-none items-center">
+            <span className="text-white text-left break-words">{countryFlag(c.country_code)} {c.country_name} <span className="text-textSecondary">⌄</span></span>
+            <span>{c.clicks}</span><span>{c.conversions}</span><span className="text-success break-all">{money(c.income)}</span>
+          </summary>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2 p-2 mb-2 rounded-app-xs bg-white/5 text-[11px]">
+            <span>Ожидают: <b>{c.pending}</b></span><span>Подтверждены: <b className="text-success">{c.approved}</b></span>
+            <span>Отклонены: <b>{c.rejected}</b></span><span>В Hold: <b>{money(c.hold)}</b></span>
+            <span>CR: <b>{c.cr==null?'—':c.cr.toFixed(2)+'%'}</b></span><span>EPC: <b>{c.epc==null?'—':money(c.epc)}</b></span>
+          </div>
+        </details>):<p className="text-xs text-textSecondary py-3">{countrySearch?'Страна не найдена':'Нет данных за период'}</p>}
       </div>
+      <p className="text-[10px] text-textSecondary mt-2">Нажми на страну — статусы, Hold, CR и EPC. Заработок указан после комиссии платформы.</p>
     </Card>
+    <Card padding="sm" className="!p-3"><details>
+      <summary className="text-sm font-bold cursor-pointer">Статистика по дням</summary>
+      <div className="mt-2 max-h-64 overflow-auto"><table className="w-full text-[11px] text-right"><thead className="text-textSecondary"><tr><th className="text-left py-2">Дата</th><th>Клики</th><th>Конв.</th><th>Заработок</th></tr></thead>
+      <tbody>{series.map(d=><tr key={d.date} className="border-t border-white/5"><td className="text-left py-2">{d.date.split('-').reverse().join('.')}</td><td>{d.clicks}</td><td>{d.conversions}</td><td className="text-success">{money(d.income)}</td></tr>)}</tbody></table>
+      {!series.length&&<p className="text-xs text-textSecondary py-2">Нет данных за период</p>}</div>
+    </details></Card>
+    <p className="text-[10px] text-textSecondary">Клики учитываются по дате перехода, конверсии — по дате создания конверсии. CR — конверсии / клики; EPC — заработок на клик. Доступный баланс — текущий, независимо от периода.</p>
     <Card padding="sm" className="!p-3">
-      <h2 className="text-sm font-bold text-white">Последние клики</h2>
+      <details><summary className="text-sm font-bold text-white cursor-pointer">Последние клики</summary>
       <div className="mt-2">
         {clicks.length?clicks.map((click,i)=><div key={click.created_at+i} className="flex justify-between gap-3 py-2 border-b border-white/5 last:border-0">
           <div className="min-w-0">
@@ -186,6 +205,7 @@ export const Stats:React.FC=()=>{
         </div>):<div className="text-xs text-textSecondary py-2">Кликов пока нет</div>}
       </div>
       {hasMore&&<button onClick={()=>void loadMore()} disabled={refreshing} className="w-full mt-2 rounded-app-xs border border-white/10 bg-bgCard/40 py-2 text-xs font-semibold text-white">Показать ещё</button>}
+      </details>
     </Card>
     {loading&&<p className="text-xs text-textSecondary">Загрузка статистики…</p>}
   </div>;

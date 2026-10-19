@@ -194,22 +194,48 @@ def grouped(conn, uid, params, field):
 
 
 def countries(conn, uid, params):
-    """Country of a click only; unknown data stays unknown."""
+    """Independent click/conversion dates; attribute conversions to the original click country."""
     bind={**params,"uid":uid}
     rows=conn.execute(text("""
-      SELECT CASE WHEN upper(trim(country_code)) ~ '^[A-Z]{2}$'
-                    AND upper(trim(country_code)) NOT IN ('XX','ZZ')
-                  THEN upper(trim(country_code)) ELSE NULL END AS country_code,
-             max(CASE WHEN upper(trim(country_code)) ~ '^[A-Z]{2}$'
-                    AND upper(trim(country_code)) NOT IN ('XX','ZZ')
-                  THEN NULLIF(trim(country_name),'') ELSE NULL END) AS country_name,
-             count(*) AS clicks
-      FROM ("""+CLICK_ROWS+""") x
-      GROUP BY 1 ORDER BY clicks DESC,country_code NULLS LAST
+      WITH clicks AS ("""+CLICK_ROWS+"""), conversions AS ("""+CONVERSION_ROWS+"""),
+      amounts AS (
+        SELECT l.conversion_id,
+          sum(CASE WHEN l.operation_type IN ('hold_credit','hold_reversal') THEN l.hold_delta
+                   WHEN l.operation_type='balance_reversal' THEN l.balance_delta ELSE 0 END) AS income,
+          sum(CASE WHEN l.operation_type IN ('hold_credit','hold_release','manual_hold_release','hold_reversal')
+                   THEN l.hold_delta ELSE 0 END) AS hold
+        FROM public.cpa_ledger l JOIN conversions v ON v.id=l.conversion_id
+        WHERE v.is_real GROUP BY l.conversion_id
+      ), events AS (
+        SELECT country_code,country_name,1 AS clicks,0 AS conversions,
+               0 AS pending,0 AS approved,0 AS rejected,0::numeric AS income,0::numeric AS hold FROM clicks
+        UNION ALL
+        SELECT k.country_code,k.country_name,0,1,
+               CASE WHEN v.normalized_status='pending' THEN 1 ELSE 0 END,
+               CASE WHEN v.normalized_status='approved' THEN 1 ELSE 0 END,
+               CASE WHEN v.normalized_status='rejected' THEN 1 ELSE 0 END,
+               coalesce(a.income,0),coalesce(a.hold,0)
+        FROM conversions v
+        LEFT JOIN public.clicks k ON k.click_id=v.click_id AND k.user_id=v.user_id
+        LEFT JOIN amounts a ON a.conversion_id=v.id
+        WHERE NOT v.is_test AND v.normalized_status IN ('pending','approved','rejected')
+      ), normalized AS (
+        SELECT CASE WHEN upper(trim(country_code)) ~ '^[A-Z]{2}$'
+                     AND upper(trim(country_code)) NOT IN ('XX','ZZ')
+                    THEN upper(trim(country_code)) END AS code, * FROM events
+      )
+      SELECT code AS country_code,max(CASE WHEN code IS NOT NULL THEN nullif(trim(country_name),'') END) AS country_name,
+             sum(clicks) AS clicks,sum(conversions) AS conversions,sum(pending) AS pending,
+             sum(approved) AS approved,sum(rejected) AS rejected,sum(income) AS income,sum(hold) AS hold
+      FROM normalized GROUP BY code ORDER BY clicks DESC,code NULLS LAST
     """),bind).mappings().all()
     return [{"country_code":r["country_code"],
-             "country_name":r["country_name"] if r["country_code"] and r["country_name"] else (r["country_code"] or "Не определена"),
-             "clicks":r["clicks"]} for r in rows]
+             "country_name":r["country_name"] or r["country_code"] or "Не определена",
+             "clicks":int(r["clicks"]),"conversions":int(r["conversions"]),
+             "pending":int(r["pending"]),"approved":int(r["approved"]),"rejected":int(r["rejected"]),
+             "income":scalar(r["income"]),"hold":scalar(r["hold"]),
+             "cr":round(100*r["conversions"]/r["clicks"],2) if r["clicks"] else None,
+             "epc":scalar(r["income"]/r["clicks"]) if r["clicks"] else None} for r in rows]
 
 
 def recent_clicks(conn, uid, params, limit=10, offset=0):
