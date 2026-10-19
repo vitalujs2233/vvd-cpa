@@ -1,8 +1,9 @@
-"""Stage 3: neutral-service VVD per-offer links and attributable clicks.
+"""Per-offer VVD links and attributable clicks.
 
 Legacy /smartlink and /go routes are unchanged. No balances, stats, postbacks
-or conversions are written here. New redirect is intentionally restricted to
-ordinary neutral service verticals; adult/dating/gambling links are unsupported.
+or conversions are written here. Routing depends on the offer, network and
+vertical availability flags in the database; no hard-coded category name alone
+permits or prevents redirect.
 """
 import ipaddress
 import re
@@ -17,7 +18,6 @@ from stars_payments import require_telegram_id
 
 router=APIRouter(tags=["CPA neutral links"])
 API_ROOT="https://vvd-cpa-v2.onrender.com"
-NEUTRAL_VERTICALS=frozenset({"utilities","education","productivity","software","technology"})  # legacy initial migration only
 PARAM_RE=re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,47}$")
 
 def _validated_destination(url: str, parameter: str, click_id: str, partner_parameter: str|None=None, partner_code: str|None=None) -> str:
