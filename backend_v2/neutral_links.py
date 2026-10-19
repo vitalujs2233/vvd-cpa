@@ -9,7 +9,8 @@ import ipaddress
 import re
 import uuid
 from urllib.parse import urlsplit, parse_qsl, urlencode, urlunsplit
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Request, BackgroundTasks
+from click_geo import public_client_ip, enrich_click_country
 from fastapi.responses import RedirectResponse
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -118,10 +119,11 @@ def create_personal_link(offer_id:str,x_telegram_init_data:str|None=Header(None)
         raise HTTPException(503,"Не удалось сохранить ссылку") from exc
 
 @router.get("/r/{suffix}")
-def neutral_click_redirect(suffix:str):
+def neutral_click_redirect(suffix:str, request:Request, background_tasks:BackgroundTasks):
     if not re.fullmatch(r"s[a-f0-9]{32}",suffix):
         raise HTTPException(404,"Ссылка не найдена")
     click_id=str(uuid.uuid4())
+    visitor_ip=public_client_ip(request)
     try:
         with engine.begin() as conn:
             row=conn.execute(text("""
@@ -138,13 +140,15 @@ def neutral_click_redirect(suffix:str):
                 offer["partner_param"],row["partner_code"])
             conn.execute(text("""
               INSERT INTO clicks(user_id,partner_code,click_id,vertical,
-                  offer_id,network_id,smartlink_id)
+                  offer_id,network_id,smartlink_id,ip_address)
               VALUES(:user_id,:partner_code,:click_id,:vertical,
-                  :offer_id,:network_id,:smartlink_id)
+                  :offer_id,:network_id,:smartlink_id,:ip_address)
             """),{"user_id":row["user_id"],"partner_code":row["partner_code"],
                   "click_id":click_id,"vertical":offer["vertical_slug"],
                   "offer_id":offer["id"],"network_id":offer["network_id"],
-                  "smartlink_id":row["smartlink_id"]})
+                  "smartlink_id":row["smartlink_id"],"ip_address":visitor_ip})
     except SQLAlchemyError as exc:
         raise HTTPException(503,"Регистрация перехода временно недоступна") from exc
+    if visitor_ip:
+        background_tasks.add_task(enrich_click_country,engine,click_id,visitor_ip)
     return RedirectResponse(redirect_url,status_code=302,headers={"Cache-Control":"no-store"})

@@ -3,7 +3,8 @@
 Never creates ledger entries, modifies balances, or activates the finance epoch.
 Legacy statistics and historical conversions are deliberately separate.
 """
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from decimal import Decimal
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import text
@@ -14,10 +15,14 @@ ZERO = Decimal("0.00")
 FINAL = {"approved", "rejected"}
 
 
-def bounds(period="all", date_from=None, date_to=None):
+def bounds(period="all", date_from=None, date_to=None, tz="UTC"):
+    try:
+        zone = ZoneInfo(tz)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise HTTPException(422, "Unknown timezone")
     if period not in ("today", "yesterday", "7days", "30days", "all"):
         raise HTTPException(422, "Unknown period")
-    now = date.today()
+    now = datetime.now(zone).date()
     start = {"today": now, "yesterday": now - timedelta(days=1),
              "7days": now - timedelta(days=6),
              "30days": now - timedelta(days=29), "all": None}[period]
@@ -29,10 +34,10 @@ def bounds(period="all", date_from=None, date_to=None):
     return start, end
 
 
-def arguments(period, date_from, date_to, vertical, offer_id, network_id):
-    start, end = bounds(period, date_from, date_to)
+def arguments(period, date_from, date_to, vertical, offer_id, network_id, tz="UTC"):
+    start, end = bounds(period, date_from, date_to, tz)
     return {"start": start, "end": end, "vertical": vertical or None,
-            "offer": offer_id or None, "network": network_id}
+            "offer": offer_id or None, "network": network_id, "tz": tz}
 
 
 # All conversion classifications are mutually exclusive; numeric 1/2/3
@@ -50,18 +55,18 @@ REAL = """v.is_test=FALSE AND e.activated_at IS NOT NULL
 # Separate click & conversion aggregation avoids multiplying clicks for
 # multi-postback conversion records. Filtering is parameterized throughout.
 CLICK_ROWS = """
- SELECT k.id,k.user_id,k.click_id,k.created_at::date AS event_date,
+ SELECT k.id,k.user_id,k.click_id,((k.created_at AT TIME ZONE 'UTC') AT TIME ZONE :tz)::date AS event_date,
         k.offer_id,k.network_id,k.vertical,k.country_code,k.country_name
  FROM public.clicks k
  WHERE (CAST(:uid AS BIGINT) IS NULL OR k.user_id=:uid)
- AND (CAST(:start AS DATE) IS NULL OR k.created_at::date>=:start)
- AND (CAST(:end AS DATE) IS NULL OR k.created_at::date<=:end)
+ AND (CAST(:start AS DATE) IS NULL OR ((k.created_at AT TIME ZONE 'UTC') AT TIME ZONE :tz)::date>=:start)
+ AND (CAST(:end AS DATE) IS NULL OR ((k.created_at AT TIME ZONE 'UTC') AT TIME ZONE :tz)::date<=:end)
  AND (CAST(:vertical AS TEXT) IS NULL OR k.vertical=:vertical)
  AND (CAST(:offer AS TEXT) IS NULL OR k.offer_id=:offer)
  AND (CAST(:network AS BIGINT) IS NULL OR k.network_id=:network)
 """
 CONVERSION_ROWS = """
- SELECT v.id,v.user_id,v.click_id,v.created_at::date AS event_date,
+ SELECT v.id,v.user_id,v.click_id,(v.created_at AT TIME ZONE :tz)::date AS event_date,
         v.offer_id,v.network_id,v.vertical_slug,v.is_test,v.status,
         v.finance_eligible_at,v.finance_approved_at,v.currency,v.payout_gross,
         v.payout_net,
@@ -69,8 +74,8 @@ CONVERSION_ROWS = """
         CASE WHEN """ + REAL + """ THEN TRUE ELSE FALSE END AS is_real
  FROM public.conversions v CROSS JOIN public.cpa_finance_epoch e
  WHERE e.id=1 AND (CAST(:uid AS BIGINT) IS NULL OR v.user_id=:uid)
- AND (CAST(:start AS DATE) IS NULL OR v.created_at::date>=:start)
- AND (CAST(:end AS DATE) IS NULL OR v.created_at::date<=:end)
+ AND (CAST(:start AS DATE) IS NULL OR (v.created_at AT TIME ZONE :tz)::date>=:start)
+ AND (CAST(:end AS DATE) IS NULL OR (v.created_at AT TIME ZONE :tz)::date<=:end)
  AND (CAST(:vertical AS TEXT) IS NULL OR v.vertical_slug=:vertical)
  AND (CAST(:offer AS TEXT) IS NULL OR v.offer_id=:offer)
  AND (CAST(:network AS BIGINT) IS NULL OR v.network_id=:network)
@@ -210,7 +215,7 @@ def countries(conn, uid, params):
 def recent_clicks(conn, uid, params, limit=10, offset=0):
     """Only owned click facts; never expose visitor IP, click ID or network tokens."""
     rows=conn.execute(text("""
-        SELECT k.created_at AS clicked_at,
+        SELECT k.created_at AT TIME ZONE 'UTC' AS clicked_at,
                CASE WHEN upper(trim(k.country_code)) ~ '^[A-Z]{2}$'
                          AND upper(trim(k.country_code)) NOT IN ('XX','ZZ')
                     THEN upper(trim(k.country_code)) ELSE NULL END AS country_code,
@@ -221,8 +226,8 @@ def recent_clicks(conn, uid, params, limit=10, offset=0):
         FROM public.clicks k
         LEFT JOIN public.offers o ON o.id=k.offer_id
         WHERE k.user_id=:uid
-          AND (CAST(:start AS DATE) IS NULL OR k.created_at::date >= :start)
-          AND (CAST(:end AS DATE) IS NULL OR k.created_at::date <= :end)
+          AND (CAST(:start AS DATE) IS NULL OR ((k.created_at AT TIME ZONE 'UTC') AT TIME ZONE :tz)::date >= :start)
+          AND (CAST(:end AS DATE) IS NULL OR ((k.created_at AT TIME ZONE 'UTC') AT TIME ZONE :tz)::date <= :end)
           AND (CAST(:vertical AS TEXT) IS NULL OR k.vertical=:vertical)
           AND (CAST(:offer AS TEXT) IS NULL OR k.offer_id=:offer)
           AND (CAST(:network AS BIGINT) IS NULL OR k.network_id=:network)
@@ -247,9 +252,9 @@ def options(period: str=Query("all"), date_from: date|None=Query(None,alias="fro
 def existing_statistics(telegram_id:int,period:str="all",vertical:str|None=None,
                         offer_id:str|None=None,network_id:int|None=None,
                         date_from:date|None=Query(None,alias="from"),
-                        date_to:date|None=Query(None,alias="to")):
+                        date_to:date|None=Query(None,alias="to"),tz:str="UTC"):
     if date_from and date_to and date_from>date_to: raise HTTPException(422,'Invalid date range')
-    params=arguments(period,date_from,date_to,vertical,offer_id,network_id)
+    params=arguments(period,date_from,date_to,vertical,offer_id,network_id,tz)
     with engine.connect() as conn:
         summary=summarize(conn,telegram_id,params)
         return {"success":True,"statistics":daily(conn,telegram_id,params),
@@ -260,9 +265,9 @@ def existing_statistics(telegram_id:int,period:str="all",vertical:str|None=None,
 def existing_countries(telegram_id:int,period:str="all",vertical:str|None=None,
                        offer_id:str|None=None,network_id:int|None=None,
                        date_from:date|None=Query(None,alias="from"),
-                       date_to:date|None=Query(None,alias="to")):
+                       date_to:date|None=Query(None,alias="to"),tz:str="UTC"):
     if date_from and date_to and date_from>date_to: raise HTTPException(422,'Invalid date range')
-    params=arguments(period,date_from,date_to,vertical,offer_id,network_id)
+    params=arguments(period,date_from,date_to,vertical,offer_id,network_id,tz)
     with engine.connect() as conn:
         return {"success":True,"countries":countries(conn,telegram_id,params),
                 "vertical":vertical or "all"}
@@ -274,9 +279,9 @@ def partner_recent_clicks(telegram_id:int,period:str="all",vertical:str|None=Non
                           date_from:date|None=Query(None,alias="from"),
                           date_to:date|None=Query(None,alias="to"),
                           limit:int=Query(10,ge=1,le=20),
-                          offset:int=Query(0,ge=0)):
+                          offset:int=Query(0,ge=0),tz:str="UTC"):
     if date_from and date_to and date_from>date_to: raise HTTPException(422,"Invalid date range")
-    params=arguments(period,date_from,date_to,vertical,offer_id,network_id)
+    params=arguments(period,date_from,date_to,vertical,offer_id,network_id,tz)
     with engine.connect() as conn:
         return {"success":True,"clicks":recent_clicks(conn,telegram_id,params,limit,offset),
                 "limit":limit,"offset":offset}
@@ -286,9 +291,9 @@ def partner_recent_clicks(telegram_id:int,period:str="all",vertical:str|None=Non
 def existing_breakdown(telegram_id:int,period:str="all",vertical:str|None=None,
                        offer_id:str|None=None,network_id:int|None=None,
                        date_from:date|None=Query(None,alias="from"),
-                       date_to:date|None=Query(None,alias="to")):
+                       date_to:date|None=Query(None,alias="to"),tz:str="UTC"):
     if date_from and date_to and date_from>date_to: raise HTTPException(422,'Invalid date range')
-    params=arguments(period,date_from,date_to,vertical,offer_id,network_id)
+    params=arguments(period,date_from,date_to,vertical,offer_id,network_id,tz)
     with engine.connect() as conn:
         return {"success":True,"offers":grouped(conn,telegram_id,params,"offers"),
                 "networks":grouped(conn,telegram_id,params,"networks")}
@@ -298,10 +303,10 @@ def existing_breakdown(telegram_id:int,period:str="all",vertical:str|None=None,
 def admin_analytics(telegram_id:int|None=None,period:str="all",vertical:str|None=None,
                     offer_id:str|None=None,network_id:int|None=None,
                     date_from:date|None=Query(None,alias="from"),
-                    date_to:date|None=Query(None,alias="to")):
+                    date_to:date|None=Query(None,alias="to"),tz:str="UTC"):
     # /admin/ remains protected by access_guard with verified Telegram admin.
     if date_from and date_to and date_from>date_to: raise HTTPException(422,'Invalid date range')
-    params=arguments(period,date_from,date_to,vertical,offer_id,network_id)
+    params=arguments(period,date_from,date_to,vertical,offer_id,network_id,tz)
     with engine.connect() as conn:
         return {"success":True,"summary":summarize(conn,telegram_id,params,admin=True),
                 "daily":daily(conn,telegram_id,params),

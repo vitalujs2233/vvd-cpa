@@ -12,6 +12,7 @@ type Summary = {clicks:number;conversions:number;cr:number;epc:number;earned:num
 type Country = {country_code:string|null;country_name:string;clicks:number};
 type Click = {created_at:string;country_code:string|null;country_name:string;offer_name:string|null};
 type Offer = {id:string|null;label:string};
+const userTimezone=Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 const API='https://vvd-cpa-v2.onrender.com';
 
 const countryFlag=(value:string|null)=>{
@@ -42,7 +43,7 @@ export const Stats:React.FC=()=>{
   const [error,setError]=useState('');
   const [refreshing,setRefreshing]=useState(false);
   const params=useMemo(()=>{
-    const p=new URLSearchParams({period});
+    const p=new URLSearchParams({period,tz:userTimezone});
     if(dateFrom)p.set('from',dateFrom);
     if(dateTo)p.set('to',dateTo);
     if(offerId)p.set('offer_id',offerId);
@@ -117,6 +118,7 @@ export const Stats:React.FC=()=>{
         <RefreshCw size={16} className={refreshing?'animate-spin':''}/>
       </button>
     </div>
+    <p className="text-[10px] text-textSecondary">Часовой пояс: {userTimezone}</p>
     <div className="flex flex-wrap gap-1.5" aria-label="Период статистики">
       {periods.map(p=><button key={p.id} onClick={()=>setPeriod(p.id)} aria-pressed={period===p.id}
         className={`text-[11px] px-2.5 py-1.5 rounded-app-xs border border-white/10 whitespace-nowrap ${period===p.id?'bg-accent-gradient text-white':'bg-bgCard/30 text-textSecondary'}`}>{p.label}</button>)}
