@@ -214,24 +214,22 @@ useLayoutEffect(() => {
     let settleTimer=0;
     let keyboardOpen=false;
     let disposed=false;
-    let blurTimer=0;
-    let restoredAfterBlur=false;
+    let editing=false;
     const applyViewport=()=>{
       if(disposed) return;
       // WebView's Telegram height can lag behind iOS keyboard dismissal.
       // Use one live viewport source instead of taking the smallest cached value.
       const vv=window.visualViewport;
-      const focused=document.activeElement?.tagName==='INPUT';
-      const height=restoredAfterBlur && !focused ? fullHeight : liveHeight;
+      const height=editing ? liveHeight : fullHeight;
       fullHeight=Math.max(fullHeight,height);
-      const reduced=!(restoredAfterBlur && !focused) && fullHeight-height>100;
+      const reduced=editing && fullHeight-height>100;
       if(reduced) keyboardOpen=true;
       else if(fullHeight-height<40) keyboardOpen=false;
       // Keep compact mode until the viewport actually expands, even after blur.
       document.body.style.setProperty('--dvizh-full-height',`${fullHeight}px`);
       const box=chatContainerRef.current;
       const nearBottom=box ? box.scrollHeight-box.scrollTop-box.clientHeight<100 : false;
-      setViewport({height,fullHeight,top:restoredAfterBlur && !focused ? 0 : vv?.offsetTop||0,keyboard:keyboardOpen});
+      setViewport({height,fullHeight,top:editing && keyboardOpen ? vv?.offsetTop||0 : 0,keyboard:keyboardOpen});
       if(nearBottom || document.activeElement?.tagName==='INPUT') {
         requestAnimationFrame(()=>{if(!disposed && box) box.scrollTop=box.scrollHeight;});
       }
@@ -251,24 +249,28 @@ useLayoutEffect(() => {
       if(tg?.viewportHeight) liveHeight=tg.viewportHeight;
       updateViewport();
     };
-    const focusIn=()=>{
-      window.clearTimeout(blurTimer);
-      restoredAfterBlur=false;
+    const focusIn=(event:FocusEvent)=>{
+      if(!(event.target instanceof HTMLInputElement) || !event.target.closest('.dvizh-chat')) return;
+      editing=true;
       updateViewport();
     };
     const focusOut=()=>{
-      updateViewport();
-      window.clearTimeout(blurTimer);
-      // iOS may leave visualViewport at the keyboard height after dismissal.
-      // Restore the saved expanded height after the native closing animation.
-      blurTimer=window.setTimeout(()=>{
-        if(document.activeElement?.tagName!=='INPUT') {
-          restoredAfterBlur=true;
-          keyboardOpen=false;
-          applyViewport();
-        }
-      },400);
+      editing=false;
+      keyboardOpen=false;
+      // The composer returns to the menu immediately. No stale viewport or timer
+      // is allowed to keep the unfocused chat at the keyboard height.
+      applyViewport();
     };
+    const dismiss=()=>{
+      const input=document.activeElement;
+      if(input instanceof HTMLInputElement) input.blur();
+      focusOut();
+    };
+    const dismissOnOutside=(event:PointerEvent)=>{
+      const target=event.target;
+      if(target instanceof Element && !target.closest('input,button,a')) dismiss();
+    };
+    document.addEventListener('pointerdown',dismissOnOutside,true);
     updateViewport();
     window.addEventListener('resize',visualResize);
     window.visualViewport?.addEventListener('resize',visualResize);
@@ -278,7 +280,7 @@ useLayoutEffect(() => {
     tg?.onEvent?.('viewportChanged',telegramResize);
     return()=>{
       disposed=true;
-      window.clearTimeout(blurTimer);
+      document.removeEventListener('pointerdown',dismissOnOutside,true);
       cancelAnimationFrame(frame);
       window.clearTimeout(settleTimer);
       document.body.classList.remove('dvizh-active');
