@@ -49,6 +49,9 @@ export const Card: React.FC<CardProps> = ({
   return (
     <div
       className={`${baseStyles} ${variantStyles[variant]} ${paddingStyles[padding]} ${clickableStyles} ${className}`}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onKeyDown={clickable ? event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();event.currentTarget.click();}} : undefined}
       {...props}
     >
       {children}

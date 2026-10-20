@@ -63,23 +63,16 @@ export const Button: React.FC<ButtonProps> = ({
 
   return (
     <button
-      className={`${baseStyles} ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
+      aria-busy={isLoading || undefined}
+      className={`relative ${baseStyles} ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
       disabled={disabled || isLoading}
       onClick={handlePress}
       {...props}
     >
-      {isLoading ? (
-        <div className="flex items-center justify-center gap-8">
-          {/* Минималистичный премиум-лоадер */}
-          <div className="relative w-4 h-4">
-            <div className="absolute inset-0 rounded-full border-2 border-bgMain/20"></div>
-            <div className="absolute inset-0 rounded-full border-2 border-t-bgMain animate-spin"></div>
-          </div>
-          <span className="text-xs text-bgMain/90">Пожалуйста, подождите...</span>
-        </div>
-      ) : (
-        children
-      )}
+      <span className={`inline-flex items-center justify-center gap-1 min-w-0 ${isLoading ? 'invisible' : ''}`}>{children}</span>
+      {isLoading && <span className="absolute inset-0 flex items-center justify-center" role="status" aria-label="Выполняется">
+        <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" aria-hidden="true" />
+      </span>}
     </button>
   );
 };

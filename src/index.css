@@ -204,3 +204,19 @@ body {
   min-height: 100%;
   overflow-x: hidden;
 }
+
+/* Shared touch feedback, without changing layout or keyboard positioning. */
+:where(button,a[href],[role="button"],summary) { touch-action: manipulation; }
+:where(button,a[href],[role="button"],summary):not(:disabled):not([aria-disabled="true"]):is(:active,[data-pressed="true"]) {
+  filter: brightness(1.35);
+  outline: 2px solid rgba(246,196,83,.65);
+  outline-offset: -2px;
+}
+:where(button,a[href],[role="button"],summary):focus-visible {
+  outline: 2px solid #F6C453 !important;
+  outline-offset: 3px;
+}
+button:disabled,[aria-disabled="true"] { cursor: not-allowed; opacity: .45; }
+@media (prefers-reduced-motion: reduce) {
+  button,a[href],[role="button"] { transition: none !important; }
+}

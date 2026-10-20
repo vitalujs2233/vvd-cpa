@@ -1,3 +1,4 @@
+import {CopyButton} from '@/shared/ui/CopyButton';
 import {readApiSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import React,{useEffect,useState} from 'react';
 import {useParams,useNavigate,Link} from 'react-router-dom';
@@ -26,7 +27,6 @@ export const OfferDetail:React.FC=()=>{
    catch(e){setLinkError(e instanceof Error?e.message:'Не удалось создать ссылку')}
    finally{setLinkBusy(false)}
  };
- const copyLink=async()=>{if(!link)return;try{await navigator.clipboard.writeText(link)}catch{setLinkError('Не удалось скопировать: выделите ссылку вручную')}};
  const back=()=>nav(offerId?'/offers/'+id:'/offers');
  return <div className="flex flex-col gap-4 p-4 select-none pb-32 animate-fade-in">
    <div className="flex items-center gap-3"><button type="button" onClick={back} aria-label="Назад" className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary"><ArrowLeft size={18}/></button>
@@ -40,7 +40,7 @@ export const OfferDetail:React.FC=()=>{
      <div className="grid grid-cols-2 gap-3"><Card padding="sm" className="flex items-center gap-2"><Globe className="text-accentPurple" size={17}/><div><p className="text-[10px] text-textSecondary">ГЕО</p><p className="text-xs font-bold">{offer.geo||'Нет данных'}</p></div></Card><Card padding="sm" className="flex items-center gap-2"><Calendar className="text-accentPurple" size={17}/><div><p className="text-[10px] text-textSecondary">Холд</p><p className="text-xs font-bold">{offer.hold_override_days} дней</p></div></Card></div>
      <Card padding="lg" className="space-y-2"><h3 className="text-sm font-bold">Условия</h3><p className="text-xs text-textSecondary">Модель оплаты: {offer.payment_model||'Нет данных'}</p><p className="text-xs text-textSecondary">Вознаграждение: {offer.payout_terms||'Нет данных'}</p><p className="text-xs text-textSecondary">Трафик: {offer.traffic_restrictions||'Уточняйте условия у менеджера'}</p></Card>
      <Card variant="glow" padding="lg" className="text-center space-y-3"><p className="font-bold text-sm">Персональная VVD-ссылка</p>
-       {allowedNeutral?<>{link?<><p className="break-all select-text text-xs text-textSecondary">{link}</p><button type="button" onClick={()=>void copyLink()} className="rounded-app-xs border border-accentPurple/40 px-4 py-2 text-sm font-bold text-white">Скопировать</button></>:
+       {allowedNeutral?<>{link?<><p className="break-all select-text text-xs text-textSecondary">{link}</p><CopyButton text={link} className="rounded-app-xs border border-accentPurple/40 px-4 py-2 text-sm font-bold text-white">Скопировать</CopyButton></>:
        <button type="button" disabled={linkBusy} onClick={()=>void createLink()} className="rounded-app-xs bg-accentPurple/70 px-4 py-3 text-sm font-bold text-white disabled:opacity-50">{linkBusy?'Создание…':'Создать ссылку'}</button>}
        {linkError&&<p role="alert" className="text-xs text-textSecondary">{linkError}</p>}</>:
        <p className="text-xs text-textSecondary">Подключение ссылки готовится</p>}

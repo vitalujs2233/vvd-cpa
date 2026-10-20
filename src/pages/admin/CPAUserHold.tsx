@@ -95,7 +95,7 @@ export const CPAUserHold:React.FC<{partnerCode:string}>=({partnerCode})=>{
         <textarea aria-label="Причина досрочного выпуска" placeholder="Обязательная причина (12–60 символов)"
           value={reason} rows={2} onChange={e=>{setReason(e.target.value);setRequestId(null);}}
           className="rounded-lg bg-black/40 border border-white/20 p-2 text-xs text-white"/>
-        <Button onClick={release} disabled={busy||!data.real_finance_active||
+        <Button isLoading={busy} onClick={release} disabled={busy||!data.real_finance_active||
           !data.early_release_enabled||selected.disputed||
           Number(selected.early_releasable)<=0}>
           {busy?'Проверка...':'Выпустить из холда'}

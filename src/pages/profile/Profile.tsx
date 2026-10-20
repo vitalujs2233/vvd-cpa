@@ -490,12 +490,12 @@ export const Profile: React.FC = () => {
               <div className="flex items-center justify-between p-4">
                 <div className="flex flex-col">
                   <span className="text-xs font-bold text-error">Удалить аккаунт</span>
-                  <span className="text-[9px] text-error/60 mt-0.5">Без возможности восстановления</span>
+                  <span className="text-[9px] text-error/60 mt-0.5">Удаление аккаунта пока недоступно</span>
                 </div>
                 <Button 
                   variant="danger" 
                   size="sm" 
-                  onClick={() => triggerHaptic.error()}
+                  disabled
                   className="bg-error/10 border border-error/20 text-error hover:bg-error/20"
                 >
                   <Trash2 size={12} className="mr-1.5" />

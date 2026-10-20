@@ -1,3 +1,4 @@
+import {CopyButton} from '@/shared/ui/CopyButton';
 import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
 import React,{useEffect,useState} from 'react';
 import {cpaApi,type PostbackConfig,type PostbackCheckState} from '@/pages/offers/cpaApi';
@@ -37,17 +38,17 @@ export const NetworkPostback:React.FC<{id:number}>=({id})=>{
    <label className="block text-xs text-textSecondary">Соответствие статусов (JSON)
     <textarea className={control+' mt-1 min-h-24'} value={mapText} onChange={e=>setMapText(e.target.value)}/>
    </label>
-   <button type="button" disabled={busy} onClick={()=>void save()} className="w-full rounded-app-xs border border-accentPurple/50 p-2 text-xs">Сохранить Postback</button>
+   <button type="button" disabled={busy} onClick={()=>void save()} className="w-full rounded-app-xs border border-accentPurple/50 p-2 text-xs">{busy?'Выполняется…':'Сохранить Postback'}</button>
    {id===2&&<div className="space-y-2" aria-live="polite">
     {checkState?.completed&&checkState.test_conversions===1&&checkState.status==="pending"&&checkState.zero_payout&&<p role="status" className="rounded-app-xs border border-accentPurple/40 bg-accentPurple/10 p-3 text-xs text-textPrimary">Postback проверен успешно. Тестовая конверсия: 1. Статус: pending. Начисления: $0</p>}
     {checkError&&<p role="alert" className="rounded-app-xs border border-white/20 p-2 text-xs text-textSecondary">{checkError}</p>}
-    <button type="button" disabled={busy||checkState===null||checkState.completed} onClick={()=>void check()} className="w-full rounded-app-xs border border-accentPurple/50 p-2 text-xs disabled:opacity-60">{checkState?.completed?"Проверка уже выполнена":"Проверить Postback"}</button>
+    <button type="button" disabled={busy||checkState===null||checkState.completed} onClick={()=>void check()} className="w-full rounded-app-xs border border-accentPurple/50 p-2 text-xs disabled:opacity-60">{busy?'Выполняется…':checkState?.completed?"Проверка уже выполнена":"Проверить Postback"}</button>
    </div>}
-   <button type="button" disabled={busy} onClick={()=>void rotate()} className="w-full rounded-app-xs border border-white/10 p-2 text-xs">Создать / заменить секрет</button>
+   <button type="button" disabled={busy} onClick={()=>void rotate()} className="w-full rounded-app-xs border border-white/10 p-2 text-xs">{busy?'Выполняется…':'Создать / заменить секрет'}</button>
    {secret&&<div className="space-y-2"><p className="text-xs text-textSecondary">Секрет показывается один раз. Для POST передавайте его в заголовке X-VVD-Postback-Key. Для GET используйте HTTPS-ссылку с vvd_key. Не передавайте секрет в чат.</p>
      <p className="break-all select-text text-xs">{secret}</p>
-     <button type="button" onClick={()=>void navigator.clipboard.writeText(secret)} className="rounded-app-xs border border-accentPurple/50 px-3 py-2 text-xs">Скопировать секрет</button>
-     {data.postback_method==='GET_QUERY'&&getUrl&&<><p className="break-all select-text text-xs text-textSecondary">Основа GET Postback URL (добавьте параметры и макросы сети): {getUrl}</p><button type="button" onClick={()=>void navigator.clipboard.writeText(getUrl)} className="rounded-app-xs border border-accentPurple/50 px-3 py-2 text-xs">Скопировать GET URL</button></>}
+     <CopyButton type="button" text={secret} className="rounded-app-xs border border-accentPurple/50 px-3 py-2 text-xs">Скопировать секрет</CopyButton>
+     {data.postback_method==='GET_QUERY'&&getUrl&&<><p className="break-all select-text text-xs text-textSecondary">Основа GET Postback URL (добавьте параметры и макросы сети): {getUrl}</p><CopyButton type="button" text={getUrl} className="rounded-app-xs border border-accentPurple/50 px-3 py-2 text-xs">Скопировать GET URL</CopyButton></>}
      <button type="button" onClick={()=>setSecret('')} className="rounded-app-xs border border-white/10 px-3 py-2 text-xs">Скрыть</button></div>}
   </>}
   {notice&&<p role="status" className="text-xs text-textSecondary">{notice}</p>}

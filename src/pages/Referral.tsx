@@ -1,3 +1,4 @@
+import {CopyButton} from '@/shared/ui/CopyButton';
 import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -33,16 +34,6 @@ setReferral(data);
     loadReferral();
   }, []);
 
-  const copyReferralLink = async () => {
-    if (!referral?.referral_link) return;
-
-    await navigator.clipboard.writeText(referral.referral_link);
-
-    if (window.Telegram?.WebApp) {
-      window.Telegram.WebApp.showAlert("Ссылка скопирована");
-    }
-  };
-
   return (
     <div className="flex flex-col gap-4 p-4 pb-24 animate-fade-in">
 
@@ -75,11 +66,12 @@ setReferral(data);
           ${Number(referral?.balance || 0).toFixed(2)}
         </div>
 
-        <button
+        <button disabled aria-describedby="referral-withdrawal-status"
           className="mt-5 w-full rounded-xl bg-accentGold text-black font-bold py-3 transition hover:opacity-90"
         >
           Вывести
         </button>
+        <p id="referral-withdrawal-status" className="mt-2 text-xs text-textSecondary">Вывод реферального баланса пока не подключён.</p>
 
       </Card>
 
@@ -99,12 +91,12 @@ setReferral(data);
           {referral?.referral_link || ""}
         </div>
 
-        <button
-          onClick={copyReferralLink}
+        <CopyButton
+          text={referral?.referral_link || ""}
           className="mt-4 w-full rounded-xl border border-accentGold text-accentGold py-3 font-bold"
         >
           Копировать ссылку
-        </button>
+        </CopyButton>
 
       </Card>
 

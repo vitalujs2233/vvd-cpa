@@ -108,6 +108,7 @@ export const Admin: React.FC = () => {
   const [bannerSaving, setBannerSaving] = useState(false);
   const [chatBans, setChatBans] = useState<ChatBan[]>(()=>readApiSnapshot('/admin/chat/bans')?.bans||[]);
   const [chatBansLoading, setChatBansLoading] = useState(false);
+  const [unbanning, setUnbanning] = useState<string|null>(null);
 
   useEffect(()=>{if(adminUsers.length)saveSnapshot('api:/admin/users',{success:true,users:adminUsers});},[adminUsers]);
   useEffect(()=>{saveSnapshot('api:/admin/withdrawals',{success:true,withdrawals});},[withdrawals]);
@@ -728,6 +729,7 @@ const saveChatBanner = async () => {
         <Button
           size="md"
           onClick={saveChatBanner}
+          isLoading={bannerSaving}
           disabled={bannerSaving || bannerLoading || !!bannerError}
           className="w-full"
         >
@@ -932,6 +934,7 @@ const saveChatBanner = async () => {
                       <Button
                         size="md"
                         onClick={() => processWithdrawal(item.id, 'pay')}
+                        isLoading={processingWithdrawalId === item.id}
                         disabled={processingWithdrawalId === item.id}
                         className="w-full"
                       >
@@ -941,6 +944,7 @@ const saveChatBanner = async () => {
                         variant="outline"
                         size="md"
                         onClick={() => processWithdrawal(item.id, 'reject')}
+                        isLoading={processingWithdrawalId === item.id}
                         disabled={processingWithdrawalId === item.id}
                         className="w-full border-error/30 text-error"
                       >
@@ -1103,21 +1107,21 @@ const saveChatBanner = async () => {
 
             <Button
               variant="outline"
+              isLoading={unbanning===ban.telegram_id}
+              disabled={unbanning!==null}
               onClick={async () => {
-                await authorizedFetch("https://vvd-cpa-v2.onrender.com/admin/chat/unban", {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    admin_id: currentUser.id,
-                    telegram_id: ban.telegram_id,
-                  }),
-                });
-
-                setChatBans(prev =>
-                  prev.filter(x => x.telegram_id !== ban.telegram_id)
-                );
+                if(unbanning!==null)return;
+                setUnbanning(ban.telegram_id);
+                try {
+                  const response=await authorizedFetch("https://vvd-cpa-v2.onrender.com/admin/chat/unban", {
+                    method:"POST", headers:{"Content-Type":"application/json"},
+                    body:JSON.stringify({admin_id:currentUser.id,telegram_id:ban.telegram_id}),
+                  });
+                  const result=await response.json();
+                  if(!response.ok||!result.success)throw new Error('Не удалось снять блокировку.');
+                  setChatBans(prev=>prev.filter(x=>x.telegram_id!==ban.telegram_id));
+                } catch {window.alert('Не удалось снять блокировку. Попробуйте ещё раз.');}
+                finally {setUnbanning(null);}
               }}
             >
               Разбанить

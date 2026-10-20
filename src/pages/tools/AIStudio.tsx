@@ -1,3 +1,4 @@
+import {CopyButton} from '@/shared/ui/CopyButton';
 import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
 import React,{useEffect,useState} from 'react';
 import {Link,useNavigate,useParams} from 'react-router-dom';
@@ -37,7 +38,7 @@ export const AIModelsPage:React.FC=()=>{
         <p className="text-[11px] text-textSecondary">Тариф: {m.affiliate_url?'Ссылка настроена':'Не выбран'} · Расходы: {stats[m.id||'']?.cost_usd??'—'}</p>
         <div className="flex gap-2"><Link className="flex-1 rounded-app-xs border border-accentGold/30 p-3 text-center text-xs text-accentBrightGold" to={'/tools/ai/'+m.id}>Редактировать</Link>
           {m.status==='published'&&<a className="flex-1 rounded-app-xs border border-white/10 p-3 text-center text-xs" href={modelPageUrl(m.slug)} target="_blank" rel="noopener noreferrer">Открыть чат</a>}
-          <button type="button" aria-label="Скопировать ссылку" onClick={()=>void navigator.clipboard.writeText(modelPageUrl(m.slug))} className="rounded-app-xs border border-white/10 p-3"><Copy size={15}/></button>
+          <CopyButton type="button" aria-label="Скопировать ссылку" text={modelPageUrl(m.slug)} className="rounded-app-xs border border-white/10 p-3"><Copy size={15}/></CopyButton>
         </div>
       </Card>)}
   </Shell>;
@@ -109,7 +110,7 @@ export const AIEditor:React.FC=()=>{
       <label className="flex items-center gap-2 text-xs text-textSecondary"><input type="checkbox" checked={rightsConfirmed} onChange={e=>setRightsConfirmed(e.target.checked)}/> Подтверждаю права на загружаемый аватар.</label>
       {id?<label className="flex cursor-pointer items-center justify-center gap-2 rounded-app-xs border border-accentGold/30 p-3 text-sm text-accentBrightGold"><Upload size={16}/> Загрузить аватар<input type="file" className="hidden" disabled={!rightsConfirmed||uploading} accept="image/jpeg,image/png,image/webp" onChange={e=>void upload(e,true)}/></label>:
         <p className="text-xs text-textSecondary">Сначала сохраните профиль, чтобы загрузить аватар.</p>}
-      {model.photo_url&&<div className="flex items-center gap-3"><img src={fileUrl(photos.find(p=>model.photo_url===fileUrl(p.url))?.preview_url||model.photo_url)} alt="Аватар" className="h-16 w-16 rounded-full object-cover"/><button type="button" className="text-xs text-accentBrightGold" onClick={()=>void avatar(null)}>Удалить аватар</button></div>}
+      {model.photo_url&&<div className="flex items-center gap-3"><img src={fileUrl(photos.find(p=>model.photo_url===fileUrl(p.url))?.preview_url||model.photo_url)} alt="Аватар" className="h-16 w-16 rounded-full object-cover"/><button type="button" className="text-xs text-accentBrightGold" disabled={saving} aria-busy={saving} onClick={()=>void avatar(null)}>{saving?'Сохранение…':'Удалить аватар'}</button></div>}
     </Card>}
     {tab==='chat'&&<Card className="flex flex-col gap-3">
       <Field label="Первое сообщение" value={model.greeting} set={v=>update('greeting',v)} long/>
@@ -134,7 +135,7 @@ export const AIEditor:React.FC=()=>{
         </select></label>
         {photos.map(p=><div className="space-y-2 rounded-app-xs border border-white/10 p-3" key={p.id}>
           <div className="flex items-center gap-3"><img src={fileUrl(p.preview_url||p.url)} alt={p.title||'Фото'} className="h-16 w-16 rounded-app-xs object-cover"/><div className="flex-1 space-y-2">
-            <button type="button" className="text-xs text-accentBrightGold" onClick={()=>void avatar(p)}>Сделать аватаром</button>
+            <button type="button" className="text-xs text-accentBrightGold" disabled={saving} aria-busy={saving} onClick={()=>void avatar(p)}>{saving?'Сохранение…':'Сделать аватаром'}</button>
             <button type="button" className="ml-3 text-xs text-textSecondary" onClick={()=>void deletePhoto(p)}><Trash2 size={14} className="inline"/> Удалить</button>
           </div></div>
           <input className={field} aria-label="Название фото" placeholder="Название" value={p.title} onChange={e=>void changePhoto(p,{title:e.target.value})}/>
@@ -154,19 +155,19 @@ export const AIEditor:React.FC=()=>{
         <><Field label="Сторонняя HTTPS-ссылка" value={model.affiliate_url||''} set={v=>update('affiliate_url',v||null)} placeholder="https://example.com"/>
           <p className="text-xs text-textSecondary">Платный тариф. До подключения расчёта стоимости и списания USD генерация ответов для сторонних ссылок не активируется.</p></>}
       <Field label="Текст кнопки в чате" value={model.button_label} set={v=>update('button_label',v)}/>
-      <Button disabled={!id||saving||(linkKind==='smartlink'?!chosen:!model.affiliate_url?.startsWith('https://'))} onClick={()=>void saveLink()}>Сохранить ссылку</Button>
+      <Button isLoading={saving} disabled={!id||saving||(linkKind==='smartlink'?!chosen:!model.affiliate_url?.startsWith('https://'))} onClick={()=>void saveLink()}>Сохранить ссылку</Button>
     </Card>}
     {!profileValid&&<p className="text-xs text-textSecondary">Укажите имя от 2 символов и адрес от 3 до 40 символов латиницей, цифрами и дефисами.</p>}
     {error&&<p role="alert" className="text-xs text-error">{error}</p>}
     {notice&&<p role="status" className="text-xs text-accentBrightGold">{notice}</p>}
-    <Button disabled={!profileValid||saving} onClick={()=>void save()}>{saving?'Сохраняем…':id?'Сохранить изменения':'Создать персонажа'}</Button>
+    <Button isLoading={saving} disabled={!profileValid||saving} onClick={()=>void save()}>{saving?'Сохраняем…':id?'Сохранить изменения':'Создать персонажа'}</Button>
     {id&&<Card className="flex flex-col gap-3">
       <label className="text-xs text-textSecondary">Публикация<select className={field} value={model.status} onChange={e=>update('status',e.target.value)}>
         <option value="draft">Черновик</option><option value="published">Опубликован</option><option value="disabled">Отключён</option>
       </select></label>
       <p className="text-xs text-textSecondary">После выбора статуса нажмите «Сохранить изменения». Публичная страница не требует входа в Telegram.</p>
       {model.status==='published'&&<a target="_blank" rel="noopener noreferrer" className="text-xs text-accentBrightGold" href={modelPageUrl(model.slug)}>Открыть публичный чат <ExternalLink size={14} className="inline"/></a>}
-      <button type="button" onClick={()=>void navigator.clipboard.writeText(modelPageUrl(model.slug))} className="text-left text-xs text-accentBrightGold"><Copy size={14} className="inline"/> Скопировать ссылку</button>
+      <CopyButton type="button" text={modelPageUrl(model.slug)} className="text-left text-xs text-accentBrightGold"><Copy size={14} className="inline"/> Скопировать ссылку</CopyButton>
     </Card>}
     {id&&<button type="button" className="rounded-app-xs border border-red-500/30 p-3 text-sm text-red-300" onClick={async()=>{
       if(!window.confirm('Удалить персонажа, все чаты и фотографии без возможности восстановления?'))return;
