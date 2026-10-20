@@ -1,4 +1,6 @@
 import './Dvizh.css';
+import {readSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
+import {CHAT_SNAPSHOT_KEY,normalizeChatMessages,type ChatMessage} from '@/shared/lib/chatSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { 
@@ -11,17 +13,6 @@ import { Input } from '@/shared/ui/Input';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
 
 // Исправлено: Полная правильная структура сообщения комьюнити "Движ"
-interface ChatMessage {
-  id: string;
-  senderId: string;
-  senderName: string;
-  avatarText: string;
-  avatarUrl?: string;
-  text: string;
-  time: string;
-  reactions: Record<string, number>; // Эмодзи -> Количество реакций
-  isStaff?: boolean;
-}
 interface ChatBanner {
   id: number;
   title: string;
@@ -68,7 +59,8 @@ const AVAILABLE_REACTIONS = ['👍', '❤️', '🔥', '😂', '😎', '🚀'];
 const API = 'https://vvd-cpa-v2.onrender.com';
 export const Dvizh: React.FC = () => {
   const currentUser = getTelegramUser();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(()=>readSnapshot<ChatMessage[]>(CHAT_SNAPSHOT_KEY)||[]);
+  useLayoutEffect(()=>{saveSnapshot(CHAT_SNAPSHOT_KEY,messages);},[messages]);
   const [inputValue, setInputValue] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
@@ -161,20 +153,7 @@ useEffect(() => {
 
       if (!active || !data.success || generation!==sendGeneration.current || sendingRef.current) return;
 
-      const loadedMessages: ChatMessage[] = (data.messages || []).map((msg: any) => ({
-        id: String(msg.id),
-        senderId: String(msg.sender_id),
-        senderName: msg.sender_name || 'Партнёр VVD',
-        avatarText: (msg.sender_name || 'VV').slice(0, 2).toUpperCase(),
-        avatarUrl: msg.avatar_url || '',
-        text: msg.text,
-        time: new Date(msg.created_at).toLocaleTimeString('ru-RU', {
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-        reactions: msg.reactions || {},
-        isStaff: Boolean(msg.is_staff),
-      }));
+      const loadedMessages = normalizeChatMessages(data);
 
       setMessages(loadedMessages);
     } catch (error) {

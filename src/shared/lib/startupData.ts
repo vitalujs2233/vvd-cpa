@@ -1,4 +1,5 @@
 import {API_BASE_URL, authorizedFetch} from './api';
+import {CHAT_SNAPSHOT_KEY,normalizeChatMessages} from './chatSnapshot';
 import {saveSnapshot} from './viewSnapshot';
 
 export const statisticsTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
@@ -24,6 +25,7 @@ export function preloadStartupData(id:number):Promise<void> {
   const requests=[
     {url:`${API_BASE_URL}/balance/${id}`,key:`balance:${id}`,valid:(d:any)=>['available','hold','paid'].every(k=>typeof d[k]==='number'&&Number.isFinite(d[k])),select:(d:any)=>d},
     {url:`${API_BASE_URL}/cpa/catalog`,key:'catalog',valid:(d:any)=>Array.isArray(d.verticals),select:(d:any)=>d.verticals},
+    {url:`${API_BASE_URL}/chat/messages`,key:CHAT_SNAPSHOT_KEY,valid:(d:any)=>d.success===true&&Array.isArray(d.messages),select:normalizeChatMessages},
     ...stats.map((url,i)=>({url,key:statisticsSnapshotKey(url),valid:(d:any)=>d.success===true&&(i===0?!!d.summary&&Array.isArray(d.statistics):Array.isArray(d[['','countries','offers','clicks'][i]])),select:(d:any)=>d}))
   ];
   const promise=(async()=>{

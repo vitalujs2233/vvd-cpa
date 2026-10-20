@@ -10,11 +10,13 @@ const snapshots=load('src/shared/lib/viewSnapshot.ts');
 let requests=[];
 const startup=load('src/shared/lib/startupData.ts',{
   './viewSnapshot':snapshots,
+  './chatSnapshot':load('src/shared/lib/chatSnapshot.ts'),
   './api':{API_BASE_URL:'https://isolated',authorizedFetch:url=>new Promise(resolve=>requests.push({url,resolve}))}
 });
 function answer(request,ok=true){
   const url=request.url;
   const data=url.includes('/balance/')?{available:60,hold:40,paid:0}:
+    url.includes('/chat/messages')?{success:true,messages:[{id:'m1',sender_id:'123',sender_name:'Partner',text:'Hello',created_at:'2026-10-20T11:00:00Z'}]}:
     url.includes('/cpa/catalog')?{verticals:[{slug:'dating'}]}:
     url.includes('/countries?')?{success:true,countries:[]}:
     url.includes('/breakdown?')?{success:true,offers:[]}:
@@ -25,13 +27,15 @@ function answer(request,ok=true){
 (async()=>{
   const first=startup.preloadStartupData(123);
   assert.equal(startup.preloadStartupData(123),first,'duplicate mounts must share startup');
-  assert.equal(requests.length,6);
+  assert.equal(requests.length,7);
   let ready=false;first.then(()=>ready=true);
-  requests.slice(0,5).forEach(r=>answer(r));
+  requests.filter(r=>!r.url.includes('/chat/messages')).forEach(r=>answer(r));
   await new Promise(r=>setImmediate(r));
   assert.equal(ready,false,'keep splash while any section is still loading');
-  answer(requests[5]);await first;
+  answer(requests.find(r=>r.url.includes('/chat/messages')));await first;
   assert.equal(ready,true);
+  assert.equal(snapshots.readSnapshot('dvizh:messages')[0].text,'Hello');
+  assert.equal(snapshots.readSnapshot('dvizh:messages')[0].senderId,'123');
   assert.equal(snapshots.readSnapshot('balance:123').available,60);
   const keys=startup.statisticsSources(123,new URLSearchParams({period:'today',tz:startup.statisticsTimezone})).map(startup.statisticsSnapshotKey);
   assert.equal(snapshots.readSnapshot(keys[0]).summary.clicks,6);
