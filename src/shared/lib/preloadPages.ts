@@ -19,7 +19,7 @@ export async function preloadPages(id:number,partnerCode:string,role:string) {
     '/tools-market/transactions','/tools-market/orders','/tools-market/ai','/ai-studio/my-smartlinks','/chat/banner'];
   if(partnerCode)paths.unshift('/withdrawals/'+encodeURIComponent(partnerCode));
   const admin=role==='admin'||id===232682307;
-  if(admin)paths.push('/admin/users','/admin/finance','/admin/withdrawals','/admin/chat/bans',
+  if(admin)paths.push('/admin/chat/banner','/admin/users','/admin/finance','/admin/withdrawals','/admin/chat/bans',
     '/cpa/admin/networks','/cpa/admin/verticals','/cpa/admin/offers');
   await parallel(paths,async p=>{await read(p,p.startsWith('/withdrawals/'));});
   const catalog=readSnapshot<any[]>('catalog')||[];

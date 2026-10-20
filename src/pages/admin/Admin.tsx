@@ -101,8 +101,10 @@ export const Admin: React.FC = () => {
   const [withdrawalOrigin, setWithdrawalOrigin] = useState<'real'|'historical'>('real');
   const [withdrawalSearch, setWithdrawalSearch] = useState('');
   const [processingWithdrawalId, setProcessingWithdrawalId] = useState<number | null>(null);
-  const [chatBanner, setChatBanner] = useState<ChatBanner | null>(()=>readApiSnapshot('/chat/banner')?.banner||null);
+  const [chatBanner, setChatBanner] = useState<ChatBanner | null>(()=>readApiSnapshot('/admin/chat/banner')?.success ? (readApiSnapshot('/admin/chat/banner').banner || {id:0,title:'',text:'',button_text:'',button_url:'',is_active:false}) : null);
   const [bannerLoading, setBannerLoading] = useState(false);
+  const [bannerError, setBannerError] = useState('');
+  const [bannerAttempt, setBannerAttempt] = useState(0);
   const [bannerSaving, setBannerSaving] = useState(false);
   const [chatBans, setChatBans] = useState<ChatBan[]>(()=>readApiSnapshot('/admin/chat/bans')?.bans||[]);
   const [chatBansLoading, setChatBansLoading] = useState(false);
@@ -185,37 +187,38 @@ export const Admin: React.FC = () => {
 
 useEffect(() => {
   if (subView !== 'banner') return;
-
+  let active = true;
+  const controller = new AbortController();
+  // Include response-body reading in the timeout as well.
+  const timer = window.setTimeout(() => controller.abort(), 30000);
   const loadBanner = async () => {
+    setBannerLoading(true);
+    setBannerError('');
     try {
-      setBannerLoading(true);
-
       const response = await authorizedFetch(
-        'https://vvd-cpa-v2.onrender.com/chat/banner',
-        { cache: 'no-store' }
+        'https://vvd-cpa-v2.onrender.com/admin/chat/banner',
+        {cache:'no-store', signal:controller.signal}
       );
-
       const data = await response.json();
-
-      if (data.success && data.banner) {
-        setChatBanner({
-          id: Number(data.banner.id),
-          title: data.banner.title || '',
-          text: data.banner.text || '',
-          button_text: data.banner.button_text || '',
-          button_url: data.banner.button_url || '',
-          is_active: Boolean(data.banner.is_active),
-        });
-      }
-    } catch (error) {
-      console.error('Ошибка загрузки рекламы Движ:', error);
+      if (!response.ok || !data.success) throw new Error('Banner read failed');
+      if (!active) return;
+      const banner = data.banner;
+      setChatBanner({
+        id:Number(banner?.id || 0), title:banner?.title || '', text:banner?.text || '',
+        button_text:banner?.button_text || '', button_url:banner?.button_url || '',
+        is_active:Boolean(banner?.is_active),
+      });
+      saveSnapshot('api:/admin/chat/banner',data);
+    } catch {
+      if (active) setBannerError('Не удалось загрузить рекламу. Повторите попытку.');
     } finally {
-      setBannerLoading(false);
+      window.clearTimeout(timer);
+      if (active) setBannerLoading(false);
     }
   };
-
   loadBanner();
-}, [subView]);
+  return () => {active=false; controller.abort(); window.clearTimeout(timer);};
+}, [subView,bannerAttempt]);
 useEffect(() => {
   if (subView !== 'chatBans') return;
 
@@ -245,7 +248,7 @@ useEffect(() => {
   loadChatBans();
 }, [subView]);
 const saveChatBanner = async () => {
-  if (!chatBanner) return;
+  if (!chatBanner || bannerLoading || bannerError || bannerSaving) return;
 
   try {
     triggerHaptic.lightImpact();
@@ -274,6 +277,8 @@ const saveChatBanner = async () => {
       throw new Error(data.message || data.detail || 'Ошибка сохранения рекламы');
     }
 
+    saveSnapshot('api:/admin/chat/banner',{success:true,banner:chatBanner});
+    saveSnapshot('api:/chat/banner',{success:true,banner:chatBanner.is_active ? chatBanner : null});
     triggerHaptic.success();
     window.alert('Реклама Движ сохранена');
   } catch (error) {
@@ -619,9 +624,13 @@ const saveChatBanner = async () => {
       </div>
     </div>
 
+    {bannerError && <div role="alert" className="text-sm text-textSecondary mb-4">
+      {bannerError}
+      <button className="block text-accentGold mt-2" onClick={()=>setBannerAttempt(n=>n+1)}>Повторить загрузку</button>
+    </div>}
     {!chatBanner ? (
       <div className="py-24 text-center text-textSecondary text-xs">
-        Загрузка рекламы...
+        {bannerLoading || !bannerError ? 'Загрузка рекламы...' : 'Реклама пока не загружена.'}
       </div>
     ) : (
       <Card padding="md" className="flex flex-col gap-4 text-left">
@@ -719,7 +728,7 @@ const saveChatBanner = async () => {
         <Button
           size="md"
           onClick={saveChatBanner}
-          disabled={bannerSaving}
+          disabled={bannerSaving || bannerLoading || !!bannerError}
           className="w-full"
         >
           {bannerSaving ? 'Сохранение...' : 'Сохранить рекламу'}

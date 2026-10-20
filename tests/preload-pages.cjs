@@ -25,7 +25,7 @@ const pages=load('src/shared/lib/preloadPages.ts',{'./viewSnapshot':snapshots,'.
  assert.equal(snapshots.readApiSnapshot('/withdrawals/VVD1').withdrawals[0].amount,50);
  assert.ok(calls.includes('/ai-studio/models/m1/settings'));
  calls=[];await pages.preloadPages(123,'VVD1','admin');
- assert.ok(calls.includes('/admin/cpa/partners/VVD1/hold'));assert.ok(calls.includes('/cpa/admin/networks/1/postback'));assert.ok(max<=4);
+ assert.ok(calls.includes('/admin/chat/banner'));assert.ok(calls.includes('/admin/cpa/partners/VVD1/hold'));assert.ok(calls.includes('/cpa/admin/networks/1/postback'));assert.ok(max<=4);
  fail=true;await assert.rejects(pages.preloadPages(123,'VVD1','user'),/историю/);
  console.log('PASS: bounded reads, history, offer detail hydration, model pages, role separation, failure handling');
 })().catch(e=>{console.error(e);process.exitCode=1});

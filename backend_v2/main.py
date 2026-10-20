@@ -1084,8 +1084,7 @@ async def postback_traffcore(
 # Stage 6: authenticated read-only analytics; existing URLs retained for Mini App.
 # Aggregates are computed from clicks, conversions and CPA ledger without
 # folding legacy demo income into real CPA figures.
-@app.get("/chat/banner")
-def get_chat_banner():
+def read_chat_banner(active_only: bool):
     with engine.connect() as conn:
         banner = conn.execute(
             text("""
@@ -1098,10 +1097,10 @@ def get_chat_banner():
                     is_active,
                     updated_at
                 FROM chat_banner
-                WHERE is_active = TRUE
+                WHERE (:active_only = FALSE OR is_active = TRUE)
                 ORDER BY updated_at DESC
                 LIMIT 1
-            """)
+            """), {"active_only": active_only}
         ).fetchone()
 
     if not banner:
@@ -1121,6 +1120,17 @@ def get_chat_banner():
             "is_active": bool(banner.is_active)
         }
     }
+
+
+@app.get("/chat/banner")
+def get_chat_banner():
+    return read_chat_banner(active_only=True)
+
+
+@app.get("/admin/chat/banner")
+def get_admin_chat_banner():
+    # access_guard restricts /admin/ routes to authenticated administrators.
+    return read_chat_banner(active_only=False)
 
 
 @app.post("/admin/chat/banner")
