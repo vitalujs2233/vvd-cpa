@@ -89,7 +89,7 @@ const isAdmin = currentUser.id.toString() === ADMIN_ID;
   const initialScrollDone = useRef(false);
   const followLatest = useRef(true);
   const scrollAfterSend = useRef(false);
-  const [viewport, setViewport] = useState({height: window.innerHeight, top: 0, keyboard: false});
+  const [viewport, setViewport] = useState({height: window.innerHeight, fullHeight: window.innerHeight, top: 0, keyboard: false});
   const [onlineBase] = useState(() => {
     // Decorative audience offset, separate from actual server presence.
     const key='vvd_dvizh_audience';
@@ -200,13 +200,16 @@ useLayoutEffect(() => {
     followLatest.current=true;
   }
 }, [messages, viewport.height, viewport.keyboard]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const tg=window.Telegram?.WebApp as (NonNullable<typeof window.Telegram>['WebApp'] & {
       onEvent?: (event:string,callback:()=>void)=>void;
       offEvent?: (event:string,callback:()=>void)=>void;
     }) | undefined;
     if(tg?.isExpanded===false) tg.expand();
-    let fullHeight=window.visualViewport?.height || window.innerHeight;
+    let fullHeight=Math.max(window.innerHeight,window.visualViewport?.height||0,tg?.viewportStableHeight||0);
+    let liveHeight=window.visualViewport?.height || tg?.viewportHeight || window.innerHeight;
+    document.body.classList.add('dvizh-active');
+    document.body.style.setProperty('--dvizh-full-height',`${fullHeight}px`);
     let frame=0;
     let settleTimer=0;
     let keyboardOpen=false;
@@ -219,16 +222,16 @@ useLayoutEffect(() => {
       // Use one live viewport source instead of taking the smallest cached value.
       const vv=window.visualViewport;
       const focused=document.activeElement?.tagName==='INPUT';
-      const height=restoredAfterBlur && !focused ? fullHeight : (vv?.height || tg?.viewportHeight || window.innerHeight);
+      const height=restoredAfterBlur && !focused ? fullHeight : liveHeight;
       fullHeight=Math.max(fullHeight,height);
       const reduced=!(restoredAfterBlur && !focused) && fullHeight-height>100;
       if(reduced) keyboardOpen=true;
       else if(fullHeight-height<40) keyboardOpen=false;
       // Keep compact mode until the viewport actually expands, even after blur.
-      document.body.classList.toggle('dvizh-keyboard',keyboardOpen);
+      document.body.style.setProperty('--dvizh-full-height',`${fullHeight}px`);
       const box=chatContainerRef.current;
       const nearBottom=box ? box.scrollHeight-box.scrollTop-box.clientHeight<100 : false;
-      setViewport({height,top:restoredAfterBlur && !focused ? 0 : vv?.offsetTop||0,keyboard:keyboardOpen});
+      setViewport({height,fullHeight,top:restoredAfterBlur && !focused ? 0 : vv?.offsetTop||0,keyboard:keyboardOpen});
       if(nearBottom || document.activeElement?.tagName==='INPUT') {
         requestAnimationFrame(()=>{if(!disposed && box) box.scrollTop=box.scrollHeight;});
       }
@@ -238,6 +241,15 @@ useLayoutEffect(() => {
       frame=requestAnimationFrame(applyViewport);
       window.clearTimeout(settleTimer);
       settleTimer=window.setTimeout(applyViewport,350);
+    };
+    const visualResize=()=>{
+      liveHeight=window.visualViewport?.height || window.innerHeight;
+      updateViewport();
+    };
+    const telegramResize=()=>{
+      // Use the height from the source that just changed, not a stale minimum.
+      if(tg?.viewportHeight) liveHeight=tg.viewportHeight;
+      updateViewport();
     };
     const focusIn=()=>{
       window.clearTimeout(blurTimer);
@@ -258,24 +270,25 @@ useLayoutEffect(() => {
       },400);
     };
     updateViewport();
-    window.addEventListener('resize',updateViewport);
-    window.visualViewport?.addEventListener('resize',updateViewport);
+    window.addEventListener('resize',visualResize);
+    window.visualViewport?.addEventListener('resize',visualResize);
     window.visualViewport?.addEventListener('scroll',updateViewport);
     document.addEventListener('focusin',focusIn);
     document.addEventListener('focusout',focusOut);
-    tg?.onEvent?.('viewportChanged',updateViewport);
+    tg?.onEvent?.('viewportChanged',telegramResize);
     return()=>{
       disposed=true;
       window.clearTimeout(blurTimer);
       cancelAnimationFrame(frame);
       window.clearTimeout(settleTimer);
-      document.body.classList.remove('dvizh-keyboard');
-      window.removeEventListener('resize',updateViewport);
-      window.visualViewport?.removeEventListener('resize',updateViewport);
+      document.body.classList.remove('dvizh-active');
+      document.body.style.removeProperty('--dvizh-full-height');
+      window.removeEventListener('resize',visualResize);
+      window.visualViewport?.removeEventListener('resize',visualResize);
       window.visualViewport?.removeEventListener('scroll',updateViewport);
       document.removeEventListener('focusin',focusIn);
       document.removeEventListener('focusout',focusOut);
-      tg?.offEvent?.('viewportChanged',updateViewport);
+      tg?.offEvent?.('viewportChanged',telegramResize);
     };
   }, []);
 
@@ -514,7 +527,7 @@ if (!response.ok || !data.success) {
     <div
   className={`dvizh-chat flex flex-col bg-bgMain fixed left-0 right-0 select-none overflow-hidden ${viewport.keyboard ? "dvizh-chat-typing" : ""}`}
   style={{
-    height: `${Math.max(0,viewport.height - (viewport.keyboard ? 0 : 80))}px`,
+    height: `${Math.max(0,Math.min(viewport.height,viewport.fullHeight - 80))}px`,
     top: viewport.top,
   }}
 >

@@ -1,4 +1,9 @@
-body.dvizh-keyboard nav { display: none; }
+body.dvizh-active { overflow: hidden; }
+body.dvizh-active nav {
+  top: calc(var(--dvizh-full-height) - 80px);
+  bottom: auto;
+  transition: none;
+}
 .dvizh-chat-typing .dvizh-heading { padding: 6px 12px; }
 .dvizh-chat-typing .dvizh-heading h1 { font-size: 14px; line-height: 20px; }
 .dvizh-chat-typing .dvizh-heading > div > div > span { display: none; }
