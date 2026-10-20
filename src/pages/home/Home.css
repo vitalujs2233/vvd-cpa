@@ -1,0 +1,39 @@
+.home-dvizh-button {
+  animation: home-dvizh-glow 2.8s ease-in-out infinite;
+}
+
+.home-dvizh-button::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 25%, rgba(246, 196, 83, 0.32) 50%, transparent 75%);
+  transform: translateX(-150%);
+  animation: home-dvizh-shine 4s ease-in-out infinite;
+}
+
+.home-dvizh-flame {
+  transform-origin: center bottom;
+  animation: home-dvizh-flame 1.8s ease-in-out infinite;
+}
+
+@keyframes home-dvizh-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(246, 196, 83, 0.12); }
+  50% { box-shadow: 0 0 16px rgba(246, 196, 83, 0.42), inset 0 0 8px rgba(246, 196, 83, 0.12); }
+}
+
+@keyframes home-dvizh-shine {
+  0%, 45% { transform: translateX(-150%); }
+  80%, 100% { transform: translateX(150%); }
+}
+
+@keyframes home-dvizh-flame {
+  0%, 100% { transform: rotate(-8deg) scale(1); }
+  50% { transform: rotate(8deg) scale(1.16); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-dvizh-button, .home-dvizh-button::after, .home-dvizh-flame {
+    animation: none;
+  }
+}

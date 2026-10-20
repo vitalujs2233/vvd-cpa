@@ -1,7 +1,8 @@
+import './Home.css';
 import { authorizedFetch } from '@/shared/lib/api';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wallet, History, Sparkles, Bell, Flame, Crown } from 'lucide-react';
+import { Wallet, History, Sparkles, Flame, Crown } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
@@ -48,11 +49,6 @@ const res = await authorizedFetch(
     navigate('/withdrawal?tab=history');
   };
 
-  const handleNotificationsClick = () => {
-    triggerHaptic.lightImpact();
-    navigate('/notifications');
-  };
-
   const handleDvizhClick = () => {
     triggerHaptic.lightImpact();
     navigate('/dvizh');
@@ -87,21 +83,11 @@ const res = await authorizedFetch(
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button type="button" aria-label="Открыть Движ" onClick={handleDvizhClick}
-            className="flex h-10 items-center gap-1 rounded-full border border-accentGold/20 bg-accentGold/10 px-2.5 text-accentBrightGold transition-all active:scale-95">
-            <Flame size={16} /> <span className="text-[11px] font-bold">Движ</span>
-          </button>
-        {/* Кнопка уведомлений с золотым мигающим индикатором */}
-        <button 
-          onClick={handleNotificationsClick}
-          className="relative w-10 h-10 rounded-full bg-white/[0.03] border border-white/5 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-all duration-200"
-        >
-          <Bell size={16} />
-          <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-accentGoldBright shadow-[0_0_10px_#F6C453] animate-ping" />
-          <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-accentGoldBright shadow-[0_0_8px_#F6C453]" />
+        <button type="button" aria-label="Открыть Движ" onClick={handleDvizhClick}
+          className="home-dvizh-button relative ml-auto shrink-0 overflow-hidden flex h-10 items-center gap-1 rounded-full border border-accentGold/20 bg-accentGold/10 px-2.5 text-accentBrightGold transition-transform active:scale-95">
+          <Flame size={16} className="home-dvizh-flame relative z-10" />
+          <span className="relative z-10 text-[11px] font-bold">Движ</span>
         </button>
-        </div>
       </Card>
 
       {/* Парящая градиентная карта Баланса с золотой фоновой короной и золотым свечением */}
