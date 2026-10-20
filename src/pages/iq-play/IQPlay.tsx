@@ -33,14 +33,20 @@ export const IQPlay:React.FC=()=>{
     }catch{/* Sound is optional. */}
   },[]);
   const toggleSound=()=>{
-    if(muted)playNote(660);
+    if(muted){
+      try{
+        const ctx=audioRef.current ?? new AudioContext();
+        audioRef.current=ctx;
+        void ctx.resume().then(()=>playNote(880,0.32,0.09));
+      }catch{playNote(880,0.32,0.09);}
+    }
     setMuted(value=>!value);
   };
   useEffect(()=>{
     if(muted)return;
     const melody=[392,494,587,494,440,523,659,523];
     let index=0;
-    const timer=window.setInterval(()=>playNote(melody[index++%melody.length],0.18,0.009),520);
+    const timer=window.setInterval(()=>playNote(melody[index++%melody.length],0.26,0.045),520);
     return()=>window.clearInterval(timer);
   },[muted,playNote]);
   useEffect(()=>()=>{if(audioRef.current)void audioRef.current.close();},[]);
@@ -62,7 +68,8 @@ export const IQPlay:React.FC=()=>{
   const answer=async(choice:number)=>{if(!round||busy||round.status!=='active'||choice===round.blocked_index)return;
     setBusy(true);setError('');
     try{const response=await apiRequest<Response>(`/iq-play/rounds/${round.round_id}/answers`,{method:'POST',body:JSON.stringify({position:round.position,choice,event_id:crypto.randomUUID()})});
-      if(!muted)playNote(response.outcome==='wrong'?220:740);\n      setFeedback(response.outcome==='wrong'?'Неверно! Используй второй шанс.':'');
+      if(!muted)playNote(response.outcome==='wrong'?220:740);
+      setFeedback(response.outcome==='wrong'?'Неверно! Используй второй шанс.':'');
       sync(response.round);
       if(response.round.status!=='active')setProfile(await apiRequest<Profile>('/iq-play/profile'));
     }catch{setError('Ответ не отправлен. Проверьте соединение и повторите.');}
