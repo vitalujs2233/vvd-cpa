@@ -52,7 +52,7 @@ export const IQPlay:React.FC=()=>{
       .catch(()=>{if(live)setError('Не удалось проверить таймер. Повторите попытку.');})
       .finally(()=>{if(live)setBusy(false);});
     return()=>{live=false;};
-  },[clock,round?.round_id,round?.deadline,round?.status,seconds,busy]);
+  },[round?.round_id,round?.deadline,round?.status,seconds]);
   return <main className="iq-root">
     <header className="iq-header"><button onClick={()=>navigate('/')} aria-label="Назад"><ArrowLeft size={20}/></button><span>VVD <strong>IQ PLAY</strong></span><button onClick={()=>setMuted(x=>!x)} aria-label={muted?'Включить звук':'Выключить звук'}>{muted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button></header>
     <section className="iq-hero"><div className="iq-emblem"><Brain size={42}/><Crown size={20}/></div><h1>IQ PLAY</h1><p>Прокачай себя в арбитраже</p></section>
