@@ -44,6 +44,7 @@ interface FinanceStat {
 }
 
 interface Withdrawal {
+  source?: 'referral' | 'cpa';
   id: number;
   partner_code?: string | null;
   telegram_id?: number | null;
@@ -99,9 +100,9 @@ export const Admin: React.FC = () => {
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>(()=>readApiSnapshot('/admin/withdrawals')?.withdrawals||[]);
   const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
   const [withdrawalFilter, setWithdrawalFilter] = useState<'all' | 'pending' | 'paid' | 'rejected'>('all');
-  const [withdrawalOrigin, setWithdrawalOrigin] = useState<'real'|'historical'>('real');
+  const [withdrawalOrigin, setWithdrawalOrigin] = useState<'real'|'historical'|'referral'>('real');
   const [withdrawalSearch, setWithdrawalSearch] = useState('');
-  const [processingWithdrawalId, setProcessingWithdrawalId] = useState<number | null>(null);
+  const [processingWithdrawalKey, setProcessingWithdrawalKey] = useState<string | null>(null);
   const [chatBanner, setChatBanner] = useState<ChatBanner | null>(()=>readApiSnapshot('/admin/chat/banner')?.success ? (readApiSnapshot('/admin/chat/banner').banner || {id:0,title:'',text:'',button_text:'',button_url:'',is_active:false}) : null);
   const [bannerLoading, setBannerLoading] = useState(false);
   const [bannerError, setBannerError] = useState('');
@@ -295,8 +296,9 @@ const saveChatBanner = async () => {
   }
 };
   
-  const processWithdrawal = async (withdrawalId: number, action: 'pay' | 'reject') => {
-    const item = withdrawals.find(x => x.id === withdrawalId);
+  const processWithdrawal = async (item: Withdrawal, action: 'pay' | 'reject') => {
+    const withdrawalId = item.id;
+    const key = `${item.source || 'cpa'}:${item.id}`;
     if (!item || !item.is_real_finance || item.status !== 'pending') {
       window.alert('Исторические и уже обработанные заявки нельзя провести как реальные');
       return;
@@ -309,30 +311,31 @@ const saveChatBanner = async () => {
     if (!window.confirm(confirmText)) return;
     try {
       triggerHaptic.lightImpact();
-      setProcessingWithdrawalId(withdrawalId);
+      setProcessingWithdrawalKey(key);
       const response = await authorizedFetch(
-        'https://vvd-cpa-v2.onrender.com/admin/withdrawals/' + withdrawalId +
+        'https://vvd-cpa-v2.onrender.com/admin/' + (item.source === 'referral' ? 'referral-withdrawals/' : 'withdrawals/') + withdrawalId +
           '/' + (action === 'pay' ? 'paid' : 'reject'),
         { method:'POST', headers: {'Content-Type':'application/json'},
           body:JSON.stringify({confirmed_manual: action === 'pay'}) }
       );
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.message || data.detail || 'Ошибка обработки заявки');
-      setWithdrawals(prev => prev.map(x => x.id === withdrawalId
+      setWithdrawals(prev => prev.map(x => x.id === withdrawalId && x.source === item.source
         ? { ...x,status:action === 'pay' ? 'paid' : 'rejected',
             processed_at:new Date().toISOString() }
         : x));
     } catch (error) {
       console.error('Ошибка обработки выплаты:', error);
       window.alert(error instanceof Error ? error.message : 'Ошибка обработки выплаты');
-    } finally { setProcessingWithdrawalId(null); }
+    } finally { setProcessingWithdrawalKey(null); }
   };
 
   const filteredWithdrawals = useMemo(() => {
     const query = withdrawalSearch.toLowerCase().trim();
 
     return withdrawals.filter(item => {
-      if (withdrawalOrigin === 'real' && !item.is_real_finance) return false;
+      if (withdrawalOrigin === 'real' && (!item.is_real_finance || item.source === 'referral')) return false;
+      if (withdrawalOrigin === 'referral' && item.source !== 'referral') return false;
       if (withdrawalOrigin === 'historical' && item.is_real_finance) return false;
       const matchesFilter = withdrawalFilter === 'all' || item.status === withdrawalFilter;
       const matchesSearch =
@@ -842,13 +845,13 @@ const saveChatBanner = async () => {
           />
 
           <div className="grid grid-cols-2 gap-2">
-            {(['real','historical'] as const).map(origin => (
+            {(['real','referral','historical'] as const).map(origin => (
               <button key={origin} onClick={() => setWithdrawalOrigin(origin)}
                 className={'min-h-10 rounded-xl border text-xs font-bold ' +
                   (withdrawalOrigin === origin
                     ? 'bg-accentPurple/15 border-accentPurple/40 text-accentPurple'
                     : 'bg-bgCard/40 border-white/10 text-textSecondary')}>
-                {origin === 'real' ? 'Реальные CPA' : 'Тестовая история'}
+                {origin === 'real' ? 'Реальные CPA' : origin === 'referral' ? 'Реферальные' : 'Тестовая история'}
               </button>
             ))}
           </div>
@@ -881,7 +884,7 @@ const saveChatBanner = async () => {
               </div>
             ) : filteredWithdrawals.length > 0 ? (
               filteredWithdrawals.map((item) => (
-                <Card key={item.id} padding="md" className="flex flex-col gap-3 text-left">
+                <Card key={`${item.source || 'cpa'}:${item.id}`} padding="md" className="flex flex-col gap-3 text-left">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex flex-col min-w-0">
                       <span className="text-xs font-bold text-white">
@@ -912,7 +915,7 @@ const saveChatBanner = async () => {
                   </div>
 
                   <div className="text-[10px] text-textSecondary">
-                    {item.is_real_finance ? 'Реальная CPA-заявка' : 'Историческая тестовая запись'}
+                    {item.source === 'referral' ? 'Реферальная заявка' : item.is_real_finance ? 'Реальная CPA-заявка' : 'Историческая тестовая запись'}
                     {item.external_transfer_id && <div className="text-success break-all">
                       Подтверждение перевода: {item.external_transfer_id}
                     </div>}
@@ -943,19 +946,19 @@ const saveChatBanner = async () => {
                     <div className="grid grid-cols-2 gap-2 border-t border-white/[0.05] pt-3">
                       <Button
                         size="md"
-                        onClick={() => processWithdrawal(item.id, 'pay')}
-                        isLoading={processingWithdrawalId === item.id}
-                        disabled={processingWithdrawalId === item.id}
+                        onClick={() => processWithdrawal(item, 'pay')}
+                        isLoading={processingWithdrawalKey === `${item.source || 'cpa'}:${item.id}`}
+                        disabled={processingWithdrawalKey === `${item.source || 'cpa'}:${item.id}`}
                         className="w-full"
                       >
-                        {processingWithdrawalId === item.id ? 'Обработка...' : 'Выплачено'}
+                        {processingWithdrawalKey === `${item.source || 'cpa'}:${item.id}` ? 'Обработка...' : 'Выплачено'}
                       </Button>
                       <Button
                         variant="outline"
                         size="md"
-                        onClick={() => processWithdrawal(item.id, 'reject')}
-                        isLoading={processingWithdrawalId === item.id}
-                        disabled={processingWithdrawalId === item.id}
+                        onClick={() => processWithdrawal(item, 'reject')}
+                        isLoading={processingWithdrawalKey === `${item.source || 'cpa'}:${item.id}`}
+                        disabled={processingWithdrawalKey === `${item.source || 'cpa'}:${item.id}`}
                         className="w-full border-error/30 text-error"
                       >
                         Отклонить

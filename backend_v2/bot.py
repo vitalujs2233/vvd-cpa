@@ -3,7 +3,7 @@ import logging
 import os
 
 from aiogram import Bot, Dispatcher, F, types
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, CommandObject
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 
 from database import save_user
@@ -21,7 +21,7 @@ dp = Dispatcher()
 
 
 @dp.message(CommandStart())
-async def cmd_start(message: types.Message):
+async def cmd_start(message: types.Message, command: CommandObject):
     tg_user = message.from_user
     if not tg_user:
         return
@@ -33,6 +33,7 @@ async def cmd_start(message: types.Message):
             last_name=tg_user.last_name,
             username=tg_user.username,
             photo_url=None,
+            referral_code=(command.args or "").strip()[:64],
         )
         logger.info("Пользователь сохранён: %s (%s)", tg_user.first_name, tg_user.id)
     except Exception as error:

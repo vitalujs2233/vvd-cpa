@@ -23,7 +23,7 @@ class ManualWorkflowTests(unittest.TestCase):
         fixture.Stage5RealWithdrawalsTests.setUpClass()
         fixture.Stage5RealWithdrawalsTests().test_02_cutover_immutable_and_no_old_finance()
         with engine.begin() as c:
-            c.execute(text("ALTER TABLE public.users ADD COLUMN status TEXT DEFAULT 'active'"))
+            c.execute(text("ALTER TABLE public.users ADD COLUMN status TEXT DEFAULT 'active', ADD COLUMN photo_url TEXT"))
             for column in ("created_at TIMESTAMPTZ DEFAULT now()", "offer_id TEXT", "network_id BIGINT", "vertical TEXT", "country_code TEXT", "country_name TEXT"):
                 c.execute(text("ALTER TABLE public.clicks ADD COLUMN " + column))
             for column in ("network_id BIGINT", "vertical_slug TEXT"):

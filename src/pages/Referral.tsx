@@ -1,8 +1,10 @@
 import {CopyButton} from '@/shared/ui/CopyButton';
 import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { Button } from '@/shared/ui/Button';
+import { Input } from '@/shared/ui/Input';
 import { Card } from '@/shared/ui/Card';
 import { getTelegramUser } from '@/shared/lib/telegram';
 import { apiRequest } from '@/shared/lib/api';
@@ -13,6 +15,35 @@ export const Referral: React.FC = () => {
   const [referral, setReferral] = useState<any>(()=>readApiSnapshot(`/referral/${getTelegramUser().id}`)||null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [amount, setAmount] = useState('');
+  const [wallet, setWallet] = useState('');
+  const [sending, setSending] = useState(false);
+  const [notice, setNotice] = useState('');
+  const request = useRef<{id:string; amount:string; wallet:string} | null>(null);
+  const submitting = useRef(false);
+  const withdraw = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (submitting.current) return;
+    submitting.current = true; setSending(true); setError(''); setNotice('');
+    const address = wallet.trim();
+    if (!request.current || request.current.amount !== amount || request.current.wallet !== address) {
+      request.current = {id:crypto.randomUUID(),amount,wallet:address};
+    }
+    try {
+      const result = await apiRequest<any>(`/referral/${getTelegramUser().id}/withdrawals`, {
+        method:'POST', body:JSON.stringify({amount,wallet:address,request_id:request.current.id})
+      });
+      if (!result.success) throw new Error(result.message || 'Не удалось отправить заявку');
+      setNotice('Заявка отправлена администратору.'); setShowForm(false); setAmount(''); setWallet('');
+      request.current = null;
+      if (typeof result.balance === 'number') setReferral((old:any)=>({...old,balance:result.balance}));
+      const fresh = await apiRequest<any>(`/referral/${getTelegramUser().id}`);
+      setReferral(fresh);
+    } catch (e) { setError(e instanceof Error ? e.message : 'Не удалось отправить заявку'); }
+    finally { submitting.current=false; setSending(false); }
+  };
+
 
   useEffect(() => {
     const loadReferral = async () => {
@@ -63,19 +94,26 @@ setReferral(data);
         </div>
 
         <div className="text-4xl font-extrabold text-white mt-3">
-          ${Number(referral?.balance || 0).toFixed(2)}
+          {referral ? `$${Number(referral.balance).toFixed(2)}` : '—'}
         </div>
 
-        <button disabled aria-describedby="referral-withdrawal-status"
-          className="mt-5 w-full rounded-xl bg-accentGold text-black font-bold py-3 transition hover:opacity-90"
-        >
-          Вывести
-        </button>
-        <p id="referral-withdrawal-status" className="mt-2 text-xs text-textSecondary">Вывод реферального баланса пока не подключён.</p>
+        <Button className="mt-5" disabled={!referral || sending} onClick={()=>setShowForm(!showForm)}>Вывести</Button>
+        <p className="mt-2 text-xs text-textSecondary">Минимальная выплата — $50 · USDT TRC20</p>
+        {showForm && <form onSubmit={withdraw} className="mt-4 flex flex-col gap-3 text-left">
+          <label className="text-xs text-textSecondary">Сумма, USD
+            <Input required type="number" inputMode="decimal" min="50" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)} disabled={sending}/>
+          </label>
+          <label className="text-xs text-textSecondary">Адрес кошелька USDT TRC20
+            <Input required value={wallet} onChange={e=>setWallet(e.target.value)} disabled={sending} autoCapitalize="none" autoCorrect="off" />
+          </label>
+          <Button type="submit" isLoading={sending}>Отправить заявку</Button>
+        </form>}
+        <p className="mt-3 text-xs text-textSecondary">5% от подтверждённого заработка приглашённого начисляются после его выплаты.</p>
 
       </Card>
 
       {loading && !referral && <p role="status" className="text-xs text-textSecondary">Загружаем ваш VVD-код…</p>}
+      {notice && <p role="status" className="text-xs text-success">{notice}</p>}
       {error && <p role="alert" className="text-xs text-error">{error}</p>}
 
       <Card padding="lg">
@@ -134,14 +172,25 @@ setReferral(data);
           Приглашённые
         </div>
 
-        <div className="text-center text-textSecondary">
-
-          Пока никто не зарегистрировался
-
-        </div>
+        {(referral?.people || []).map((person:any)=><div key={person.telegram_id} className="flex justify-between gap-3 py-3 border-b border-white/5">
+          <div className="min-w-0"><p className="text-sm break-words">{person.first_name || person.partner_code}</p>
+            <p className="text-xs text-textSecondary">{person.username ? '@'+person.username : person.partner_code}</p></div>
+          <span className="text-success whitespace-nowrap">${Number(person.earned).toFixed(2)}</span>
+        </div>)}
+        {referral && !referral.people?.length && <p className="text-center text-textSecondary">Пока никто не зарегистрировался</p>}
+        {!!referral?.people?.length && <p className="mt-3 text-xs text-textSecondary">Справа — ваш доход от каждого приглашённого.</p>}
 
       </Card>
 
+      {!!referral?.withdrawals?.length && <Card padding="lg">
+        <h2 className="font-bold mb-3">Реферальные выплаты</h2>
+        {referral.withdrawals.map((item:any)=><div key={item.id} className="py-3 border-b border-white/5 text-sm">
+          <div className="flex justify-between gap-2"><span>${Number(item.amount).toFixed(2)}</span>
+            <span>{item.status==='paid'?'Выплачено':item.status==='rejected'?'Отклонено':'Ожидает выплаты'}</span></div>
+          <p className="text-xs text-textSecondary break-all mt-1">{item.wallet}</p>
+          <p className="text-xs text-textSecondary mt-1">{new Date(item.created_at).toLocaleString('ru-RU')}</p>
+        </div>)}
+      </Card>}
     </div>
   );
 };

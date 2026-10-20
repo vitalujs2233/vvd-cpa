@@ -488,50 +488,21 @@ def get_balance(telegram_id: int):
         return {"available":finance["real_withdrawable"], "hold":float(hold),
                 "paid":float(paid), "historical_balance":float(user.balance), **finance}
 
+import referrals
+
 @app.get("/referral/{telegram_id}")
 def get_referral(telegram_id: int):
+    return referrals.summary(engine,telegram_id)
 
-    with engine.connect() as conn:
+class ReferralWithdrawalRequest(BaseModel):
+    amount: str
+    wallet: str
+    request_id: str
 
-        user = conn.execute(
-            text("""
-                SELECT
-                    partner_code,
-                    COALESCE(referral_balance,0) AS referral_balance,
-                    COALESCE(referral_earned,0) AS referral_earned
-                FROM users
-                WHERE telegram_id = :telegram_id
-            """),
-            {
-                "telegram_id": telegram_id
-            }
-        ).fetchone()
+@app.post("/referral/{telegram_id}/withdrawals")
+def create_referral_withdrawal(telegram_id: int, data: ReferralWithdrawalRequest):
+    return referrals.create(engine,telegram_id,data.amount,data.wallet,data.request_id)
 
-        if not user:
-            return {
-                "success": False,
-                "message": "User not found"
-            }
-
-        invited = conn.execute(
-            text("""
-                SELECT COUNT(*)
-                FROM users
-                WHERE invited_by = :telegram_id
-            """),
-            {
-                "telegram_id": telegram_id
-            }
-        ).scalar()
-
-    return {
-        "success": True,
-        "referral_code": user.partner_code,
-        "referral_link": f"https://t.me/vvd_cpa_bot?start={user.partner_code}",
-        "balance": float(user.referral_balance),
-        "earned": float(user.referral_earned),
-        "invited": int(invited or 0)
-    }
 # Fail closed: legacy provider identity cannot be authenticated.
 # Keep routes registered for integration diagnostics, but never execute wallet logic.
 from fastapi import Depends
@@ -1429,6 +1400,8 @@ def admin_withdrawals(status: str | None = None):
                      w.created_at ASC
         """), {"status": status}).fetchall()
 
+        referral_rows=referrals.admin_list(conn,status)
+
     return {
         "success": True,
         "withdrawals": [{
@@ -1448,7 +1421,7 @@ def admin_withdrawals(status: str | None = None):
             "transferred_at": str(r.transferred_at) if r.transferred_at else None,
             "created_at": str(r.created_at),
             "processed_at": str(r.processed_at) if r.processed_at else None
-        } for r in rows]
+        } for r in rows] + referral_rows
     }
 
 
@@ -1827,3 +1800,12 @@ async def admin_chat_bans():
             for row in rows
         ]
     }
+
+@app.post("/admin/referral-withdrawals/{withdrawal_id}/{decision}")
+async def process_referral_withdrawal(withdrawal_id: int, decision: str, data: CPAExternalTransferProof, request: Request):
+    if decision not in ('paid','reject'):raise HTTPException(400,'Invalid decision')
+    result=referrals.process(engine,withdrawal_id,'paid' if decision=='paid' else 'rejected',_cpa_admin_actor(request),data.confirmed_manual)
+    if result['success']:
+        message='Реферальная выплата оплачена' if decision=='paid' else 'Реферальная выплата отклонена. Средства возвращены на реферальный баланс.'
+        await send_partner_notification(result['user_id'],message+'\nСумма: $'+format(result['amount'],'.2f'))
+    return result

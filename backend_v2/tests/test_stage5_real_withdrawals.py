@@ -58,6 +58,7 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
             c.execute(text("""CREATE TABLE public.users (
                 telegram_id BIGINT PRIMARY KEY,
                 first_name TEXT NOT NULL,
+                invited_by BIGINT REFERENCES users(telegram_id),
                 last_name TEXT,
                 username TEXT,
                 partner_code TEXT UNIQUE,
@@ -141,7 +142,8 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
             # Draft Stage 5.4 + 5.5 additive financial-proof schema.
             for extra in ("20261017_stage5_manual_hold_release.sql",
                           "20261017_stage5_settled_payouts.sql",
-                          "20261019162821_manual_cpa_payouts.sql"):
+                          "20261019162821_manual_cpa_payouts.sql",
+                          "20261020135654_referral_paid_rewards.sql"):
                 c.connection.cursor().execute((ROOT/"migrations"/extra).read_text())
             # Exercise the real activation function, but roll it back in CI.
             save=c.begin_nested()

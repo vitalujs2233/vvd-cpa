@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        suite: [test_stage5_real_withdrawals.py, test_manual_cpa_workflow.py, test_stage5_3_cpa_earnings.py]
+        suite: [test_stage5_real_withdrawals.py, test_manual_cpa_workflow.py, test_stage5_3_cpa_earnings.py, test_referral_workflow.py]
     services:
       postgres:
         image: postgres:17

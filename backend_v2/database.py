@@ -34,7 +34,7 @@ def save_user(
                 }
             ).fetchone()
 
-            if inviter:
+            if inviter and inviter.telegram_id != telegram_id:
                 invited_by = inviter.telegram_id
         row = conn.execute(
             text("""
