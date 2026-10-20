@@ -1,0 +1,31 @@
+name: IQ Play checks
+on:
+  push:
+    branches:
+      - feature/vvd-iq-play
+  pull_request:
+    paths:
+      - 'src/pages/iq-play/**'
+      - 'src/App.tsx'
+      - 'src/pages/home/Home.tsx'
+      - 'backend_v2/iq_play.py'
+      - 'backend_v2/migrations/iq_play_*'
+      - '.github/workflows/iq-play-checks.yml'
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install
+      - run: npm run build
+  backend-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m py_compile backend_v2/iq_play.py backend_v2/main.py backend_v2/tests/test_iq_play_rules.py

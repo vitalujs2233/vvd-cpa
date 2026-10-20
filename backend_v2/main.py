@@ -39,6 +39,8 @@ app = FastAPI(
     title="VVD CPA Backend V2",
     version="2.0"
 )
+from iq_play import router as iq_play_router
+app.include_router(iq_play_router)
 app.include_router(stars_router)
 app.include_router(tools_market_router)
 app.include_router(ai_studio_router)
