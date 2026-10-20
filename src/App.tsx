@@ -21,7 +21,7 @@ import { Chat as SupportChat } from '@/pages/chat/Chat';
 import { Loader } from '@/shared/ui/Loader';
 
 // Импортируем методы сетевого API и хелперы токенов
-import { loginViaTelegramApi, ApiError } from '@/shared/lib/api';
+import { loginViaTelegramApi, ApiError, isTemporarySignInError } from '@/shared/lib/api';
 
 // Главный Лейаут приложения, фиксирующий Bottom Menu
 const AppLayout = () => {
@@ -131,7 +131,7 @@ const AppLayout = () => {
 // Tools use the existing app shell and bottom navigation.
 
 const MiniApp = () => {
-  const [authState, setAuthState] = useState<'loading'|'ready'|'error'|'data-error'>('loading');
+  const [authState, setAuthState] = useState<'loading'|'ready'|'error'|'data-error'|'connection-error'>('loading');
   const [authMessage, setAuthMessage] = useState('');
   const [startupAttempt,setStartupAttempt]=useState(0);
 
@@ -167,7 +167,7 @@ const MiniApp = () => {
             : code === 'invalid_signature'
             ? 'Не удалось подтвердить подлинность входа. Запустите Mini App из официального бота VVD CPA. Если ошибка повторяется, обратитесь в поддержку.'
             : code === 'network_error'
-            ? 'Нет соединения с сервером VVD CPA. Проверьте интернет и попробуйте открыть приложение снова.'
+            ? 'Не удалось связаться с сервером VVD CPA. Проверьте соединение и нажмите «Повторить».'
             : code === 'account_storage_error' || code === 'auth_config_error' || (cause instanceof ApiError && cause.status >= 500)
             ? 'Сервис входа временно недоступен. Попробуйте позже или обратитесь в поддержку.'
             : code === 'init_data_missing' || !(window.Telegram?.WebApp?.initData)
@@ -176,7 +176,7 @@ const MiniApp = () => {
             ? 'Не удалось проверить Telegram-вход. Запустите Mini App из бота или обратитесь в поддержку.'
             : cause instanceof Error ? cause.message : 'Не удалось авторизоваться.';
           setAuthMessage(message);
-          setAuthState('error');
+          setAuthState(isTemporarySignInError(cause)?'connection-error':'error');
         }
       }
     };
@@ -185,12 +185,12 @@ const MiniApp = () => {
   }, [startupAttempt]);
 
   if (authState === 'loading') return <Loader />;
-  if (authState === 'error' || authState === 'data-error') {
+  if (authState === 'error' || authState === 'data-error' || authState === 'connection-error') {
     return <div role="alert" className="min-h-[100dvh] flex items-center justify-center bg-bgMain p-6 text-center text-sm text-textSecondary">
       <div className="max-w-xs rounded-card border border-accentGold/25 bg-bgCard p-5">
-        <h1 className="mb-3 text-base font-bold text-accentBrightGold">{authState==='data-error'?'Данные пока не загрузились':'Требуется вход через Telegram'}</h1>
+        <h1 className="mb-3 text-base font-bold text-accentBrightGold">{authState==='data-error'?'Данные пока не загрузились':authState==='connection-error'?'Не удалось подключиться':'Требуется вход через Telegram'}</h1>
         <p>{authMessage}</p>
-        {authState==='data-error'&&<button className="mt-4 rounded-app-xs bg-accentGold px-4 py-2 text-black" onClick={()=>setStartupAttempt(n=>n+1)}>Повторить</button>}
+        {(authState==='data-error'||authState==='connection-error')&&<button className="mt-4 rounded-app-xs bg-accentGold px-4 py-2 text-black" onClick={()=>setStartupAttempt(n=>n+1)}>Повторить</button>}
       </div>
     </div>;
   }

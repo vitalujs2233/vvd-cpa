@@ -75,6 +75,27 @@ export interface AuthResponse {
     status:string;
   };
 }
+// Retry only the idempotent account sign-in, never payouts or other mutations.
+export const isTemporarySignInError = (error:unknown):boolean =>
+  error instanceof ApiError && (error.status === 0 || error.status >= 500 || error.status === 429);
+
+async function requestSignIn(initData:string):Promise<AuthResponse> {
+  for(let attempt=0;attempt<2;attempt++) {
+    if(window.Telegram?.WebApp?.initData!==initData)throw new Error('Данные входа изменились. Повторите вход.');
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),45000);
+    try {
+      return await apiRequest<AuthResponse>('/auth',{
+        method:'POST',body:JSON.stringify({init_data:initData}),signal:controller.signal
+      });
+    } catch(error) {
+      const failure=controller.signal.aborted ? new ApiError(0,'network_error') : error;
+      if(attempt===1 || !isTemporarySignInError(failure))throw failure;
+    } finally {clearTimeout(timer);}
+    await new Promise(resolve=>setTimeout(resolve,1500));
+  }
+  throw new ApiError(0,'network_error');
+}
 // React StrictMode may run the startup effect twice. Reuse one request for
 // the same signed Telegram launch payload instead of double registration.
 let pendingAuth: { data: string; promise: Promise<AuthResponse> } | null = null;
@@ -82,9 +103,7 @@ export const loginViaTelegramApi = ():Promise<AuthResponse> => {
   const initData=window.Telegram?.WebApp?.initData;
   if(!initData) return Promise.reject(new Error('Telegram initData недоступен. Откройте Mini App из бота.'));
   if (pendingAuth?.data === initData) return pendingAuth.promise;
-  const promise = apiRequest<AuthResponse>('/auth',{
-    method:'POST',body:JSON.stringify({init_data:initData})
-  }).catch((error:unknown)=>{
+  const promise = requestSignIn(initData).catch((error:unknown)=>{
     if (pendingAuth?.data === initData) pendingAuth=null;
     throw error;
   });
