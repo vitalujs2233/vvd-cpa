@@ -54,7 +54,6 @@ export const Withdrawal: React.FC = () => {
   const [wallet, setWallet] = useState('');
 
   const [available, setAvailable] = useState(Number(cachedBalance?.real_withdrawable||0));
-  const [profileBalance, setProfileBalance] = useState(Number(cachedBalance?.available||0));
   const [realFinanceActive, setRealFinanceActive] = useState(Boolean(cachedBalance?.real_finance_active));
   const [realFinanceAvailable, setRealFinanceAvailable] = useState(Boolean(cachedBalance?.real_finance_available));
   const [partnerCode, setPartnerCode] = useState(cachedCode);
@@ -100,7 +99,6 @@ export const Withdrawal: React.FC = () => {
         typeof balanceData.real_withdrawable!=='number'||!Number.isFinite(balanceData.real_withdrawable)||
         typeof balanceData.real_finance_active!=='boolean'||typeof balanceData.real_finance_available!=='boolean')throw new Error();
       saveSnapshot(`balance:${telegramId}`,balanceData);saveSnapshot('api:'+path,historyData);
-      setProfileBalance(Number(balanceData.available||0));
       setRealFinanceActive(balanceData.real_finance_active);setRealFinanceAvailable(balanceData.real_finance_available);
       setAvailable(balanceData.real_finance_active&&balanceData.real_finance_available?Math.max(0,balanceData.real_withdrawable):0);
       setPartnerCode(code);setWithdrawals(historyData.withdrawals);setHasBalance(true);setHasHistory(true);
@@ -361,10 +359,6 @@ export const Withdrawal: React.FC = () => {
                 : !realFinanceAvailable
                   ? 'Проверка реальных средств временно недоступна. Выплаты заблокированы.'
                   : 'Сумма рассчитана по подтверждённым CPA-начислениям после холда.'}
-            </div>
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-textSecondary">Баланс профиля (включает историю)</span>
-              <span className="font-semibold text-white">${profileBalance.toFixed(2)}</span>
             </div>
 
             <div className="h-[1px] bg-gray-800/40 w-full" />
