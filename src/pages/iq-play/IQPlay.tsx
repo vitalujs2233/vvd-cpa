@@ -21,6 +21,7 @@ export const IQPlay:React.FC=()=>{
   const audioRef=useRef<HTMLAudioElement|null>(null);
   const musicTimer=useRef<number|null>(null);
   const [soundError,setSoundError]=useState('');
+  const [soundStatus,setSoundStatus]=useState('');
   const makeTone=useCallback((frequency:number,duration=0.24)=>{
     const rate=22050, samples=Math.floor(rate*duration);
     const buffer=new ArrayBuffer(44+samples*2),view=new DataView(buffer);
@@ -39,14 +40,16 @@ export const IQPlay:React.FC=()=>{
     const url=makeTone(frequency);
     const player=audioRef.current ?? new Audio();
     audioRef.current=player;
-    player.pause();player.src=url;player.volume=0.8;
-    void player.play().then(()=>setSoundError('')).catch(()=>setSoundError('Telegram не разрешил воспроизведение. Проверьте громкость медиа и беззвучный режим iPhone.')).finally(()=>{
+    player.pause();player.src=url;player.volume=1;
+    player.onplaying=()=>setSoundStatus('Аудио запущено. Если тишина — проверь громкость медиа и переключатель беззвучного режима iPhone.');
+    player.onerror=()=>setSoundError('iPhone не смог загрузить игровой звук.');
+    void player.play().then(()=>setSoundError('')).catch(e=>{setSoundStatus('');setSoundError('Воспроизведение заблокировано: '+(e instanceof Error?e.name:'ошибка аудио'));}).finally(()=>{
       window.setTimeout(()=>URL.revokeObjectURL(url),1200);
     });
   },[makeTone]);
   const toggleSound=()=>{
-    if(muted){playTone(880);setMuted(false);}
-    else{setMuted(true);audioRef.current?.pause();}
+    if(muted){setSoundStatus('Запускаем звук…');playTone(880);setMuted(false);}
+    else{setMuted(true);setSoundStatus('');audioRef.current?.pause();}
   };
   useEffect(()=>{
     if(muted)return;
@@ -95,7 +98,7 @@ export const IQPlay:React.FC=()=>{
   return <main className={'iq-root'+(round?.status==='active'?' iq-playing':'')}>
     <header className="iq-header"><button onClick={()=>navigate('/')} aria-label="Назад"><ArrowLeft size={20}/></button><span>VVD <strong>IQ PLAY</strong></span><button onClick={toggleSound} aria-label={muted?'Включить звук':'Выключить звук'}>{muted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button></header>
     <section className="iq-hero"><div className="iq-emblem"><Brain size={42}/><Crown size={20}/></div><h1>IQ PLAY</h1><p>Прокачай себя в арбитраже</p></section>
-    {soundError&&<div className="iq-warning" role="status">{soundError}</div>}
+    {!muted&&<div className="iq-sound-check" role="status"><span>{soundError||soundStatus||'Звук включён'}</span><button type="button" onClick={()=>playTone(880)}>🔊 Проверить звук</button></div>}
     {error&&<div className="iq-error" role="alert">{error}<button onClick={()=>void refresh()}>Повторить загрузку</button></div>}
     {loading?<p className="iq-muted">Загрузка…</p>:round?.status==='active'?<>
       <div className="iq-stats"><span>Вопрос {round.position} из 15</span><span>{round.retry?'Последний шанс':'❤️ 2 шанса'}</span></div>
