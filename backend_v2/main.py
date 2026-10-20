@@ -1648,12 +1648,12 @@ ADMIN_TELEGRAM_ID = "232682307"
 async def chat_online(data: dict):
     telegram_id = int(data["telegram_id"])
 
-    supabase.table("chat_online").upsert(
-        {
-            "telegram_id": telegram_id,
-            "last_seen": datetime.utcnow().isoformat(),
-        }
-    ).execute()
+    with engine.begin() as conn:
+        conn.execute(text("""
+            INSERT INTO public.chat_online (telegram_id,last_seen)
+            VALUES (:uid,NOW())
+            ON CONFLICT (telegram_id) DO UPDATE SET last_seen=NOW()
+        """), {"uid": telegram_id})
 
     return {
         "success": True
@@ -1667,7 +1667,7 @@ async def chat_online_count():
             text("""
                 SELECT COUNT(DISTINCT telegram_id)
                 FROM chat_online
-                WHERE last_seen > NOW() - INTERVAL '60 seconds'
+                WHERE last_seen > NOW() - INTERVAL '30 seconds'
             """)
         ).scalar()
 

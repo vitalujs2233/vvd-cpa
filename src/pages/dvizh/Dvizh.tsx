@@ -1,3 +1,4 @@
+import './Dvizh.css';
 import { authorizedFetch } from '@/shared/lib/api';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
@@ -82,7 +83,18 @@ const isAdmin = currentUser.id.toString() === ADMIN_ID;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const initialScrollDone = useRef(false);
-  const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
+  const [viewport, setViewport] = useState({height: window.innerHeight, top: 0, keyboard: false});
+  const [onlineBase] = useState(() => {
+    // Decorative audience offset, separate from actual server presence.
+    const key='vvd_dvizh_audience';
+    try {
+      const saved=Number(sessionStorage.getItem(key));
+      if(saved>=5 && saved<=100) return saved;
+      const value=5+Math.floor(Math.random()*96);
+      sessionStorage.setItem(key,String(value));
+      return value;
+    } catch { return 5+Math.floor(Math.random()*96); }
+  });
 const [banner, setBanner] = useState<ChatBanner | null>(null);
 const [onlineCount, setOnlineCount] = useState(0);
 useEffect(() => {
@@ -105,64 +117,28 @@ useEffect(() => {
   void loadBanner();
 }, []);
   useEffect(() => {
-  const heartbeat = async () => {
-    try {
-      await authorizedFetch(`${API}/chat/online`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          telegram_id: currentUser.id,
-        }),
-      });
-
-      const response = await authorizedFetch(
-        `${API}/chat/online-count`,
-        {
-          cache: 'no-store',
-        }
-      );
-
-      const data = await response.json();
-
-      if (data.success) {
-        setOnlineCount(data.online);
-      }
-    } catch (error) {
-      console.error('Ошибка online:', error);
-    }
-  };
-
-  void heartbeat();
-
-  const heartbeatInterval = setInterval(
-    heartbeat,
-    30000
-  );
-
-  const counterInterval = setInterval(async () => {
-    try {
-      const response = await authorizedFetch(
-        `${API}/chat/online-count`,
-        {
-          cache: 'no-store',
-        }
-      );
-
-      const data = await response.json();
-
-      if (data.success) {
-        setOnlineCount(data.online);
-      }
-    } catch {}
-  }, 5000);
-
-  return () => {
-    clearInterval(heartbeatInterval);
-    clearInterval(counterInterval);
-  };
-}, []);
+    let active=true;
+    let busy=false;
+    const heartbeat=async()=>{
+      if(document.hidden || busy) return;
+      busy=true;
+      try {
+        const sent=await authorizedFetch(`${API}/chat/online`,{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({telegram_id:currentUser.id}),
+        });
+        if(!sent.ok) throw new Error('Presence unavailable');
+        const response=await authorizedFetch(`${API}/chat/online-count`,{cache:'no-store'});
+        const data=await response.json();
+        if(active && response.ok && data.success) setOnlineCount(Number(data.online)||0);
+      } catch(error) { console.error('Ошибка online:',error); }
+      finally { busy=false; }
+    };
+    void heartbeat();
+    const timer=setInterval(heartbeat,10000);
+    document.addEventListener('visibilitychange',heartbeat);
+    return()=>{active=false;clearInterval(timer);document.removeEventListener('visibilitychange',heartbeat);};
+  },[currentUser.id]);
   useEffect(() => {
   const loadMessages = async () => {
     try {
@@ -218,31 +194,48 @@ useEffect(() => {
   }
 }, [messages]);
   useEffect(() => {
-  const tg = window.Telegram?.WebApp;
-  if (!tg) return;
-  
-  if (tg.isExpanded === false) {
-    tg.expand();
-  }
+    const tg=window.Telegram?.WebApp as (NonNullable<typeof window.Telegram>['WebApp'] & {
+      onEvent?: (event:string,callback:()=>void)=>void;
+      offEvent?: (event:string,callback:()=>void)=>void;
+    }) | undefined;
+    if(tg?.isExpanded===false) tg.expand();
+    let fullHeight=window.innerHeight;
+    let frame=0;
+    const updateViewport=()=>{
+      const vv=window.visualViewport;
+      const height=Math.min(window.innerHeight,vv?.height||Infinity,tg?.viewportHeight||Infinity);
+      fullHeight=Math.max(fullHeight,window.innerHeight,tg?.viewportStableHeight||0);
+      const focused=document.activeElement?.tagName==='INPUT';
+      const keyboard=Boolean(focused && fullHeight-height>100);
+      document.body.classList.toggle('dvizh-keyboard',keyboard);
+      setViewport({height,top:vv?.offsetTop||0,keyboard});
+      if(focused) {
+        cancelAnimationFrame(frame);
+        frame=requestAnimationFrame(()=>{
+          const box=chatContainerRef.current;
+          if(box) box.scrollTop=box.scrollHeight;
+        });
+      }
+    };
+    updateViewport();
+    window.addEventListener('resize',updateViewport);
+    window.visualViewport?.addEventListener('resize',updateViewport);
+    window.visualViewport?.addEventListener('scroll',updateViewport);
+    document.addEventListener('focusin',updateViewport);
+    document.addEventListener('focusout',updateViewport);
+    tg?.onEvent?.('viewportChanged',updateViewport);
+    return()=>{
+      cancelAnimationFrame(frame);
+      document.body.classList.remove('dvizh-keyboard');
+      window.removeEventListener('resize',updateViewport);
+      window.visualViewport?.removeEventListener('resize',updateViewport);
+      window.visualViewport?.removeEventListener('scroll',updateViewport);
+      document.removeEventListener('focusin',updateViewport);
+      document.removeEventListener('focusout',updateViewport);
+      tg?.offEvent?.('viewportChanged',updateViewport);
+    };
+  }, []);
 
-  const updateViewport = () => {
-    if (tg.viewportHeight) {
-      setViewportHeight(tg.viewportHeight);
-    } else if (window.visualViewport) {
-      setViewportHeight(window.visualViewport.height);
-    } else {
-      setViewportHeight(window.innerHeight);
-    }
-  };
-
-  updateViewport();
-  window.visualViewport?.addEventListener("resize", updateViewport);
-
-  return () => {
-    window.visualViewport?.removeEventListener("resize", updateViewport);
-  };
-}, []);
-  
   const containsForbiddenLink = (text: string): boolean => {
     const linkRegex = /(https?:\/\/|t\.me|telegram\.me|bit\.ly|tinyurl|cutt\.ly|vk\.com|instagram|facebook|youtube|discord|[a-zA-Z0-9-]+\.[a-zA-Z]{2,})/gi;
     return linkRegex.test(text);
@@ -460,20 +453,21 @@ if (!response.ok || !data.success) {
 
   return (
     <div
-  className="flex flex-col bg-bgMain relative select-none overflow-hidden"
+  className={`dvizh-chat flex flex-col bg-bgMain fixed left-0 right-0 select-none overflow-hidden ${viewport.keyboard ? "dvizh-chat-typing" : ""}`}
   style={{
-    height: `${viewportHeight - 80}px`,
+    height: `${Math.max(0,viewport.height - (viewport.keyboard ? 0 : 80))}px`,
+    top: viewport.top,
   }}
 >
       
       {/* Шапка раздела */}
-      <div className="flex items-center justify-between p-4 border-b border-white/[0.04] bg-bgCard/40 backdrop-blur-md shrink-0 shadow-glass-inner z-20">
+      <div className="dvizh-heading flex items-center justify-between p-4 border-b border-white/[0.04] bg-bgCard/40 backdrop-blur-md shrink-0 shadow-glass-inner z-20">
         <div className="flex flex-col text-left">
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-accentGold font-bold uppercase tracking-wider">Приватная соцсеть</span>
             <div className="flex items-center gap-1 bg-success/10 border border-success/20 rounded-full px-2 py-0.5 text-success text-[8px] font-bold">
               <span className="w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_6px_#22C55E] animate-pulse" />
-              {onlineCount} Онлайн
+              {onlineBase + onlineCount} Онлайн
             </div>
           </div>
           <h1 className="text-xl font-bold text-white mt-0.5 flex items-center gap-1.5">
@@ -506,7 +500,7 @@ if (!response.ok || !data.success) {
       )}
 
      {/* Рекламный баннер */}
-{banner && banner.is_active && (
+{banner && banner.is_active && !viewport.keyboard && (
   <div className="px-4 py-2 shrink-0 z-10">
     <div className="rounded-2xl border border-accentGold/30 bg-gradient-to-r from-accentGold/[0.10] to-bgCard/80 px-4 py-3 shadow-lg">
       <div className="flex items-center justify-between gap-3">
@@ -536,7 +530,7 @@ if (!response.ok || !data.success) {
       {/* Контейнер сообщений */}
       <div
   ref={chatContainerRef}
-  className="flex-1 overflow-y-auto p-4 pb-32 scrollable-container flex flex-col gap-4 z-0"
+  className="flex-1 min-h-0 overflow-y-auto p-4 scrollable-container flex flex-col gap-4 z-0"
 >
         {filteredMessages.map((msg) => {
           const isMe = msg.senderId === currentUser.id.toString();
@@ -669,7 +663,7 @@ if (!response.ok || !data.success) {
 
       {/* Панель ввода сообщения */}
       <div
-  className="fixed left-0 right-0 bottom-[80px] p-3 border-t border-white/[0.08] bg-bgCard/70 backdrop-blur-xl flex items-center gap-3 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.37)] z-50"
+  className="shrink-0 p-3 border-t border-white/[0.08] bg-bgCard/70 backdrop-blur-xl flex items-center gap-3 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.37)] z-50"
 >
         <Input 
           placeholder="Напишите в приватный чат..."

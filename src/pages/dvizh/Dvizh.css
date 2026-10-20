@@ -1,0 +1,6 @@
+body.dvizh-keyboard nav { display: none; }
+.dvizh-chat-typing .dvizh-heading { padding: 6px 12px; }
+.dvizh-chat-typing .dvizh-heading h1 { font-size: 14px; line-height: 20px; }
+.dvizh-chat-typing .dvizh-heading > div > div > span { display: none; }
+.dvizh-chat-typing .dvizh-heading > button { width: 32px; height: 32px; }
+.dvizh-chat input { font-size: 16px; }
