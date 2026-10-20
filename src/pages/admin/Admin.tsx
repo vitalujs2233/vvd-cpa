@@ -445,7 +445,7 @@ const saveChatBanner = async () => {
           <div className="flex items-center gap-3 text-left">
             <button 
               onClick={handleBackToProfile}
-              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform shadow-glass-inner"
+              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary transition-transform shadow-glass-inner"
             >
               <ArrowLeft size={18} />
             </button>
@@ -610,7 +610,7 @@ const saveChatBanner = async () => {
     <div className="flex items-center gap-3 text-left">
       <button
         onClick={() => handleSubViewChange('menu')}
-        className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform shadow-glass-inner"
+        className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary transition-transform shadow-glass-inner"
       >
         <ArrowLeft size={18} />
       </button>
@@ -747,7 +747,7 @@ const saveChatBanner = async () => {
           <div className="flex items-center gap-3 text-left">
             <button 
               onClick={() => handleSubViewChange('menu')}
-              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform shadow-glass-inner"
+              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary transition-transform shadow-glass-inner"
             >
               <ArrowLeft size={18} />
             </button>
@@ -776,7 +776,7 @@ const saveChatBanner = async () => {
                 <Card
                   key={user.telegram_id}
                   padding="sm"
-                  className="flex flex-col gap-3 text-left hover-lift cursor-pointer active:scale-[0.99] transition-transform"
+                  className="flex flex-col gap-3 text-left cursor-pointer transition-transform"
                   onClick={() => openUser(user)}
                 >
                   <div className="flex items-center justify-between gap-3">
@@ -823,7 +823,7 @@ const saveChatBanner = async () => {
           <div className="flex items-center gap-3 text-left">
             <button
               onClick={() => handleSubViewChange('menu')}
-              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform shadow-glass-inner"
+              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary transition-transform shadow-glass-inner"
             >
               <ArrowLeft size={18} />
             </button>
@@ -969,7 +969,7 @@ const saveChatBanner = async () => {
           <div className="flex items-center gap-3 text-left">
             <button
               onClick={() => { triggerHaptic.lightImpact(); setSubView('users'); }}
-              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform shadow-glass-inner"
+              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary transition-transform shadow-glass-inner"
             >
               <ArrowLeft size={18} />
             </button>

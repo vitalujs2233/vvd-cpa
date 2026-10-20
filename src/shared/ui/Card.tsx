@@ -43,7 +43,7 @@ export const Card: React.FC<CardProps> = ({
 
   // Высококлассная микро-анимация при касании на мобильном экране (Lift & Scale)
   const clickableStyles = clickable
-    ? 'cursor-pointer active:scale-[0.98] active:translate-y-[1px] hover:border-accentPurple/40 duration-200'
+    ? 'cursor-pointer hover:border-accentPurple/40 duration-200'
     : '';
 
   return (

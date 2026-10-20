@@ -531,7 +531,7 @@ if (!response.ok || !data.success) {
 
         <button 
           onClick={() => { triggerHaptic.lightImpact(); setShowSearch(!showSearch); setSearchQuery(''); }}
-          className={`w-10 h-10 rounded-full bg-white/[0.03] border flex items-center justify-center text-textSecondary active:scale-95 transition-all ${
+          className={`w-10 h-10 rounded-full bg-white/[0.03] border flex items-center justify-center text-textSecondary transition-all ${
             showSearch ? 'border-accentGold text-accentGoldBright' : 'border-white/5'
           }`}
         >
@@ -683,7 +683,7 @@ if (!response.ok || !data.success) {
                       <button
                         key={emoji}
                         onClick={() => handleAddReaction(msg.id, emoji)}
-                        className="flex items-center gap-1 px-2 py-0.5 bg-white/[0.02] border border-white/5 rounded-app-xs text-[10px] font-bold text-textSecondary hover:border-accentGold/20 active:scale-95"
+                        className="flex items-center gap-1 px-2 py-0.5 bg-white/[0.02] border border-white/5 rounded-app-xs text-[10px] font-bold text-textSecondary hover:border-accentGold/20"
                       >
                         <span>{emoji}</span>
                         <span>{count}</span>
@@ -701,7 +701,7 @@ if (!response.ok || !data.success) {
                       <button
                         key={emoji}
                         onClick={() => handleAddReaction(msg.id, emoji)}
-                        className="w-7 h-7 flex items-center justify-center text-sm hover:bg-white/5 rounded active:scale-90 transition-transform"
+                        className="w-7 h-7 flex items-center justify-center text-sm hover:bg-white/5 rounded transition-transform"
                       >
                         {emoji}
                       </button>
@@ -745,7 +745,7 @@ if (!response.ok || !data.success) {
           onPointerDown={event=>event.preventDefault()}
           onMouseDown={event=>event.preventDefault()}
           onClick={handleSendMessage}
-          className="!w-11 !h-11 !p-0 overflow-hidden flex items-center justify-center shrink-0 rounded-full shadow-glow-purple/40 active:scale-95"
+          className="!w-11 !h-11 !p-0 overflow-hidden flex items-center justify-center shrink-0 rounded-full shadow-glow-purple/40"
         >
           {sending ? <Loader2 size={18} className="animate-spin shrink-0" aria-hidden="true" /> : <Send size={16} />}
         </Button>

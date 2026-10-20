@@ -291,7 +291,7 @@ export const Withdrawal: React.FC = () => {
 
           <button
             onClick={handleBackToMain}
-            className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary active:scale-95 transition-transform"
+            className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary transition-transform"
           >
             <ArrowLeft size={18} />
           </button>

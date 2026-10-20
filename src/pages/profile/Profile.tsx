@@ -142,7 +142,7 @@ export const Profile: React.FC = () => {
 <Card
   padding="md"
   onClick={() => navigate('/referral')}
-  className="cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 shadow-premium border border-accentGold/15"
+  className="cursor-pointer transition-all duration-200 shadow-premium border border-accentGold/15"
 >
   <div className="flex items-center justify-between">
 
@@ -263,7 +263,7 @@ export const Profile: React.FC = () => {
           <div className="flex items-center gap-3 text-left">
             <button 
               onClick={() => handleSubViewChange('main')}
-              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform shadow-glass-inner"
+              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary transition-transform shadow-glass-inner"
             >
               <ArrowLeft size={18} />
             </button>
@@ -321,7 +321,7 @@ export const Profile: React.FC = () => {
           <div className="flex items-center gap-3 text-left">
             <button 
               onClick={() => handleSubViewChange('main')}
-              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform shadow-glass-inner"
+              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary transition-transform shadow-glass-inner"
             >
               <ArrowLeft size={18} />
             </button>
@@ -365,7 +365,7 @@ export const Profile: React.FC = () => {
             {activeSessions.length > 0 ? (
               <Card padding="none" className="divide-y divide-white/[0.04] shadow-premium">
                 {activeSessions.map((session) => (
-                  <div key={session.id} className="flex items-start gap-3 p-3 hover-lift">
+                  <div key={session.id} className="flex items-start gap-3 p-3">
                     <div className="w-8 h-8 rounded-full bg-white/[0.02] border border-white/5 flex items-center justify-center text-textSecondary shrink-0">
                       <Smartphone size={16} />
                     </div>
@@ -402,7 +402,7 @@ export const Profile: React.FC = () => {
           <div className="flex items-center gap-3 text-left">
             <button 
               onClick={() => handleSubViewChange('main')}
-              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform shadow-glass-inner"
+              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary transition-transform shadow-glass-inner"
             >
               <ArrowLeft size={18} />
             </button>

@@ -81,7 +81,7 @@ export const Home: React.FC = () => {
         </div>
 
         <button type="button" aria-label="Открыть Движ" onClick={handleDvizhClick}
-          className="home-dvizh-button relative ml-auto shrink-0 overflow-hidden flex h-10 items-center gap-1 rounded-full border border-accentGold/20 bg-accentGold/10 px-2.5 text-accentBrightGold transition-transform active:scale-95">
+          className="home-dvizh-button relative ml-auto shrink-0 overflow-hidden flex h-10 items-center gap-1 rounded-full border border-accentGold/20 bg-accentGold/10 px-2.5 text-accentBrightGold transition-transform">
           <Flame size={16} className="home-dvizh-flame relative z-10" />
           <span className="relative z-10 text-[11px] font-bold">Движ</span>
         </button>

@@ -21,21 +21,21 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   // Базовые стили с изящной кривой Безье для плавной анимации (Lift & Scale)
-  const baseStyles = 'inline-flex items-center justify-center font-bold transition-all duration-300 outline-none select-none active:scale-[0.97] active:translate-y-0 disabled:opacity-40 disabled:pointer-events-none whitespace-nowrap';
+  const baseStyles = 'inline-flex items-center justify-center font-bold transition-all duration-300 outline-none select-none disabled:opacity-40 disabled:pointer-events-none whitespace-nowrap';
 
   // Люксовые цветовые схемы строго из золотого гайдлайна (без фиолетового цвета)
   const variantStyles = {
     // Золотой премиум-градиент со сверкающим золотым свечением (Glow Gold) и темным текстом
-    primary: 'bg-gold-gradient text-bgMain shadow-glow-gold hover:shadow-[0_0_30px_rgba(246,196,83,0.5),0_0_50px_rgba(212,175,55,0.25)] hover:-translate-y-[1.5px] hover:scale-[1.01]',
+    primary: 'bg-gold-gradient text-bgMain shadow-glow-gold hover:shadow-[0_0_30px_rgba(246,196,83,0.5),0_0_50px_rgba(212,175,55,0.25)]',
     
     // Полупрозрачная стеклянная кнопка со слабым внутренним свечением
-    secondary: 'bg-white/[0.04] text-textPrimary border border-white/10 hover:bg-white/[0.08] hover:-translate-y-[1px]',
+    secondary: 'bg-white/[0.04] text-textPrimary border border-white/10 hover:bg-white/[0.08]',
     
     // Тонкая рамка для второстепенных действий
     outline: 'bg-transparent text-textPrimary border border-borderCard hover:bg-white/[0.02]',
     
     // Элегантный зеленый градиент для выплат
-    success: 'bg-gradient-to-r from-success to-success/90 text-white shadow-[0_0_20px_rgba(34,197,94,0.25)] hover:shadow-[0_0_30px_rgba(34,197,94,0.45)] hover:-translate-y-[1px]',
+    success: 'bg-gradient-to-r from-success to-success/90 text-white shadow-[0_0_20px_rgba(34,197,94,0.25)] hover:shadow-[0_0_30px_rgba(34,197,94,0.45)]',
     
     // Красный градиент для опасных действий
     danger: 'bg-gradient-to-r from-error to-error/90 text-white shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:bg-error/95',

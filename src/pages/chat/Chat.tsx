@@ -143,7 +143,7 @@ export const Chat: React.FC = () => {
           <div className="flex items-center gap-3 text-left">
             <button 
               onClick={() => { triggerHaptic.lightImpact(); navigate('/profile'); }}
-              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform shadow-glass-inner"
+              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary transition-transform shadow-glass-inner"
             >
               <ArrowLeft size={18} />
             </button>
@@ -174,7 +174,7 @@ export const Chat: React.FC = () => {
                 clickable 
                 padding="sm" // p-3 (12px)
                 onClick={() => handleOpenChat(agent)}
-                className="flex items-center justify-between hover-lift shadow-premium"
+                className="flex items-center justify-between shadow-premium"
               >
                 <div className="flex items-center gap-3">
                   <div className="relative">
@@ -227,7 +227,7 @@ export const Chat: React.FC = () => {
           <div className="flex items-center gap-3 p-3 border-b border-white/[0.04] bg-bgCard/40 backdrop-blur-md text-left shrink-0 shadow-glass-inner">
             <button 
               onClick={handleBackToContacts}
-              className="w-10 h-10 rounded-full bg-bgMain border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary active:scale-95 transition-transform"
+              className="w-10 h-10 rounded-full bg-bgMain border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary transition-transform"
             >
               <ArrowLeft size={16} />
             </button>
@@ -297,7 +297,7 @@ export const Chat: React.FC = () => {
               variant="primary" 
               size="md" 
               onClick={handleSendMessage}
-              className="w-11 h-11 p-0 flex items-center justify-center shrink-0 rounded-full shadow-glow-purple/40 hover:-translate-y-0.5 active:scale-95"
+              className="w-11 h-11 p-0 flex items-center justify-center shrink-0 rounded-full shadow-glow-purple/40"
             >
               <Send size={16} />
             </Button>
