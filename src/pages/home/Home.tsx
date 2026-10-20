@@ -1,4 +1,5 @@
 import './Home.css';
+import {readSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,33 +11,29 @@ import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
 export const Home: React.FC = () => {
   const navigate = useNavigate();
   const user = getTelegramUser();
-  console.log("Telegram User:", user);
-const [balance, setBalance] = useState({
-  available: 0,
-  hold: 0,
-  paid: 0,
-});
-
-useEffect(() => {
-  const loadBalance = async () => {
-    try {
-const res = await authorizedFetch(
-  `https://vvd-cpa-v2.onrender.com/balance/${user.id}`
-)
-      const data = await res.json();
-
-      setBalance({
-        available: data.available || 0,
-        hold: data.hold || 0,
-        paid: data.paid || 0,
-      });
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  loadBalance();
-}, []);
+  type Balance = {available:number;hold:number;paid:number};
+  const key = `balance:${user.id}`;
+  const [balance,setBalance] = useState<Balance|null>(()=>readSnapshot<Balance>(key)||null);
+  const [loading,setLoading] = useState(true);
+  const [error,setError] = useState('');
+  const [retry,setRetry] = useState(0);
+  useEffect(()=>{
+    let active=true;
+    setLoading(true);setError('');
+    void (async()=>{
+      try {
+        const res=await authorizedFetch(`https://vvd-cpa-v2.onrender.com/balance/${user.id}`);
+        if(!res.ok)throw new Error('Баланс временно недоступен');
+        const data=await res.json();
+        if(!['available','hold','paid'].every(k=>typeof data[k]==='number'&&Number.isFinite(data[k])))
+          throw new Error('Не удалось получить баланс');
+        if(active){saveSnapshot(key,data);setBalance(data);}
+      } catch {if(active)setError('Не удалось обновить баланс.');}
+      finally {if(active)setLoading(false);}
+    })();
+    return()=>{active=false;};
+  },[key,user.id,retry]);
+  const amount=(value:number|undefined)=>value===undefined?'—':'$'+value.toFixed(2);
   const handleWithdrawClick = () => {
     // Средний по силе виброотклик при открытии формы вывода
     triggerHaptic.mediumImpact();
@@ -90,6 +87,11 @@ const res = await authorizedFetch(
         </button>
       </Card>
 
+      {(loading||error)&&<p role="status" className="text-xs text-textSecondary">
+        {error || (balance?'Обновляем баланс…':'Загружаем баланс…')}
+        {error&&<button className="ml-2 underline" onClick={()=>setRetry(n=>n+1)}>Повторить</button>}
+        {error&&balance&&' Показаны последние полученные данные.'}
+      </p>}
       {/* Парящая градиентная карта Баланса с золотой фоновой короной и золотым свечением */}
       <Card variant="glow" padding="lg" className="flex flex-col gap-5 relative overflow-hidden animate-float">
         {/* Фоновое золотое неоновое свечение */}
@@ -104,7 +106,7 @@ const res = await authorizedFetch(
           <div className="flex flex-col text-left">
             <span className="text-[10px] text-textSecondary font-bold uppercase tracking-wider">Ваш баланс</span>
             <span className="text-[36px] font-bold text-white leading-none mt-1.5 font-sans tracking-tight">
-  ${balance.available.toFixed(2)}
+  {amount(balance?.available)}
 </span>
           </div>
           
@@ -125,7 +127,7 @@ const res = await authorizedFetch(
     </span>
 
     <span className="text-sm font-bold text-success mt-1">
-  ${balance.available.toFixed(2)}
+  {amount(balance?.available)}
 </span>
 
     <span className="text-[9px] text-textSecondary mt-1">
@@ -139,7 +141,7 @@ const res = await authorizedFetch(
     </span>
 
    <span className="text-sm font-bold text-warning mt-1">
-  ${balance.hold.toFixed(2)}
+  {amount(balance?.hold)}
 </span>
 
     <span className="text-[9px] text-textSecondary mt-1">
@@ -153,7 +155,7 @@ const res = await authorizedFetch(
     </span>
 
    <span className="text-sm font-bold text-white mt-1">
-  ${balance.paid.toFixed(2)}
+  {amount(balance?.paid)}
 </span>
 
     <span className="text-[9px] text-textSecondary mt-1">

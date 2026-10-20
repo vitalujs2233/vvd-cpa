@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { RefreshCw, TrendingUp } from 'lucide-react';
+import {readSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
 import { Card } from '@/shared/ui/Card';
@@ -50,42 +51,56 @@ export const Stats:React.FC=()=>{
     return p;
   },[period,dateFrom,dateTo,offerId]);
 
+  const requestVersion=useRef(0);
   const load=useCallback(async (refresh=false)=>{
+    const version=++requestVersion.current;
     const id=Number(getTelegramUser().id);
     if(!id){setError('Не удалось определить Telegram');return;}
     refresh?setRefreshing(true):setLoading(true);
     setError('');
-    try{
-      const suffix='?'+params.toString();
-      const offerParams=new URLSearchParams(params);
-      offerParams.delete('offer_id');
-      const endpoints=[
-        `${API}/statistics/${id}${suffix}`,
-        `${API}/statistics/${id}/countries${suffix}`,
-        `${API}/statistics/${id}/breakdown?${offerParams}`,
-        `${API}/statistics/${id}/clicks${suffix}&limit=10&offset=0`
-      ];
-      const response=await Promise.all(endpoints.map(url=>authorizedFetch(url,{cache:'no-store'})));
-      if(response.some(r=>!r.ok))throw new Error('Не удалось загрузить статистику');
-      const [a,g,b,c]=await Promise.all(response.map(r=>r.json()));
-      if([a,g,b,c].some(x=>!x.success))throw new Error('Статистика временно недоступна');
-      setSummary(a.summary);
-      setDaily(a.statistics||[]);
-      setCountries(g.countries||[]);
-      setOffers(b.offers||[]);
-      setClicks(c.clicks||[]);
-      setOffset(c.clicks?.length||0);
-      setHasMore((c.clicks?.length||0)===10);
-      if(refresh)triggerHaptic.success();
-    }catch(e){setError(e instanceof Error?e.message:'Ошибка загрузки');}
-    finally{setLoading(false);setRefreshing(false);}
+    const suffix='?'+params.toString();
+    const offerParams=new URLSearchParams(params);offerParams.delete('offer_id');
+    const endpoints=[
+      `${API}/statistics/${id}${suffix}`,
+      `${API}/statistics/${id}/countries${suffix}`,
+      `${API}/statistics/${id}/breakdown?${offerParams}`,
+      `${API}/statistics/${id}/clicks${suffix}&limit=10&offset=0`
+    ];
+    // Include the local date so relative periods cannot reuse yesterday's result.
+    const keys=endpoints.map(url=>new Date().toLocaleDateString('en-CA',{timeZone:userTimezone})+url);
+    const apply=[
+      (a:any)=>{setSummary(a?.summary||null);setDaily(a?.statistics||[]);},
+      (g:any)=>setCountries(g?.countries||[]),
+      (b:any)=>setOffers(b?.offers||[]),
+      (c:any)=>{setClicks(c?.clicks||[]);setOffset(c?.clicks?.length||0);setHasMore(c?.clicks?.length===10);}
+    ];
+    if(!refresh)keys.forEach((key,i)=>apply[i](readSnapshot(key)));
+    let failed=false;
+    await Promise.all(endpoints.map(async(url,i)=>{
+      try {
+        const response=await authorizedFetch(url,{cache:'no-store'});
+        if(!response.ok)throw new Error();
+        const data=await response.json();
+        if(!data.success)throw new Error();
+        if(requestVersion.current!==version)return;
+        saveSnapshot(keys[i],data);apply[i](data);
+      }catch {
+        failed=true;
+        if(requestVersion.current===version)setError('Часть данных не обновилась. Нажмите кнопку обновления.');
+      }
+    }));
+    if(requestVersion.current===version){
+      setLoading(false);setRefreshing(false);
+      if(refresh&&!failed)triggerHaptic.success();
+    }
   },[params]);
 
-  useEffect(()=>{void load();},[load]);
+  useEffect(()=>{void load();return()=>{requestVersion.current++;};},[load]);
 
   const loadMore=async()=>{
     const id=Number(getTelegramUser().id);
-    if(!id)return;
+    if(!id||refreshing||loading)return;
+    const version=requestVersion.current;
     try{
       setRefreshing(true);
       const p=new URLSearchParams(params);
@@ -93,12 +108,13 @@ export const Stats:React.FC=()=>{
       const response=await authorizedFetch(`${API}/statistics/${id}/clicks?${p}`,{cache:'no-store'});
       if(!response.ok)throw new Error('Не удалось загрузить переходы');
       const data=await response.json();
+      if(version!==requestVersion.current)return;
       const next:Click[]=data.clicks||[];
       setClicks(old=>[...old,...next]);
       setOffset(old=>old+next.length);
       setHasMore(next.length===10);
-    }catch(e){setError(e instanceof Error?e.message:'Ошибка загрузки');}
-    finally{setRefreshing(false);}
+    }catch(e){if(version===requestVersion.current)setError(e instanceof Error?e.message:'Ошибка загрузки');}
+    finally{if(version===requestVersion.current)setRefreshing(false);}
   };
 
   const metric=(label:string,value:string|number)=>(
@@ -116,7 +132,7 @@ export const Stats:React.FC=()=>{
   return <div className="flex flex-col gap-3 px-3 pt-3 pb-28 select-none animate-fade-in" data-testid="compact-analysis">
     <div className="flex items-center justify-between">
       <h1 className="text-xl font-bold text-white">Анализ</h1>
-      <button aria-label="Обновить статистику" onClick={()=>void load(true)} disabled={refreshing} className="w-9 h-9 rounded-full border border-white/10 bg-bgCard/40 flex items-center justify-center text-textSecondary">
+      <button aria-label="Обновить статистику" onClick={()=>void load(true)} disabled={refreshing||loading} className="w-9 h-9 rounded-full border border-white/10 bg-bgCard/40 flex items-center justify-center text-textSecondary">
         <RefreshCw size={16} className={refreshing?'animate-spin':''}/>
       </button>
     </div>
@@ -133,21 +149,22 @@ export const Stats:React.FC=()=>{
       <option value="">Все офферы</option>
       {offers.filter(o=>o.id).map(o=><option key={o.id!} value={o.id!}>{o.label}</option>)}
     </select>
+    {loading&&<p role="status" className="text-xs text-textSecondary">Обновляем данные…</p>}
     {error&&<p role="alert" className="text-xs text-error">{error}</p>}
     <div className="grid grid-cols-2 gap-2" aria-label="Показатели">
-      {metric('Клики',summary?.clicks??0)}
-      {metric('Конверсии',summary?.conversions??0)}
-      {metric('CR',`${(summary?.cr??0).toFixed(2)}%`)}
-      {metric('EPC',money(summary?.epc??0))}
-      {metric('Заработано',money(summary?.earned??0))}
-      {metric('На удержании',money(summary?.on_hold??0))}
-      {metric('Доступно к выводу',money(summary?.real_withdrawable??0))}
+      {metric('Клики',summary?.clicks??'—')}
+      {metric('Конверсии',summary?.conversions??'—')}
+      {metric('CR',summary?`${summary.cr.toFixed(2)}%`:'—')}
+      {metric('EPC',summary?money(summary.epc):'—')}
+      {metric('Заработано',summary?money(summary.earned):'—')}
+      {metric('На удержании',summary?money(summary.on_hold):'—')}
+      {metric('Доступно к выводу',summary?money(summary.real_withdrawable):'—')}
     </div>
     <Card padding="sm" className="!p-3">
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-textSecondary">
-        <span>Ожидают: <strong className="text-white">{summary?.statuses.pending??0}</strong></span>
-        <span>Подтверждены: <strong className="text-white">{summary?.statuses.approved??0}</strong></span>
-        <span>Отклонены: <strong className="text-white">{summary?.statuses.rejected??0}</strong></span>
+        <span>Ожидают: <strong className="text-white">{summary?.statuses.pending??'—'}</strong></span>
+        <span>Подтверждены: <strong className="text-white">{summary?.statuses.approved??'—'}</strong></span>
+        <span>Отклонены: <strong className="text-white">{summary?.statuses.rejected??'—'}</strong></span>
       </div>
     </Card>
     <div data-testid="click-chart"><Card padding="sm" className="!p-3">
@@ -182,7 +199,7 @@ export const Stats:React.FC=()=>{
             <span>Отклонены: <b>{c.rejected}</b></span><span>В Hold: <b>{money(c.hold)}</b></span>
             <span>CR: <b>{c.cr==null?'—':c.cr.toFixed(2)+'%'}</b></span><span>EPC: <b>{c.epc==null?'—':money(c.epc)}</b></span>
           </div>
-        </details>):<p className="text-xs text-textSecondary py-3">{countrySearch?'Страна не найдена':'Нет данных за период'}</p>}
+        </details>):<p className="text-xs text-textSecondary py-3">{countrySearch?'Страна не найдена':loading?'Загрузка…':'Нет данных за период'}</p>}
       </div>
       <p className="text-[10px] text-textSecondary mt-2">Нажми на страну — статусы, Hold, CR и EPC.</p>
     </Card>
@@ -204,7 +221,7 @@ export const Stats:React.FC=()=>{
           <time className="text-[10px] text-textSecondary whitespace-nowrap" dateTime={click.created_at}>{new Date(click.created_at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</time>
         </div>):<div className="text-xs text-textSecondary py-2">Кликов пока нет</div>}
       </div>
-      {hasMore&&<button onClick={()=>void loadMore()} disabled={refreshing} className="w-full mt-2 rounded-app-xs border border-white/10 bg-bgCard/40 py-2 text-xs font-semibold text-white">Показать ещё</button>}
+      {hasMore&&<button onClick={()=>void loadMore()} disabled={refreshing||loading} className="w-full mt-2 rounded-app-xs border border-white/10 bg-bgCard/40 py-2 text-xs font-semibold text-white">Показать ещё</button>}
       </details>
     </Card>
     {loading&&<p className="text-xs text-textSecondary">Загрузка статистики…</p>}

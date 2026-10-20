@@ -7,10 +7,23 @@ export const signedHeaders = (): Record<string,string> => {
   return {'X-Telegram-Init-Data': data};
 };
 
+// Bound read requests so a lost connection cannot leave a screen loading forever.
+// No retries: mutation requests retain their existing behavior.
+const fetchRead = async (input:string, init:RequestInit):Promise<Response> => {
+  if ((init.method||'GET').toUpperCase()!=='GET') return fetch(input,init);
+  const controller=new AbortController();
+  const cancel=()=>controller.abort();
+  if(init.signal?.aborted)cancel();
+  init.signal?.addEventListener('abort',cancel,{once:true});
+  const timer=setTimeout(cancel,30000);
+  try {return await fetch(input,{...init,signal:controller.signal});}
+  finally {clearTimeout(timer);init.signal?.removeEventListener('abort',cancel);}
+};
+
 export const authorizedFetch = (input: string, init: RequestInit = {}): Promise<Response> => {
   const headers = new Headers(init.headers);
   headers.set('X-Telegram-Init-Data', signedHeaders()['X-Telegram-Init-Data']);
-  return fetch(input,{...init,headers});
+  return fetchRead(input,{...init,headers});
 };
 
 export class ApiError extends Error {
@@ -31,7 +44,7 @@ export const apiRequest = async <T>(endpoint: string, options: RequestInit = {})
   }
   let response: Response;
   try {
-    response = await fetch(API_BASE_URL + endpoint,{...options,headers});
+    response = await fetchRead(API_BASE_URL + endpoint,{...options,headers});
   } catch {
     throw new ApiError(0, 'network_error');
   }

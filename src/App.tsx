@@ -129,7 +129,6 @@ const AppLayout = () => {
 // Tools use the existing app shell and bottom navigation.
 
 const MiniApp = () => {
-  const [isLoading, setIsLoading] = useState(true);
   const [authState, setAuthState] = useState<'loading'|'ready'|'error'>('loading');
   const [authMessage, setAuthMessage] = useState('');
 
@@ -176,14 +175,7 @@ const MiniApp = () => {
     return () => { active = false; };
   }, []);
 
-  if (isLoading) {
-    return <Loader onComplete={() => setIsLoading(false)} />;
-  }
-  if (authState === 'loading') {
-    return <div role="status" className="min-h-[100dvh] flex items-center justify-center bg-bgMain p-6 text-center text-sm text-textSecondary">
-      Проверяем Telegram-подключение…
-    </div>;
-  }
+  if (authState === 'loading') return <Loader />;
   if (authState === 'error') {
     return <div role="alert" className="min-h-[100dvh] flex items-center justify-center bg-bgMain p-6 text-center text-sm text-textSecondary">
       <div className="max-w-xs rounded-card border border-accentGold/25 bg-bgCard p-5">

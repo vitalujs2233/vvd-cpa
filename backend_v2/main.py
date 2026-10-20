@@ -135,7 +135,7 @@ class WithdrawalRequest(BaseModel):
 
 
 @app.post("/auth")
-async def auth(payload: TelegramAuthRequest):
+def auth(payload: TelegramAuthRequest):
     # The Telegram user object and referral start_param must come from one
     # verified initData message; never trust a browser-supplied Telegram ID.
     try:
@@ -444,7 +444,7 @@ async def track_click(partner_code: str, vertical: str, request: Request):
 
 
 @app.get("/balance/{telegram_id}")
-async def get_balance(telegram_id: int):
+def get_balance(telegram_id: int):
     # On-demand, scoped, bounded release. Finish its transactions before reading balances.
     try:
         release_matured_holds(engine,limit=25,user_id=telegram_id)
@@ -489,7 +489,7 @@ async def get_balance(telegram_id: int):
                 "paid":float(paid), "historical_balance":float(user.balance), **finance}
 
 @app.get("/referral/{telegram_id}")
-async def get_referral(telegram_id: int):
+def get_referral(telegram_id: int):
 
     with engine.connect() as conn:
 
@@ -1085,7 +1085,7 @@ async def postback_traffcore(
 # Aggregates are computed from clicks, conversions and CPA ledger without
 # folding legacy demo income into real CPA figures.
 @app.get("/chat/banner")
-async def get_chat_banner():
+def get_chat_banner():
     with engine.connect() as conn:
         banner = conn.execute(
             text("""
@@ -1200,7 +1200,7 @@ async def update_chat_banner(payload: dict):
     }
 
 @app.get("/admin/finance")
-async def admin_finance():
+def admin_finance():
 
     from cpa_analytics import summarize, arguments
     with engine.connect() as conn:
@@ -1212,7 +1212,7 @@ async def admin_finance():
 
 
 @app.get("/admin/users")
-async def admin_users():
+def admin_users():
 
     from cpa_analytics import CONVERSION_ROWS, arguments
     params = {**arguments("all", None, None, None, None, None), "uid": None}
@@ -1268,7 +1268,7 @@ def _cpa_admin_actor(request: Request) -> int:
     return uid
 
 @app.get("/admin/cpa/partners/{partner_code}/hold")
-async def cpa_partner_hold(partner_code: str, request: Request):
+def cpa_partner_hold(partner_code: str, request: Request):
     _cpa_admin_actor(request)
     try:
         return {"success":True,**read_partner_hold(engine,partner_code)}
@@ -1340,7 +1340,7 @@ async def create_withdrawal(data: WithdrawalRequest):
     )
 
 @app.get("/withdrawals/{partner_code}")
-async def get_withdrawals(partner_code: str):
+def get_withdrawals(partner_code: str):
 
     with engine.connect() as conn:
 
@@ -1402,7 +1402,7 @@ async def get_withdrawals(partner_code: str):
 
 
 @app.get("/admin/withdrawals")
-async def admin_withdrawals(status: str | None = None):
+def admin_withdrawals(status: str | None = None):
     with engine.connect() as conn:
         rows = conn.execute(text("""
             SELECT w.id, w.user_id, w.amount, w.payment_method,
@@ -1606,7 +1606,7 @@ async def create_chat_message(payload: dict):
     }
 
 @app.get("/chat/messages")
-async def get_chat_messages():
+def get_chat_messages():
     with engine.connect() as conn:
         rows = conn.execute(
             text("""
@@ -1645,7 +1645,7 @@ async def get_chat_messages():
 ADMIN_TELEGRAM_ID = "232682307"
 
 @app.post("/chat/online")
-async def chat_online(data: dict):
+def chat_online(data: dict):
     telegram_id = int(data["telegram_id"])
 
     with engine.begin() as conn:
@@ -1661,7 +1661,7 @@ async def chat_online(data: dict):
 
 
 @app.get("/chat/online-count")
-async def chat_online_count():
+def chat_online_count():
     with engine.connect() as conn:
         count = conn.execute(
             text("""

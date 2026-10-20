@@ -27,7 +27,7 @@ export const Loader: React.FC<LoaderProps> = ({ onComplete }) => {
   }, []);
 
   useEffect(() => {
-    if (progress === 100) {
+    if (progress === 100 && onComplete) {
       // Кадр 7: При достижении 100% активируем ослепительную золотую вспышку на 300ms
       setShowFlash(true);
       
