@@ -32,7 +32,6 @@ export const IQPlay:React.FC=()=>{
   },[]);
   useEffect(()=>{void refresh();},[refresh]);
   useEffect(()=>{const id=window.setInterval(()=>setClock(x=>x+1),250);return()=>window.clearInterval(id);},[]);
-  void clock;
   const start=async()=>{setBusy(true);setError('');setFeedback('');try{sync(await apiRequest<Round>('/iq-play/rounds',{method:'POST'}));}catch(e){setError(e instanceof Error?e.message:'Не удалось начать игру');}finally{setBusy(false);}};
   const answer=async(choice:number)=>{if(!round||busy||round.status!=='active'||choice===round.blocked_index)return;
     setBusy(true);setError('');
@@ -44,6 +43,16 @@ export const IQPlay:React.FC=()=>{
     finally{setBusy(false);}
   };
   const seconds=remaining(round?.deadline,offset);
+  useEffect(()=>{
+    if(!round||round.status!=='active'||seconds!==0||busy)return;
+    let live=true;
+    setBusy(true);
+    void apiRequest<Round>(`/iq-play/rounds/${round.round_id}/timeout`,{method:'POST'})
+      .then(r=>{if(live){sync(r);if(r.status!=='active')void apiRequest<Profile>('/iq-play/profile').then(setProfile);}})
+      .catch(()=>{if(live)setError('Не удалось проверить таймер. Повторите попытку.');})
+      .finally(()=>{if(live)setBusy(false);});
+    return()=>{live=false;};
+  },[clock,round?.round_id,round?.deadline,round?.status,seconds,busy]);
   return <main className="iq-root">
     <header className="iq-header"><button onClick={()=>navigate('/')} aria-label="Назад"><ArrowLeft size={20}/></button><span>VVD <strong>IQ PLAY</strong></span><button onClick={()=>setMuted(x=>!x)} aria-label={muted?'Включить звук':'Выключить звук'}>{muted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button></header>
     <section className="iq-hero"><div className="iq-emblem"><Brain size={42}/><Crown size={20}/></div><h1>IQ PLAY</h1><p>Прокачай себя в арбитраже</p></section>
@@ -56,7 +65,7 @@ export const IQPlay:React.FC=()=>{
       <div className="iq-choices">{round.options?.map((option,i)=><button key={i} disabled={busy||i===round.blocked_index||seconds===0} onClick={()=>void answer(i)}><b>{'ABCD'[i]}</b>{option}</button>)}</div>
       {round.retry&&<p className="iq-warning" role="status">Неверный ответ или истекло время. Остался один шанс — 10 секунд.</p>}
       {feedback&&<p className="iq-muted">{feedback}</p>}
-      {seconds===0&&<button className="iq-primary" disabled={busy} onClick={()=>void answer(round.blocked_index===0?1:0)}>Зафиксировать истечение времени</button>}
+      {seconds===0&&<p className="iq-muted">Проверяем таймер на сервере…</p>}
       <p className="iq-muted">За раунд: {round.round_xp} XP</p>
     </>:round&&round.status!=='active'?<>
       <div className="iq-result">{round.status==='won'?<Trophy size={64}/>:<Brain size={64}/>}<h2>{round.status==='won'?'ПОБЕДА!':'ИГРА ОКОНЧЕНА'}</h2><p>Правильных ответов: {round.correct_count} / 15</p><p>Заработано {round.round_xp} XP</p></div>
