@@ -110,6 +110,7 @@ def start_round(x_telegram_init_data: str | None = Header(default=None)):
 
 
 class Answer(BaseModel):
+    position: int = Field(ge=1, le=15)
     choice: int = Field(ge=0, le=3)
     event_id: uuid.UUID
 
@@ -156,6 +157,8 @@ def submit(round_id: uuid.UUID, answer: Answer, x_telegram_init_data: str | None
             return {"outcome": previous, "round": current(conn, row)}
         if row["status"] != "active":
             return {"outcome": "finished", "round": current(conn, row)}
+        if answer.position != row["question_index"] + 1:
+            raise HTTPException(409, "stale_question")
         if row["retry"] and row["blocked_index"] == answer.choice:
             raise HTTPException(409, "option_blocked")
         q = conn.execute(text("SELECT correct_index FROM iq_round_questions WHERE round_id=:r AND position=:p"),
