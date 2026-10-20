@@ -1,12 +1,13 @@
+import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
 import React,{useEffect,useState} from 'react';
 import {cpaApi,type PostbackConfig,type PostbackCheckState} from '@/pages/offers/cpaApi';
 const control='w-full rounded-app-xs border border-white/10 bg-bgCard px-3 py-2 text-xs text-textPrimary';
 const fieldNames=['click','transaction','status','amount','currency'] as const;
 export const NetworkPostback:React.FC<{id:number}>=({id})=>{
- const [data,setData]=useState<PostbackConfig|null>(null),[secret,setSecret]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
- const [mapText,setMapText]=useState('');
+ const [data,setData]=useState<PostbackConfig|null>(()=>readApiSnapshot('/cpa/admin/networks/'+id+'/postback')||null),[secret,setSecret]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
+ const [mapText,setMapText]=useState(()=>JSON.stringify(readApiSnapshot('/cpa/admin/networks/'+id+'/postback')?.postback_status_map||{},null,2));
  const [checkState,setCheckState]=useState<PostbackCheckState|null>(null),[checkError,setCheckError]=useState('');
- useEffect(()=>{let valid=true;setSecret('');setError('');setData(null);setCheckState(null);setCheckError('');
+ useEffect(()=>{let valid=true;setSecret('');setError('');setData(readApiSnapshot('/cpa/admin/networks/'+id+'/postback')||null);setCheckState(null);setCheckError('');
  if(id===2)cpaApi.getPostbackCheck(id).then(x=>{if(valid)setCheckState(x)}).catch(()=>{if(valid)setCheckError('Не удалось загрузить результат проверки. Попробуйте открыть раздел заново.')});
  cpaApi.getPostback(id).then(x=>{if(valid){setData(x);setMapText(JSON.stringify(x.postback_status_map,null,2))}}).catch(e=>{if(valid)setError(String(e))});
  return()=>{valid=false};},[id]);

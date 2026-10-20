@@ -1,3 +1,4 @@
+import {preloadPages} from './preloadPages';
 import {API_BASE_URL, authorizedFetch} from './api';
 import {CHAT_SNAPSHOT_KEY,normalizeChatMessages} from './chatSnapshot';
 import {saveSnapshot} from './viewSnapshot';
@@ -18,7 +19,7 @@ export const statisticsSnapshotKey=(url:string)=>
 
 export class StartupDataError extends Error {}
 let pending:{session:string;id:number;promise:Promise<void>}|undefined;
-export function preloadStartupData(id:number):Promise<void> {
+export function preloadStartupData(id:number,partnerCode='',role='user'):Promise<void> {
   const session=window.Telegram?.WebApp?.initData||'';
   if(pending?.session===session&&pending.id===id)return pending.promise;
   const stats=statisticsSources(id,new URLSearchParams({period:'today',tz:statisticsTimezone}));
@@ -38,6 +39,8 @@ export function preloadStartupData(id:number):Promise<void> {
     }));
     if(results.some(result=>result.status==='rejected'))
       throw new StartupDataError('Не удалось загрузить данные. Проверьте соединение и нажмите «Повторить».');
+    if(window.Telegram?.WebApp?.initData!==session)throw new StartupDataError('Сессия изменилась. Откройте приложение заново.');
+    try{await preloadPages(id,partnerCode,role);}catch(e){throw new StartupDataError(e instanceof Error?e.message:'Не удалось загрузить страницы');}
   })().finally(()=>{if(pending?.promise===promise)pending=undefined;});
   pending={session,id,promise};
   return promise;

@@ -1,3 +1,4 @@
+import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Bot, Check, ChevronRight, Clock, Copy, CreditCard, FileClock, Globe2, History, Package, Phone, Plus, Server, Settings2, ShieldCheck, Wallet, Wrench } from 'lucide-react';
@@ -20,8 +21,10 @@ const Shell:React.FC<{children:React.ReactNode}>=({children})=><main className="
 const Empty:React.FC<{title:string;subtitle?:string}>=({title,subtitle})=><Card className="flex flex-col items-center gap-2 py-8 text-center"><Package size={25} className="text-accentBrightGold"/><b className="text-sm">{title}</b>{subtitle&&<p className="text-xs text-textSecondary">{subtitle}</p>}</Card>;
 const Status:React.FC<{children:React.ReactNode}>=({children})=><p className="rounded-app-xs border border-white/10 bg-white/[0.03] p-3 text-xs leading-5 text-textSecondary">{children}</p>;
 const useRemote = <T,>(load:()=>Promise<T>, fallback:T) => {
-  const [value,setValue]=useState<T>(fallback),[loading,setLoading]=useState(true),[error,setError]=useState('');
-  const refresh=useCallback(async()=>{setLoading(true);setError('');try{setValue(await load());}catch(e){setError(toText(e));}finally{setLoading(false);}},[load]);
+  const path=load===readWallet?'/wallet':load===readCatalog?'/catalog':load===readTransactions?'/transactions':load===readOrders?'/orders':'/ai';
+  const cached=()=>readApiSnapshot<T>('/tools-market'+path);
+  const [value,setValue]=useState<T>(()=>cached()??fallback),[loading,setLoading]=useState(!cached()),[error,setError]=useState('');
+  const refresh=useCallback(async()=>{setLoading(!cached());setError('');try{setValue(await load());}catch(e){setError(toText(e));}finally{setLoading(false);}},[load]);
   useEffect(()=>{void refresh();},[refresh]);
   return {value,loading,error,refresh};
 };
@@ -45,7 +48,7 @@ export const Tools:React.FC=()=>{
         <Link to="/tools/history" className="flex flex-1 items-center justify-center gap-2 rounded-app-xs border border-accentGold/30 px-3 py-3 text-sm font-bold text-accentBrightGold"><History size={16}/> История</Link>
       </div>
       {w.loading&&<p className="text-xs text-textSecondary">Обновляем баланс…</p>}
-      {w.error&&<Status>{w.error} Отображается $0.00 до подключения к серверу.</Status>}
+      {w.error&&<Status>{w.error}</Status>}
     </Card>
     <div className="flex items-center justify-between"><h2 className="text-base font-bold">Каталог сервисов</h2><Link to="/tools/purchases" className="text-xs font-semibold text-accentBrightGold">Мои покупки →</Link></div>
     <div className="grid grid-cols-2 gap-3">

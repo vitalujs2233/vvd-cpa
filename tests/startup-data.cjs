@@ -10,6 +10,7 @@ const snapshots=load('src/shared/lib/viewSnapshot.ts');
 let requests=[];
 const startup=load('src/shared/lib/startupData.ts',{
   './viewSnapshot':snapshots,
+  './preloadPages':{preloadPages:async()=>{}},
   './chatSnapshot':load('src/shared/lib/chatSnapshot.ts'),
   './api':{API_BASE_URL:'https://isolated',authorizedFetch:url=>new Promise(resolve=>requests.push({url,resolve}))}
 });

@@ -1,3 +1,4 @@
+import {saveSnapshot} from './viewSnapshot';
 /** VVD CPA primary backend_v2 API. No synthetic bearer token or client-side identity. */
 export const API_BASE_URL = 'https://vvd-cpa-v2.onrender.com';
 
@@ -42,6 +43,7 @@ export const apiRequest = async <T>(endpoint: string, options: RequestInit = {})
   if (endpoint !== '/auth' && window.Telegram?.WebApp?.initData && !headers.has('X-Telegram-Init-Data')) {
     headers.set('X-Telegram-Init-Data',window.Telegram.WebApp.initData);
   }
+  const requestSession=window.Telegram?.WebApp?.initData;
   let response: Response;
   try {
     response = await fetchRead(API_BASE_URL + endpoint,{...options,headers});
@@ -56,7 +58,9 @@ export const apiRequest = async <T>(endpoint: string, options: RequestInit = {})
       : typeof raw === 'string' ? raw : 'http_error';
     throw new ApiError(response.status, code);
   }
-  return await response.json() as T;
+  const result=await response.json() as T;
+  if((options.method||'GET').toUpperCase()==='GET'&&requestSession===window.Telegram?.WebApp?.initData)saveSnapshot('api:'+endpoint,result);
+  return result;
 };
 
 export interface AuthResponse {

@@ -1,5 +1,5 @@
 import './Dvizh.css';
-import {readSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
+import {readSnapshot,readApiSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import {CHAT_SNAPSHOT_KEY,normalizeChatMessages,type ChatMessage} from '@/shared/lib/chatSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
@@ -93,7 +93,7 @@ const isAdmin = currentUser.id.toString() === ADMIN_ID;
       return value;
     } catch { return 5+Math.floor(Math.random()*96); }
   });
-const [banner, setBanner] = useState<ChatBanner | null>(null);
+const [banner, setBanner] = useState<ChatBanner | null>(()=>readApiSnapshot('/chat/banner')?.banner||null);
 const [onlineCount, setOnlineCount] = useState(0);
 useEffect(() => {
   const loadBanner = async () => {

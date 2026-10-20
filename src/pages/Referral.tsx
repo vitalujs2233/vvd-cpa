@@ -1,3 +1,4 @@
+import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
@@ -8,7 +9,7 @@ import { apiRequest } from '@/shared/lib/api';
 export const Referral: React.FC = () => {
   const navigate = useNavigate();
 
-  const [referral, setReferral] = useState<any>(null);
+  const [referral, setReferral] = useState<any>(()=>readApiSnapshot(`/referral/${getTelegramUser().id}`)||null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -82,7 +83,7 @@ setReferral(data);
 
       </Card>
 
-      {loading && <p role="status" className="text-xs text-textSecondary">Загружаем ваш VVD-код…</p>}
+      {loading && !referral && <p role="status" className="text-xs text-textSecondary">Загружаем ваш VVD-код…</p>}
       {error && <p role="alert" className="text-xs text-error">{error}</p>}
 
       <Card padding="lg">

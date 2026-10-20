@@ -1,3 +1,4 @@
+import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
 import React,{useEffect,useState} from 'react';
 import {ArrowLeft,Plus,Save} from 'lucide-react';
 import {Card} from '@/shared/ui/Card';
@@ -10,10 +11,10 @@ const sampleVertical:Vertical={slug:'',title:'',description:'',icon_name:'layers
 const sampleOffer:Offer={id:'',title:'',vertical_slug:'',network_id:null,description:'',icon_name:'layers',image_url:null,offer_type:'offer',source_url:null,geo:'',traffic_restrictions:'',payment_model:'CPA',currency:'USD',payout_terms:'',status:'draft',display_order:0,commission_percent:'20',hold_override_days:10,click_param_override:null};
 export const CPAManager:React.FC<{onBack:()=>void}>=({onBack})=>{
  const [section,setSection]=useState<Section>('networks');
- const [networks,setNetworks]=useState<Network[]>([]),[verticals,setVerticals]=useState<Vertical[]>([]),[offers,setOffers]=useState<Offer[]>([]);
+ const [networks,setNetworks]=useState<Network[]>(()=>readApiSnapshot('/cpa/admin/networks')?.items||[]),[verticals,setVerticals]=useState<Vertical[]>(()=>readApiSnapshot('/cpa/admin/verticals')?.items||[]),[offers,setOffers]=useState<Offer[]>(()=>readApiSnapshot('/cpa/admin/offers')?.items||[]);
  const [editing,setEditing]=useState(false),[network,setNetwork]=useState<Network>(sampleNetwork),[vertical,setVertical]=useState<Vertical>(sampleVertical),[offer,setOffer]=useState<Offer>(sampleOffer);
- const [exists,setExists]=useState(false),[saving,setSaving]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState('');
- const reload=async()=>{setLoading(true);setError('');try{
+ const [exists,setExists]=useState(false),[saving,setSaving]=useState(false),[loading,setLoading]=useState(!readApiSnapshot('/cpa/admin/networks')),[error,setError]=useState(''),[notice,setNotice]=useState('');
+ const reload=async()=>{setLoading(!readApiSnapshot('/cpa/admin/networks'));setError('');try{
    const [a,b,c]=await Promise.all([cpaApi.networks(),cpaApi.verticals(),cpaApi.offers()]);
    setNetworks(a.items);setVerticals(b.items);setOffers(c.items);
  }catch(e){setError(e instanceof Error?e.message:'Ошибка сервера')}finally{setLoading(false)}};

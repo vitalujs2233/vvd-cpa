@@ -1,3 +1,4 @@
+import {readSnapshot,readApiSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -33,21 +34,31 @@ interface WithdrawalItem {
 
 export const Withdrawal: React.FC = () => {
   const navigate = useNavigate();
+  const telegramId=window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+  const account=readSnapshot<any>(`account:${telegramId}`);
+  const cachedBalance=readSnapshot<any>(`balance:${telegramId}`);
+  const cachedCode=account?.partner_code||'';
+  const historyPath='/withdrawals/'+encodeURIComponent(cachedCode);
+  const cachedHistory=readApiSnapshot(historyPath);
+  const [hasBalance,setHasBalance]=useState(Boolean(cachedBalance));
+  const [hasHistory,setHasHistory]=useState(Boolean(cachedHistory));
+  const [loadError,setLoadError]=useState('');
+  const loadVersion=useRef(0);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [activeSubView, setActiveSubView] = useState<
     'withdraw' | 'history'
-  >('withdraw');
+  >(()=>searchParams.get('tab')==='history'?'history':'withdraw');
 
   const [amount, setAmount] = useState('');
   const [wallet, setWallet] = useState('');
 
-  const [available, setAvailable] = useState(0);
-  const [profileBalance, setProfileBalance] = useState(0);
-  const [realFinanceActive, setRealFinanceActive] = useState(false);
-  const [realFinanceAvailable, setRealFinanceAvailable] = useState(false);
-  const [partnerCode, setPartnerCode] = useState('');
-  const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>([]);
+  const [available, setAvailable] = useState(Number(cachedBalance?.real_withdrawable||0));
+  const [profileBalance, setProfileBalance] = useState(Number(cachedBalance?.available||0));
+  const [realFinanceActive, setRealFinanceActive] = useState(Boolean(cachedBalance?.real_finance_active));
+  const [realFinanceAvailable, setRealFinanceAvailable] = useState(Boolean(cachedBalance?.real_finance_available));
+  const [partnerCode, setPartnerCode] = useState(cachedCode);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>(()=>cachedHistory?.withdrawals||[]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,8 +69,6 @@ export const Withdrawal: React.FC = () => {
     wallet?: string;
   }>({});
 
-  const telegramId =
-    window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -72,72 +81,34 @@ export const Withdrawal: React.FC = () => {
   }, [searchParams]);
 
   const loadData = async () => {
-    if (!telegramId) {
-      setIsLoading(false);
-      return;
-    }
-
+    if(!telegramId)return;
+    const version=++loadVersion.current;
+    setIsLoading(true);setLoadError('');
     try {
-      setIsLoading(true);
-      // Fail closed on refresh or any unavailable/mismatched backend response.
-      setAvailable(0);
-      setRealFinanceActive(false);
-      setRealFinanceAvailable(false);
-
-      const [balanceResponse, partnerResponse] =
-        await Promise.all([
-          authorizedFetch(`${API_URL}/balance/${telegramId}`),
-          authorizedFetch(`${API_URL}/smartlink/${telegramId}/adult`),
-        ]);
-
-      const balanceData = await balanceResponse.json();
-      const partnerData = await partnerResponse.json();
-
-      if (!balanceResponse.ok || !partnerResponse.ok ||
-          typeof balanceData.real_withdrawable !== 'number' ||
-          !Number.isFinite(balanceData.real_withdrawable) ||
-          typeof balanceData.real_finance_active !== 'boolean' ||
-          typeof balanceData.real_finance_available !== 'boolean') {
-        throw new Error('Не удалось получить подтверждённый доступный остаток');
+      let code=partnerCode||cachedCode;
+      if(!code){
+        const r=await authorizedFetch(`${API_URL}/smartlink/${telegramId}/adult`);
+        const d=await r.json();if(!r.ok||!d.partner_code)throw new Error();code=d.partner_code;
       }
-      setProfileBalance(Number(balanceData.available || 0));
-      setRealFinanceActive(balanceData.real_finance_active);
-      setRealFinanceAvailable(balanceData.real_finance_available);
-      setAvailable(balanceData.real_finance_active && balanceData.real_finance_available
-        ? Math.max(0, balanceData.real_withdrawable) : 0);
-
-      const resolvedPartnerCode = String(
-        partnerData.partner_code || ''
-      ).trim();
-
-      if (!resolvedPartnerCode) {
-        throw new Error('Не удалось определить партнерский код');
-      }
-
-      setPartnerCode(resolvedPartnerCode);
-
-      const withdrawalsResponse = await authorizedFetch(
-        `${API_URL}/withdrawals/${encodeURIComponent(resolvedPartnerCode)}`
-      );
-
-      const withdrawalsData = await withdrawalsResponse.json();
-
-      setWithdrawals(
-        Array.isArray(withdrawalsData.withdrawals)
-          ? withdrawalsData.withdrawals
-          : []
-      );
-    } catch (error) {
-      console.error('Withdrawal load error:', error);
-      triggerHaptic.error();
-    } finally {
-      setIsLoading(false);
-    }
+      const path='/withdrawals/'+encodeURIComponent(code);
+      const [balanceResponse,historyResponse]=await Promise.all([
+        authorizedFetch(`${API_URL}/balance/${telegramId}`),authorizedFetch(API_URL+path)
+      ]);
+      const [balanceData,historyData]=await Promise.all([balanceResponse.json(),historyResponse.json()]);
+      if(version!==loadVersion.current)return;
+      if(!balanceResponse.ok||!historyResponse.ok||!Array.isArray(historyData.withdrawals)||
+        typeof balanceData.real_withdrawable!=='number'||!Number.isFinite(balanceData.real_withdrawable)||
+        typeof balanceData.real_finance_active!=='boolean'||typeof balanceData.real_finance_available!=='boolean')throw new Error();
+      saveSnapshot(`balance:${telegramId}`,balanceData);saveSnapshot('api:'+path,historyData);
+      setProfileBalance(Number(balanceData.available||0));
+      setRealFinanceActive(balanceData.real_finance_active);setRealFinanceAvailable(balanceData.real_finance_available);
+      setAvailable(balanceData.real_finance_active&&balanceData.real_finance_available?Math.max(0,balanceData.real_withdrawable):0);
+      setPartnerCode(code);setWithdrawals(historyData.withdrawals);setHasBalance(true);setHasHistory(true);
+    }catch {
+      if(version===loadVersion.current){setRealFinanceAvailable(false);setLoadError('Не удалось обновить данные. Показаны последние полученные сведения.');}
+    }finally{if(version===loadVersion.current)setIsLoading(false);}
   };
-
-  useEffect(() => {
-    loadData();
-  }, [telegramId]);
+  useEffect(()=>{void loadData();return()=>{loadVersion.current++;};},[telegramId]);
 
   const handleBackToMain = () => {
     triggerHaptic.lightImpact();
@@ -377,7 +348,7 @@ export const Withdrawal: React.FC = () => {
               </span>
 
               <span className="font-bold text-success">
-                {isLoading
+                {!hasBalance
                   ? '...'
                   : `$${available.toFixed(2)}`}
               </span>
@@ -524,23 +495,23 @@ export const Withdrawal: React.FC = () => {
         </div>
       )}
 
+      {loadError&&<p role="alert" className="text-xs text-error">{loadError} <button onClick={()=>void loadData()} className="underline">Повторить</button></p>}
       {activeSubView === 'history' && (
         <div className="flex flex-col gap-3 animate-fade-in">
 
-          {isLoading && (
+          {isLoading && !hasHistory && (
             <div className="text-xs text-textSecondary text-center py-10">
               Загрузка выплат...
             </div>
           )}
 
-          {!isLoading && withdrawals.length === 0 && (
+          {hasHistory && withdrawals.length === 0 && (
             <div className="text-xs text-textSecondary text-center py-10">
               История выплат пока пуста
             </div>
           )}
 
-          {!isLoading &&
-            withdrawals.map((tx) => {
+          {withdrawals.map((tx) => {
               const status = getStatus(tx.status);
 
               return (

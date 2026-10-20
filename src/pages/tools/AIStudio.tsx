@@ -1,3 +1,4 @@
+import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
 import React,{useEffect,useState} from 'react';
 import {Link,useNavigate,useParams} from 'react-router-dom';
 import {ArrowLeft,Plus,Copy,Trash2,ExternalLink,Upload,Image as PhotoIcon} from 'lucide-react';
@@ -15,7 +16,7 @@ const Field:React.FC<{label:string;value:string;set:(value:string)=>void;long?:b
 const stateName=(x:string)=>x==='published'?'Опубликован':x==='disabled'?'Отключён':'Черновик';
 
 export const AIModelsPage:React.FC=()=>{
-  const [models,setModels]=useState<Character[]>([]),[stats,setStats]=useState<Record<string,ModelStats>>({}),[error,setError]=useState(''),[busy,setBusy]=useState(true);
+  const [models,setModels]=useState<Character[]>(()=>readApiSnapshot('/tools-market/ai')?.models||[]),[stats,setStats]=useState<Record<string,ModelStats>>(()=>Object.fromEntries((readApiSnapshot('/tools-market/ai')?.models||[]).map((m:any)=>[m.id,readApiSnapshot('/ai-studio/models/'+m.id+'/stats')||{}]))),[error,setError]=useState(''),[busy,setBusy]=useState(!readApiSnapshot('/tools-market/ai'));
   useEffect(()=>{marketApi.models().then(async r=>{
     setModels(r.models);
     const results=await Promise.allSettled(r.models.filter(m=>m.id).map(m=>aiApi.stats(m.id!)));
@@ -43,9 +44,9 @@ export const AIModelsPage:React.FC=()=>{
 };
 export const AIEditor:React.FC=()=>{
   const {id}=useParams();const nav=useNavigate();
-  const [model,setModel]=useState<Character>({...defaultModel}),[links,setLinks]=useState<Smartlink[]>([]),[photos,setPhotos]=useState<Photo[]>([]);
+  const [model,setModel]=useState<Character>(()=>readApiSnapshot('/tools-market/ai/'+id)||{...defaultModel}),[links,setLinks]=useState<Smartlink[]>(()=>readApiSnapshot('/ai-studio/my-smartlinks')?.links||[]),[photos,setPhotos]=useState<Photo[]>(()=>readApiSnapshot('/ai-studio/models/'+id+'/photos')?.photos||[]);
   const [tab,setTab]=useState<'profile'|'chat'|'photos'|'link'>('profile'),[linkKind,setLinkKind]=useState<'smartlink'|'external'>('smartlink');
-  const [settings,setSettings]=useState<ConversationSettings>({chat_style:'friendly',reply_length:'medium',photo_mode:'combined'});
+  const [settings,setSettings]=useState<ConversationSettings>(()=>readApiSnapshot('/ai-studio/models/'+id+'/settings')||{chat_style:'friendly',reply_length:'medium',photo_mode:'combined'});
   const [chosen,setChosen]=useState(''),[customStyle,setCustomStyle]=useState(false),[uploading,setUploading]=useState(false),[rightsConfirmed,setRightsConfirmed]=useState(false),[saving,setSaving]=useState(false);
   const [error,setError]=useState(''),[notice,setNotice]=useState('');
   const update=(key:keyof Character,value:string|null)=>setModel(m=>({...m,[key]:value}));

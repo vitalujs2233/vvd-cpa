@@ -1,3 +1,4 @@
+import {saveSnapshot} from '@/shared/lib/viewSnapshot';
 import {preloadStartupData, StartupDataError} from '@/shared/lib/startupData';
 import React, { useState, useEffect } from 'react';
 import { MemoryRouter, Routes, Route, NavLink, Outlet } from 'react-router-dom';
@@ -150,7 +151,8 @@ const MiniApp = () => {
         const response = await loginViaTelegramApi();
         if (active) {
           localStorage.setItem('vvd_cpa_user_data', JSON.stringify(response.user));
-          await preloadStartupData(response.user.telegram_id);
+          saveSnapshot(`account:${response.user.telegram_id}`,response.user);
+          await preloadStartupData(response.user.telegram_id,response.user.partner_code,response.user.role);
           if(active)setAuthState('ready');
         }
       } catch (cause) {

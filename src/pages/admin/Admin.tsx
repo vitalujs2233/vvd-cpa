@@ -1,3 +1,4 @@
+import {readApiSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import { CPAManager } from './CPAManager';
 import { CPAUserHold } from './CPAUserHold';
@@ -87,25 +88,28 @@ export const Admin: React.FC = () => {
   'cpa'
 >('menu');
   const [searchQuery, setSearchQuery] = useState('');
-  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>(()=>readApiSnapshot('/admin/users')?.users||[]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [countryStats, setCountryStats] = useState<CountryStat[]>([]);
   const [userStatsLoading, setUserStatsLoading] = useState(false);
-  const [finance, setFinance] = useState<FinanceStat | null>(null);
+  const [finance, setFinance] = useState<FinanceStat | null>(()=>readApiSnapshot('/admin/finance')||null);
   const [financeLoading, setFinanceLoading] = useState(false);
-  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
+  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>(()=>readApiSnapshot('/admin/withdrawals')?.withdrawals||[]);
   const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
   const [withdrawalFilter, setWithdrawalFilter] = useState<'all' | 'pending' | 'paid' | 'rejected'>('all');
   const [withdrawalOrigin, setWithdrawalOrigin] = useState<'real'|'historical'>('real');
   const [withdrawalSearch, setWithdrawalSearch] = useState('');
   const [processingWithdrawalId, setProcessingWithdrawalId] = useState<number | null>(null);
-  const [chatBanner, setChatBanner] = useState<ChatBanner | null>(null);
+  const [chatBanner, setChatBanner] = useState<ChatBanner | null>(()=>readApiSnapshot('/chat/banner')?.banner||null);
   const [bannerLoading, setBannerLoading] = useState(false);
   const [bannerSaving, setBannerSaving] = useState(false);
-  const [chatBans, setChatBans] = useState<ChatBan[]>([]);
+  const [chatBans, setChatBans] = useState<ChatBan[]>(()=>readApiSnapshot('/admin/chat/bans')?.bans||[]);
   const [chatBansLoading, setChatBansLoading] = useState(false);
 
+  useEffect(()=>{if(adminUsers.length)saveSnapshot('api:/admin/users',{success:true,users:adminUsers});},[adminUsers]);
+  useEffect(()=>{saveSnapshot('api:/admin/withdrawals',{success:true,withdrawals});},[withdrawals]);
+  useEffect(()=>{if(finance)saveSnapshot('api:/admin/finance',finance);},[finance]);
   useEffect(() => {
     if (subView !== 'menu') return;
 
@@ -357,8 +361,9 @@ const saveChatBanner = async () => {
     triggerHaptic.lightImpact();
     setSelectedUser(user);
     setSubView('user');
-    setCountryStats([]);
-    setUserStatsLoading(true);
+    const cached=readApiSnapshot('/statistics/'+user.telegram_id+'/countries');
+    setCountryStats(cached?.countries||[]);
+    setUserStatsLoading(!cached);
 
     try {
       const countriesResponse = await authorizedFetch(
@@ -366,6 +371,7 @@ const saveChatBanner = async () => {
       const countriesData = await countriesResponse.json();
 
       if (countriesData.success && Array.isArray(countriesData.countries)) {
+        saveSnapshot('api:/statistics/'+user.telegram_id+'/countries',countriesData);
         setCountryStats(countriesData.countries);
       }
     } catch (error) {
@@ -613,7 +619,7 @@ const saveChatBanner = async () => {
       </div>
     </div>
 
-    {bannerLoading || !chatBanner ? (
+    {!chatBanner ? (
       <div className="py-24 text-center text-textSecondary text-xs">
         Загрузка рекламы...
       </div>
@@ -1059,7 +1065,7 @@ const saveChatBanner = async () => {
       </div>
     </div>
 
-    {chatBansLoading ? (
+    {chatBansLoading && !readApiSnapshot('/admin/chat/bans') ? (
       <div className="py-24 text-center text-textSecondary">
         Загрузка...
       </div>

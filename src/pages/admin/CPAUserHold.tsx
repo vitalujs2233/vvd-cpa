@@ -1,3 +1,4 @@
+import {readApiSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import React,{useEffect,useState} from 'react';
 import {authorizedFetch} from '@/shared/lib/api';
 import {Card} from '@/shared/ui/Card';
@@ -9,7 +10,7 @@ type Snapshot={success:boolean;real_finance_active:boolean;early_release_enabled
   cpa_hold:string;real_withdrawable:string;credits:Credit[]};
 const API='https://vvd-cpa-v2.onrender.com';
 export const CPAUserHold:React.FC<{partnerCode:string}>=({partnerCode})=>{
-  const [data,setData]=useState<Snapshot|null>(null),[chosen,setChosen]=useState('');
+  const [data,setData]=useState<Snapshot|null>(()=>readApiSnapshot('/admin/cpa/partners/'+encodeURIComponent(partnerCode)+'/hold')||null),[chosen,setChosen]=useState('');
   const [amount,setAmount]=useState(''),[reason,setReason]=useState('');
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState('');
   const [requestId,setRequestId]=useState<string|null>(null);
@@ -19,10 +20,11 @@ export const CPAUserHold:React.FC<{partnerCode:string}>=({partnerCode})=>{
     if(!r.ok)throw new Error('CPA hold пока недоступен');
     const json:Snapshot=await r.json();
     if(!json.success)throw new Error('Вебмастер не найден');
+    saveSnapshot('api:/admin/cpa/partners/'+encodeURIComponent(partnerCode)+'/hold',json);
     setData(json);
   };
   useEffect(()=>{
-    setData(null);setChosen('');setNotice('');
+    setData(readApiSnapshot('/admin/cpa/partners/'+encodeURIComponent(partnerCode)+'/hold')||null);setChosen('');setNotice('');
     load().catch(e=>setNotice(String(e.message||e)));
   },[partnerCode]);
   const selected=data?.credits.find(x=>x.conversion_id===chosen);
