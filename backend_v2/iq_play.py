@@ -193,3 +193,93 @@ def submit(round_id: uuid.UUID, answer: Answer, x_telegram_init_data: str | None
                "o": outcome, "xp": gained if correct else 0})
         updated = conn.execute(text("SELECT * FROM iq_rounds WHERE id=:r"), {"r": round_id}).mappings().one()
         return {"outcome": outcome, "round": current(conn, updated)}
+
+
+@router.get("/achievements")
+def achievements(x_telegram_init_data: str | None = Header(default=None)):
+    uid = user_id(x_telegram_init_data)
+    with engine.connect() as conn:
+        return [dict(row) for row in conn.execute(text("""
+            SELECT a.code,a.title,a.description,ua.unlocked_at
+            FROM iq_achievements a LEFT JOIN iq_user_achievements ua
+            ON ua.code=a.code AND ua.user_id=:u ORDER BY a.code
+        """), {"u": uid}).mappings()]
+
+
+@router.get("/history")
+def history(x_telegram_init_data: str | None = Header(default=None)):
+    uid = user_id(x_telegram_init_data)
+    with engine.connect() as conn:
+        return [dict(row) for row in conn.execute(text("""
+            SELECT id,status,correct_count,xp,created_at,finished_at
+            FROM iq_rounds WHERE user_id=:u ORDER BY created_at DESC LIMIT 30
+        """), {"u": uid}).mappings()]
+
+
+class QuestionInput(BaseModel):
+    prompt: str = Field(min_length=15, max_length=1000)
+    options: list[str] = Field(min_length=4, max_length=4)
+    correct_index: int = Field(ge=0, le=3)
+    category: str = Field(min_length=2, max_length=80)
+    difficulty: int = Field(ge=1, le=5)
+    enabled: bool = True
+
+
+def require_admin(raw: str | None):
+    from access_guard import authorized_admin
+    uid = user_id(raw)
+    if not authorized_admin(uid):
+        raise HTTPException(403, "admin_required")
+    return uid
+
+
+@router.get("/admin/questions")
+def list_questions(x_telegram_init_data: str | None = Header(default=None)):
+    require_admin(x_telegram_init_data)
+    with engine.connect() as conn:
+        return [dict(row) for row in conn.execute(text("""
+            SELECT id,version,prompt,options,correct_index,category,difficulty,enabled
+            FROM iq_questions ORDER BY id DESC LIMIT 500
+        """)).mappings()]
+
+
+@router.post("/admin/questions")
+def create_question(item: QuestionInput, x_telegram_init_data: str | None = Header(default=None)):
+    require_admin(x_telegram_init_data)
+    with engine.begin() as conn:
+        qid = conn.execute(text("""
+            INSERT INTO iq_questions(prompt,options,correct_index,category,difficulty,enabled)
+            VALUES (:p,CAST(:o AS jsonb),:c,:cat,:d,:en) RETURNING id
+        """), {"p": item.prompt, "o": json.dumps(item.options, ensure_ascii=False),
+               "c": item.correct_index, "cat": item.category, "d": item.difficulty,
+               "en": item.enabled}).scalar_one()
+    return {"id": qid}
+
+
+@router.put("/admin/questions/{question_id}")
+def update_question(question_id: int, item: QuestionInput,
+                    x_telegram_init_data: str | None = Header(default=None)):
+    require_admin(x_telegram_init_data)
+    with engine.begin() as conn:
+        changed = conn.execute(text("""
+            UPDATE iq_questions SET version=version+1,prompt=:p,options=CAST(:o AS jsonb),
+            correct_index=:c,category=:cat,difficulty=:d,enabled=:en
+            WHERE id=:id RETURNING id,version
+        """), {"id": question_id, "p": item.prompt, "o": json.dumps(item.options, ensure_ascii=False),
+               "c": item.correct_index, "cat": item.category, "d": item.difficulty,
+               "en": item.enabled}).mappings().first()
+        if not changed:
+            raise HTTPException(404, "question_not_found")
+        return dict(changed)
+
+
+@router.delete("/admin/questions/{question_id}")
+def disable_question(question_id: int, x_telegram_init_data: str | None = Header(default=None)):
+    require_admin(x_telegram_init_data)
+    with engine.begin() as conn:
+        changed = conn.execute(text("""
+            UPDATE iq_questions SET enabled=FALSE,version=version+1 WHERE id=:id RETURNING id
+        """), {"id": question_id}).first()
+        if not changed:
+            raise HTTPException(404, "question_not_found")
+    return {"disabled": True}
