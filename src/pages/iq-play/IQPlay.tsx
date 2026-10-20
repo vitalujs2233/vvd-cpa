@@ -67,7 +67,7 @@ export const IQPlay:React.FC=()=>{
       {feedback&&<p className="iq-muted">{feedback}</p>}
       {seconds===0&&<p className="iq-muted">Проверяем таймер на сервере…</p>}
       <p className="iq-muted">За раунд: {round.round_xp} XP</p>
-    </>:round&&round.status!=='active'?<>
+    </>:round?<>
       <div className="iq-result">{round.status==='won'?<Trophy size={64}/>:<Brain size={64}/>}<h2>{round.status==='won'?'ПОБЕДА!':'ИГРА ОКОНЧЕНА'}</h2><p>Правильных ответов: {round.correct_count} / 15</p><p>Заработано {round.round_xp} XP</p></div>
       <button className="iq-primary" disabled={busy} onClick={()=>void start()}>Играть снова</button>
     </>:<>
