@@ -3,7 +3,7 @@ import {readSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wallet, History, Sparkles, Flame, Crown } from 'lucide-react';
+import { Wallet, History, Sparkles, Flame, Crown, Brain } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
@@ -80,11 +80,14 @@ export const Home: React.FC = () => {
           </div>
         </div>
 
+        <div className="flex items-center gap-1.5 ml-auto shrink-0">
         <button type="button" aria-label="Открыть Движ" onClick={handleDvizhClick}
           className="home-dvizh-button relative ml-auto shrink-0 overflow-hidden flex h-10 items-center gap-1 rounded-full border border-accentGold/20 bg-accentGold/10 px-2.5 text-accentBrightGold transition-transform">
           <Flame size={16} className="home-dvizh-flame relative z-10" />
           <span className="relative z-10 text-[11px] font-bold">Движ</span>
         </button>
+        <button type="button" aria-label="Открыть IQ Play" onClick={()=>{triggerHaptic.lightImpact();navigate("/iq-play");}} className="flex h-10 items-center gap-1 rounded-full border border-amber-400/50 bg-amber-400/10 px-2 text-amber-300 text-[11px] font-bold"><Brain size={16}/>IQ Play</button>
+        </div>
       </Card>
 
       {((loading&&!balance)||error)&&<p role="status" className="text-xs text-textSecondary">
