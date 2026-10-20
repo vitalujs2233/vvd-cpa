@@ -18,38 +18,44 @@ export const IQPlay:React.FC=()=>{
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [muted,setMuted]=useState(true);
-  const audioRef=useRef<AudioContext|null>(null);
-  const playNote=useCallback((frequency:number,duration=0.16,volume=0.025)=>{
-    try{
-      const ctx=audioRef.current ?? new AudioContext();
-      audioRef.current=ctx;
-      if(ctx.state==='suspended')void ctx.resume();
-      const osc=ctx.createOscillator(),gain=ctx.createGain();
-      osc.type='sine';osc.frequency.value=frequency;
-      gain.gain.setValueAtTime(volume,ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+duration);
-      osc.connect(gain);gain.connect(ctx.destination);
-      osc.start();osc.stop(ctx.currentTime+duration);
-    }catch{/* Sound is optional. */}
-  },[]);
-  const toggleSound=()=>{
-    if(muted){
-      try{
-        const ctx=audioRef.current ?? new AudioContext();
-        audioRef.current=ctx;
-        void ctx.resume().then(()=>playNote(880,0.32,0.09));
-      }catch{playNote(880,0.32,0.09);}
+  const audioRef=useRef<HTMLAudioElement|null>(null);
+  const musicTimer=useRef<number|null>(null);
+  const [soundError,setSoundError]=useState('');
+  const makeTone=useCallback((frequency:number,duration=0.24)=>{
+    const rate=22050, samples=Math.floor(rate*duration);
+    const buffer=new ArrayBuffer(44+samples*2),view=new DataView(buffer);
+    const write=(at:number,value:string)=>{for(let i=0;i<value.length;i++)view.setUint8(at+i,value.charCodeAt(i));};
+    write(0,'RIFF');view.setUint32(4,36+samples*2,true);write(8,'WAVE');write(12,'fmt ');
+    view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,1,true);
+    view.setUint32(24,rate,true);view.setUint32(28,rate*2,true);view.setUint16(32,2,true);
+    view.setUint16(34,16,true);write(36,'data');view.setUint32(40,samples*2,true);
+    for(let i=0;i<samples;i++){
+      const envelope=Math.min(1,i/400)*Math.min(1,(samples-i)/1500);
+      view.setInt16(44+i*2,Math.round(Math.sin(2*Math.PI*frequency*i/rate)*18000*envelope),true);
     }
-    setMuted(value=>!value);
+    return URL.createObjectURL(new Blob([buffer],{type:'audio/wav'}));
+  },[]);
+  const playTone=useCallback((frequency:number)=>{
+    const url=makeTone(frequency);
+    const player=audioRef.current ?? new Audio();
+    audioRef.current=player;
+    player.pause();player.src=url;player.volume=0.8;
+    void player.play().then(()=>setSoundError('')).catch(()=>setSoundError('Telegram не разрешил воспроизведение. Проверьте громкость медиа и беззвучный режим iPhone.')).finally(()=>{
+      window.setTimeout(()=>URL.revokeObjectURL(url),1200);
+    });
+  },[makeTone]);
+  const toggleSound=()=>{
+    if(muted){playTone(880);setMuted(false);}
+    else{setMuted(true);audioRef.current?.pause();}
   };
   useEffect(()=>{
     if(muted)return;
     const melody=[392,494,587,494,440,523,659,523];
     let index=0;
-    const timer=window.setInterval(()=>playNote(melody[index++%melody.length],0.26,0.045),520);
-    return()=>window.clearInterval(timer);
-  },[muted,playNote]);
-  useEffect(()=>()=>{if(audioRef.current)void audioRef.current.close();},[]);
+    musicTimer.current=window.setInterval(()=>playTone(melody[index++%melody.length]),650);
+    return()=>{if(musicTimer.current!==null)window.clearInterval(musicTimer.current);};
+  },[muted,playTone]);
+  useEffect(()=>()=>{audioRef.current?.pause();},[]);
   const [clock,setClock]=useState(0);
   const [offset,setOffset]=useState(0);
   const [feedback,setFeedback]=useState('');
@@ -64,11 +70,11 @@ export const IQPlay:React.FC=()=>{
   },[]);
   useEffect(()=>{void refresh();},[refresh]);
   useEffect(()=>{const id=window.setInterval(()=>setClock(x=>x+1),250);return()=>window.clearInterval(id);},[]);
-  const start=async()=>{if(!muted)playNote(784);setBusy(true);setError('');setFeedback('');try{sync(await apiRequest<Round>('/iq-play/rounds',{method:'POST'}));}catch(e){setError(e instanceof Error?e.message:'Не удалось начать игру');}finally{setBusy(false);}};
+  const start=async()=>{if(!muted)playTone(784);setBusy(true);setError('');setFeedback('');try{sync(await apiRequest<Round>('/iq-play/rounds',{method:'POST'}));}catch(e){setError(e instanceof Error?e.message:'Не удалось начать игру');}finally{setBusy(false);}};
   const answer=async(choice:number)=>{if(!round||busy||round.status!=='active'||choice===round.blocked_index)return;
     setBusy(true);setError('');
     try{const response=await apiRequest<Response>(`/iq-play/rounds/${round.round_id}/answers`,{method:'POST',body:JSON.stringify({position:round.position,choice,event_id:crypto.randomUUID()})});
-      if(!muted)playNote(response.outcome==='wrong'?220:740);
+      if(!muted)playTone(response.outcome==='wrong'?220:740);
       setFeedback(response.outcome==='wrong'?'Неверно! Используй второй шанс.':'');
       sync(response.round);
       if(response.round.status!=='active')setProfile(await apiRequest<Profile>('/iq-play/profile'));
@@ -89,6 +95,7 @@ export const IQPlay:React.FC=()=>{
   return <main className={'iq-root'+(round?.status==='active'?' iq-playing':'')}>
     <header className="iq-header"><button onClick={()=>navigate('/')} aria-label="Назад"><ArrowLeft size={20}/></button><span>VVD <strong>IQ PLAY</strong></span><button onClick={toggleSound} aria-label={muted?'Включить звук':'Выключить звук'}>{muted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button></header>
     <section className="iq-hero"><div className="iq-emblem"><Brain size={42}/><Crown size={20}/></div><h1>IQ PLAY</h1><p>Прокачай себя в арбитраже</p></section>
+    {soundError&&<div className="iq-warning" role="status">{soundError}</div>}
     {error&&<div className="iq-error" role="alert">{error}<button onClick={()=>void refresh()}>Повторить загрузку</button></div>}
     {loading?<p className="iq-muted">Загрузка…</p>:round?.status==='active'?<>
       <div className="iq-stats"><span>Вопрос {round.position} из 15</span><span>{round.retry?'Последний шанс':'❤️ 2 шанса'}</span></div>
