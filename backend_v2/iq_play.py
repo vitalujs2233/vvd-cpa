@@ -283,3 +283,28 @@ def disable_question(question_id: int, x_telegram_init_data: str | None = Header
         if not changed:
             raise HTTPException(404, "question_not_found")
     return {"disabled": True}
+
+
+@router.post("/rounds/{round_id}/timeout")
+def expire_round(round_id: uuid.UUID, x_telegram_init_data: str | None = Header(default=None)):
+    uid = user_id(x_telegram_init_data)
+    with engine.begin() as conn:
+        row = conn.execute(text("""
+            SELECT * FROM iq_rounds WHERE id=:r AND user_id=:u FOR UPDATE
+        """), {"r": round_id, "u": uid}).mappings().first()
+        if not row:
+            raise HTTPException(404, "round_not_found")
+        if row["status"] != "active":
+            return current(conn, row)
+        now = datetime.now(timezone.utc)
+        if now < row["deadline"]:
+            return current(conn, row)
+        if row["retry"]:
+            finish(conn, row, False, row["xp"], row["correct_count"])
+        else:
+            conn.execute(text("""
+                UPDATE iq_rounds SET retry=TRUE,used_retry=TRUE,blocked_index=NULL,
+                deadline=:d WHERE id=:r
+            """), {"d": now + timedelta(seconds=10), "r": round_id})
+        updated = conn.execute(text("SELECT * FROM iq_rounds WHERE id=:r"), {"r": round_id}).mappings().one()
+        return current(conn, updated)
