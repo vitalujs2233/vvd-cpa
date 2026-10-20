@@ -1,3 +1,4 @@
+import {preloadStartupData, StartupDataError} from '@/shared/lib/startupData';
 import React, { useState, useEffect } from 'react';
 import { MemoryRouter, Routes, Route, NavLink, Outlet } from 'react-router-dom';
 import { Home as HomeIcon, Grid, BarChart3, Wrench, User } from 'lucide-react';
@@ -129,8 +130,9 @@ const AppLayout = () => {
 // Tools use the existing app shell and bottom navigation.
 
 const MiniApp = () => {
-  const [authState, setAuthState] = useState<'loading'|'ready'|'error'>('loading');
+  const [authState, setAuthState] = useState<'loading'|'ready'|'error'|'data-error'>('loading');
   const [authMessage, setAuthMessage] = useState('');
+  const [startupAttempt,setStartupAttempt]=useState(0);
 
   useEffect(() => {
     window.Telegram?.WebApp?.ready();
@@ -140,6 +142,7 @@ const MiniApp = () => {
   useEffect(() => {
     let active = true;
     const authenticate = async () => {
+      setAuthState('loading');
       try {
         if (!window.Telegram?.WebApp?.initData) {
           throw new Error('Откройте VVD CPA через кнопку Mini App в Telegram.');
@@ -147,10 +150,14 @@ const MiniApp = () => {
         const response = await loginViaTelegramApi();
         if (active) {
           localStorage.setItem('vvd_cpa_user_data', JSON.stringify(response.user));
-          setAuthState('ready');
+          await preloadStartupData(response.user.telegram_id);
+          if(active)setAuthState('ready');
         }
       } catch (cause) {
         if (active) {
+          if(cause instanceof StartupDataError){
+            setAuthMessage(cause.message);setAuthState('data-error');return;
+          }
           localStorage.removeItem('vvd_cpa_user_data');
           const code = cause instanceof ApiError ? cause.code : '';
           const message = code === 'init_data_expired'
@@ -173,14 +180,15 @@ const MiniApp = () => {
     };
     void authenticate();
     return () => { active = false; };
-  }, []);
+  }, [startupAttempt]);
 
   if (authState === 'loading') return <Loader />;
-  if (authState === 'error') {
+  if (authState === 'error' || authState === 'data-error') {
     return <div role="alert" className="min-h-[100dvh] flex items-center justify-center bg-bgMain p-6 text-center text-sm text-textSecondary">
       <div className="max-w-xs rounded-card border border-accentGold/25 bg-bgCard p-5">
-        <h1 className="mb-3 text-base font-bold text-accentBrightGold">Требуется вход через Telegram</h1>
+        <h1 className="mb-3 text-base font-bold text-accentBrightGold">{authState==='data-error'?'Данные пока не загрузились':'Требуется вход через Telegram'}</h1>
         <p>{authMessage}</p>
+        {authState==='data-error'&&<button className="mt-4 rounded-app-xs bg-accentGold px-4 py-2 text-black" onClick={()=>setStartupAttempt(n=>n+1)}>Повторить</button>}
       </div>
     </div>;
   }

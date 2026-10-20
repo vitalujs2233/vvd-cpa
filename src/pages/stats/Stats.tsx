@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { RefreshCw, TrendingUp } from 'lucide-react';
+import {statisticsSources, statisticsSnapshotKey, statisticsTimezone} from '@/shared/lib/startupData';
 import {readSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
@@ -12,7 +13,7 @@ type Summary = {clicks:number;conversions:number;cr:number;epc:number;earned:num
 type Country = {country_code:string|null;country_name:string;clicks:number;conversions:number;pending:number;approved:number;rejected:number;income:number;hold:number;cr:number|null;epc:number|null};
 type Click = {created_at:string;country_code:string|null;country_name:string;offer_name:string|null};
 type Offer = {id:string|null;label:string};
-const userTimezone=Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+const userTimezone=statisticsTimezone;
 const API='https://vvd-cpa-v2.onrender.com';
 
 const countryFlag=(value:string|null)=>{
@@ -27,19 +28,21 @@ const periods:{id:Period;label:string}[]=[
   {id:'all',label:'Всё время'}];
 
 export const Stats:React.FC=()=>{
+  const initialKeys=statisticsSources(Number(getTelegramUser().id),new URLSearchParams({period:'today',tz:userTimezone})).map(statisticsSnapshotKey);
+  const initial=(index:number)=>readSnapshot<any>(initialKeys[index]);
   const [period,setPeriod]=useState<Period>('today');
   const [dateFrom,setDateFrom]=useState('');
   const [dateTo,setDateTo]=useState('');
   const [offerId,setOfferId]=useState('');
-  const [summary,setSummary]=useState<Summary|null>(null);
-  const [daily,setDaily]=useState<Day[]>([]);
-  const [countries,setCountries]=useState<Country[]>([]);
+  const [summary,setSummary]=useState<Summary|null>(()=>initial(0)?.summary||null);
+  const [daily,setDaily]=useState<Day[]>(()=>initial(0)?.statistics||[]);
+  const [countries,setCountries]=useState<Country[]>(()=>initial(1)?.countries||[]);
   const [sort,setSort]=useState<'clicks'|'conversions'|'income'>('clicks');
   const [countrySearch,setCountrySearch]=useState('');
-  const [clicks,setClicks]=useState<Click[]>([]);
-  const [offset,setOffset]=useState(0);
-  const [hasMore,setHasMore]=useState(false);
-  const [offers,setOffers]=useState<Offer[]>([]);
+  const [clicks,setClicks]=useState<Click[]>(()=>initial(3)?.clicks||[]);
+  const [offset,setOffset]=useState<number>(()=>initial(3)?.clicks?.length||0);
+  const [hasMore,setHasMore]=useState(()=>initial(3)?.clicks?.length===10);
+  const [offers,setOffers]=useState<Offer[]>(()=>initial(2)?.offers||[]);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState('');
   const [refreshing,setRefreshing]=useState(false);
@@ -58,16 +61,8 @@ export const Stats:React.FC=()=>{
     if(!id){setError('Не удалось определить Telegram');return;}
     refresh?setRefreshing(true):setLoading(true);
     setError('');
-    const suffix='?'+params.toString();
-    const offerParams=new URLSearchParams(params);offerParams.delete('offer_id');
-    const endpoints=[
-      `${API}/statistics/${id}${suffix}`,
-      `${API}/statistics/${id}/countries${suffix}`,
-      `${API}/statistics/${id}/breakdown?${offerParams}`,
-      `${API}/statistics/${id}/clicks${suffix}&limit=10&offset=0`
-    ];
-    // Include the local date so relative periods cannot reuse yesterday's result.
-    const keys=endpoints.map(url=>new Date().toLocaleDateString('en-CA',{timeZone:userTimezone})+url);
+    const endpoints=statisticsSources(id,params);
+    const keys=endpoints.map(statisticsSnapshotKey);
     const apply=[
       (a:any)=>{setSummary(a?.summary||null);setDaily(a?.statistics||[]);},
       (g:any)=>setCountries(g?.countries||[]),
@@ -149,7 +144,7 @@ export const Stats:React.FC=()=>{
       <option value="">Все офферы</option>
       {offers.filter(o=>o.id).map(o=><option key={o.id!} value={o.id!}>{o.label}</option>)}
     </select>
-    {loading&&<p role="status" className="text-xs text-textSecondary">Обновляем данные…</p>}
+    {loading&&!summary&&<p role="status" className="text-xs text-textSecondary">Обновляем данные…</p>}
     {error&&<p role="alert" className="text-xs text-error">{error}</p>}
     <div className="grid grid-cols-2 gap-2" aria-label="Показатели">
       {metric('Клики',summary?.clicks??'—')}
@@ -224,6 +219,6 @@ export const Stats:React.FC=()=>{
       {hasMore&&<button onClick={()=>void loadMore()} disabled={refreshing||loading} className="w-full mt-2 rounded-app-xs border border-white/10 bg-bgCard/40 py-2 text-xs font-semibold text-white">Показать ещё</button>}
       </details>
     </Card>
-    {loading&&<p className="text-xs text-textSecondary">Загрузка статистики…</p>}
+
   </div>;
 };

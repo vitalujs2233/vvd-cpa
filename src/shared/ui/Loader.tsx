@@ -190,7 +190,7 @@ export const Loader: React.FC<LoaderProps> = ({ onComplete }) => {
 
           <div className="flex flex-col items-center justify-center gap-1.5 mt-2 font-semibold">
             <span className="text-[10px] text-textSecondary font-bold tracking-widest uppercase">Загрузка платформы</span>
-            <span className="text-sm font-bold text-[#F6C453] font-mono drop-shadow-[0_0_8px_rgba(246,196,83,0.25)]">{progress}%</span>
+            <span className="text-sm font-bold text-[#F6C453] font-mono drop-shadow-[0_0_8px_rgba(246,196,83,0.25)]">{onComplete?`${progress}%`:'Подготавливаем данные…'}</span>
           </div>
         </div>
       </div>

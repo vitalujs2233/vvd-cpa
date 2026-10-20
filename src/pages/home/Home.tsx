@@ -87,7 +87,7 @@ export const Home: React.FC = () => {
         </button>
       </Card>
 
-      {(loading||error)&&<p role="status" className="text-xs text-textSecondary">
+      {((loading&&!balance)||error)&&<p role="status" className="text-xs text-textSecondary">
         {error || (balance?'Обновляем баланс…':'Загружаем баланс…')}
         {error&&<button className="ml-2 underline" onClick={()=>setRetry(n=>n+1)}>Повторить</button>}
         {error&&balance&&' Показаны последние полученные данные.'}
