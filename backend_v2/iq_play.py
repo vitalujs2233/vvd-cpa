@@ -1,11 +1,11 @@
 """VVD IQ Play isolated game API. All scoring and clocks are authoritative on server."""
 import uuid
+import json
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import text
-from sqlalchemy.exc import IntegrityError
 
 from database import engine
 from stars_payments import require_telegram_id
@@ -101,7 +101,7 @@ def start_round(x_telegram_init_data: str | None = Header(default=None)):
                 INSERT INTO iq_round_questions(round_id,position,question_id,question_version,prompt,options,correct_index)
                 VALUES (:r,:p,:id,:v,:prompt,CAST(:options AS jsonb),:correct)
             """), {"r": rid, "p": i, "id": q["id"], "v": q["version"], "prompt": q["prompt"],
-                   "options": __import__("json").dumps(q["options"], ensure_ascii=False), "correct": q["correct_index"]})
+                   "options": json.dumps(q["options"], ensure_ascii=False), "correct": q["correct_index"]})
             conn.execute(text("""
                 INSERT INTO iq_seen_questions(user_id,question_id) VALUES (:u,:id) ON CONFLICT DO NOTHING
             """), {"u": uid, "id": q["id"]})
@@ -132,7 +132,7 @@ def finish(conn, row, won: bool, xp: int, correct: int):
     if correct >= 1: codes.append("first_correct")
     if won:
         codes.append("first_win")
-        codes.append("survivor" if row["retry"] else "flawless")
+        codes.append("survivor" if row["used_retry"] else "flawless")
     if stats["games"] >= 10: codes.append("ten_games")
     if stats["wins"] >= 5: codes.append("five_wins")
     if stats["level"] >= 10: codes.append("level_ten")
@@ -183,9 +183,9 @@ def submit(round_id: uuid.UUID, answer: Answer, x_telegram_init_data: str | None
             # A timed-out first attempt gets the same 10s retry; choice is blocked only
             # when it was actually submitted before the first deadline.
             conn.execute(text("""
-                UPDATE iq_rounds SET retry=TRUE,blocked_index=:b,deadline=:d WHERE id=:r
+                UPDATE iq_rounds SET retry=TRUE,used_retry=TRUE,blocked_index=:b,deadline=:d WHERE id=:r
             """), {"b": None if expired else answer.choice,
-                   "d": (row["deadline"] if expired else now) + timedelta(seconds=10), "r": round_id})
+                   "d": now + timedelta(seconds=10), "r": round_id})
         conn.execute(text("""
             INSERT INTO iq_answer_events(id,round_id,position,choice,result,xp_awarded)
             VALUES (:e,:r,:p,:c,:o,:xp)
