@@ -1,8 +1,8 @@
 import './Dvizh.css';
 import { authorizedFetch } from '@/shared/lib/api';
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { 
-  Send, ShieldAlert, Users, Pin, Search, Smile, 
+  Loader2, Send, ShieldAlert, Users, Pin, Search, Smile, 
   Check, CheckCircle2, AlertTriangle, Sparkles 
 } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
@@ -87,6 +87,8 @@ const isAdmin = currentUser.id.toString() === ADMIN_ID;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const initialScrollDone = useRef(false);
+  const followLatest = useRef(true);
+  const scrollAfterSend = useRef(false);
   const [viewport, setViewport] = useState({height: window.innerHeight, top: 0, keyboard: false});
   const [onlineBase] = useState(() => {
     // Decorative audience offset, separate from actual server presence.
@@ -189,13 +191,15 @@ useEffect(() => {
   return () => {active=false;clearInterval(interval);};
 }, []);
 
-useEffect(() => {
-  if (!initialScrollDone.current && messages.length > 0) {
-    const box=chatContainerRef.current;
-    if(box) box.scrollTop=box.scrollHeight;
+useLayoutEffect(() => {
+  const box=chatContainerRef.current;
+  if(box && messages.length && (!initialScrollDone.current || scrollAfterSend.current || followLatest.current)) {
+    box.scrollTop=box.scrollHeight;
     initialScrollDone.current=true;
+    scrollAfterSend.current=false;
+    followLatest.current=true;
   }
-}, [messages]);
+}, [messages, viewport.height, viewport.keyboard]);
   useEffect(() => {
     const tg=window.Telegram?.WebApp as (NonNullable<typeof window.Telegram>['WebApp'] & {
       onEvent?: (event:string,callback:()=>void)=>void;
@@ -207,21 +211,24 @@ useEffect(() => {
     let settleTimer=0;
     let keyboardOpen=false;
     let disposed=false;
+    let blurTimer=0;
+    let restoredAfterBlur=false;
     const applyViewport=()=>{
       if(disposed) return;
       // WebView's Telegram height can lag behind iOS keyboard dismissal.
       // Use one live viewport source instead of taking the smallest cached value.
       const vv=window.visualViewport;
-      const height=vv?.height || tg?.viewportHeight || window.innerHeight;
+      const focused=document.activeElement?.tagName==='INPUT';
+      const height=restoredAfterBlur && !focused ? fullHeight : (vv?.height || tg?.viewportHeight || window.innerHeight);
       fullHeight=Math.max(fullHeight,height);
-      const reduced=fullHeight-height>100;
+      const reduced=!(restoredAfterBlur && !focused) && fullHeight-height>100;
       if(reduced) keyboardOpen=true;
       else if(fullHeight-height<40) keyboardOpen=false;
       // Keep compact mode until the viewport actually expands, even after blur.
       document.body.classList.toggle('dvizh-keyboard',keyboardOpen);
       const box=chatContainerRef.current;
       const nearBottom=box ? box.scrollHeight-box.scrollTop-box.clientHeight<100 : false;
-      setViewport({height,top:vv?.offsetTop||0,keyboard:keyboardOpen});
+      setViewport({height,top:restoredAfterBlur && !focused ? 0 : vv?.offsetTop||0,keyboard:keyboardOpen});
       if(nearBottom || document.activeElement?.tagName==='INPUT') {
         requestAnimationFrame(()=>{if(!disposed && box) box.scrollTop=box.scrollHeight;});
       }
@@ -232,23 +239,42 @@ useEffect(() => {
       window.clearTimeout(settleTimer);
       settleTimer=window.setTimeout(applyViewport,350);
     };
+    const focusIn=()=>{
+      window.clearTimeout(blurTimer);
+      restoredAfterBlur=false;
+      updateViewport();
+    };
+    const focusOut=()=>{
+      updateViewport();
+      window.clearTimeout(blurTimer);
+      // iOS may leave visualViewport at the keyboard height after dismissal.
+      // Restore the saved expanded height after the native closing animation.
+      blurTimer=window.setTimeout(()=>{
+        if(document.activeElement?.tagName!=='INPUT') {
+          restoredAfterBlur=true;
+          keyboardOpen=false;
+          applyViewport();
+        }
+      },400);
+    };
     updateViewport();
     window.addEventListener('resize',updateViewport);
     window.visualViewport?.addEventListener('resize',updateViewport);
     window.visualViewport?.addEventListener('scroll',updateViewport);
-    document.addEventListener('focusin',updateViewport);
-    document.addEventListener('focusout',updateViewport);
+    document.addEventListener('focusin',focusIn);
+    document.addEventListener('focusout',focusOut);
     tg?.onEvent?.('viewportChanged',updateViewport);
     return()=>{
       disposed=true;
+      window.clearTimeout(blurTimer);
       cancelAnimationFrame(frame);
       window.clearTimeout(settleTimer);
       document.body.classList.remove('dvizh-keyboard');
       window.removeEventListener('resize',updateViewport);
       window.visualViewport?.removeEventListener('resize',updateViewport);
       window.visualViewport?.removeEventListener('scroll',updateViewport);
-      document.removeEventListener('focusin',updateViewport);
-      document.removeEventListener('focusout',updateViewport);
+      document.removeEventListener('focusin',focusIn);
+      document.removeEventListener('focusout',focusOut);
       tg?.offEvent?.('viewportChanged',updateViewport);
     };
   }, []);
@@ -434,6 +460,8 @@ if (!response.ok || !data.success) {
       isStaff: Boolean(msg.is_staff),
     };
 
+    scrollAfterSend.current=true;
+    followLatest.current=true;
     setMessages(prev => prev.some(m=>m.id===newMessage.id) ? prev : [...prev, newMessage]);
     setInputValue(current=>current.trim()===sentText ? '' : current);
     requestAnimationFrame(()=>{
@@ -561,6 +589,10 @@ if (!response.ok || !data.success) {
       {/* Контейнер сообщений */}
       <div
   ref={chatContainerRef}
+  onScroll={event=>{
+    const box=event.currentTarget;
+    followLatest.current=box.scrollHeight-box.scrollTop-box.clientHeight<80;
+  }}
   onClick={event=>{
     if(!(event.target as HTMLElement).closest('button,a,input')) {
       const focused=document.activeElement;
@@ -714,14 +746,14 @@ if (!response.ok || !data.success) {
           variant="primary" 
           size="md" 
           aria-label="Отправить сообщение"
-          isLoading={sending}
-          disabled={!inputValue.trim()}
+          aria-busy={sending}
+          disabled={sending || !inputValue.trim()}
           onPointerDown={event=>event.preventDefault()}
           onMouseDown={event=>event.preventDefault()}
           onClick={handleSendMessage}
-          className="w-11 h-11 p-0 flex items-center justify-center shrink-0 rounded-full shadow-glow-purple/40 hover:-translate-y-0.5 active:scale-95"
+          className="!w-11 !h-11 !p-0 overflow-hidden flex items-center justify-center shrink-0 rounded-full shadow-glow-purple/40 active:scale-95"
         >
-          <Send size={16} />
+          {sending ? <Loader2 size={18} className="animate-spin shrink-0" aria-hidden="true" /> : <Send size={16} />}
         </Button>
       </div>
 
