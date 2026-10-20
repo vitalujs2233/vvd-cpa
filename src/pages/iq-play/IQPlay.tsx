@@ -19,9 +19,10 @@ export const IQPlay:React.FC=()=>{
   const [error,setError]=useState('');
   const [muted,setMuted]=useState(true);
   const audioRef=useRef<HTMLAudioElement|null>(null);
-  const musicTimer=useRef<number|null>(null);
+  const musicRef=useRef<HTMLAudioElement|null>(null);
+  const musicUrlRef=useRef<string|null>(null);
   const mutedRef=useRef(true);
-  const [soundError,setSoundError]=useState('');
+
   type Sound='intro'|'correct'|'wrong'|'win'|'lose'|'music'|'test';
   const createSound=useCallback((kind:Sound)=>{
     // Render short layered chiptune phrases into WAV for iOS Telegram WebView.
@@ -55,27 +56,55 @@ export const IQPlay:React.FC=()=>{
     }
     return URL.createObjectURL(new Blob([buf],{type:'audio/wav'}));
   },[]);
-  const playSound=useCallback((kind:Sound)=>{
-    const url=createSound(kind),player=audioRef.current??new Audio();
-    audioRef.current=player;player.pause();player.src=url;
-    player.volume=kind==='music'?.28:.75;
-    player.onerror=()=>setSoundError('Не удалось загрузить игровой звук.');
-    void player.play().then(()=>setSoundError('')).catch(()=>setSoundError('Telegram заблокировал звук.')).finally(()=>{
-      window.setTimeout(()=>URL.revokeObjectURL(url),5000);
+  const createMusic=useCallback(()=>{
+    // Full 16-beat looping arcade theme with lead, bass and sustained chords.
+    const rate=22050,beat=60/112,beats=16,samples=Math.ceil(rate*beat*beats);
+    const melody=[659,784,932,784,698,659,587,523,587,698,784,698,659,587,523,587,659,784,1047,932,784,698,659,587,523,587,659,784,698,659,587,523];
+    const bass=[130.81,116.54,103.83,130.81];
+    const data=new Float32Array(samples);
+    const add=(start:number,duration:number,freq:number,volume:number,kind:'lead'|'bass'|'pad')=>{
+      const offset=Math.floor(start*rate),count=Math.min(Math.floor(duration*rate),samples-offset);
+      for(let i=0;i<count;i++){
+        const t=i/rate,envelope=Math.min(1,t/.025)*Math.min(1,(duration-t)/.08);
+        const wave=kind==='lead'?.68*Math.sin(2*Math.PI*freq*t)+.22*Math.sin(4*Math.PI*freq*t)+.1*Math.sin(6*Math.PI*freq*t):Math.sin(2*Math.PI*freq*t)+(kind==='bass'?.14*Math.sin(4*Math.PI*freq*t):0);
+        data[offset+i]+=wave*envelope*volume;
+      }
+    };
+    melody.forEach((freq,i)=>add(i*beat/2,beat*.43,freq,.18,'lead'));
+    bass.forEach((root,bar)=>{
+      for(let j=0;j<4;j++)add((bar*4+j)*beat,beat*.84,root*(j===2?2:1),.1,'bass');
+      for(const j of [0,2])add((bar*4+j)*beat,beat*1.8,root*4,.035,'pad');
     });
+    const buf=new ArrayBuffer(44+samples*2),v=new DataView(buf);
+    const write=(at:number,s:string)=>{for(let i=0;i<s.length;i++)v.setUint8(at+i,s.charCodeAt(i));};
+    write(0,'RIFF');v.setUint32(4,36+samples*2,true);write(8,'WAVE');write(12,'fmt ');
+    v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+    v.setUint32(24,rate,true);v.setUint32(28,rate*2,true);v.setUint16(32,2,true);
+    v.setUint16(34,16,true);write(36,'data');v.setUint32(40,samples*2,true);
+    for(let i=0;i<samples;i++)v.setInt16(44+i*2,Math.round(Math.max(-1,Math.min(1,data[i]))*28000),true);
+    return URL.createObjectURL(new Blob([buf],{type:'audio/wav'}));
+  },[]);
+  const playSound=useCallback((kind:Sound)=>{
+    if(mutedRef.current)return;
+    const url=createSound(kind),player=audioRef.current??new Audio();
+    audioRef.current=player;player.pause();player.src=url;player.volume=.65;
+    void player.play().catch(()=>{}).finally(()=>window.setTimeout(()=>URL.revokeObjectURL(url),5000));
   },[createSound]);
   const toggleSound=()=>{
-    if(muted){mutedRef.current=false;setMuted(false);playSound('intro');}
-    else{mutedRef.current=true;setMuted(true);audioRef.current?.pause();}
+    if(muted){
+      mutedRef.current=false;setMuted(false);
+      if(!musicRef.current){
+        musicUrlRef.current=createMusic();
+        const music=new Audio(musicUrlRef.current);
+        music.loop=true;music.volume=.5;musicRef.current=music;
+      }
+      void musicRef.current.play().catch(()=>{});
+    }else{
+      mutedRef.current=true;setMuted(true);
+      musicRef.current?.pause();audioRef.current?.pause();
+    }
   };
-  useEffect(()=>{
-    if(muted)return;
-    musicTimer.current=window.setInterval(()=>{
-      if(!mutedRef.current&&(!audioRef.current||audioRef.current.paused||audioRef.current.ended))playSound('music');
-    },3000);
-    return()=>{if(musicTimer.current!==null)window.clearInterval(musicTimer.current);};
-  },[muted,playSound]);
-  useEffect(()=>()=>{audioRef.current?.pause();},[]);
+  useEffect(()=>()=>{musicRef.current?.pause();audioRef.current?.pause();if(musicUrlRef.current)URL.revokeObjectURL(musicUrlRef.current);},[]);
   const [clock,setClock]=useState(0);
   const [offset,setOffset]=useState(0);
   const [feedback,setFeedback]=useState('');
@@ -115,7 +144,6 @@ export const IQPlay:React.FC=()=>{
   return <main className={'iq-root'+(round?.status==='active'?' iq-playing':'')}>
     <header className="iq-header"><button onClick={()=>navigate('/')} aria-label="Назад"><ArrowLeft size={20}/></button><span>VVD <strong>IQ PLAY</strong></span><button onClick={toggleSound} aria-label={muted?'Включить звук':'Выключить звук'}>{muted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button></header>
     <section className="iq-hero"><div className="iq-emblem"><Brain size={42}/><Crown size={20}/></div><h1>IQ PLAY</h1><p>Прокачай себя в арбитраже</p></section>
-    {!muted&&<div className="iq-sound-check" role="status"><span>{soundError||'Музыка и игровые эффекты включены'}</span><button type="button" onClick={()=>playSound('test')}>🔊 Проверить звук</button></div>}
     {error&&<div className="iq-error" role="alert">{error}<button onClick={()=>void refresh()}>Повторить загрузку</button></div>}
     {loading?<p className="iq-muted">Загрузка…</p>:round?.status==='active'?<>
       <div className="iq-stats"><span>Вопрос {round.position} из 15</span><span>{round.retry?'Последний шанс':'❤️ 2 шанса'}</span></div>
