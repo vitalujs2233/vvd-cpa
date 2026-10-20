@@ -10,6 +10,7 @@ import { OfferDetail } from '@/pages/offers/OfferDetail';
 import { Withdrawal } from '@/pages/withdrawal/Withdrawal';
 import { Stats } from '@/pages/stats/Stats';
 import { Dvizh } from '@/pages/dvizh/Dvizh';
+import { IQPlay } from '@/pages/iq-play/IQPlay';
 import { Tools,ToolsTopupPage,ToolsHistory,ToolsPurchases,ToolsNumbers,MyNumbers,ToolsProxy,MyProxies } from '@/pages/tools/MarketplacePages';
 import { AIModelsPage,AIEditor } from '@/pages/tools/AIStudio';
 import { PublicAIPage } from '@/pages/tools/PublicAIChat';
@@ -239,6 +240,7 @@ const MiniApp = () => {
           <Route path="/support" element={<SupportChat />} />
           {/* Вложенный экран админ-панели без нижнего меню */}
           <Route path="/admin" element={<Admin />} />
+          <Route path="/iq-play" element={<IQPlay />} />
         </Routes>
       </MemoryRouter>
     </div>
