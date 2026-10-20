@@ -70,6 +70,10 @@ export const Dvizh: React.FC = () => {
   const currentUser = getTelegramUser();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState('');
+  const sendingRef = useRef(false);
+  const sendGeneration = useRef(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [activeReactionMenu, setActiveReactionMenu] = useState<string | null>(null);
@@ -140,7 +144,12 @@ useEffect(() => {
     return()=>{active=false;clearInterval(timer);document.removeEventListener('visibilitychange',heartbeat);};
   },[currentUser.id]);
   useEffect(() => {
+  let active=true;
+  let loading=false;
   const loadMessages = async () => {
+    if(loading || sendingRef.current) return;
+    loading=true;
+    const generation=sendGeneration.current;
     try {
       const response = await authorizedFetch(`${API}/chat/messages`, {
         cache: 'no-store',
@@ -148,7 +157,7 @@ useEffect(() => {
 
       const data = await response.json();
 
-      if (!data.success) return;
+      if (!active || !data.success || generation!==sendGeneration.current || sendingRef.current) return;
 
       const loadedMessages: ChatMessage[] = (data.messages || []).map((msg: any) => ({
         id: String(msg.id),
@@ -168,7 +177,7 @@ useEffect(() => {
       setMessages(loadedMessages);
     } catch (error) {
       console.error('Ошибка загрузки сообщений:', error);
-    }
+    } finally { loading=false; }
   };
 
   void loadMessages();
@@ -177,20 +186,14 @@ useEffect(() => {
     void loadMessages();
   }, 1000);
 
-  return () => clearInterval(interval);
+  return () => {active=false;clearInterval(interval);};
 }, []);
-
-  const firstLoad = useRef(true);
 
 useEffect(() => {
   if (!initialScrollDone.current && messages.length > 0) {
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({
-        behavior: "auto",
-      });
-
-      initialScrollDone.current = true;
-    }, 50);
+    const box=chatContainerRef.current;
+    if(box) box.scrollTop=box.scrollHeight;
+    initialScrollDone.current=true;
   }
 }, [messages]);
   useEffect(() => {
@@ -199,23 +202,35 @@ useEffect(() => {
       offEvent?: (event:string,callback:()=>void)=>void;
     }) | undefined;
     if(tg?.isExpanded===false) tg.expand();
-    let fullHeight=window.innerHeight;
+    let fullHeight=window.visualViewport?.height || window.innerHeight;
     let frame=0;
-    const updateViewport=()=>{
+    let settleTimer=0;
+    let keyboardOpen=false;
+    let disposed=false;
+    const applyViewport=()=>{
+      if(disposed) return;
+      // WebView's Telegram height can lag behind iOS keyboard dismissal.
+      // Use one live viewport source instead of taking the smallest cached value.
       const vv=window.visualViewport;
-      const height=Math.min(window.innerHeight,vv?.height||Infinity,tg?.viewportHeight||Infinity);
-      fullHeight=Math.max(fullHeight,window.innerHeight,tg?.viewportStableHeight||0);
-      const focused=document.activeElement?.tagName==='INPUT';
-      const keyboard=Boolean(focused && fullHeight-height>100);
-      document.body.classList.toggle('dvizh-keyboard',keyboard);
-      setViewport({height,top:vv?.offsetTop||0,keyboard});
-      if(focused) {
-        cancelAnimationFrame(frame);
-        frame=requestAnimationFrame(()=>{
-          const box=chatContainerRef.current;
-          if(box) box.scrollTop=box.scrollHeight;
-        });
+      const height=vv?.height || tg?.viewportHeight || window.innerHeight;
+      fullHeight=Math.max(fullHeight,height);
+      const reduced=fullHeight-height>100;
+      if(reduced) keyboardOpen=true;
+      else if(fullHeight-height<40) keyboardOpen=false;
+      // Keep compact mode until the viewport actually expands, even after blur.
+      document.body.classList.toggle('dvizh-keyboard',keyboardOpen);
+      const box=chatContainerRef.current;
+      const nearBottom=box ? box.scrollHeight-box.scrollTop-box.clientHeight<100 : false;
+      setViewport({height,top:vv?.offsetTop||0,keyboard:keyboardOpen});
+      if(nearBottom || document.activeElement?.tagName==='INPUT') {
+        requestAnimationFrame(()=>{if(!disposed && box) box.scrollTop=box.scrollHeight;});
       }
+    };
+    const updateViewport=()=>{
+      cancelAnimationFrame(frame);
+      frame=requestAnimationFrame(applyViewport);
+      window.clearTimeout(settleTimer);
+      settleTimer=window.setTimeout(applyViewport,350);
     };
     updateViewport();
     window.addEventListener('resize',updateViewport);
@@ -225,7 +240,9 @@ useEffect(() => {
     document.addEventListener('focusout',updateViewport);
     tg?.onEvent?.('viewportChanged',updateViewport);
     return()=>{
+      disposed=true;
       cancelAnimationFrame(frame);
+      window.clearTimeout(settleTimer);
       document.body.classList.remove('dvizh-keyboard');
       window.removeEventListener('resize',updateViewport);
       window.visualViewport?.removeEventListener('resize',updateViewport);
@@ -346,7 +363,8 @@ const banChatUser = async (msg: ChatMessage) => {
   }
 };
   const handleSendMessage = async () => {
-  if (!inputValue.trim()) return;
+  if (sendingRef.current || !inputValue.trim()) return;
+  const sentText=inputValue.trim();
 
   if (containsForbiddenLink(inputValue)) {
     triggerHaptic.error();
@@ -359,6 +377,10 @@ const banChatUser = async (msg: ChatMessage) => {
     return;
   }
 
+  sendingRef.current=true;
+  sendGeneration.current+=1;
+  setSending(true);
+  setSendError('');
   try {
     triggerHaptic.mediumImpact();
 
@@ -371,7 +393,7 @@ const banChatUser = async (msg: ChatMessage) => {
         sender_id: currentUser.id,
         sender_name: `${currentUser.first_name} ${currentUser.last_name || ''}`.trim(),
         avatar_url: currentUser.photo_url || '',
-        text: inputValue.trim(),
+        text: sentText,
         reactions: {},
         is_staff: false,
       }),
@@ -412,10 +434,19 @@ if (!response.ok || !data.success) {
       isStaff: Boolean(msg.is_staff),
     };
 
-    setMessages(prev => [...prev, newMessage]);
-    setInputValue('');
+    setMessages(prev => prev.some(m=>m.id===newMessage.id) ? prev : [...prev, newMessage]);
+    setInputValue(current=>current.trim()===sentText ? '' : current);
+    requestAnimationFrame(()=>{
+      const box=chatContainerRef.current;
+      if(box) box.scrollTop=box.scrollHeight;
+    });
   } catch (error) {
     console.error('Ошибка отправки сообщения:', error);
+    setSendError('Не удалось подтвердить отправку. Проверьте чат перед повторной отправкой.');
+  } finally {
+    sendingRef.current=false;
+    sendGeneration.current+=1;
+    setSending(false);
   }
 };
 
@@ -530,6 +561,12 @@ if (!response.ok || !data.success) {
       {/* Контейнер сообщений */}
       <div
   ref={chatContainerRef}
+  onClick={event=>{
+    if(!(event.target as HTMLElement).closest('button,a,input')) {
+      const focused=document.activeElement;
+      if(focused instanceof HTMLInputElement) focused.blur();
+    }
+  }}
   className="flex-1 min-h-0 overflow-y-auto p-4 scrollable-container flex flex-col gap-4 z-0"
 >
         {filteredMessages.map((msg) => {
@@ -661,6 +698,7 @@ if (!response.ok || !data.success) {
         <div ref={messagesEndRef} />
       </div>
 
+      {sendError && <p role="alert" className="shrink-0 px-3 py-1 text-xs text-error">{sendError}</p>}
       {/* Панель ввода сообщения */}
       <div
   className="shrink-0 p-3 border-t border-white/[0.08] bg-bgCard/70 backdrop-blur-xl flex items-center gap-3 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.37)] z-50"
@@ -675,6 +713,11 @@ if (!response.ok || !data.success) {
         <Button 
           variant="primary" 
           size="md" 
+          aria-label="Отправить сообщение"
+          isLoading={sending}
+          disabled={!inputValue.trim()}
+          onPointerDown={event=>event.preventDefault()}
+          onMouseDown={event=>event.preventDefault()}
           onClick={handleSendMessage}
           className="w-11 h-11 p-0 flex items-center justify-center shrink-0 rounded-full shadow-glow-purple/40 hover:-translate-y-0.5 active:scale-95"
         >
