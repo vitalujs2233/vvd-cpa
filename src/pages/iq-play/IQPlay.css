@@ -13,3 +13,5 @@
 .iq-playing .iq-choices{margin-top:10px;gap:8px}
 .iq-playing .iq-choices button{min-height:54px}
 .iq-root .iq-muted:last-child{padding-bottom:24px}
+
+.iq-sound-check{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0;padding:10px 12px;border:1px solid #7b602e;border-radius:12px;background:#18140d;color:#f1d9a0;font-size:12px}.iq-sound-check button{flex-shrink:0;border:1px solid #c99b42;border-radius:8px;padding:9px;color:#ffdb87;background:#33260d;font-weight:700}
