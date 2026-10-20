@@ -35,7 +35,7 @@ export const IQPlay:React.FC=()=>{
   const start=async()=>{setBusy(true);setError('');setFeedback('');try{sync(await apiRequest<Round>('/iq-play/rounds',{method:'POST'}));}catch(e){setError(e instanceof Error?e.message:'Не удалось начать игру');}finally{setBusy(false);}};
   const answer=async(choice:number)=>{if(!round||busy||round.status!=='active'||choice===round.blocked_index)return;
     setBusy(true);setError('');
-    try{const response=await apiRequest<Response>(`/iq-play/rounds/${round.round_id}/answers`,{method:'POST',body:JSON.stringify({choice,event_id:crypto.randomUUID()})});
+    try{const response=await apiRequest<Response>(`/iq-play/rounds/${round.round_id}/answers`,{method:'POST',body:JSON.stringify({position:round.position,choice,event_id:crypto.randomUUID()})});
       setFeedback(response.outcome==='wrong'?'Неверно! Используй второй шанс.':'');
       sync(response.round);
       if(response.round.status!=='active')setProfile(await apiRequest<Profile>('/iq-play/profile'));
