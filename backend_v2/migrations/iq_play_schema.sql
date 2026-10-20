@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS iq_rounds (
  id UUID PRIMARY KEY, user_id BIGINT NOT NULL REFERENCES users(telegram_id),
  status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','lost','won')),
  question_index SMALLINT NOT NULL DEFAULT 0 CHECK(question_index BETWEEN 0 AND 15),
- retry BOOLEAN NOT NULL DEFAULT FALSE, blocked_index SMALLINT,
+ retry BOOLEAN NOT NULL DEFAULT FALSE, used_retry BOOLEAN NOT NULL DEFAULT FALSE, blocked_index SMALLINT,
  deadline TIMESTAMPTZ NOT NULL, xp INTEGER NOT NULL DEFAULT 0,
  correct_count SMALLINT NOT NULL DEFAULT 0,
  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), finished_at TIMESTAMPTZ,
