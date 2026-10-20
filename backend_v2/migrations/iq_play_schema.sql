@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS iq_questions (
  enabled BOOLEAN NOT NULL DEFAULT TRUE, created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
  CHECK(jsonb_typeof(options)='array' AND jsonb_array_length(options)=4)
 );
+CREATE UNIQUE INDEX IF NOT EXISTS iq_question_unique_prompt ON iq_questions(prompt);
 CREATE TABLE IF NOT EXISTS iq_progress (
  user_id BIGINT PRIMARY KEY REFERENCES users(telegram_id), xp BIGINT NOT NULL DEFAULT 0 CHECK(xp>=0),
  games INTEGER NOT NULL DEFAULT 0, wins INTEGER NOT NULL DEFAULT 0,
