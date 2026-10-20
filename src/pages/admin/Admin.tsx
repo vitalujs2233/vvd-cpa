@@ -7,10 +7,11 @@ import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Users, Layers, CreditCard, Newspaper, 
   BarChart2, Settings, LogOut, Search, ShieldAlert, 
-  UserCheck, Megaphone 
+  UserCheck, Megaphone, Copy 
 } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
+import { CopyButton } from '@/shared/ui/CopyButton';
 import { Input } from '@/shared/ui/Input';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
 
@@ -918,9 +919,18 @@ const saveChatBanner = async () => {
                   </div>
                   <div className="border-t border-white/[0.05] pt-3">
                     <span className="text-[8px] text-textSecondary uppercase block">Кошелёк</span>
-                    <span className="text-[10px] font-semibold text-white break-all">
-                      {item.wallet || '—'}
-                    </span>
+                    <div className="mt-1 flex items-start gap-2">
+                      <span className="min-w-0 flex-1 text-[10px] font-semibold text-white break-all select-text">
+                        {item.wallet || '—'}
+                      </span>
+                      {item.wallet && <div className="shrink-0">
+                        <CopyButton text={item.wallet} aria-label="Скопировать адрес кошелька"
+                          title="Скопировать адрес кошелька"
+                          className="flex h-9 w-9 items-center justify-center rounded-app-xs bg-white/[0.04] text-accentGold">
+                          <Copy size={15} aria-hidden="true" />
+                        </CopyButton>
+                      </div>}
+                    </div>
                   </div>
 
                   {item.created_at && (
