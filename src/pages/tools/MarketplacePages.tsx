@@ -68,27 +68,50 @@ export const Tools:React.FC=()=>{
   </Shell>;
 };
 
+// DEMO TOP-UP: отдельный тестовый баланс, не связанный с реальными деньгами и Crypto Pay.
+// Здесь проверяем форму, подтверждение и историю, не меняя tool_wallets на сервере.
+const DEMO_KEY='vvd-tools-demo-topups-v1';
+type DemoPayment={id:string;amount:number;created_at:string};
+const readDemoPayments=():DemoPayment[]=>{
+  try {const value=JSON.parse(localStorage.getItem(DEMO_KEY)||'[]');return Array.isArray(value)?value.filter((x):x is DemoPayment=>typeof x?.id==='string'&&typeof x?.amount==='number'&&Number.isFinite(x.amount)&&typeof x?.created_at==='string'):[];}
+  catch {return [];}
+};
 export const ToolsTopupPage:React.FC=()=>{
   const w=useRemote(readWallet,emptyWallet);
-  const c=useRemote(readCatalog,{services:[] as ServiceInfo[],payment_provider:{status:'unavailable',assets:[] as string[]}});
   const [amount,setAmount]=useState('5');
+  const [demoPayments,setDemoPayments]=useState<DemoPayment[]>(readDemoPayments);
+  const [confirm,setConfirm]=useState(false);
   const amountNum=Number(amount);
-  const valid=/^\d+(\.\d{1,2})?$/.test(amount)&&Number.isFinite(amountNum)&&amountNum>=5&&amountNum<=10000;
-  return <Shell><NavHeader title="Пополнение баланса"/>
-    <Card className="flex flex-col gap-2"><p className="text-xs text-textSecondary">Текущий баланс</p><strong className="text-2xl text-accentBrightGold">{usd(w.value.available)}</strong></Card>
+  const valid=/^\\d+(\\.\\d{1,2})?$/.test(amount)&&Number.isFinite(amountNum)&&amountNum>=5&&amountNum<=10000;
+  const demoTotal=demoPayments.reduce((sum,p)=>sum+p.amount,0);
+  const addDemo=()=>{
+    if(!valid)return;
+    // Только имитация подтверждения: не вызываем Crypto Pay и не начисляем реальный баланс.
+    const next=[{id:crypto.randomUUID(),amount:amountNum,created_at:new Date().toISOString()},...demoPayments];
+    localStorage.setItem(DEMO_KEY,JSON.stringify(next));
+    setDemoPayments(next);
+    setConfirm(false);
+  };
+  return <Shell><NavHeader title="Пополнение баланса" subtitle="Тестовый режим — без реальной оплаты"/>
+    <Card className="flex flex-col gap-2"><p className="text-xs text-textSecondary">Реальный баланс инструментов (не меняется)</p><strong className="text-2xl text-accentBrightGold">{usd(w.value.available)}</strong></Card>
+    <Card className="flex flex-col gap-2"><p className="text-xs text-textSecondary">Тестовый баланс (только на этом устройстве)</p><strong className="text-2xl text-accentBrightGold">{usd(demoTotal)}</strong></Card>
     <Card className="flex flex-col gap-4">
-      <label className="text-xs font-semibold text-textSecondary">Сумма в USD (минимум $5)
-        <input className={inputClass+' mt-2'} type="text" inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="5.00"/>
+      <label className="text-xs font-semibold text-textSecondary">Тестовая сумма в USD (минимум $5)
+        <input className={inputClass+' mt-2'} type="text" inputMode="decimal" value={amount} onChange={e=>{setAmount(e.target.value);setConfirm(false);}} placeholder="5.00"/>
       </label>
-      <div className="grid grid-cols-5 gap-1">{[5,10,25,50,100].map(n=><button type="button" key={n} onClick={()=>setAmount(String(n))} className={'rounded-app-xs border px-1 py-2 text-xs '+(amount===String(n)?'border-accentGold bg-accentGold/10 text-accentBrightGold':'border-white/10 text-textSecondary')}>$​{n}</button>)}</div>
+      <div className="grid grid-cols-5 gap-1">{[5,10,25,50,100].map(n=><button type="button" key={n} onClick={()=>{setAmount(String(n));setConfirm(false);}} className={'rounded-app-xs border px-1 py-2 text-xs '+(amount===String(n)?'border-accentGold bg-accentGold/10 text-accentBrightGold':'border-white/10 text-textSecondary')}>$​{n}</button>)}</div>
       {!valid&&<p role="alert" className="text-xs text-error">Укажите сумму от $5 до $10 000, до двух знаков после запятой.</p>}
-      <p className="text-xs text-textSecondary">Доступные криптовалюты</p>
-      <div className="rounded-app-xs border border-white/10 bg-white/[0.03] p-3 text-sm text-textSecondary">
-        {c.value.payment_provider.assets.length?c.value.payment_provider.assets.join(', '):'Провайдер не подключён'}
-      </div>
-      <div className="flex justify-between border-t border-white/10 pt-3 text-sm"><span className="text-textSecondary">Сумма заявки</span><strong>{valid?usd(amountNum):'—'}</strong></div>
-      <Button type="button" disabled={true}>Перейти к оплате</Button>
-      <Status>Оплата пока недоступна. Счёт не создаётся, списаний и начислений нет. Способ оплаты будет подключён после проверки правил Telegram и провайдера.</Status>
+      <div className="flex justify-between border-t border-white/10 pt-3 text-sm"><span className="text-textSecondary">Сумма тестового пополнения</span><strong>{valid?usd(amountNum):'—'}</strong></div>
+      {!confirm?<Button type="button" disabled={!valid} onClick={()=>setConfirm(true)}>Создать тестовый счёт</Button>:<>
+        <Status>Тестовый счёт на {usd(amountNum)} создан. Никаких платежей через CryptoBot не будет.</Status>
+        <Button type="button" onClick={addDemo}>Имитировать успешную оплату</Button>
+        <button type="button" onClick={()=>setConfirm(false)} className="text-xs text-textSecondary">Отменить</button>
+      </>}
+      <Status>Демо-операции хранятся только в браузере. Они не являются оплатой и не доступны для покупки сервисов.</Status>
+    </Card>
+    <Card className="flex flex-col gap-3"><h2 className="text-sm font-bold">История тестовых пополнений</h2>
+      {demoPayments.length===0?<p className="text-xs text-textSecondary">Тестовых операций пока нет</p>:demoPayments.map(p=><div key={p.id} className="flex justify-between gap-2 border-t border-white/10 pt-2 text-xs"><span>{new Date(p.created_at).toLocaleString('ru-RU')} · Тест успешно</span><strong>{usd(p.amount)}</strong></div>)}
+      {demoPayments.length>0&&<button type="button" className="text-xs text-textSecondary underline" onClick={()=>{localStorage.removeItem(DEMO_KEY);setDemoPayments([]);}}>Очистить тестовые операции</button>}
     </Card>
   </Shell>;
 };
