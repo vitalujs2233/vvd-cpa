@@ -76,6 +76,9 @@ export const ToolsTopupPage:React.FC=()=>{
   const [confirm,setConfirm]=useState(false);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
+  const [invoices,setInvoices]=useState<{id:string;amount:string;currency:string;status:string;created_at:string}[]>([]);
+  const [invoiceError,setInvoiceError]=useState('');
+  useEffect(()=>{let mounted=true;marketApi.paymentInvoices().then(data=>{if(mounted)setInvoices(data.invoices);}).catch(()=>{if(mounted)setInvoiceError('История счетов сейчас недоступна.');});return()=>{mounted=false;};},[]);
   const [demo,setDemo]=useState<{balance:string;transactions:{id:string;amount:string;created_at:string}[]}>({balance:'0',transactions:[]});
   const refreshDemo=useCallback(async()=>{try{setDemo(await marketApi.demoTopups());setError('');}catch(e){setError(toText(e));}},[]);
   useEffect(()=>{void refreshDemo();},[refreshDemo]);
@@ -108,6 +111,11 @@ export const ToolsTopupPage:React.FC=()=>{
       </>}
       {error&&<p role="alert" className="text-xs text-error">{error}</p>}
       <Status>Демо-операции хранятся на сервере отдельно от реальных средств. Старые локальные тестовые $5 не переносятся автоматически.</Status>
+    </Card>
+    <Card className="flex flex-col gap-3"><h2 className="text-sm font-bold">Счета реального пополнения (только просмотр)</h2>
+      {invoiceError&&<p role="alert" className="text-xs text-textSecondary">{invoiceError}</p>}
+      {!invoiceError&&invoices.length===0&&<p className="text-xs text-textSecondary">Счетов пока нет. Приём настоящих платежей отключён.</p>}
+      {invoices.map(invoice=><div key={invoice.id} className="flex justify-between gap-2 border-t border-white/10 pt-2 text-xs"><span>{new Date(invoice.created_at).toLocaleString('ru-RU')} · {({draft:'Черновик',pending:'Ожидает',paid:'Оплачен',expired:'Истёк',cancelled:'Отменён',failed:'Ошибка'} as Record<string,string>)[invoice.status]||'Неизвестный статус'}</span><strong>{usd(invoice.amount)}</strong></div>)}
     </Card>
     <Card className="flex flex-col gap-3"><h2 className="text-sm font-bold">История тестовых пополнений</h2>
       {demo.transactions.length===0?<p className="text-xs text-textSecondary">Серверных тестовых операций пока нет</p>:demo.transactions.map(p=><div key={p.id} className="flex justify-between gap-2 border-t border-white/10 pt-2 text-xs"><span>{new Date(p.created_at).toLocaleString('ru-RU')} · Тест успешно</span><strong>{usd(p.amount)}</strong></div>)}
