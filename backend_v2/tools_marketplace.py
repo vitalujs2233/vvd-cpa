@@ -143,6 +143,25 @@ def create_demo_topup(payload: DemoTopupPayload, x_telegram_init_data: Optional[
         """), {"uid":uid,"amount":payload.amount}).one()
     return {"id":str(row.id),"amount":str(row.amount),"created_at":row.created_at.isoformat()}
 
+@router.get("/payment-invoices")
+def payment_invoices(x_telegram_init_data: Optional[str] = Header(None)):
+    """Read-only invoice history; never trusts client-supplied status or credits wallets."""
+    uid = owner(x_telegram_init_data)
+    with engine.connect() as conn:
+        rows = conn.execute(text("""
+          SELECT id, amount_usd, currency, status, created_at, updated_at, paid_at
+          FROM tool_payment_invoices WHERE telegram_id=:uid
+          ORDER BY created_at DESC LIMIT 100
+        """), {"uid": uid}).all()
+    return {"invoices": [
+        {"id": str(r.id), "amount": str(r.amount_usd), "currency": r.currency,
+         "status": r.status, "created_at": r.created_at.isoformat(),
+         "updated_at": r.updated_at.isoformat(),
+         "paid_at": r.paid_at.isoformat() if r.paid_at else None}
+        for r in rows
+    ]}
+
+
 @router.post("/topup",status_code=503)
 def topup_disabled(x_telegram_init_data: Optional[str] = Header(None)):
     owner(x_telegram_init_data)
