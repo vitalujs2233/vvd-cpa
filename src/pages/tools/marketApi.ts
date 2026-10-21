@@ -25,6 +25,9 @@ const write = <T>(path:string, method:'POST'|'PUT', body:object) => apiRequest<T
 });
 export const marketApi = {
   wallet:()=>get<ToolWallet>('/wallet'),
+  // DEMO TOP-UP: server-only test ledger, separate from real wallet.
+  demoTopups:()=>get<{balance:string;transactions:{id:string;amount:string;created_at:string}[]}>('/demo-topups'),
+  createDemoTopup:(amount:number)=>write<{id:string;amount:string;created_at:string}>('/demo-topups','POST',{amount}),
   catalog:()=>apiRequest<{services:ServiceInfo[];payment_provider:{status:string;assets:string[]}}>('/tools-market/catalog'),
   transactions:()=>get<{transactions:ToolTransaction[]}>('/transactions'),
   orders:()=>get<{orders:ToolOrder[]}>('/orders'),
