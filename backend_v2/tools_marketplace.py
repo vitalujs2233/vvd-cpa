@@ -113,6 +113,36 @@ def orders(x_telegram_init_data: Optional[str] = Header(None)):
         return {"orders":[{"id":str(r.id),"service_id":r.service_id,"title":r.title,"amount":str(r.amount),
                            "status":r.status,"created_at":r.created_at.isoformat()} for r in rows]}
 
+# DEMO TOP-UP: test credits live in tool_demo_topups, NEVER in the real wallet.
+# Telegram initData is verified by owner(); clients cannot choose someone else's account.
+class DemoTopupPayload(BaseModel):
+    amount: Decimal = Field(ge=Decimal("5"), le=Decimal("10000"), decimal_places=2)
+
+@router.get("/demo-topups")
+def demo_topups(x_telegram_init_data: Optional[str] = Header(None)):
+    uid = owner(x_telegram_init_data)
+    with engine.connect() as conn:
+        rows = conn.execute(text("""
+          SELECT id,amount,created_at FROM tool_demo_topups
+          WHERE telegram_id=:uid ORDER BY created_at DESC LIMIT 100
+        """), {"uid":uid}).all()
+        total = conn.execute(text("""
+          SELECT COALESCE(SUM(amount),0) FROM tool_demo_topups WHERE telegram_id=:uid
+        """), {"uid":uid}).scalar_one()
+    return {"balance":str(total),"transactions":[{"id":str(r.id),"amount":str(r.amount),
+            "created_at":r.created_at.isoformat()} for r in rows]}
+
+@router.post("/demo-topups")
+def create_demo_topup(payload: DemoTopupPayload, x_telegram_init_data: Optional[str] = Header(None)):
+    uid = owner(x_telegram_init_data)
+    # This simulates successful payment only; never call Crypto Pay or modify tool_wallets.
+    with engine.begin() as conn:
+        row = conn.execute(text("""
+          INSERT INTO tool_demo_topups(telegram_id,amount)
+          VALUES(:uid,:amount) RETURNING id,amount,created_at
+        """), {"uid":uid,"amount":payload.amount}).one()
+    return {"id":str(row.id),"amount":str(row.amount),"created_at":row.created_at.isoformat()}
+
 @router.post("/topup",status_code=503)
 def topup_disabled(x_telegram_init_data: Optional[str] = Header(None)):
     owner(x_telegram_init_data)
