@@ -82,12 +82,12 @@ export const ToolsTopupPage:React.FC=()=>{
   const [demoPayments,setDemoPayments]=useState<DemoPayment[]>(readDemoPayments);
   const [confirm,setConfirm]=useState(false);
   const amountNum=Number(amount);
-  const valid=/^\\d+(\\.\\d{1,2})?$/.test(amount)&&Number.isFinite(amountNum)&&amountNum>=5&&amountNum<=10000;
+  const valid=/^\d+(\.\d{1,2})?$/.test(amount)&&Number.isFinite(amountNum)&&amountNum>=5&&amountNum<=10000;
   const demoTotal=demoPayments.reduce((sum,p)=>sum+p.amount,0);
   const addDemo=()=>{
     if(!valid)return;
     // Только имитация подтверждения: не вызываем Crypto Pay и не начисляем реальный баланс.
-    const next=[{id:crypto.randomUUID(),amount:amountNum,created_at:new Date().toISOString()},...demoPayments];
+    const next=[{id:(globalThis.crypto?.randomUUID?.() ?? `demo-${Date.now()}-${Math.random().toString(36).slice(2)}`),amount:amountNum,created_at:new Date().toISOString()},...demoPayments];
     localStorage.setItem(DEMO_KEY,JSON.stringify(next));
     setDemoPayments(next);
     setConfirm(false);
