@@ -68,50 +68,49 @@ export const Tools:React.FC=()=>{
   </Shell>;
 };
 
-// DEMO TOP-UP: отдельный тестовый баланс, не связанный с реальными деньгами и Crypto Pay.
-// Здесь проверяем форму, подтверждение и историю, не меняя tool_wallets на сервере.
-const DEMO_KEY='vvd-tools-demo-topups-v1';
-type DemoPayment={id:string;amount:number;created_at:string};
-const readDemoPayments=():DemoPayment[]=>{
-  try {const value=JSON.parse(localStorage.getItem(DEMO_KEY)||'[]');return Array.isArray(value)?value.filter((x):x is DemoPayment=>typeof x?.id==='string'&&typeof x?.amount==='number'&&Number.isFinite(x.amount)&&typeof x?.created_at==='string'):[];}
-  catch {return [];}
-};
+// DEMO TOP-UP: server ledger belongs to signed-in Telegram user, not real wallet.
+// No localStorage, no Crypto Pay, no tool_wallets changes.
 export const ToolsTopupPage:React.FC=()=>{
   const w=useRemote(readWallet,emptyWallet);
   const [amount,setAmount]=useState('5');
-  const [demoPayments,setDemoPayments]=useState<DemoPayment[]>(readDemoPayments);
   const [confirm,setConfirm]=useState(false);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState('');
+  const [demo,setDemo]=useState<{balance:string;transactions:{id:string;amount:string;created_at:string}[]}>({balance:'0',transactions:[]});
+  const refreshDemo=useCallback(async()=>{try{setDemo(await marketApi.demoTopups());setError('');}catch(e){setError(toText(e));}},[]);
+  useEffect(()=>{void refreshDemo();},[refreshDemo]);
   const amountNum=Number(amount);
   const valid=/^\d+(\.\d{1,2})?$/.test(amount)&&Number.isFinite(amountNum)&&amountNum>=5&&amountNum<=10000;
-  const demoTotal=demoPayments.reduce((sum,p)=>sum+p.amount,0);
-  const addDemo=()=>{
-    if(!valid)return;
-    // Только имитация подтверждения: не вызываем Crypto Pay и не начисляем реальный баланс.
-    const next=[{id:(globalThis.crypto?.randomUUID?.() ?? `demo-${Date.now()}-${Math.random().toString(36).slice(2)}`),amount:amountNum,created_at:new Date().toISOString()},...demoPayments];
-    localStorage.setItem(DEMO_KEY,JSON.stringify(next));
-    setDemoPayments(next);
-    setConfirm(false);
+  const addDemo=async()=>{
+    if(!valid||busy)return;
+    setBusy(true);setError('');
+    try{
+      // Server authenticates Telegram and writes a test-only operation.
+      await marketApi.createDemoTopup(amountNum);
+      await refreshDemo();setConfirm(false);
+    }catch(e){setError(toText(e));}
+    finally{setBusy(false);}
   };
   return <Shell><NavHeader title="Пополнение баланса" subtitle="Тестовый режим — без реальной оплаты"/>
     <Card className="flex flex-col gap-2"><p className="text-xs text-textSecondary">Реальный баланс инструментов (не меняется)</p><strong className="text-2xl text-accentBrightGold">{usd(w.value.available)}</strong></Card>
-    <Card className="flex flex-col gap-2"><p className="text-xs text-textSecondary">Тестовый баланс (только на этом устройстве)</p><strong className="text-2xl text-accentBrightGold">{usd(demoTotal)}</strong></Card>
+    <Card className="flex flex-col gap-2"><p className="text-xs text-textSecondary">Тестовый баланс (привязан к Telegram-аккаунту)</p><strong className="text-2xl text-accentBrightGold">{usd(demo.balance)}</strong></Card>
     <Card className="flex flex-col gap-4">
       <label className="text-xs font-semibold text-textSecondary">Тестовая сумма в USD (минимум $5)
         <input className={inputClass+' mt-2'} type="text" inputMode="decimal" value={amount} onChange={e=>{setAmount(e.target.value);setConfirm(false);}} placeholder="5.00"/>
       </label>
-      <div className="grid grid-cols-5 gap-1">{[5,10,25,50,100].map(n=><button type="button" key={n} onClick={()=>{setAmount(String(n));setConfirm(false);}} className={'rounded-app-xs border px-1 py-2 text-xs '+(amount===String(n)?'border-accentGold bg-accentGold/10 text-accentBrightGold':'border-white/10 text-textSecondary')}>$​{n}</button>)}</div>
+      <div className="grid grid-cols-5 gap-1">{[5,10,25,50,100].map(n=><button type="button" key={n} onClick={()=>{setAmount(String(n));setConfirm(false);}} className={'rounded-app-xs border px-1 py-2 text-xs '+(amount===String(n)?'border-accentGold bg-accentGold/10 text-textSecondary':'border-white/10 text-textSecondary')}>$​{n}</button>)}</div>
       {!valid&&<p role="alert" className="text-xs text-error">Укажите сумму от $5 до $10 000, до двух знаков после запятой.</p>}
       <div className="flex justify-between border-t border-white/10 pt-3 text-sm"><span className="text-textSecondary">Сумма тестового пополнения</span><strong>{valid?usd(amountNum):'—'}</strong></div>
       {!confirm?<Button type="button" disabled={!valid} onClick={()=>setConfirm(true)}>Создать тестовый счёт</Button>:<>
-        <Status>Тестовый счёт на {usd(amountNum)} создан. Никаких платежей через CryptoBot не будет.</Status>
-        <Button type="button" onClick={addDemo}>Имитировать успешную оплату</Button>
+        <Status>Тестовый счёт на {usd(amountNum)} создан. Реальных платежей нет.</Status>
+        <Button type="button" disabled={busy} onClick={()=>void addDemo()}>{busy?'Сохраняем…':'Имитировать успешную оплату'}</Button>
         <button type="button" onClick={()=>setConfirm(false)} className="text-xs text-textSecondary">Отменить</button>
       </>}
-      <Status>Демо-операции хранятся только в браузере. Они не являются оплатой и не доступны для покупки сервисов.</Status>
+      {error&&<p role="alert" className="text-xs text-error">{error}</p>}
+      <Status>Демо-операции хранятся на сервере отдельно от реальных средств. Старые локальные тестовые $5 не переносятся автоматически.</Status>
     </Card>
     <Card className="flex flex-col gap-3"><h2 className="text-sm font-bold">История тестовых пополнений</h2>
-      {demoPayments.length===0?<p className="text-xs text-textSecondary">Тестовых операций пока нет</p>:demoPayments.map(p=><div key={p.id} className="flex justify-between gap-2 border-t border-white/10 pt-2 text-xs"><span>{new Date(p.created_at).toLocaleString('ru-RU')} · Тест успешно</span><strong>{usd(p.amount)}</strong></div>)}
-      {demoPayments.length>0&&<button type="button" className="text-xs text-textSecondary underline" onClick={()=>{localStorage.removeItem(DEMO_KEY);setDemoPayments([]);}}>Очистить тестовые операции</button>}
+      {demo.transactions.length===0?<p className="text-xs text-textSecondary">Серверных тестовых операций пока нет</p>:demo.transactions.map(p=><div key={p.id} className="flex justify-between gap-2 border-t border-white/10 pt-2 text-xs"><span>{new Date(p.created_at).toLocaleString('ru-RU')} · Тест успешно</span><strong>{usd(p.amount)}</strong></div>)}
     </Card>
   </Shell>;
 };
