@@ -1502,7 +1502,7 @@ async def create_chat_message(payload: dict):
     sender_name = str(payload.get("sender_name") or "Партнёр").strip()[:255]
     avatar_url = payload.get("avatar_url")
     message_text = str(payload.get("text") or "").strip()
-    broadcast_all = bool(re.search(r"(?<![\\w@])@все(?![\\w])", message_text, re.IGNORECASE))
+    broadcast_all = bool(re.search(r"(?<![\w@])@все(?![\w])", message_text, re.IGNORECASE))
     reply_raw = payload.get("reply_to_id")
     raw_mentions = payload.get("mention_ids") or []
 
