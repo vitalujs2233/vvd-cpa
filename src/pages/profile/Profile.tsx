@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import React from 'react';
-import { LogOut, Lock, User, Coins, Sparkles, Crown, MessageSquare } from 'lucide-react';
+import { LogOut, Lock, Shield, User, Coins, Sparkles, Crown, MessageSquare } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
 
