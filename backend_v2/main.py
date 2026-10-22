@@ -7,6 +7,7 @@ from database import check_database, save_user, engine
 from datetime import datetime, timedelta
 
 import json
+import re
 import urllib.request
 import uuid
 import asyncio
@@ -1498,135 +1499,157 @@ async def reject_withdrawal(withdrawal_id: int):
 @app.post("/chat/messages")
 async def create_chat_message(payload: dict):
     sender_id = str(payload.get("sender_id") or "").strip()
-    sender_name = str(payload.get("sender_name") or "Партнёр").strip()
+    sender_name = str(payload.get("sender_name") or "Партнёр").strip()[:255]
     avatar_url = payload.get("avatar_url")
     message_text = str(payload.get("text") or "").strip()
+    reply_raw = payload.get("reply_to_id")
+    raw_mentions = payload.get("mention_ids") or []
 
-    if not sender_id:
-        return {
-            "success": False,
-            "message": "sender_id is required"
-        }
+    if not sender_id or not sender_id.isdecimal():
+        return {"success": False, "message": "sender_id is required"}
+    if not message_text or len(message_text) > 4000:
+        return {"success": False, "message": "text must be 1–4000 characters"}
+    if not isinstance(raw_mentions, list) or len(raw_mentions) > 8:
+        return {"success": False, "message": "Invalid mentions"}
+    try:
+        reply_id = str(uuid.UUID(str(reply_raw))) if reply_raw else None
+        mention_ids = list(dict.fromkeys(int(v) for v in raw_mentions))
+    except (ValueError, TypeError, AttributeError):
+        return {"success": False, "message": "Invalid reply or mention"}
+    if any(v <= 0 for v in mention_ids):
+        return {"success": False, "message": "Invalid mentions"}
 
-    if not message_text:
-        return {
-            "success": False,
-            "message": "text is required"
-        }
-
-    with engine.connect() as conn:
-
-        banned = conn.execute(
-            text("""
-                SELECT telegram_id
-                FROM chat_bans
-                WHERE telegram_id = :telegram_id
-                LIMIT 1
-            """),
-            {
-                "telegram_id": int(sender_id)
-            }
-        ).fetchone()
-
-        if banned and sender_id != ADMIN_TELEGRAM_ID:
-            return {
-                "success": False,
-                "banned": True,
-                "message": "Доступ к чату ограничен модерацией"
-            }
-
+    # Keep existing ban protection. Everything below happens atomically.
     with engine.begin() as conn:
+        banned = conn.execute(text("""
+            SELECT 1 FROM chat_bans WHERE telegram_id=:uid LIMIT 1
+        """), {"uid": int(sender_id)}).first()
+        if banned and sender_id != ADMIN_TELEGRAM_ID:
+            return {"success": False, "banned": True,
+                    "message": "Доступ к чату ограничен модерацией"}
 
-        row = conn.execute(
-            text("""
-                INSERT INTO chat_messages
-                (
-                    sender_id,
-                    sender_name,
-                    avatar_url,
-                    text,
-                    reactions,
-                    is_staff
-                )
-                VALUES
-                (
-                    :sender_id,
-                    :sender_name,
-                    :avatar_url,
-                    :text,
-                    '{}'::jsonb,
-                    :is_staff
-                )
-                RETURNING
-                    id,
-                    sender_id,
-                    sender_name,
-                    avatar_url,
-                    text,
-                    reactions,
-                    created_at,
-                    is_staff
-            """),
-            {
-                "sender_id": int(sender_id),
-                "sender_name": sender_name,
-                "avatar_url": avatar_url,
-                "text": message_text,
-                "is_staff": sender_id == ADMIN_TELEGRAM_ID
-            }
-        ).fetchone()
+        parent = None
+        if reply_id:
+            parent = conn.execute(text("""
+                SELECT id, sender_id, sender_name, text
+                FROM chat_messages WHERE id=:id
+            """), {"id": reply_id}).mappings().first()
+            if not parent:
+                return {"success": False, "message": "Сообщение для ответа не найдено"}
 
-    return {
-        "success": True,
-        "message": {
-            "id": str(row.id),
-            "sender_id": str(row.sender_id),
-            "sender_name": row.sender_name,
-            "avatar_url": row.avatar_url,
-            "text": row.text,
-            "reactions": row.reactions or {},
-            "created_at": str(row.created_at),
-            "is_staff": bool(row.is_staff)
-        }
-    }
+        # Mentions must identify real participants of Dvizh and appear in text.
+        confirmed_mentions = []
+        for mentioned_id in mention_ids:
+            person = conn.execute(text("""
+                SELECT sender_name FROM chat_messages
+                WHERE sender_id=:uid ORDER BY created_at DESC LIMIT 1
+            """), {"uid": mentioned_id}).first()
+            if not person:
+                return {"success": False, "message": "Участник не найден в чате"}
+            tag = "@" + re.sub(r"\s+", "_", re.sub(r"[^\w\s]", " ", str(person.sender_name or "Партнёр")).strip())
+            if tag.casefold() not in message_text.casefold():
+                return {"success": False, "message": "Тег упоминания отсутствует в тексте"}
+            if mentioned_id != int(sender_id):
+                confirmed_mentions.append(mentioned_id)
+
+        row = conn.execute(text("""
+            INSERT INTO chat_messages
+            (sender_id, sender_name, avatar_url, text, reactions, is_staff,
+             reply_to_id, mention_ids)
+            VALUES (:sender_id, :sender_name, :avatar_url, :text,
+                    '{}'::jsonb, :is_staff, :reply_to_id, :mention_ids)
+            RETURNING id, sender_id, sender_name, avatar_url, text,
+                      reactions, created_at, is_staff, reply_to_id, mention_ids
+        """), {
+            "sender_id": int(sender_id),
+            "sender_name": sender_name,
+            "avatar_url": avatar_url,
+            "text": message_text,
+            "is_staff": sender_id == ADMIN_TELEGRAM_ID,
+            "reply_to_id": reply_id,
+            "mention_ids": confirmed_mentions,
+        }).mappings().first()
+
+        recipients = {uid: "mention" for uid in confirmed_mentions}
+        if parent and int(parent["sender_id"]) != int(sender_id):
+            recipients.setdefault(int(parent["sender_id"]), "reply")
+        for uid, kind in recipients.items():
+            conn.execute(text("""
+                INSERT INTO chat_interaction_notifications
+                  (recipient_id, actor_id, message_id, kind)
+                VALUES (:recipient, :actor, :message, :kind)
+                ON CONFLICT (recipient_id, message_id) DO NOTHING
+            """), {"recipient": uid, "actor": int(sender_id),
+                   "message": str(row["id"]), "kind": kind})
+
+    return {"success": True, "message": {
+        **{key: str(row[key]) if key in ("id", "sender_id", "created_at", "reply_to_id") and row[key] is not None
+           else row[key] for key in ("id", "sender_id", "sender_name", "avatar_url",
+                                     "text", "reactions", "created_at", "is_staff",
+                                     "reply_to_id", "mention_ids")},
+        "reply_sender_name": str(parent["sender_name"]) if parent else None,
+        "reply_text": str(parent["text"]) if parent else None,
+    }}
+
 
 @app.get("/chat/messages")
 def get_chat_messages():
     with engine.connect() as conn:
-        rows = conn.execute(
-            text("""
-                SELECT
-                    id,
-                    sender_id,
-                    sender_name,
-                    avatar_url,
-                    text,
-                    reactions,
-                    created_at,
-                    is_staff
-                FROM chat_messages
-                ORDER BY created_at ASC
-                LIMIT 500
-            """)
-        ).fetchall()
+        rows = conn.execute(text("""
+            SELECT m.id, m.sender_id, m.sender_name, m.avatar_url,
+                   m.text, m.reactions, m.created_at, m.is_staff,
+                   m.reply_to_id, m.mention_ids,
+                   parent.sender_name AS reply_sender_name,
+                   parent.text AS reply_text
+            FROM chat_messages m
+            LEFT JOIN chat_messages parent ON parent.id=m.reply_to_id
+            ORDER BY m.created_at DESC, m.id DESC LIMIT 500
+        """)).mappings().all()
+    return {"success": True, "messages": [
+        {key: str(row[key]) if key in ("id", "sender_id", "created_at", "reply_to_id") and row[key] is not None
+         else row[key] for key in ("id", "sender_id", "sender_name", "avatar_url",
+                                   "text", "reactions", "created_at", "is_staff",
+                                   "reply_to_id", "reply_sender_name", "reply_text",
+                                   "mention_ids")}
+        for row in reversed(rows)
+    ]}
 
-    return {
-        "success": True,
-        "messages": [
-            {
-                "id": str(row.id),
-                "sender_id": str(row.sender_id),
-                "sender_name": row.sender_name,
-                "avatar_url": row.avatar_url,
-                "text": row.text,
-                "reactions": row.reactions or {},
-                "created_at": str(row.created_at),
-                "is_staff": bool(row.is_staff),
-            }
-            for row in rows
-        ]
-    }
-    
+
+@app.get("/chat/mentions")
+def get_chat_mentions(request: Request):
+    user_id = verified_telegram_id(request.headers.get("X-Telegram-Init-Data", ""))
+    with engine.connect() as conn:
+        rows = conn.execute(text("""
+            SELECT n.id, n.message_id, n.kind, n.is_read, n.created_at,
+                   m.sender_name, m.text
+            FROM chat_interaction_notifications n
+            JOIN chat_messages m ON m.id=n.message_id
+            WHERE n.recipient_id=:uid
+            ORDER BY n.created_at DESC LIMIT 100
+        """), {"uid": user_id}).mappings().all()
+    return {"success": True, "notifications": [
+        {"id": str(r["id"]), "message_id": str(r["message_id"]),
+         "kind": r["kind"], "is_read": r["is_read"],
+         "created_at": str(r["created_at"]),
+         "sender_name": r["sender_name"], "text": r["text"]}
+        for r in rows
+    ]}
+
+
+@app.post("/chat/mentions/{notification_id}/read")
+def mark_chat_mention_read(notification_id: uuid.UUID, request: Request):
+    user_id = verified_telegram_id(request.headers.get("X-Telegram-Init-Data", ""))
+    with engine.begin() as conn:
+        changed = conn.execute(text("""
+            UPDATE chat_interaction_notifications SET is_read=true
+            WHERE id=:nid AND recipient_id=:uid
+            RETURNING id
+        """), {"nid": str(notification_id), "uid": user_id}).first()
+    if not changed:
+        raise HTTPException(404, "Уведомление не найдено")
+    return {"success": True}
+
+
 ADMIN_TELEGRAM_ID = "232682307"
 
 @app.post("/chat/online")
