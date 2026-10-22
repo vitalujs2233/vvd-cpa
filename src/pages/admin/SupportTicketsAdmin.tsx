@@ -11,7 +11,7 @@ async function api(path='',init?:RequestInit){
  if(!response.ok||!data.success)throw new Error('Запрос не выполнен');
  return data;
 }
-export const SupportTicketsAdmin:React.FC<{onBack:()=>}> = ({onBack}) => {
+export const SupportTicketsAdmin:React.FC<{onBack: () => void}> = ({onBack}) => {
  const [tickets,setTickets]=useState<Ticket[]>([]);
  const [selected,setSelected]=useState<Ticket|null>(null);
  const [messages,setMessages]=useState<Message[]>([]);
