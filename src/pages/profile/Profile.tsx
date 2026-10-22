@@ -8,7 +8,6 @@ export const Profile: React.FC = () => {
   const navigate = useNavigate();
   const telegramUser = getTelegramUser();
 
-  const [subView, setSubView] = useState<'main' | 'settings'>('main');
   const profileName = `${telegramUser.first_name || ''} ${telegramUser.last_name || ''}`.trim() || 'Пользователь Telegram';
   const profileUsername = telegramUser.username;
 
