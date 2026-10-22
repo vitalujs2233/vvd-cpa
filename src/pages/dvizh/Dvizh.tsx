@@ -2,8 +2,9 @@ import { authorizedFetch } from '@/shared/lib/api';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Send, ShieldAlert, Users, Pin, Search, Smile, 
-  Check, CheckCircle2, AlertTriangle, Sparkles 
+  Check, CheckCircle2, AlertTriangle, Sparkles, CircleHelp, X 
 } from 'lucide-react';
+import { CHAT_RULES, CHAT_RULES_INTRO } from './chatRules';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { Input } from '@/shared/ui/Input';
@@ -71,6 +72,7 @@ export const Dvizh: React.FC = () => {
   const [inputValue, setInputValue] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const [showChatRules, setShowChatRules] = useState(false);
   const [activeReactionMenu, setActiveReactionMenu] = useState<string | null>(null);
   const [moderationMenu, setModerationMenu] = useState<string | null>(null);
 
@@ -482,6 +484,16 @@ if (!response.ok || !data.success) {
           </h1>
         </div>
 
+        <div className="flex items-center gap-2 shrink-0">
+        <button
+          type="button"
+          aria-label="Правила чата «Движ»"
+          title="Правила чата"
+          onClick={() => { triggerHaptic.lightImpact(); setShowChatRules(true); }}
+          className="w-10 h-10 rounded-full bg-white/[0.03] border border-white/5 flex items-center justify-center text-accentGoldBright active:scale-95 transition-all"
+        >
+          <CircleHelp size={18} />
+        </button>
         <button 
           onClick={() => { triggerHaptic.lightImpact(); setShowSearch(!showSearch); setSearchQuery(''); }}
           className={`w-10 h-10 rounded-full bg-white/[0.03] border flex items-center justify-center text-textSecondary active:scale-95 transition-all ${
@@ -490,7 +502,49 @@ if (!response.ok || !data.success) {
         >
           <Search size={16} />
         </button>
+        </div>
       </div>
+
+      {/* Окно правил: чат остаётся смонтированным и сохраняет своё состояние. */}
+      {showChatRules && (
+        <div
+          className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
+          role="presentation"
+          onMouseDown={(event) => { if (event.target === event.currentTarget) setShowChatRules(false); }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dvizh-chat-rules-title"
+            className="w-full max-w-lg max-h-[85dvh] flex flex-col overflow-hidden rounded-2xl bg-bgCard border border-accentGold/25 shadow-2xl"
+          >
+            <div className="flex items-center justify-between gap-3 p-4 border-b border-white/10 shrink-0">
+              <h2 id="dvizh-chat-rules-title" className="text-base font-bold text-accentGoldBright">
+                Правила чата «Движ»
+              </h2>
+              <button
+                type="button"
+                aria-label="Закрыть правила"
+                onClick={() => setShowChatRules(false)}
+                className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-textSecondary hover:text-white"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="overflow-y-auto overscroll-contain px-4 py-4 space-y-5 text-sm leading-relaxed text-textSecondary">
+              <p>{CHAT_RULES_INTRO}</p>
+              {CHAT_RULES.map((rule) => (
+                <section key={rule.title} className="space-y-2">
+                  <h3 className="font-semibold text-accentGoldBright">{rule.title}</h3>
+                  {rule.paragraphs.map((paragraph) => (
+                    <p key={paragraph}>{paragraph}</p>
+                  ))}
+                </section>
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
 
       {/* Панель поиска */}
       {showSearch && (
