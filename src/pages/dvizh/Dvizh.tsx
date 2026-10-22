@@ -68,7 +68,7 @@ interface ChatMentionNotice {
 const tagFor = (name: string) => '@' + name.replace(/[^\p{L}\p{N}\s_]/gu, ' ').trim().replace(/\s+/g, '_');
 const API = 'https://vvd-cpa-v2.onrender.com';
 
-const ChatPhoto: React.FC<{id:string; onOpen:(id:string)=>void}> = ({id,onOpen}) => {
+const ChatPhoto: React.FC<{id:string; onOpen:(id:string)=>void; compact?:boolean; overlay?:string}> = ({id,onOpen,compact=false,overlay}) => {
   const [url,setUrl] = useState('');
   useEffect(()=>{
     let mounted=true;
@@ -86,10 +86,11 @@ const ChatPhoto: React.FC<{id:string; onOpen:(id:string)=>void}> = ({id,onOpen})
     return()=>{mounted=false;if(objectUrl)URL.revokeObjectURL(objectUrl)};
   },[id]);
   return url
-    ? <button type="button" onClick={()=>onOpen(id)} className="block max-w-full rounded-xl overflow-hidden" aria-label="Открыть фотографию">
-        <img src={url} alt="Фото в чате" loading="lazy" className="block w-full max-h-56 object-contain rounded-xl"/>
+    ? <button type="button" onClick={()=>onOpen(id)} className={compact?"relative block w-full h-full overflow-hidden bg-black/30":"relative block max-w-full rounded-xl overflow-hidden"} aria-label="Открыть фотографию">
+        <img src={url} alt="Фото в чате" loading="lazy" className={compact?"block w-full h-full object-cover":"block w-full max-h-56 object-contain rounded-xl"}/>
+        {overlay && <span className="absolute inset-0 bg-black/55 text-white flex items-center justify-center text-xl font-bold">{overlay}</span>}
       </button>
-    : <div role="status" className="text-xs text-textSecondary py-3">Загрузка фото…</div>;
+    : <div role="status" className={compact?"h-full w-full bg-white/5 animate-pulse":"text-xs text-textSecondary py-3"}>{compact?'': 'Загрузка фото…'}</div>;
 };
 
 export const Dvizh: React.FC = () => {
@@ -101,6 +102,7 @@ export const Dvizh: React.FC = () => {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [photoViewer,setPhotoViewer] = useState<{ids:string[];index:number;url:string} | null>(null);
   const viewerUrl = useRef('');
+  const viewerTouch = useRef<{x:number;y:number}|null>(null);
   const openPhoto = async (ids:string[], index:number) => {
     const id=ids[index];
     try {
@@ -942,10 +944,19 @@ if (!response.ok || !data.success) {
                     )}
                     {msg.text && <span className="whitespace-pre-wrap break-words">{formatMessage(msg.text)}</span>}
                     {Boolean(msg.imageIds?.length) && (
-                      <div className="flex flex-col gap-2 mt-2 max-w-[65vw]">
-                        {msg.imageIds!.map(id=>(
-                          <ChatPhoto key={id} id={id} onOpen={selected=>void openPhoto(msg.imageIds||[],(msg.imageIds||[]).indexOf(selected))}/>
-                        ))}
+                      <div className="mt-2 w-[min(65vw,320px)] overflow-hidden rounded-xl border border-white/10">
+                        {msg.imageIds!.length===1 ? (
+                          <ChatPhoto id={msg.imageIds![0]} onOpen={()=>void openPhoto(msg.imageIds!,0)}/>
+                        ) : (
+                          <div className={`grid gap-0.5 bg-[#171717] h-44 ${msg.imageIds!.length===2?'grid-cols-2':'grid-cols-2 grid-rows-2'}`}>
+                            {msg.imageIds!.map((id,index)=>(
+                              <div key={id} className={`min-w-0 min-h-0 overflow-hidden ${msg.imageIds!.length===3&&index===0?'row-span-2':''}`}>
+                                <ChatPhoto compact id={id} onOpen={()=>void openPhoto(msg.imageIds!,index)}/>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {msg.imageIds!.length>1 && <div className="text-[10px] text-textSecondary px-2 py-1 text-center">{msg.imageIds!.length} фото · нажми, чтобы листать</div>}
                       </div>
                     )}
                   </div>
@@ -1008,14 +1019,28 @@ if (!response.ok || !data.success) {
       </div>
 
       {photoViewer && (
-        <div className="fixed inset-0 z-[9999] bg-black/95 flex flex-col items-center justify-center p-3" role="dialog" aria-modal="true" aria-label="Просмотр фотографии">
-          <button onClick={closePhoto} aria-label="Закрыть фотографию" className="absolute top-7 right-5 z-10 text-white bg-white/10 rounded-full p-3"><X size={24}/></button>
-          <img src={photoViewer.url} alt="Увеличенное фото" className="max-w-full max-h-[78vh] object-contain"/>
-          {photoViewer.ids.length>1 && <div className="flex items-center gap-6 py-4 text-white">
-            <button aria-label="Предыдущее фото" disabled={photoViewer.index===0} onClick={()=>void openPhoto(photoViewer.ids,photoViewer.index-1)}><ChevronLeft size={28}/></button>
-            <span>{photoViewer.index+1} / {photoViewer.ids.length}</span>
-            <button aria-label="Следующее фото" disabled={photoViewer.index===photoViewer.ids.length-1} onClick={()=>void openPhoto(photoViewer.ids,photoViewer.index+1)}><ChevronRight size={28}/></button>
-          </div>}
+        <div className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center overflow-hidden" role="dialog" aria-modal="true" aria-label="Просмотр фотографии"
+          onTouchStart={e=>{const t=e.touches[0];viewerTouch.current={x:t.clientX,y:t.clientY}}}
+          onTouchEnd={e=>{
+            const start=viewerTouch.current;viewerTouch.current=null;
+            if(!start)return;
+            const t=e.changedTouches[0], delta=t.clientX-start.x;
+            if(Math.abs(delta)>55 && Math.abs(t.clientY-start.y)<80){
+              const target=photoViewer.index+(delta<0?1:-1);
+              if(target>=0&&target<photoViewer.ids.length)void openPhoto(photoViewer.ids,target);
+            }
+          }}>
+          <img src={photoViewer.url} alt="Увеличенное фото" className="max-w-[calc(100vw-24px)] max-h-[calc(100dvh-130px)] object-contain select-none" draggable={false}/>
+          <button onClick={closePhoto} aria-label="Закрыть фотографию" className="absolute top-[max(16px,env(safe-area-inset-top))] right-4 z-20 text-white bg-black/60 border border-white/20 rounded-full p-3"><X size={24}/></button>
+          {photoViewer.ids.length>1 && <>
+            <button type="button" aria-label="Предыдущее фото" disabled={photoViewer.index===0}
+              onClick={()=>void openPhoto(photoViewer.ids,photoViewer.index-1)}
+              className="absolute left-3 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-11 h-12 bg-black/65 text-white rounded-full border border-white/20 disabled:opacity-30"><ChevronLeft size={29}/></button>
+            <button type="button" aria-label="Следующее фото" disabled={photoViewer.index===photoViewer.ids.length-1}
+              onClick={()=>void openPhoto(photoViewer.ids,photoViewer.index+1)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-11 h-12 bg-black/65 text-white rounded-full border border-white/20 disabled:opacity-30"><ChevronRight size={29}/></button>
+            <span className="absolute bottom-[max(30px,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-20 text-white text-sm bg-black/70 rounded-full px-4 py-2" aria-live="polite">{photoViewer.index+1} / {photoViewer.ids.length}</span>
+          </>}
         </div>
       )}
       {sendError && <p role="alert" className="shrink-0 px-3 py-1 text-xs text-error">{sendError}</p>}
