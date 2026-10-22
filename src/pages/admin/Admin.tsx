@@ -2,6 +2,7 @@ import {readApiSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import { CPAManager } from './CPAManager';
 import { CPAUserHold } from './CPAUserHold';
+import { SupportTicketsAdmin } from './SupportTicketsAdmin';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -87,6 +88,7 @@ export const Admin: React.FC = () => {
   'withdrawals' |
   'banner' |
   'chatBans' |
+  'supportTickets' |
   'cpa'
 >('menu');
   const [searchQuery, setSearchQuery] = useState('');
@@ -461,6 +463,9 @@ const saveChatBanner = async () => {
 
           <button type="button" onClick={() => handleSubViewChange('cpa')} className="flex items-center justify-between rounded-card border border-accentPurple/30 bg-accentPurple/10 px-4 py-4 text-left text-sm font-bold text-white">
             <span>CPA → Сети · Вертикали · Офферы</span><Layers size={18} className="text-accentPurple"/>
+          </button>
+          <button type="button" onClick={() => handleSubViewChange('supportTickets')} className="flex items-center justify-between rounded-card border border-accentGold/30 bg-bgCard px-4 py-4 text-left text-sm font-bold text-white">
+            <span>Обращения поддержки</span><Newspaper size={18} className="text-accentGold"/>
           </button>
           {/* Информационная карточка */}
           <Card padding="md" className="flex items-center gap-3 text-left border-accentPurple/10 bg-accentPurple/[0.02]">
@@ -1068,6 +1073,7 @@ const saveChatBanner = async () => {
           </div>
         </div>
       )}
+      {subView === 'supportTickets' && <SupportTicketsAdmin onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'cpa' && <CPAManager onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'chatBans' && (
   <div className="flex flex-col gap-4 animate-fade-in">
