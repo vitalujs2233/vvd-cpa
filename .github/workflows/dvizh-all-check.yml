@@ -1,0 +1,15 @@
+name: Dvizh admin all check
+on:
+  push:
+    branches: [feat/dvizh-admin-mention-all-20261022]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - run: python3 -m py_compile backend_v2/main.py
