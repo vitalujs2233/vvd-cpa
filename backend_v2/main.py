@@ -1650,6 +1650,18 @@ def mark_chat_mention_read(notification_id: uuid.UUID, request: Request):
     return {"success": True}
 
 
+@app.post("/chat/mentions/{notification_id}/dismiss")
+def dismiss_chat_mention(notification_id: uuid.UUID, request: Request):
+    uid = verified_telegram_id(request.headers.get("X-Telegram-Init-Data", ""))
+    with engine.begin() as conn:
+        row = conn.execute(text("""
+            DELETE FROM chat_interaction_notifications
+            WHERE id=:id AND recipient_id=:uid RETURNING id
+        """), {"id": str(notification_id), "uid": uid}).first()
+    if not row:
+        raise HTTPException(404, "Уведомление не найдено")
+    return {"success": True}
+
 ADMIN_TELEGRAM_ID = "232682307"
 
 @app.post("/chat/online")
