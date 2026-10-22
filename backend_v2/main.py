@@ -15,6 +15,7 @@ import uuid
 import asyncio
 import os
 from bot import start_bot, dp, bot
+from support_tickets import router as support_tickets_router
 from stars_payments import router as stars_router
 from tools_marketplace import router as tools_market_router
 from ai_studio_v2 import router as ai_studio_router
@@ -45,6 +46,7 @@ app = FastAPI(
 from iq_play import router as iq_play_router
 app.include_router(iq_play_router)
 app.include_router(stars_router)
+app.include_router(support_tickets_router)
 app.include_router(tools_market_router)
 app.include_router(ai_studio_router)
 app.include_router(cpa_catalog_router)
