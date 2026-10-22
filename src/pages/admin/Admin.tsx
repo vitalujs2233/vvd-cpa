@@ -363,6 +363,7 @@ const saveChatBanner = async () => {
     | 'withdrawals'
     | 'banner'
     | 'chatBans'
+    | 'supportTickets'
     | 'cpa'
 ) => {
   triggerHaptic.lightImpact();
