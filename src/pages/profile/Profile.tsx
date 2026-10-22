@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/shared/ui/Button';
-import React, { useState } from 'react';
-import { ArrowLeft, Settings, Bell, Globe, Info, LogOut, Lock, Shield, Trash2, User, Coins, Sparkles, Crown, MessageSquare } from 'lucide-react';
+import React from 'react';
+import { LogOut, Lock, User, Coins, Sparkles, Crown, MessageSquare } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
 
@@ -12,18 +11,6 @@ export const Profile: React.FC = () => {
   const [subView, setSubView] = useState<'main' | 'settings'>('main');
   const profileName = `${telegramUser.first_name || ''} ${telegramUser.last_name || ''}`.trim() || 'Пользователь Telegram';
   const profileUsername = telegramUser.username;
-
-  // Состояния общих настроек
-  const [pushEnabled, setPushEnabled] = useState(true);
-  const [emailNotificationEnabled, setEmailNotificationEnabled] = useState(false);
-  const [cacheSize, setCacheSize] = useState('12.4 MB');
-  const [language, setLanguage] = useState('Русский');
-  const [currency, setCurrency] = useState('USD');
-
-  const handleSubViewChange = (view: 'main' | 'settings') => {
-    triggerHaptic.lightImpact();
-    setSubView(view);
-  };
 
   // Метод перехода в админку
   const handleNavigateToAdmin = () => {
@@ -37,14 +24,6 @@ export const Profile: React.FC = () => {
     navigate('/support');
   };
 
-  // Метод очистки кэша
-  const handleClearCache = () => {
-    if (cacheSize === '0 MB') return;
-    triggerHaptic.mediumImpact();
-    setCacheSize('0 MB');
-    triggerHaptic.success();
-  };
-
   const handleLogout = () => {
     triggerHaptic.mediumImpact();
     navigate('/');
@@ -54,7 +33,7 @@ export const Profile: React.FC = () => {
     <div className="flex flex-col gap-4 p-4 select-none pb-24">
       
       {/* ================= VIEW 1: ГЛАВНЫЙ ЭКРАН ПРОФИЛЯ ================= */}
-      {subView === 'main' && (
+      {(
         <div className="flex flex-col gap-4 animate-fade-in">
           {/* Шапка Профиля */}
           <div className="flex flex-col text-left">
@@ -135,18 +114,6 @@ export const Profile: React.FC = () => {
                 <Lock size={17} className="text-textSecondary" aria-label="Заблокировано" />
               </div>
 
-              {/* Общие настройки */}
-              <div 
-                onClick={() => handleSubViewChange('settings')}
-                className="flex items-center justify-between p-4 hover:bg-white/[0.01] active:bg-white/[0.02] cursor-pointer transition-colors duration-150"
-              >
-                <div className="flex items-center gap-3">
-                  <Settings size={16} className="text-accentPurple" />
-                  <span className="text-xs font-semibold text-white">Общие настройки</span>
-                </div>
-                <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">Язык, Кэш</span>
-              </div>
-
               {/* Личный чат поддержки (Новое расположение по гайдлайну v2.0) */}
               <div 
                 onClick={handleNavigateToSupport}
@@ -188,117 +155,6 @@ export const Profile: React.FC = () => {
         </div>
       )}
 
-      {/* ================= VIEW 4: ОБЩИЕ НАСТРОЙКИ ================= */}
-      {subView === 'settings' && (
-        <div className="flex flex-col gap-4 animate-fade-in text-left">
-          {/* Шапка */}
-          <div className="flex items-center gap-3 text-left">
-            <button 
-              onClick={() => handleSubViewChange('main')}
-              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary transition-transform shadow-glass-inner"
-            >
-              <ArrowLeft size={18} />
-            </button>
-            <div className="flex flex-col">
-              <span className="text-[10px] text-accentPurple font-bold uppercase tracking-wider">Кабинет</span>
-              <h1 className="text-xl font-bold text-white leading-none mt-0.5">Общие настройки</h1>
-            </div>
-          </div>
-
-          {/* Тумблеры уведомлений */}
-          <div className="flex flex-col gap-2">
-            <span className="text-xs font-bold text-white px-2">Уведомления</span>
-            <Card padding="none" className="divide-y divide-white/[0.04] shadow-premium">
-              {/* Push */}
-              <div className="flex items-center justify-between p-4">
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-white">Push уведомления</span>
-                  <span className="text-[9px] text-textSecondary font-semibold mt-0.5">Мгновенный отчет о конверсиях</span>
-                </div>
-                <button 
-                  onClick={() => { triggerHaptic.lightImpact(); setPushEnabled(!pushEnabled); }}
-                  className={`w-11 h-6 rounded-full p-2 transition-colors duration-200 outline-none ${
-                    pushEnabled ? 'bg-accent-gradient' : 'bg-gray-800'
-                  }`}
-                >
-                  <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${
-                    pushEnabled ? 'translate-x-5' : 'translate-x-0'
-                  }`} />
-                </button>
-              </div>
-
-              {/* Email */}
-              <div className="flex items-center justify-between p-4">
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-white">Email отчеты</span>
-                  <span className="text-[9px] text-textSecondary font-semibold mt-0.5">Еженедельный аудит баланса</span>
-                </div>
-                <button 
-                  onClick={() => { triggerHaptic.lightImpact(); setEmailNotificationEnabled(!emailNotificationEnabled); }}
-                  className={`w-11 h-6 rounded-full p-2 transition-colors duration-200 outline-none ${
-                    emailNotificationEnabled ? 'bg-accent-gradient' : 'bg-gray-800'
-                  }`}
-                >
-                  <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${
-                    emailNotificationEnabled ? 'translate-x-5' : 'translate-x-0'
-                  }`} />
-                </button>
-              </div>
-            </Card>
-          </div>
-
-          {/* Системные */}
-          <div className="flex flex-col gap-2">
-            <span className="text-xs font-bold text-white px-2">Системные параметры</span>
-            <Card padding="none" className="divide-y divide-white/[0.04] shadow-premium">
-              <div className="flex items-center justify-between p-4">
-                <span className="text-xs font-bold text-white">Язык</span>
-                <span className="text-xs font-bold text-accentPurple">{language}</span>
-              </div>
-
-              <div className="flex items-center justify-between p-4">
-                <span className="text-xs font-bold text-white">Валюта</span>
-                <span className="text-xs font-bold text-accentPurple">{currency}</span>
-              </div>
-
-              {/* Кэш */}
-              <div 
-                onClick={handleClearCache}
-                className="flex items-center justify-between p-4 hover:bg-white/[0.01] active:bg-white/[0.02] cursor-pointer transition-colors"
-              >
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-white">Очистить кэш</span>
-                  <span className="text-[9px] text-textSecondary font-semibold mt-0.5">Освободить память Webview</span>
-                </div>
-                <span className={`text-xs font-bold ${cacheSize === '0 MB' ? 'text-textSecondary/40' : 'text-accentPurple'}`}>
-                  {cacheSize}
-                </span>
-              </div>
-            </Card>
-          </div>
-
-          {/* Удаление */}
-          <div className="flex flex-col gap-2 mt-4">
-            <Card padding="none" className="border-error/15 bg-error/[0.01] shadow-premium">
-              <div className="flex items-center justify-between p-4">
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-error">Удалить аккаунт</span>
-                  <span className="text-[9px] text-error/60 mt-0.5">Удаление аккаунта пока недоступно</span>
-                </div>
-                <Button 
-                  variant="danger" 
-                  size="sm" 
-                  disabled
-                  className="bg-error/10 border border-error/20 text-error hover:bg-error/20"
-                >
-                  <Trash2 size={12} className="mr-1.5" />
-                  Удалить
-                </Button>
-              </div>
-            </Card>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
