@@ -8,6 +8,10 @@ export interface ChatMessage {
   time: string;
   reactions: Record<string, number>; // Эмодзи -> Количество реакций
   isStaff?: boolean;
+  replyToId?: string | null;
+  replySenderName?: string | null;
+  replyText?: string | null;
+  mentionIds?: string[];
 }
 
 export const CHAT_SNAPSHOT_KEY='dvizh:messages';
@@ -24,4 +28,8 @@ export const normalizeChatMessages=(data:{messages?:any[]}):ChatMessage[]=>(data
         }),
         reactions: msg.reactions || {},
         isStaff: Boolean(msg.is_staff),
+        replyToId: msg.reply_to_id ? String(msg.reply_to_id) : null,
+        replySenderName: msg.reply_sender_name || null,
+        replyText: msg.reply_text || null,
+        mentionIds: Array.isArray(msg.mention_ids) ? msg.mention_ids.map(String) : [],
       }));
