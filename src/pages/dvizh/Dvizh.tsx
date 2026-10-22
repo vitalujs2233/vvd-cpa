@@ -5,7 +5,7 @@ import { authorizedFetch } from '@/shared/lib/api';
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { 
   Loader2, Send, ShieldAlert, Users, Pin, Search, Smile, 
-  Check, CheckCircle2, AlertTriangle, Sparkles, Bell, Reply, AtSign, X, Paperclip, Image as ImageIcon, ChevronLeft, ChevronRight 
+  Check, CheckCircle2, AlertTriangle, Sparkles, Bell, Reply, AtSign, X, Paperclip, Image as ImageIcon, ChevronLeft, ChevronRight, CircleHelp 
 } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
@@ -145,6 +145,7 @@ export const Dvizh: React.FC = () => {
   const noticeGesture = useRef<{id:string;x:number;y:number}|null>(null);
   const skipNoticeClick = useRef<string|null>(null);
   const [showNotices, setShowNotices] = useState(false);
+  const [showChatRules,setShowChatRules] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [noticeError, setNoticeError] = useState('');
   const composerRef = useRef<HTMLInputElement>(null);
@@ -744,7 +745,13 @@ if (!response.ok || !data.success) {
           </h1>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button type="button" aria-label="Правила чата, конфиденциальность и ответственность" title="Важные правила чата"
+            onClick={()=>{triggerHaptic.lightImpact();setShowChatRules(true)}}
+            className="w-9 h-9 rounded-full border-2 border-red-500/80 bg-red-500/10 flex items-center justify-center text-red-400 shrink-0"
+            aria-haspopup="dialog">
+            <CircleHelp size={19} strokeWidth={2.3}/>
+          </button>
           <button type="button" aria-label={`Обращения к тебе: ${unreadCount} непрочитанных`}
             onClick={()=>{setShowNotices(v=>!v);setNoticeError('');void loadNotices()}}
             className="relative w-10 h-10 rounded-full border border-accentGold/30 bg-accentGold/10 flex items-center justify-center text-accentGoldBright">
@@ -761,6 +768,77 @@ if (!response.ok || !data.success) {
         </button>
         </div>
       </div>
+
+      {showChatRules && (
+        <div className="fixed inset-0 z-[10000] bg-black/85 backdrop-blur-sm flex items-center justify-center p-3"
+          role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setShowChatRules(false)}}>
+          <section role="dialog" aria-modal="true" aria-labelledby="dvizh-rules-title"
+            className="w-full max-w-xl max-h-[88dvh] flex flex-col overflow-hidden rounded-2xl border border-red-500/45 bg-[#141414] shadow-2xl text-left">
+            <header className="flex items-center justify-between gap-3 border-b border-red-500/25 px-4 py-3 shrink-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <CircleHelp size={20} className="text-red-400 shrink-0"/>
+                <div>
+                  <h2 id="dvizh-rules-title" className="text-white font-bold text-base">Правила чата «Движ»</h2>
+                  <p className="text-[11px] text-textSecondary">Публикации · ответственность · конфиденциальность</p>
+                </div>
+              </div>
+              <button aria-label="Закрыть правила" className="p-2 shrink-0 rounded-full bg-white/5 text-white"
+                onClick={()=>setShowChatRules(false)}><X size={19}/></button>
+            </header>
+            <div className="overflow-y-auto overscroll-contain px-4 py-4 space-y-4 text-[13px] leading-relaxed text-[#D9D9DE]">
+              <section>
+                <h3 className="font-semibold text-accentGoldBright mb-1">1. О назначении чата</h3>
+                <p>«Движ» — пространство для общения пользователей VVD CPA об арбитраже трафика, партнёрском маркетинге, инструментах и рабочих вопросах. Сообщения участников не являются официальными заявлениями VVD CPA, если это прямо не указано администрацией.</p>
+              </section>
+              <section>
+                <h3 className="font-semibold text-accentGoldBright mb-1">2. Что разрешено</h3>
+                <p>Задавать вопросы, обсуждать профессиональный опыт, делиться собственными наблюдениями, нейтральными скриншотами и изображениями, помогать другим участникам. Общение должно быть уважительным и соответствовать закону и правилам платформы.</p>
+              </section>
+              <section>
+                <h3 className="font-semibold text-red-400 mb-1">3. Что запрещено</h3>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Незаконные материалы, угрозы, преследование, унижения, дискриминация и разжигание ненависти.</li>
+                  <li>Мошенничество, фишинг, спам, массовая нежелательная реклама, обманные схемы и вредоносные материалы.</li>
+                  <li>Порнографический контент, сексуализация несовершеннолетних и материалы насилия или жестокости.</li>
+                  <li>Предложения запрещённых товаров или услуг, противоправные инструкции и содействие обходу закона.</li>
+                  <li>Чужие фото и материалы без необходимого разрешения, нарушение авторских прав.</li>
+                  <li>Публикация чужих персональных данных, документов, переписки, номеров, паролей, ключей доступа без законного основания и необходимых разрешений.</li>
+                  <li>Выдавать себя за администратора, создавать ложные гарантии заработка, вводить участников в заблуждение.</li>
+                  <li>Обходить ограничения и решения модерации, злоупотреблять упоминаниями или вложениями.</li>
+                </ul>
+              </section>
+              <section>
+                <h3 className="font-semibold text-accentGoldBright mb-1">4. Ответственность за публикации</h3>
+                <p>Каждый пользователь самостоятельно отвечает за содержание своих сообщений, фото и иных опубликованных материалов, наличие прав и разрешений на их распространение, достоверность своих заявлений и соблюдение закона. Не публикуйте материалы, права на которые вам не принадлежат.</p>
+                <p className="mt-2">Администрация не является автором пользовательских публикаций и не подтверждает их точность, безопасность, законность или коммерческие обещания. Мнения участников не обязательно совпадают с позицией VVD CPA. Это положение не исключает установленные законом обязанности и ответственность владельца сервиса или администрации.</p>
+              </section>
+              <section>
+                <h3 className="font-semibold text-accentGoldBright mb-1">5. Модерация и жалобы</h3>
+                <p>Администрация вправе проверять сообщения по жалобам, скрывать или удалять материалы, ограничивать доступ к чату и блокировать нарушителей соразмерно нарушению. При сообщении о возможном незаконном контенте администрация рассматривает обращение и принимает меры в порядке, предусмотренном применимым правом.</p>
+                <p className="mt-2">Чтобы сообщить о нарушении, обратитесь к администрации через доступный канал поддержки VVD CPA, указав содержание сообщения, автора и причину обращения. Для спорных решений можно также направить запрос на пересмотр через поддержку.</p>
+              </section>
+              <section>
+                <h3 className="font-semibold text-accentGoldBright mb-1">6. Конфиденциальность и данные</h3>
+                <p>В чате другим участникам могут отображаться имя, аватар, тексты сообщений, изображения, ответы, упоминания и реакции. Для работы и защиты чата система обрабатывает идентификатор пользователя Telegram, данные публикаций, время сообщений и записи об уведомлениях и действиях модерации.</p>
+                <p className="mt-2">Материалы хранятся с использованием инфраструктуры VVD CPA и её технических поставщиков. Доступ к ним может предоставляться уполномоченным лицам для поддержки, модерации и выполнения законных обязанностей. Удаление уведомления не удаляет опубликованное сообщение. Сроки хранения, основания обработки, права пользователей и контакты оператора должны быть раскрыты в отдельной полной политике конфиденциальности VVD CPA.</p>
+              </section>
+              <section>
+                <h3 className="font-semibold text-accentGoldBright mb-1">7. Ссылки, советы и сделки</h3>
+                <p>Советы пользователей и сведения о доходах не гарантируют результат. Любые решения, сделки и взаимодействие с другими участниками вы принимаете самостоятельно; VVD CPA не выступает стороной таких соглашений только в силу наличия сообщения в чате. Не используйте чат для запрещённой рекламы и распространения ссылок в обход его ограничений.</p>
+              </section>
+              <section>
+                <h3 className="font-semibold text-accentGoldBright mb-1">8. Изменения правил</h3>
+                <p>Правила могут обновляться. При существенных изменениях следует уведомлять участников доступным способом. Если вы не согласны с правилами, воздержитесь от публикации сообщений в «Движ».</p>
+              </section>
+              <p className="text-[11px] text-textSecondary border-t border-white/10 pt-3">Редакция: 22.10.2026. Эти правила регулируют использование чата и не заменяют полную политику конфиденциальности и обязательные сведения о владельце сервиса.</p>
+            </div>
+            <div className="border-t border-white/10 p-3 shrink-0 bg-[#191919]">
+              <button type="button" onClick={()=>setShowChatRules(false)}
+                className="w-full rounded-xl bg-accentGold text-black font-semibold py-3">Понятно, закрыть</button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {showNotices && (
         <div className="shrink-0 max-h-[42vh] overflow-y-auto bg-[#171512] border-b border-accentGold/30 p-3 z-30" aria-label="Обращения к тебе">
