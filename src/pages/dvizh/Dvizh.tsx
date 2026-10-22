@@ -5,7 +5,7 @@ import { authorizedFetch } from '@/shared/lib/api';
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { 
   Loader2, Send, ShieldAlert, Users, Pin, Search, Smile, 
-  Check, CheckCircle2, AlertTriangle, Sparkles 
+  Check, CheckCircle2, AlertTriangle, Sparkles, Bell, Reply, AtSign, X 
 } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
@@ -56,12 +56,30 @@ const SUPPORT_CONTACTS: SupportContact[] = [
 
 const AVAILABLE_REACTIONS = ['👍', '❤️', '🔥', '😂', '😎', '🚀'];
 
+interface ChatMentionNotice {
+  id: string;
+  message_id: string;
+  kind: 'reply' | 'mention';
+  is_read: boolean;
+  created_at: string;
+  sender_name: string;
+  text: string;
+}
+const tagFor = (name: string) => '@' + name.trim().replace(/\s+/g, '_');
 const API = 'https://vvd-cpa-v2.onrender.com';
 export const Dvizh: React.FC = () => {
   const currentUser = getTelegramUser();
   const [messages, setMessages] = useState<ChatMessage[]>(()=>readSnapshot<ChatMessage[]>(CHAT_SNAPSHOT_KEY)||[]);
   useLayoutEffect(()=>{saveSnapshot(CHAT_SNAPSHOT_KEY,messages);},[messages]);
   const [inputValue, setInputValue] = useState('');
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  const [selectedMentions, setSelectedMentions] = useState<{id:string;tag:string}[]>([]);
+  const [notices, setNotices] = useState<ChatMentionNotice[]>([]);
+  const [showNotices, setShowNotices] = useState(false);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [noticeError, setNoticeError] = useState('');
+  const composerRef = useRef<HTMLInputElement>(null);
+  const touchStart = useRef<{x:number;y:number;id:string}|null>(null);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
   const sendingRef = useRef(false);
@@ -71,6 +89,62 @@ export const Dvizh: React.FC = () => {
   const [activeReactionMenu, setActiveReactionMenu] = useState<string | null>(null);
   const [moderationMenu, setModerationMenu] = useState<string | null>(null);
 
+  const currentUid = String(currentUser.id);
+  const unreadCount = notices.filter(n => !n.is_read).length;
+  const mentionSearch = inputValue.match(/(?:^|\\s)@([\\p{L}\\p{N}_]*)$/u)?.[1] ?? null;
+  const participants = useMemo(() => {
+    const byId = new Map<string,{id:string;name:string;avatar?:string}>();
+    for (const m of [...messages].reverse()) {
+      if (!byId.has(m.senderId)) byId.set(m.senderId,{id:m.senderId,name:m.senderName,avatar:m.avatarUrl});
+    }
+    return [...byId.values()];
+  },[messages]);
+  const mentionOptions = mentionSearch === null ? [] : participants
+    .filter(p => p.id !== currentUid && tagFor(p.name).slice(1).toLocaleLowerCase().includes(mentionSearch.toLocaleLowerCase()))
+    .slice(0,6);
+  const selectMention = (person:{id:string;name:string}) => {
+    const tag=tagFor(person.name);
+    setInputValue(prev=>prev.replace(/(^|\\s)@[\\p{L}\\p{N}_]*$/u,(_,space:string)=>space+tag+' '));
+    setSelectedMentions(prev=>[...prev.filter(p=>p.id!==person.id),{id:person.id,tag}]);
+    composerRef.current?.focus();
+  };
+  const navigateToMessage = (id:string) => {
+    setShowSearch(false);
+    setSearchQuery('');
+    setShowNotices(false);
+    setHighlightId(id);
+    followLatest.current=false;
+    requestAnimationFrame(()=>{
+      const el=[...document.querySelectorAll<HTMLElement>('[data-dvizh-id]')].find(n=>n.dataset.dvizhId===id);
+      if(el) el.scrollIntoView({behavior:'smooth',block:'center'});
+      else setNoticeError('Сообщение не найдено среди загруженных. Возможно, оно удалено или слишком старое.');
+    });
+    window.setTimeout(()=>setHighlightId(v=>v===id?null:v),3300);
+  };
+  const loadNotices = async () => {
+    try {
+      const response=await authorizedFetch(`${API}/chat/mentions`,{cache:'no-store'});
+      if(!response.ok)return;
+      const data=await response.json();
+      if(data.success)setNotices(data.notifications||[]);
+    } catch { /* Network can be temporarily unavailable. */ }
+  };
+  useEffect(()=>{
+    void loadNotices();
+    const timer=window.setInterval(()=>{if(!document.hidden)void loadNotices()},8000);
+    return()=>window.clearInterval(timer);
+  },[]);
+  const openNotice = async (notice:ChatMentionNotice) => {
+    setNoticeError('');
+    navigateToMessage(notice.message_id);
+    if(!notice.is_read){
+      setNotices(prev=>prev.map(n=>n.id===notice.id?{...n,is_read:true}:n));
+      try {
+        const res=await authorizedFetch(`${API}/chat/mentions/${notice.id}/read`,{method:'POST'});
+        if(!res.ok)void loadNotices();
+      } catch { void loadNotices(); }
+    }
+  };
 const ADMIN_ID = '232682307';
 const isAdmin = currentUser.id.toString() === ADMIN_ID;
   const [isTyping, setIsTyping] = useState(false);
@@ -385,6 +459,10 @@ const banChatUser = async (msg: ChatMessage) => {
   const handleSendMessage = async () => {
   if (sendingRef.current || !inputValue.trim()) return;
   const sentText=inputValue.trim();
+  const sentReply=replyTo;
+  const sentMentions=selectedMentions
+    .filter(p=>sentText.toLocaleLowerCase().includes(p.tag.toLocaleLowerCase()))
+    .map(p=>p.id);
 
   if (containsForbiddenLink(inputValue)) {
     triggerHaptic.error();
@@ -414,6 +492,8 @@ const banChatUser = async (msg: ChatMessage) => {
         sender_name: `${currentUser.first_name} ${currentUser.last_name || ''}`.trim(),
         avatar_url: currentUser.photo_url || '',
         text: sentText,
+        reply_to_id: sentReply?.id || null,
+        mention_ids: sentMentions,
         reactions: {},
         is_staff: false,
       }),
@@ -452,12 +532,19 @@ if (!response.ok || !data.success) {
       }),
       reactions: msg.reactions || {},
       isStaff: Boolean(msg.is_staff),
+      replyToId: msg.reply_to_id ? String(msg.reply_to_id) : null,
+      replySenderName: msg.reply_sender_name || null,
+      replyText: msg.reply_text || null,
+      mentionIds: Array.isArray(msg.mention_ids) ? msg.mention_ids.map(String) : [],
     };
 
     scrollAfterSend.current=true;
     followLatest.current=true;
     setMessages(prev => prev.some(m=>m.id===newMessage.id) ? prev : [...prev, newMessage]);
     setInputValue(current=>current.trim()===sentText ? '' : current);
+    setReplyTo(current=>current?.id===sentReply?.id ? null : current);
+    setSelectedMentions(prev=>prev.filter(p=>!sentMentions.includes(p.id)));
+    void loadNotices();
     requestAnimationFrame(()=>{
       const box=chatContainerRef.current;
       if(box) box.scrollTop=box.scrollHeight;
@@ -496,6 +583,9 @@ if (!response.ok || !data.success) {
     setActiveReactionMenu(null);
   };
 
+  const formatMessage = (body:string) => body.split(/(@[\\p{L}\\p{N}_]+)/gu).map((part,i)=>
+    part.startsWith('@') ? <span key={i} className="text-accentGoldBright font-semibold">{part}</span> : <React.Fragment key={i}>{part}</React.Fragment>
+  );
   const filteredMessages = useMemo(() => {
     if (!searchQuery.trim()) return messages;
     return messages.filter(msg => 
@@ -529,6 +619,13 @@ if (!response.ok || !data.success) {
           </h1>
         </div>
 
+        <div className="flex items-center gap-2 shrink-0">
+          <button type="button" aria-label={`Обращения к тебе: ${unreadCount} непрочитанных`}
+            onClick={()=>{setShowNotices(v=>!v);setNoticeError('');void loadNotices()}}
+            className="relative w-10 h-10 rounded-full border border-accentGold/30 bg-accentGold/10 flex items-center justify-center text-accentGoldBright">
+            <Bell size={18}/>
+            {unreadCount>0 && <span className="absolute -top-1 -right-1 min-w-5 h-5 rounded-full bg-accentGold text-black text-[10px] font-bold flex items-center justify-center px-1">{unreadCount>99?'99+':unreadCount}</span>}
+          </button>
         <button 
           onClick={() => { triggerHaptic.lightImpact(); setShowSearch(!showSearch); setSearchQuery(''); }}
           className={`w-10 h-10 rounded-full bg-white/[0.03] border flex items-center justify-center text-textSecondary transition-all ${
@@ -537,7 +634,30 @@ if (!response.ok || !data.success) {
         >
           <Search size={16} />
         </button>
+        </div>
       </div>
+
+      {showNotices && (
+        <div className="shrink-0 max-h-[42vh] overflow-y-auto bg-[#171512] border-b border-accentGold/30 p-3 z-30" aria-label="Обращения к тебе">
+          <div className="flex items-center justify-between mb-2">
+            <strong className="text-sm text-white">Обращения к тебе</strong>
+            <button aria-label="Закрыть обращения" onClick={()=>setShowNotices(false)}><X size={16}/></button>
+          </div>
+          {notices.length===0 && <p className="text-xs text-textSecondary">Пока никто не упоминал тебя и не отвечал на твои сообщения.</p>}
+          {notices.map(n=>(
+            <button key={n.id} onClick={()=>void openNotice(n)}
+              className={`w-full text-left rounded-xl p-3 mb-1 border ${n.is_read?'border-white/5 bg-white/[0.02]':'border-accentGold/40 bg-accentGold/10'}`}>
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <strong className="text-accentGoldBright">{n.sender_name}</strong>
+                {!n.is_read && <span className="text-accentGold">● новое</span>}
+              </div>
+              <p className="text-[11px] text-textSecondary mt-1">{n.kind==='reply'?'Ответил на твоё сообщение':'Упомянул тебя'}</p>
+              <p className="text-xs text-white/90 truncate mt-1">{n.text}</p>
+            </button>
+          ))}
+        </div>
+      )}
+      {noticeError && <p role="alert" className="text-xs text-accentGold px-4 py-2">{noticeError}</p>}
 
       {/* Панель поиска */}
       {showSearch && (
@@ -600,9 +720,12 @@ if (!response.ok || !data.success) {
           const hasReactions = Object.keys(msg.reactions).length > 0;
           
           return (
-            <div 
+            <div
               key={msg.id}
-              className={`flex gap-3 max-w-[85%] relative ${isMe ? 'self-end flex-row-reverse' : 'self-start'}`}
+              data-dvizh-id={msg.id}
+              onTouchStart={e=>{const t=e.touches[0];touchStart.current={x:t.clientX,y:t.clientY,id:msg.id}}}
+              onTouchEnd={e=>{const t=e.changedTouches[0];const start=touchStart.current;touchStart.current=null;if(start?.id===msg.id&&t.clientX-start.x>75&&Math.abs(t.clientY-start.y)<45){setReplyTo(msg);triggerHaptic.lightImpact()}}}
+              className={`flex gap-3 max-w-[85%] relative rounded-xl transition-colors duration-700 ${highlightId===msg.id?'bg-accentGold/25 ring-2 ring-accentGold/80':''} ${isMe ? 'self-end flex-row-reverse' : 'self-start'}`}
             >
               <div className={`w-9 h-9 rounded-full overflow-hidden flex items-center justify-center font-bold text-xs shrink-0 shadow-premium border ${
   msg.isStaff
@@ -626,6 +749,10 @@ if (!response.ok || !data.success) {
                 }`}>
                   {msg.senderName}
                 </span>
+                <button type="button" className="self-start text-[10px] text-accentGold/90 flex items-center gap-1 px-1"
+                  onClick={()=>{setReplyTo(msg);triggerHaptic.lightImpact();composerRef.current?.focus()}}>
+                  <Reply size={12}/> Ответить
+                </button>
 {isAdmin && !isMe && (
   <div className="relative self-start">
     <button
@@ -664,7 +791,14 @@ if (!response.ok || !data.success) {
                       ? 'bg-white/[0.03] text-textPrimary rounded-card rounded-tr-none border border-white/10' 
                       : 'glass-card text-textPrimary rounded-card rounded-tl-none'
                   }`}>
-                    {msg.text}
+                    {msg.replyToId && (
+                      <button type="button" onClick={()=>navigateToMessage(msg.replyToId!)}
+                        className="block w-full text-left border-l-2 border-accentGold bg-accentGold/10 rounded-r-lg px-2 py-1 mb-2 max-w-[70vw]">
+                        <span className="text-accentGoldBright font-semibold text-xs block truncate">{msg.replySenderName || 'Сообщение удалено'}</span>
+                        <span className="text-textSecondary text-xs block truncate">{msg.replyText || 'Исходное сообщение недоступно'}</span>
+                      </button>
+                    )}
+                    <span className="whitespace-pre-wrap break-words">{formatMessage(msg.text)}</span>
                   </div>
 
                   <button
@@ -725,12 +859,33 @@ if (!response.ok || !data.success) {
       </div>
 
       {sendError && <p role="alert" className="shrink-0 px-3 py-1 text-xs text-error">{sendError}</p>}
+      {replyTo && (
+        <div className="shrink-0 flex items-center gap-2 bg-accentGold/10 border-t border-accentGold/30 px-4 py-2">
+          <Reply size={16} className="text-accentGoldBright shrink-0"/>
+          <div className="flex-1 min-w-0 text-left">
+            <div className="text-xs font-semibold text-accentGoldBright">Ответ: {replyTo.senderName}</div>
+            <div className="text-xs text-textSecondary truncate">{replyTo.text}</div>
+          </div>
+          <button aria-label="Отменить ответ" onClick={()=>setReplyTo(null)}><X size={17}/></button>
+        </div>
+      )}
+      {mentionOptions.length>0 && (
+        <div className="shrink-0 max-h-44 overflow-y-auto bg-[#171512] border-t border-accentGold/30 px-3 py-2 z-40">
+          {mentionOptions.map(p=>(
+            <button key={p.id} type="button" className="block w-full text-left px-3 py-2 text-sm text-white hover:bg-accentGold/10 rounded-md"
+              onPointerDown={e=>e.preventDefault()} onClick={()=>selectMention(p)}>
+              <AtSign size={13} className="inline text-accentGoldBright mr-2"/>{p.name}
+            </button>
+          ))}
+        </div>
+      )}
       {/* Панель ввода сообщения */}
       <div
   className="shrink-0 p-3 border-t border-white/[0.08] bg-bgCard/70 backdrop-blur-xl flex items-center gap-3 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.37)] z-50"
 >
-        <Input 
-          placeholder="Напишите в приватный чат..."
+        <Input
+          ref={composerRef}
+          placeholder="Сообщение или @упоминание..."
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyPress}
