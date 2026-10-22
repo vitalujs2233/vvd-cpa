@@ -1,40 +1,15 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { 
-  ArrowLeft, Settings, Shield, Bell, Globe, Info, 
-  LogOut, Lock, Smartphone, Mail, Trash2, User, 
-  CheckCircle2, Coins, Sparkles, Crown, MessageSquare 
-} from 'lucide-react';
+import { ArrowLeft, Settings, Bell, Globe, Info, LogOut, Lock, User, Coins, Sparkles, Crown, MessageSquare } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
-import { Button } from '@/shared/ui/Button';
-import { Input } from '@/shared/ui/Input';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
-
-interface Session {
-  id: string;
-  device: string;
-  location: string;
-}
 
 export const Profile: React.FC = () => {
   const navigate = useNavigate();
   const telegramUser = getTelegramUser();
 
-  // Управление экранами профиля: 'main' (главный), 'settings' (настройки), 'security' (безопасность), 'edit' (изменение профиля)
-  const [subView, setSubView] = useState<'main' | 'settings' | 'security' | 'edit'>('main');
-
-  // Глобальные состояния пользователя (с возможностью редактирования)
-  const [profileName, setProfileName] = useState(`${telegramUser.first_name} ${telegramUser.last_name || ''}`.trim());
-  const [profileUsername, setProfileUsername] = useState(telegramUser.username || 'johndoe');
-  const [profileEmail, setProfileEmail] = useState('john@example.com');
-  const [saveSuccess, setSaveSuccess] = useState(false);
-
-  // Состояния безопасности (2FA и активные сессии)
-  const [is2FAEnabled, setIs2FAEnabled] = useState(true);
-  const [activeSessions, setActiveSessions] = useState<Session[]>([
-    { id: 'sess-1', device: 'iPhone 15 Pro • Telegram App', location: 'Москва, Россия' },
-    { id: 'sess-2', device: 'MacBook Pro • Chrome Browser', location: 'Рига, Латвия' },
-  ]);
+  const [subView, setSubView] = useState<'main' | 'settings'>('main');
+  const profileName = `${telegramUser.first_name || ''} ${telegramUser.last_name || ''}`.trim() || 'Пользователь Telegram';
+  const profileUsername = telegramUser.username;
 
   // Состояния общих настроек
   const [pushEnabled, setPushEnabled] = useState(true);
@@ -43,10 +18,9 @@ export const Profile: React.FC = () => {
   const [language, setLanguage] = useState('Русский');
   const [currency, setCurrency] = useState('USD');
 
-  const handleSubViewChange = (view: 'main' | 'settings' | 'security' | 'edit') => {
+  const handleSubViewChange = (view: 'main' | 'settings') => {
     triggerHaptic.lightImpact();
     setSubView(view);
-    setSaveSuccess(false);
   };
 
   // Метод перехода в админку
@@ -67,32 +41,6 @@ export const Profile: React.FC = () => {
     triggerHaptic.mediumImpact();
     setCacheSize('0 MB');
     triggerHaptic.success();
-  };
-
-  // Метод завершения сессий
-  const handleTerminateSessions = () => {
-    if (activeSessions.length === 0) return;
-    triggerHaptic.mediumImpact();
-    setActiveSessions([]);
-    triggerHaptic.success();
-  };
-
-  // Переключатель 2FA
-  const handleToggle2FA = () => {
-    triggerHaptic.lightImpact();
-    setIs2FAEnabled(!is2FAEnabled);
-  };
-
-  // Метод сохранения формы редактирования профиля
-  const handleSaveProfile = () => {
-    if (!profileName.trim()) return;
-    triggerHaptic.mediumImpact();
-    setSaveSuccess(true);
-    triggerHaptic.success();
-    
-    setTimeout(() => {
-      setSaveSuccess(false);
-    }, 2500);
   };
 
   const handleLogout = () => {
@@ -133,7 +81,7 @@ export const Profile: React.FC = () => {
                 {profileName}
                 <Crown size={14} className="text-accentPink" />
               </span>
-              <span className="text-xs text-textSecondary mt-0.5">@{profileUsername}</span>
+              <span className="text-xs text-textSecondary mt-0.5">{profileUsername ? `@${profileUsername}` : "Telegram username не указан"}</span>
               <span className="text-[9px] text-accentPurple font-bold mt-1">ID: {telegramUser.id} • Рег. 25.05.2024</span>
             </div>
           </Card>
@@ -176,31 +124,13 @@ export const Profile: React.FC = () => {
           {/* Меню настроек профиля (Добавлен пункт "Связаться с поддержкой") */}
           <div className="flex flex-col gap-3">
             <Card padding="none" className="divide-y divide-white/[0.04] text-left shadow-premium">
-              {/* Изменить профиль */}
-              <div 
-                onClick={() => handleSubViewChange('edit')}
-                className="flex items-center justify-between p-4 hover:bg-white/[0.01] active:bg-white/[0.02] cursor-pointer transition-colors duration-150"
-              >
+              {/* Профиль управляется Telegram и недоступен для редактирования здесь */}
+              <div className="flex items-center justify-between p-4" aria-disabled="true">
                 <div className="flex items-center gap-3">
                   <User size={16} className="text-accentPurple" />
                   <span className="text-xs font-semibold text-white">Изменить профиль</span>
                 </div>
-                <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">Настроить</span>
-              </div>
-
-              {/* Безопасность */}
-              <div 
-                onClick={() => handleSubViewChange('security')}
-                className="flex items-center justify-between p-4 hover:bg-white/[0.01] active:bg-white/[0.02] cursor-pointer transition-colors duration-150"
-              >
-                <div className="flex items-center gap-3">
-                  <Shield size={16} className="text-accentPurple" />
-                  <span className="text-xs font-semibold text-white">Панель безопасности</span>
-                </div>
-                <span className="text-[9px] text-success font-bold uppercase tracking-widest flex items-center gap-1.5">
-                  <span className="w-1 h-1 rounded-full bg-success shadow-[0_0_6px_#22C55E]" />
-                  2FA {is2FAEnabled ? 'Активна' : 'Выкл'}
-                </span>
+                <Lock size={17} className="text-textSecondary" aria-label="Заблокировано" />
               </div>
 
               {/* Общие настройки */}
@@ -253,145 +183,6 @@ export const Profile: React.FC = () => {
               </div>
             </Card>
           </div>
-        </div>
-      )}
-
-      {/* ================= VIEW 2: НАСТРОЙКИ ПРОФИЛЯ ================= */}
-      {subView === 'edit' && (
-        <div className="flex flex-col gap-4 animate-fade-in">
-          {/* ... */}
-          <div className="flex items-center gap-3 text-left">
-            <button 
-              onClick={() => handleSubViewChange('main')}
-              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary transition-transform shadow-glass-inner"
-            >
-              <ArrowLeft size={18} />
-            </button>
-            <div className="flex flex-col">
-              <span className="text-[10px] text-accentPurple font-bold uppercase tracking-wider">Кабинет</span>
-              <h1 className="text-xl font-bold text-white leading-none mt-0.5">Редактировать профиль</h1>
-            </div>
-          </div>
-
-          {/* Форма ввода */}
-          <div className="flex flex-col gap-3">
-            <Input 
-              label="Имя пользователя"
-              value={profileName}
-              onChange={(e) => setProfileName(e.target.value)}
-              placeholder="Введите имя"
-            />
-            <Input 
-              label="Telegram Username"
-              value={profileUsername}
-              onChange={(e) => setProfileUsername(e.target.value)}
-              placeholder="username"
-              icon={<span className="text-xs font-bold">@</span>}
-            />
-            <Input 
-              label="Электронная почта (Email)"
-              value={profileEmail}
-              onChange={(e) => setProfileEmail(e.target.value)}
-              placeholder="example@mail.com"
-              type="email"
-              icon={<Mail size={14} />}
-            />
-          </div>
-
-          {/* Статус сохранения */}
-          <div className={`flex items-center gap-6 text-[10px] text-success transition-all duration-300 px-1 font-semibold justify-center ${saveSuccess ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1 h-0 pointer-events-none'}`}>
-            <CheckCircle2 size={12} className="drop-shadow-[0_0_4px_#22C55E]" />
-            <span>Данные профиля успешно обновлены!</span>
-          </div>
-
-          <Button 
-            variant="primary" 
-            size="lg" 
-            onClick={handleSaveProfile}
-          >
-            Сохранить настройки
-          </Button>
-        </div>
-      )}
-
-      {/* ================= VIEW 3: НАСТРОЙКИ БЕЗОПАСНОСТИ ================= */}
-      {subView === 'security' && (
-        <div className="flex flex-col gap-4 animate-fade-in">
-          {/* Шапка */}
-          <div className="flex items-center gap-3 text-left">
-            <button 
-              onClick={() => handleSubViewChange('main')}
-              className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary hover:text-textPrimary transition-transform shadow-glass-inner"
-            >
-              <ArrowLeft size={18} />
-            </button>
-            <div className="flex flex-col">
-              <span className="text-[10px] text-accentPurple font-bold uppercase tracking-wider">Кабинет</span>
-              <h1 className="text-xl font-bold text-white leading-none mt-0.5">Безопасность</h1>
-            </div>
-          </div>
-
-          {/* Переключатель 2FA */}
-          <Card padding="md" className="flex items-center justify-between text-left border-white/5 shadow-glass-inner">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-accentPurple/10 border border-accentPurple/20 flex items-center justify-center text-accentPurple shadow-[0_0_10px_rgba(124,58,237,0.1)]">
-                <Lock size={16} />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-white">Двухфакторная защита (2FA)</span>
-                <span className="text-[9px] text-textSecondary font-semibold mt-0.5">Дополнительная верификация входа</span>
-              </div>
-            </div>
-
-            <button 
-              onClick={handleToggle2FA}
-              className={`w-11 h-6 rounded-full p-2 transition-all duration-300 outline-none flex items-center ${
-                is2FAEnabled ? 'bg-accent-gradient shadow-glow-purple/50' : 'bg-white/[0.04] border border-white/10'
-              }`}
-            >
-              <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${
-                is2FAEnabled ? 'translate-x-5' : 'translate-x-0'
-              }`} />
-            </button>
-          </Card>
-
-          {/* Список Активных сессий */}
-          <div className="flex flex-col gap-2 text-left">
-            <div className="flex justify-between items-center px-2">
-              <span className="text-xs font-bold text-white">Активные сессии</span>
-              <span className="text-[10px] text-accentPurple font-bold uppercase tracking-widest">{activeSessions.length} сессии</span>
-            </div>
-
-            {activeSessions.length > 0 ? (
-              <Card padding="none" className="divide-y divide-white/[0.04] shadow-premium">
-                {activeSessions.map((session) => (
-                  <div key={session.id} className="flex items-start gap-3 p-3">
-                    <div className="w-8 h-8 rounded-full bg-white/[0.02] border border-white/5 flex items-center justify-center text-textSecondary shrink-0">
-                      <Smartphone size={16} />
-                    </div>
-                    <div className="flex flex-col text-left">
-                      <span className="text-xs font-bold text-white">{session.device}</span>
-                      <span className="text-[9px] text-textSecondary font-semibold mt-0.5">{session.location}</span>
-                    </div>
-                  </div>
-                ))}
-              </Card>
-            ) : (
-              <Card padding="md" className="text-center text-xs text-textSecondary border-dashed border-white/5">
-                Все сессии, кроме текущей, успешно завершены.
-              </Card>
-            )}
-          </div>
-
-          <Button 
-            variant="secondary" 
-            size="lg" 
-            className="mt-4"
-            onClick={handleTerminateSessions}
-            disabled={activeSessions.length === 0}
-          >
-            Завершить все сессии
-          </Button>
         </div>
       )}
 
