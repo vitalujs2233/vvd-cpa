@@ -65,7 +65,7 @@ interface ChatMentionNotice {
   sender_name: string;
   text: string;
 }
-const tagFor = (name: string) => '@' + name.trim().replace(/\s+/g, '_');
+const tagFor = (name: string) => '@' + name.replace(/[^\p{L}\p{N}\s_]/gu, ' ').trim().replace(/\s+/g, '_');
 const API = 'https://vvd-cpa-v2.onrender.com';
 export const Dvizh: React.FC = () => {
   const currentUser = getTelegramUser();
