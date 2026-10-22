@@ -75,6 +75,9 @@ export const Dvizh: React.FC = () => {
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [selectedMentions, setSelectedMentions] = useState<{id:string;tag:string}[]>([]);
   const [notices, setNotices] = useState<ChatMentionNotice[]>([]);
+  const dismissedNoticeIds = useRef<Set<string>>(new Set());
+  const noticeGesture = useRef<{id:string;x:number;y:number}|null>(null);
+  const skipNoticeClick = useRef<string|null>(null);
   const [showNotices, setShowNotices] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [noticeError, setNoticeError] = useState('');
@@ -138,7 +141,7 @@ export const Dvizh: React.FC = () => {
       const response=await authorizedFetch(`${API}/chat/mentions`,{cache:'no-store'});
       if(!response.ok)return;
       const data=await response.json();
-      if(data.success)setNotices(data.notifications||[]);
+      if(data.success)setNotices((data.notifications||[]).filter((n:ChatMentionNotice)=>!dismissedNoticeIds.current.has(n.id)));
     } catch { /* Network can be temporarily unavailable. */ }
   };
   useEffect(()=>{
@@ -146,6 +149,21 @@ export const Dvizh: React.FC = () => {
     const timer=window.setInterval(()=>{if(!document.hidden)void loadNotices()},8000);
     return()=>window.clearInterval(timer);
   },[]);
+  const dismissNotice = async (notice:ChatMentionNotice) => {
+    if (dismissedNoticeIds.current.has(notice.id)) return;
+    dismissedNoticeIds.current.add(notice.id);
+    setNotices(prev=>prev.filter(n=>n.id!==notice.id));
+    setNoticeError('');
+    triggerHaptic.lightImpact();
+    try {
+      const response=await authorizedFetch(`${API}/chat/mentions/${notice.id}/dismiss`,{method:'POST'});
+      if (!response.ok) throw new Error('Dismiss failed');
+    } catch {
+      dismissedNoticeIds.current.delete(notice.id);
+      setNoticeError('Не удалось убрать обращение. Попробуй ещё раз.');
+      void loadNotices();
+    }
+  };
   const openNotice = async (notice:ChatMentionNotice) => {
     setNoticeError('');
     navigateToMessage(notice.message_id);
@@ -657,15 +675,34 @@ if (!response.ok || !data.success) {
           </div>
           {notices.length===0 && <p className="text-xs text-textSecondary">Пока никто не упоминал тебя и не отвечал на твои сообщения.</p>}
           {notices.map(n=>(
-            <button key={n.id} onClick={()=>void openNotice(n)}
-              className={`w-full text-left rounded-xl p-3 mb-1 border ${n.is_read?'border-white/5 bg-white/[0.02]':'border-accentGold/40 bg-accentGold/10'}`}>
-              <div className="flex items-center justify-between gap-2 text-xs">
-                <strong className="text-accentGoldBright">{n.sender_name}</strong>
-                {!n.is_read && <span className="text-accentGold">● новое</span>}
-              </div>
-              <p className="text-[11px] text-textSecondary mt-1">{n.kind==='reply'?'Ответил на твоё сообщение':'Упомянул тебя'}</p>
-              <p className="text-xs text-white/90 truncate mt-1">{n.text}</p>
-            </button>
+            <div key={n.id} className={`relative flex items-start rounded-xl mb-2 border overflow-hidden touch-pan-y ${n.is_read?'border-white/5 bg-white/[0.02]':'border-accentGold/40 bg-accentGold/10'}`}
+              onTouchStart={event=>{const t=event.touches[0];noticeGesture.current={id:n.id,x:t.clientX,y:t.clientY}}}
+              onTouchEnd={event=>{
+                const start=noticeGesture.current;noticeGesture.current=null;
+                if(!start||start.id!==n.id)return;
+                const t=event.changedTouches[0];
+                if(start.x-t.clientX>65&&Math.abs(t.clientY-start.y)<55){
+                  skipNoticeClick.current=n.id;
+                  void dismissNotice(n);
+                  window.setTimeout(()=>{if(skipNoticeClick.current===n.id)skipNoticeClick.current=null},450);
+                }
+              }}>
+              <button type="button" onClick={()=>{if(skipNoticeClick.current!==n.id)void openNotice(n)}}
+                aria-label={`Открыть обращение от ${n.sender_name}`}
+                className="flex-1 min-w-0 text-left p-3 pr-1">
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <strong className="text-accentGoldBright truncate">{n.sender_name}</strong>
+                  {!n.is_read && <span className="text-accentGold shrink-0">● новое</span>}
+                </div>
+                <p className="text-[11px] text-textSecondary mt-1">{n.kind==='reply'?'Ответил на твоё сообщение':'Упомянул тебя'}</p>
+                <p className="text-xs text-white/90 truncate mt-1">{n.text}</p>
+              </button>
+              <button type="button" aria-label={`Удалить обращение от ${n.sender_name}`}
+                title="Убрать уведомление" onClick={()=>void dismissNotice(n)}
+                className="shrink-0 flex items-center justify-center w-10 h-12 mt-1 text-textSecondary hover:text-accentGoldBright active:bg-white/10">
+                <X size={17}/>
+              </button>
+            </div>
           ))}
         </div>
       )}
