@@ -104,9 +104,21 @@ export const Dvizh: React.FC = () => {
     .slice(0,6);
   const selectMention = (person:{id:string;name:string}) => {
     const tag=tagFor(person.name);
-    setInputValue(prev=>prev.replace(/(^|\s)@[\p{L}\p{N}_]*$/u,(_,space:string)=>space+tag+' '));
+    setInputValue(prev=>{
+      // Replace only the active @query; preserve text that the user already typed.
+      const next=prev.replace(/(^|\s)@[\p{L}\p{N}_]*$/u,(_,space:string)=>space+tag+' ');
+      return next===prev ? (prev.trimEnd()+' '+tag+' ') : next;
+    });
     setSelectedMentions(prev=>[...prev.filter(p=>p.id!==person.id),{id:person.id,tag}]);
-    composerRef.current?.focus();
+    // Mobile Safari may dismiss the keyboard when a suggestion is tapped.
+    // Re-focus after React has removed the suggestion picker.
+    requestAnimationFrame(()=>{
+      const field=composerRef.current;
+      if (!field) return;
+      field.focus();
+      field.setSelectionRange(field.value.length,field.value.length);
+    });
+    triggerHaptic.lightImpact();
   };
   const navigateToMessage = (id:string) => {
     setShowSearch(false);
@@ -870,13 +882,25 @@ if (!response.ok || !data.success) {
         </div>
       )}
       {mentionOptions.length>0 && (
-        <div className="shrink-0 max-h-44 overflow-y-auto bg-[#171512] border-t border-accentGold/30 px-3 py-2 z-40">
+        <div className="shrink-0 max-h-44 overflow-y-auto bg-[#171512] border-t border-accentGold/30 px-3 py-2 z-40" role="listbox" aria-label="Кого упомянуть">
+          <div className="text-[11px] text-textSecondary px-3 pb-1">Выбери человека, затем допиши сообщение</div>
           {mentionOptions.map(p=>(
-            <button key={p.id} type="button" className="block w-full text-left px-3 py-2 text-sm text-white hover:bg-accentGold/10 rounded-md"
-              onPointerDown={e=>e.preventDefault()} onClick={()=>selectMention(p)}>
+            <button key={p.id} type="button" role="option" aria-selected={false}
+              className="block w-full text-left px-3 py-3 text-sm text-white active:bg-accentGold/20 hover:bg-accentGold/10 rounded-md"
+              onTouchEnd={e=>{e.preventDefault();selectMention(p)}}
+              onClick={()=>selectMention(p)}>
               <AtSign size={13} className="inline text-accentGoldBright mr-2"/>{p.name}
             </button>
           ))}
+        </div>
+      )}
+      {selectedMentions.some(p=>inputValue.toLocaleLowerCase().includes(p.tag.toLocaleLowerCase())) && mentionSearch===null && (
+        <div className="shrink-0 flex flex-wrap items-center gap-2 px-4 py-2 border-t border-accentGold/20 bg-[#171512]">
+          <span className="text-xs text-textSecondary">Упоминаешь:</span>
+          {selectedMentions.filter(p=>inputValue.toLocaleLowerCase().includes(p.tag.toLocaleLowerCase())).map(p=>(
+            <span key={p.id} className="rounded-full border border-accentGold/30 bg-accentGold/10 px-2 py-1 text-xs text-accentGoldBright">{p.tag}</span>
+          ))}
+          <span className="text-[11px] text-textSecondary">Теперь напиши текст и отправь</span>
         </div>
       )}
       {/* Панель ввода сообщения */}
