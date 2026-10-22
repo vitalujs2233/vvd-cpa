@@ -1,5 +1,5 @@
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, Request, HTTPException, UploadFile, File
+from fastapi.responses import RedirectResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy import text
@@ -7,6 +7,8 @@ from database import check_database, save_user, engine
 from datetime import datetime, timedelta
 
 import json
+import io
+from PIL import Image, UnidentifiedImageError
 import re
 import urllib.request
 import uuid
@@ -1496,6 +1498,62 @@ async def reject_withdrawal(withdrawal_id: int):
             "status": "rejected", "amount_returned": result["amount"]}
 
 
+@app.post("/chat/images")
+async def upload_chat_image(request: Request, image: UploadFile = File(...)):
+    """Upload and sanitize an image; the user attaches it on message submission."""
+    uid = verified_telegram_id(request.headers.get("X-Telegram-Init-Data", ""))
+    if image.content_type not in ("image/jpeg", "image/png", "image/webp"):
+        raise HTTPException(400, "Поддерживаются только JPG, PNG и WebP")
+    raw = await image.read(5 * 1024 * 1024 + 1)
+    if len(raw) > 5 * 1024 * 1024:
+        raise HTTPException(413, "Максимальный размер фотографии — 5 МБ")
+    try:
+        with Image.open(io.BytesIO(raw)) as src:
+            if src.format not in ("JPEG", "PNG", "WEBP") or src.width * src.height > 20_000_000:
+                raise ValueError("Invalid image format or dimensions")
+            src.load()
+            converted = src.convert("RGB")
+            converted.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
+            output = io.BytesIO()
+            converted.save(output, format="WEBP", quality=76, method=4)
+            encoded = output.getvalue()
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
+        raise HTTPException(400, "Не удалось прочитать изображение")
+    if not encoded or len(encoded) > 1_500_000:
+        raise HTTPException(413, "Слишком большое изображение после обработки")
+    with engine.begin() as conn:
+        conn.execute(text("""
+            DELETE FROM dvizh_images WHERE owner_id=:uid AND message_id IS NULL
+            AND created_at < NOW() - INTERVAL '24 hours'
+        """), {"uid": uid})
+        pending = conn.execute(text("""
+            SELECT COUNT(*) FROM dvizh_images
+            WHERE owner_id=:uid AND message_id IS NULL
+        """), {"uid": uid}).scalar()
+        if pending >= 6:
+            raise HTTPException(429, "Слишком много неотправленных фотографий")
+        row = conn.execute(text("""
+            INSERT INTO dvizh_images (owner_id, mime_type, image_data)
+            VALUES (:owner, 'image/webp', :data) RETURNING id
+        """), {"owner": uid, "data": encoded}).first()
+    return {"success": True, "id": str(row.id)}
+
+
+@app.get("/chat/images/{image_id}")
+def get_chat_image(image_id: uuid.UUID, request: Request):
+    uid = verified_telegram_id(request.headers.get("X-Telegram-Init-Data", ""))
+    with engine.connect() as conn:
+        row = conn.execute(text("""
+            SELECT image_data FROM dvizh_images
+            WHERE id=:id AND (message_id IS NOT NULL OR owner_id=:uid)
+        """), {"id": str(image_id), "uid": uid}).first()
+    if not row:
+        raise HTTPException(404, "Изображение не найдено")
+    return Response(content=bytes(row.image_data), media_type="image/webp",
+                    headers={"Cache-Control": "private, max-age=300",
+                             "X-Content-Type-Options": "nosniff"})
+
+
 @app.post("/chat/messages")
 async def create_chat_message(payload: dict):
     sender_id = str(payload.get("sender_id") or "").strip()
@@ -1505,11 +1563,20 @@ async def create_chat_message(payload: dict):
     broadcast_all = bool(re.search(r"(?<![\w@])@все(?![\w])", message_text, re.IGNORECASE))
     reply_raw = payload.get("reply_to_id")
     raw_mentions = payload.get("mention_ids") or []
+    raw_images = payload.get("image_ids") or []
 
     if not sender_id or not sender_id.isdecimal():
         return {"success": False, "message": "sender_id is required"}
-    if not message_text or len(message_text) > 4000:
-        return {"success": False, "message": "text must be 1–4000 characters"}
+    if (not message_text and not raw_images) or len(message_text) > 4000:
+        return {"success": False, "message": "text or images required (max 4000 characters)"}
+    if not isinstance(raw_images, list) or len(raw_images) > 3:
+        return {"success": False, "message": "Максимум 3 изображения"}
+    try:
+        image_ids = list(dict.fromkeys(str(uuid.UUID(str(v))) for v in raw_images))
+    except (ValueError, TypeError):
+        return {"success": False, "message": "Неправильный формат изображения"}
+    if len(image_ids) != len(raw_images):
+        return {"success": False, "message": "Повтор изображения в сообщении"}
     if not isinstance(raw_mentions, list) or len(raw_mentions) > 8:
         return {"success": False, "message": "Invalid mentions"}
     try:
@@ -1569,6 +1636,16 @@ async def create_chat_message(payload: dict):
             if mentioned_id != int(sender_id):
                 confirmed_mentions.append(mentioned_id)
 
+        if image_ids:
+            valid_images = conn.execute(text("""
+                SELECT id FROM dvizh_images
+                WHERE id = ANY(CAST(:ids AS uuid[]))
+                  AND owner_id=:owner AND message_id IS NULL
+                FOR UPDATE
+            """), {"ids": image_ids, "owner": int(sender_id)}).fetchall()
+            if len(valid_images) != len(image_ids):
+                return {"success": False, "message": "Фото не найдены или уже отправлены"}
+
         row = conn.execute(text("""
             INSERT INTO chat_messages
             (sender_id, sender_name, avatar_url, text, reactions, is_staff,
@@ -1586,6 +1663,13 @@ async def create_chat_message(payload: dict):
             "reply_to_id": reply_id,
             "mention_ids": confirmed_mentions,
         }).mappings().first()
+
+        if image_ids:
+            conn.execute(text("""
+                UPDATE dvizh_images SET message_id=:message
+                WHERE id = ANY(CAST(:ids AS uuid[]))
+                  AND owner_id=:owner AND message_id IS NULL
+            """), {"message": str(row["id"]), "ids": image_ids, "owner": int(sender_id)})
 
         recipients = {uid: "mention" for uid in confirmed_mentions}
         if broadcast_all:
@@ -1617,6 +1701,7 @@ async def create_chat_message(payload: dict):
            else row[key] for key in ("id", "sender_id", "sender_name", "avatar_url",
                                      "text", "reactions", "created_at", "is_staff",
                                      "reply_to_id", "mention_ids")},
+        "image_ids": image_ids,
         "reply_sender_name": str(parent["sender_name"]) if parent else None,
         "reply_text": str(parent["text"]) if parent else None,
     }}
@@ -1630,7 +1715,11 @@ def get_chat_messages():
                    m.text, m.reactions, m.created_at, m.is_staff,
                    m.reply_to_id, m.mention_ids,
                    parent.sender_name AS reply_sender_name,
-                   parent.text AS reply_text
+                   parent.text AS reply_text,
+                   COALESCE(ARRAY(
+                     SELECT i.id::text FROM dvizh_images i
+                     WHERE i.message_id=m.id ORDER BY i.created_at, i.id
+                   ), ARRAY[]::text[]) AS image_ids
             FROM chat_messages m
             LEFT JOIN chat_messages parent ON parent.id=m.reply_to_id
             ORDER BY m.created_at DESC, m.id DESC LIMIT 500
@@ -1640,7 +1729,7 @@ def get_chat_messages():
          else row[key] for key in ("id", "sender_id", "sender_name", "avatar_url",
                                    "text", "reactions", "created_at", "is_staff",
                                    "reply_to_id", "reply_sender_name", "reply_text",
-                                   "mention_ids")}
+                                   "mention_ids", "image_ids")}
         for row in reversed(rows)
     ]}
 
