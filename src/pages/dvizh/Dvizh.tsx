@@ -105,6 +105,11 @@ export const Dvizh: React.FC = () => {
   const mentionOptions = mentionSearch === null ? [] : participants
     .filter(p => p.id !== currentUid && tagFor(p.name).slice(1).toLocaleLowerCase().includes(mentionSearch.toLocaleLowerCase()))
     .slice(0,6);
+  const selectAllMention = () => {
+    setInputValue(prev=>prev.replace(/(^|\\s)@[\\p{L}\\p{N}_]*$/u,(_,space:string)=>space+'@все '));
+    requestAnimationFrame(()=>composerRef.current?.focus());
+    triggerHaptic.lightImpact();
+  };
   const selectMention = (person:{id:string;name:string}) => {
     const tag=tagFor(person.name);
     setInputValue(prev=>{
@@ -489,6 +494,13 @@ const banChatUser = async (msg: ChatMessage) => {
   const handleSendMessage = async () => {
   if (sendingRef.current || !inputValue.trim()) return;
   const sentText=inputValue.trim();
+  if (/((?:^|\\s)@все)(?![\\p{L}\\p{N}_])/iu.test(sentText)) {
+    if (!isAdmin) {
+      setSendError('Команда @все доступна только администратору.');
+      return;
+    }
+    if (!window.confirm('Отправить это сообщение всем зарегистрированным пользователям VVD CPA? Каждому придёт уведомление в «Движ».')) return;
+  }
   const sentReply=replyTo;
   const sentMentions=selectedMentions
     .filter(p=>sentText.toLocaleLowerCase().includes(p.tag.toLocaleLowerCase()))
@@ -694,7 +706,7 @@ if (!response.ok || !data.success) {
                   <strong className="text-accentGoldBright truncate">{n.sender_name}</strong>
                   {!n.is_read && <span className="text-accentGold shrink-0">● новое</span>}
                 </div>
-                <p className="text-[11px] text-textSecondary mt-1">{n.kind==='reply'?'Ответил на твоё сообщение':'Упомянул тебя'}</p>
+                <p className="text-[11px] text-textSecondary mt-1">{n.kind==='reply'?'Ответил на твоё сообщение':/(^|\\s)@все(?![\\p{L}\\p{N}_])/iu.test(n.text)?'Администратор упомянул всех':'Упомянул тебя'}</p>
                 <p className="text-xs text-white/90 truncate mt-1">{n.text}</p>
               </button>
               <button type="button" aria-label={`Удалить обращение от ${n.sender_name}`}
@@ -918,9 +930,17 @@ if (!response.ok || !data.success) {
           <button aria-label="Отменить ответ" onClick={()=>setReplyTo(null)}><X size={17}/></button>
         </div>
       )}
-      {mentionOptions.length>0 && (
+      {(mentionOptions.length>0 || (isAdmin && mentionSearch!==null && 'все'.includes(mentionSearch.toLocaleLowerCase()))) && (
         <div className="shrink-0 max-h-44 overflow-y-auto bg-[#171512] border-t border-accentGold/30 px-3 py-2 z-40" role="listbox" aria-label="Кого упомянуть">
           <div className="text-[11px] text-textSecondary px-3 pb-1">Выбери человека, затем допиши сообщение</div>
+          {isAdmin && mentionSearch!==null && 'все'.includes(mentionSearch.toLocaleLowerCase()) && (
+            <button type="button" role="option" aria-selected={false}
+              className="block w-full text-left px-3 py-3 text-sm text-accentGoldBright font-semibold rounded-md active:bg-accentGold/20"
+              onTouchEnd={e=>{e.preventDefault();selectAllMention()}}
+              onClick={selectAllMention}>
+              <AtSign size={13} className="inline mr-2"/>все — уведомить всех участников VVD
+            </button>
+          )}
           {mentionOptions.map(p=>(
             <button key={p.id} type="button" role="option" aria-selected={false}
               className="block w-full text-left px-3 py-3 text-sm text-white active:bg-accentGold/20 hover:bg-accentGold/10 rounded-md"
