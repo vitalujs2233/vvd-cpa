@@ -91,7 +91,7 @@ export const Dvizh: React.FC = () => {
 
   const currentUid = String(currentUser.id);
   const unreadCount = notices.filter(n => !n.is_read).length;
-  const mentionSearch = inputValue.match(/(?:^|\\s)@([\\p{L}\\p{N}_]*)$/u)?.[1] ?? null;
+  const mentionSearch = inputValue.match(/(?:^|\s)@([\p{L}\p{N}_]*)$/u)?.[1] ?? null;
   const participants = useMemo(() => {
     const byId = new Map<string,{id:string;name:string;avatar?:string}>();
     for (const m of [...messages].reverse()) {
@@ -104,7 +104,7 @@ export const Dvizh: React.FC = () => {
     .slice(0,6);
   const selectMention = (person:{id:string;name:string}) => {
     const tag=tagFor(person.name);
-    setInputValue(prev=>prev.replace(/(^|\\s)@[\\p{L}\\p{N}_]*$/u,(_,space:string)=>space+tag+' '));
+    setInputValue(prev=>prev.replace(/(^|\s)@[\p{L}\p{N}_]*$/u,(_,space:string)=>space+tag+' '));
     setSelectedMentions(prev=>[...prev.filter(p=>p.id!==person.id),{id:person.id,tag}]);
     composerRef.current?.focus();
   };
@@ -583,7 +583,7 @@ if (!response.ok || !data.success) {
     setActiveReactionMenu(null);
   };
 
-  const formatMessage = (body:string) => body.split(/(@[\\p{L}\\p{N}_]+)/gu).map((part,i)=>
+  const formatMessage = (body:string) => body.split(/(@[\p{L}\p{N}_]+)/gu).map((part,i)=>
     part.startsWith('@') ? <span key={i} className="text-accentGoldBright font-semibold">{part}</span> : <React.Fragment key={i}>{part}</React.Fragment>
   );
   const filteredMessages = useMemo(() => {
