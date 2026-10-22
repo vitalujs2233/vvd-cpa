@@ -1502,6 +1502,7 @@ async def create_chat_message(payload: dict):
     sender_name = str(payload.get("sender_name") or "Партнёр").strip()[:255]
     avatar_url = payload.get("avatar_url")
     message_text = str(payload.get("text") or "").strip()
+    broadcast_all = bool(re.search(r"(?<![\\w@])@все(?![\\w])", message_text, re.IGNORECASE))
     reply_raw = payload.get("reply_to_id")
     raw_mentions = payload.get("mention_ids") or []
 
@@ -1518,6 +1519,10 @@ async def create_chat_message(payload: dict):
         return {"success": False, "message": "Invalid reply or mention"}
     if any(v <= 0 for v in mention_ids):
         return {"success": False, "message": "Invalid mentions"}
+    if broadcast_all and not authorized_admin(int(sender_id)):
+        raise HTTPException(403, "Упоминание @все доступно только администратору")
+    if broadcast_all and len(message_text.replace("@все", "").strip()) < 3:
+        return {"success": False, "message": "Добавь текст объявления после @все"}
 
     # Keep existing ban protection. Everything below happens atomically.
     with engine.begin() as conn:
@@ -1536,6 +1541,18 @@ async def create_chat_message(payload: dict):
             """), {"id": reply_id}).mappings().first()
             if not parent:
                 return {"success": False, "message": "Сообщение для ответа не найдено"}
+
+        if broadcast_all:
+            # Rate limit broadcasts across sessions and devices; do not flood inboxes.
+            last_broadcast = conn.execute(text("""
+                SELECT 1 FROM chat_messages
+                WHERE sender_id=:uid
+                  AND text ~* '(^|[^[:alnum:]_@])@все([^[:alnum:]_]|$)'
+                  AND created_at > NOW() - INTERVAL '30 minutes'
+                LIMIT 1
+            """), {"uid": int(sender_id)}).first()
+            if last_broadcast:
+                return {"success": False, "message": "Упоминать всех можно не чаще одного раза в 30 минут"}
 
         # Mentions must identify real participants of Dvizh and appear in text.
         confirmed_mentions = []
@@ -1571,9 +1588,22 @@ async def create_chat_message(payload: dict):
         }).mappings().first()
 
         recipients = {uid: "mention" for uid in confirmed_mentions}
+        if broadcast_all:
+            # Register in-app alerts for everyone who has signed in to VVD.
+            # A single set-based insert avoids N round trips for large audiences.
+            conn.execute(text("""
+                INSERT INTO chat_interaction_notifications
+                  (recipient_id, actor_id, message_id, kind)
+                SELECT telegram_id, :actor, :message, 'mention'
+                FROM users
+                WHERE telegram_id <> :actor
+                ON CONFLICT (recipient_id, message_id) DO NOTHING
+            """), {"actor": int(sender_id), "message": str(row["id"])})
         if parent and int(parent["sender_id"]) != int(sender_id):
             recipients.setdefault(int(parent["sender_id"]), "reply")
         for uid, kind in recipients.items():
+            if broadcast_all:
+                continue  # Set-based broadcast already covers all registered recipients.
             conn.execute(text("""
                 INSERT INTO chat_interaction_notifications
                   (recipient_id, actor_id, message_id, kind)
