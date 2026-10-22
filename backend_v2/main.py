@@ -1546,7 +1546,7 @@ async def create_chat_message(payload: dict):
             """), {"uid": mentioned_id}).first()
             if not person:
                 return {"success": False, "message": "Участник не найден в чате"}
-            tag = "@" + re.sub(r"\s+", "_", str(person.sender_name or "Партнёр"))
+            tag = "@" + re.sub(r"\s+", "_", re.sub(r"[^\w\s]", " ", str(person.sender_name or "Партнёр")).strip())
             if tag.casefold() not in message_text.casefold():
                 return {"success": False, "message": "Тег упоминания отсутствует в тексте"}
             if mentioned_id != int(sender_id):
