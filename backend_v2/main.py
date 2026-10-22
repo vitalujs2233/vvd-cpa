@@ -1522,6 +1522,15 @@ async def upload_chat_image(request: Request, image: UploadFile = File(...)):
     if not encoded or len(encoded) > 1_500_000:
         raise HTTPException(413, "Слишком большое изображение после обработки")
     with engine.begin() as conn:
+        banned=conn.execute(text("SELECT 1 FROM chat_bans WHERE telegram_id=:uid LIMIT 1"),{"uid":uid}).first()
+        if banned and str(uid)!=ADMIN_TELEGRAM_ID:
+            raise HTTPException(403,"Доступ к чату ограничен модерацией")
+        hourly=conn.execute(text("""
+            SELECT COUNT(*) FROM dvizh_images
+            WHERE owner_id=:uid AND created_at>NOW()-INTERVAL '1 hour'
+        """),{"uid":uid}).scalar()
+        if hourly >= 50:
+            raise HTTPException(429,"Слишком много фотографий за час")
         conn.execute(text("""
             DELETE FROM dvizh_images WHERE owner_id=:uid AND message_id IS NULL
             AND created_at < NOW() - INTERVAL '24 hours'
@@ -1715,7 +1724,9 @@ def get_chat_messages():
                    m.text, m.reactions, m.created_at, m.is_staff,
                    m.reply_to_id, m.mention_ids,
                    parent.sender_name AS reply_sender_name,
-                   parent.text AS reply_text,
+                   CASE WHEN parent.text='' AND EXISTS (
+                     SELECT 1 FROM dvizh_images pi WHERE pi.message_id=parent.id
+                   ) THEN '📷 Фото' ELSE parent.text END AS reply_text,
                    COALESCE(ARRAY(
                      SELECT i.id::text FROM dvizh_images i
                      WHERE i.message_id=m.id ORDER BY i.created_at, i.id
