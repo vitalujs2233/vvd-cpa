@@ -5,8 +5,9 @@ import { authorizedFetch } from '@/shared/lib/api';
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { 
   Loader2, Send, ShieldAlert, Users, Pin, Search, Smile, 
-  Check, CheckCircle2, AlertTriangle, Sparkles, Bell, Reply, AtSign, X, Paperclip, Image as ImageIcon, ChevronLeft, ChevronRight 
+  Check, CheckCircle2, AlertTriangle, Sparkles, CircleHelp, Bell, Reply, AtSign, X, Paperclip, Image as ImageIcon, ChevronLeft, ChevronRight 
 } from 'lucide-react';
+import { CHAT_RULES, CHAT_RULES_INTRO } from './chatRules';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { Input } from '@/shared/ui/Input';
@@ -155,6 +156,7 @@ export const Dvizh: React.FC = () => {
   const sendGeneration = useRef(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const [showChatRules, setShowChatRules] = useState(false);
   const [activeReactionMenu, setActiveReactionMenu] = useState<string | null>(null);
   const [moderationMenu, setModerationMenu] = useState<string | null>(null);
 
@@ -745,6 +747,15 @@ if (!response.ok || !data.success) {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            aria-label="Правила чата «Движ»"
+            title="Правила чата"
+            onClick={() => { triggerHaptic.lightImpact(); setShowChatRules(true); }}
+            className="w-10 h-10 rounded-full bg-white/[0.03] border border-accentGold/30 flex items-center justify-center text-accentGoldBright active:scale-95 transition-all"
+          >
+            <CircleHelp size={18} />
+          </button>
           <button type="button" aria-label={`Обращения к тебе: ${unreadCount} непрочитанных`}
             onClick={()=>{setShowNotices(v=>!v);setNoticeError('');void loadNotices()}}
             className="relative w-10 h-10 rounded-full border border-accentGold/30 bg-accentGold/10 flex items-center justify-center text-accentGoldBright">
@@ -761,6 +772,46 @@ if (!response.ok || !data.success) {
         </button>
         </div>
       </div>
+
+      {showChatRules && (
+        <div
+          className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
+          role="presentation"
+          onMouseDown={(event) => { if (event.target === event.currentTarget) setShowChatRules(false); }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dvizh-chat-rules-title"
+            className="w-full max-w-lg max-h-[85dvh] flex flex-col overflow-hidden rounded-2xl bg-bgCard border border-accentGold/25 shadow-2xl"
+          >
+            <div className="flex items-center justify-between gap-3 p-4 border-b border-white/10 shrink-0">
+              <h2 id="dvizh-chat-rules-title" className="text-base font-bold text-accentGoldBright">
+                Правила чата «Движ»
+              </h2>
+              <button
+                type="button"
+                aria-label="Закрыть правила"
+                onClick={() => setShowChatRules(false)}
+                className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-textSecondary hover:text-white"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="overflow-y-auto overscroll-contain px-4 py-4 space-y-5 text-sm leading-relaxed text-textSecondary">
+              <p>{CHAT_RULES_INTRO}</p>
+              {CHAT_RULES.map((rule) => (
+                <section key={rule.title} className="space-y-2">
+                  <h3 className="font-semibold text-accentGoldBright">{rule.title}</h3>
+                  {rule.paragraphs.map((paragraph) => (
+                    <p key={paragraph}>{paragraph}</p>
+                  ))}
+                </section>
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
 
       {showNotices && (
         <div className="shrink-0 max-h-[42vh] overflow-y-auto bg-[#171512] border-b border-accentGold/30 p-3 z-30" aria-label="Обращения к тебе">
