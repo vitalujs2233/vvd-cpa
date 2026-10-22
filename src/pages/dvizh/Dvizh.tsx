@@ -106,7 +106,7 @@ export const Dvizh: React.FC = () => {
     .filter(p => p.id !== currentUid && tagFor(p.name).slice(1).toLocaleLowerCase().includes(mentionSearch.toLocaleLowerCase()))
     .slice(0,6);
   const selectAllMention = () => {
-    setInputValue(prev=>prev.replace(/(^|\\s)@[\\p{L}\\p{N}_]*$/u,(_,space:string)=>space+'@все '));
+    setInputValue(prev=>prev.replace(/(^|\s)@[\p{L}\p{N}_]*$/u,(_,space:string)=>space+'@все '));
     requestAnimationFrame(()=>composerRef.current?.focus());
     triggerHaptic.lightImpact();
   };
@@ -494,7 +494,7 @@ const banChatUser = async (msg: ChatMessage) => {
   const handleSendMessage = async () => {
   if (sendingRef.current || !inputValue.trim()) return;
   const sentText=inputValue.trim();
-  if (/((?:^|\\s)@все)(?![\\p{L}\\p{N}_])/iu.test(sentText)) {
+  if (/((?:^|\s)@все)(?![\p{L}\p{N}_])/iu.test(sentText)) {
     if (!isAdmin) {
       setSendError('Команда @все доступна только администратору.');
       return;
@@ -706,7 +706,7 @@ if (!response.ok || !data.success) {
                   <strong className="text-accentGoldBright truncate">{n.sender_name}</strong>
                   {!n.is_read && <span className="text-accentGold shrink-0">● новое</span>}
                 </div>
-                <p className="text-[11px] text-textSecondary mt-1">{n.kind==='reply'?'Ответил на твоё сообщение':/(^|\\s)@все(?![\\p{L}\\p{N}_])/iu.test(n.text)?'Администратор упомянул всех':'Упомянул тебя'}</p>
+                <p className="text-[11px] text-textSecondary mt-1">{n.kind==='reply'?'Ответил на твоё сообщение':/(^|\s)@все(?![\p{L}\p{N}_])/iu.test(n.text)?'Администратор упомянул всех':'Упомянул тебя'}</p>
                 <p className="text-xs text-white/90 truncate mt-1">{n.text}</p>
               </button>
               <button type="button" aria-label={`Удалить обращение от ${n.sender_name}`}
