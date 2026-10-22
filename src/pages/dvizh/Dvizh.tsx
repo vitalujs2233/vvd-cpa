@@ -752,7 +752,7 @@ if (!response.ok || !data.success) {
             aria-label="Правила чата «Движ»"
             title="Правила чата"
             onClick={() => { triggerHaptic.lightImpact(); setShowChatRules(true); }}
-            className="w-10 h-10 rounded-full bg-white/[0.03] border border-accentGold/30 flex items-center justify-center text-accentGoldBright active:scale-95 transition-all"
+            className="w-10 h-10 rounded-full bg-white/[0.03] border border-accentGold/30 flex items-center justify-center text-red-500 active:scale-95 transition-all"
           >
             <CircleHelp size={18} />
           </button>
