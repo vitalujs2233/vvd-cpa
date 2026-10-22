@@ -12,6 +12,7 @@ export interface ChatMessage {
   replySenderName?: string | null;
   replyText?: string | null;
   mentionIds?: string[];
+  imageIds?: string[];
 }
 
 export const CHAT_SNAPSHOT_KEY='dvizh:messages';
@@ -32,4 +33,5 @@ export const normalizeChatMessages=(data:{messages?:any[]}):ChatMessage[]=>(data
         replySenderName: msg.reply_sender_name || null,
         replyText: msg.reply_text || null,
         mentionIds: Array.isArray(msg.mention_ids) ? msg.mention_ids.map(String) : [],
+        imageIds: Array.isArray(msg.image_ids) ? msg.image_ids.map(String) : [],
       }));

@@ -34,7 +34,7 @@ def user_owns_code(uid:int,code:str)->bool:
 def protected(path:str,method:str)->bool:
     return (path.startswith(("/balance/","/referral/","/statistics/","/smartlink/","/withdrawals",
                               "/admin/"))
-            or path=="/chat/messages" or path.startswith("/chat/mentions") or (path=="/chat/online" and method=="POST"))
+            or path=="/chat/messages" or path.startswith("/chat/images") or path.startswith("/chat/mentions") or (path=="/chat/online" and method=="POST"))
 
 async def access_guard(request,call_next):
     path=request.url.path

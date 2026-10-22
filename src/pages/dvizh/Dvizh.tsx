@@ -5,7 +5,7 @@ import { authorizedFetch } from '@/shared/lib/api';
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { 
   Loader2, Send, ShieldAlert, Users, Pin, Search, Smile, 
-  Check, CheckCircle2, AlertTriangle, Sparkles, Bell, Reply, AtSign, X 
+  Check, CheckCircle2, AlertTriangle, Sparkles, Bell, Reply, AtSign, X, Paperclip, Image as ImageIcon, ChevronLeft, ChevronRight 
 } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
@@ -67,11 +67,75 @@ interface ChatMentionNotice {
 }
 const tagFor = (name: string) => '@' + name.replace(/[^\p{L}\p{N}\s_]/gu, ' ').trim().replace(/\s+/g, '_');
 const API = 'https://vvd-cpa-v2.onrender.com';
+
+const ChatPhoto: React.FC<{id:string; onOpen:(id:string)=>void}> = ({id,onOpen}) => {
+  const [url,setUrl] = useState('');
+  useEffect(()=>{
+    let mounted=true;
+    let objectUrl='';
+    const load=async()=>{
+      try {
+        const response=await authorizedFetch(`${API}/chat/images/${id}`);
+        if(!response.ok) throw new Error('Image unavailable');
+        objectUrl=URL.createObjectURL(await response.blob());
+        if(mounted)setUrl(objectUrl);
+        else URL.revokeObjectURL(objectUrl);
+      } catch { if(mounted)setUrl(''); }
+    };
+    void load();
+    return()=>{mounted=false;if(objectUrl)URL.revokeObjectURL(objectUrl)};
+  },[id]);
+  return url
+    ? <button type="button" onClick={()=>onOpen(id)} className="block max-w-full rounded-xl overflow-hidden" aria-label="Открыть фотографию">
+        <img src={url} alt="Фото в чате" loading="lazy" className="block w-full max-h-56 object-contain rounded-xl"/>
+      </button>
+    : <div role="status" className="text-xs text-textSecondary py-3">Загрузка фото…</div>;
+};
+
 export const Dvizh: React.FC = () => {
   const currentUser = getTelegramUser();
   const [messages, setMessages] = useState<ChatMessage[]>(()=>readSnapshot<ChatMessage[]>(CHAT_SNAPSHOT_KEY)||[]);
   useLayoutEffect(()=>{saveSnapshot(CHAT_SNAPSHOT_KEY,messages);},[messages]);
   const [inputValue, setInputValue] = useState('');
+  const [photos,setPhotos] = useState<Array<{file:File;url:string}>>([]);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [photoViewer,setPhotoViewer] = useState<{ids:string[];index:number;url:string} | null>(null);
+  const viewerUrl = useRef('');
+  const openPhoto = async (ids:string[], index:number) => {
+    const id=ids[index];
+    try {
+      const response=await authorizedFetch(`${API}/chat/images/${id}`);
+      if(!response.ok)throw new Error('Photo missing');
+      const url=URL.createObjectURL(await response.blob());
+      if(viewerUrl.current)URL.revokeObjectURL(viewerUrl.current);
+      viewerUrl.current=url;
+      setPhotoViewer({ids,index,url});
+    }catch{setSendError('Не удалось открыть фотографию.');}
+  };
+  const closePhoto=()=>{
+    setPhotoViewer(null);
+    if(viewerUrl.current) URL.revokeObjectURL(viewerUrl.current);
+    viewerUrl.current='';
+  };
+  useEffect(()=>()=>{if(viewerUrl.current)URL.revokeObjectURL(viewerUrl.current)},[]);
+  const addPhotos = (files:FileList|null) => {
+    if(!files)return;
+    const chosen=Array.from(files);
+    if(chosen.length+photos.length>3){
+      setSendError('Можно прикрепить не больше 3 фотографий.');
+      return;
+    }
+    if(chosen.some(f=>!['image/jpeg','image/png','image/webp'].includes(f.type)||f.size>5*1024*1024)){
+      setSendError('Только JPG, PNG и WebP до 5 МБ.');
+      return;
+    }
+    setPhotos(prev=>[...prev,...chosen.map(file=>({file,url:URL.createObjectURL(file)}))]);
+    setSendError('');
+  };
+  const removePhoto = (url:string) => {
+    setPhotos(prev=>prev.filter(p=>p.url!==url));
+    URL.revokeObjectURL(url);
+  };
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [selectedMentions, setSelectedMentions] = useState<{id:string;tag:string}[]>([]);
   const [notices, setNotices] = useState<ChatMentionNotice[]>([]);
@@ -254,7 +318,7 @@ useEffect(() => {
     loading=true;
     const generation=sendGeneration.current;
     try {
-      const response = await authorizedFetch(`${API}/chat/messages`, {
+    const response = await authorizedFetch(`${API}/chat/messages`, {
         cache: 'no-store',
       });
 
@@ -492,8 +556,9 @@ const banChatUser = async (msg: ChatMessage) => {
   }
 };
   const handleSendMessage = async () => {
-  if (sendingRef.current || !inputValue.trim()) return;
+  if (sendingRef.current || (!inputValue.trim() && photos.length===0)) return;
   const sentText=inputValue.trim();
+  const sentPhotos=photos;
   if (/((?:^|\s)@все)(?![\p{L}\p{N}_])/iu.test(sentText)) {
     if (!isAdmin) {
       setSendError('Команда @все доступна только администратору.');
@@ -524,6 +589,16 @@ const banChatUser = async (msg: ChatMessage) => {
   try {
     triggerHaptic.mediumImpact();
 
+      const imageIds:string[]=[];
+    for(const photo of sentPhotos){
+      const data=new FormData();
+      data.append('image',photo.file);
+      const uploaded=await authorizedFetch(`${API}/chat/images`,{method:'POST',body:data});
+      const uploadResult=await uploaded.json();
+      if(!uploaded.ok || !uploadResult.success)throw new Error(uploadResult.detail||uploadResult.message||'Не удалось загрузить фото');
+      imageIds.push(String(uploadResult.id));
+    }
+
     const response = await authorizedFetch(`${API}/chat/messages`, {
       method: 'POST',
       headers: {
@@ -534,6 +609,7 @@ const banChatUser = async (msg: ChatMessage) => {
         sender_name: `${currentUser.first_name} ${currentUser.last_name || ''}`.trim(),
         avatar_url: currentUser.photo_url || '',
         text: sentText,
+        image_ids: imageIds,
         reply_to_id: sentReply?.id || null,
         mention_ids: sentMentions,
         reactions: {},
@@ -578,6 +654,7 @@ if (!response.ok || !data.success) {
       replySenderName: msg.reply_sender_name || null,
       replyText: msg.reply_text || null,
       mentionIds: Array.isArray(msg.mention_ids) ? msg.mention_ids.map(String) : [],
+      imageIds: Array.isArray(msg.image_ids) ? msg.image_ids.map(String) : [],
     };
 
     scrollAfterSend.current=true;
@@ -585,6 +662,10 @@ if (!response.ok || !data.success) {
     setMessages(prev => prev.some(m=>m.id===newMessage.id) ? prev : [...prev, newMessage]);
     setInputValue(current=>current.trim()===sentText ? '' : current);
     setReplyTo(current=>current?.id===sentReply?.id ? null : current);
+    setPhotos(current=>{
+      sentPhotos.forEach(p=>URL.revokeObjectURL(p.url));
+      return current.filter(p=>!sentPhotos.some(old=>old.url===p.url));
+    });
     setSelectedMentions(prev=>prev.filter(p=>!sentMentions.includes(p.id)));
     void loadNotices();
     requestAnimationFrame(()=>{
@@ -593,7 +674,7 @@ if (!response.ok || !data.success) {
     });
   } catch (error) {
     console.error('Ошибка отправки сообщения:', error);
-    setSendError('Не удалось подтвердить отправку. Проверьте чат перед повторной отправкой.');
+    setSendError('Не удалось отправить сообщение или фото. Проверь чат перед повторной отправкой.');
   } finally {
     sendingRef.current=false;
     sendGeneration.current+=1;
@@ -859,7 +940,14 @@ if (!response.ok || !data.success) {
                         <span className="text-textSecondary text-xs block truncate">{msg.replyText || 'Исходное сообщение недоступно'}</span>
                       </button>
                     )}
-                    <span className="whitespace-pre-wrap break-words">{formatMessage(msg.text)}</span>
+                    {msg.text && <span className="whitespace-pre-wrap break-words">{formatMessage(msg.text)}</span>}
+                    {Boolean(msg.imageIds?.length) && (
+                      <div className="flex flex-col gap-2 mt-2 max-w-[65vw]">
+                        {msg.imageIds!.map(id=>(
+                          <ChatPhoto key={id} id={id} onOpen={selected=>void openPhoto(msg.imageIds||[],(msg.imageIds||[]).indexOf(selected))}/>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <button
@@ -919,6 +1007,17 @@ if (!response.ok || !data.success) {
         <div ref={messagesEndRef} />
       </div>
 
+      {photoViewer && (
+        <div className="fixed inset-0 z-[9999] bg-black/95 flex flex-col items-center justify-center p-3" role="dialog" aria-modal="true" aria-label="Просмотр фотографии">
+          <button onClick={closePhoto} aria-label="Закрыть фотографию" className="absolute top-7 right-5 z-10 text-white bg-white/10 rounded-full p-3"><X size={24}/></button>
+          <img src={photoViewer.url} alt="Увеличенное фото" className="max-w-full max-h-[78vh] object-contain"/>
+          {photoViewer.ids.length>1 && <div className="flex items-center gap-6 py-4 text-white">
+            <button aria-label="Предыдущее фото" disabled={photoViewer.index===0} onClick={()=>void openPhoto(photoViewer.ids,photoViewer.index-1)}><ChevronLeft size={28}/></button>
+            <span>{photoViewer.index+1} / {photoViewer.ids.length}</span>
+            <button aria-label="Следующее фото" disabled={photoViewer.index===photoViewer.ids.length-1} onClick={()=>void openPhoto(photoViewer.ids,photoViewer.index+1)}><ChevronRight size={28}/></button>
+          </div>}
+        </div>
+      )}
       {sendError && <p role="alert" className="shrink-0 px-3 py-1 text-xs text-error">{sendError}</p>}
       {replyTo && (
         <div className="shrink-0 flex items-center gap-2 bg-accentGold/10 border-t border-accentGold/30 px-4 py-2">
@@ -960,10 +1059,27 @@ if (!response.ok || !data.success) {
           <span className="text-[11px] text-textSecondary">Теперь напиши текст и отправь</span>
         </div>
       )}
+      {photos.length>0 && (
+        <div className="shrink-0 flex gap-2 overflow-x-auto px-3 py-2 border-t border-accentGold/20 bg-bgCard/80">
+          {photos.map(photo=>(
+            <div key={photo.url} className="relative shrink-0 w-16 h-16">
+              <img src={photo.url} alt="Фото для отправки" className="w-full h-full object-cover rounded-lg"/>
+              <button type="button" onClick={()=>removePhoto(photo.url)} aria-label="Убрать фото"
+                className="absolute -top-1 -right-1 bg-black text-white border border-white/30 rounded-full p-0.5"><X size={14}/></button>
+            </div>
+          ))}
+        </div>
+      )}
       {/* Панель ввода сообщения */}
       <div
   className="shrink-0 p-3 border-t border-white/[0.08] bg-bgCard/70 backdrop-blur-xl flex items-center gap-3 pb-safe shadow-[0_-8px_32px_0_rgba(0,0,0,0.37)] z-50"
 >
+        <input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden"
+          onChange={e=>{addPhotos(e.target.files);e.target.value=''}} aria-label="Выбрать фотографии"/>
+        <button type="button" onClick={()=>photoInputRef.current?.click()} disabled={sending||photos.length>=3}
+          aria-label="Прикрепить фото" className="h-11 w-9 shrink-0 flex items-center justify-center text-accentGoldBright disabled:opacity-30">
+          <Paperclip size={21}/>
+        </button>
         <Input
           ref={composerRef}
           placeholder="Сообщение или @упоминание..."
@@ -977,7 +1093,7 @@ if (!response.ok || !data.success) {
           size="md" 
           aria-label="Отправить сообщение"
           aria-busy={sending}
-          disabled={sending || !inputValue.trim()}
+          disabled={sending || (!inputValue.trim() && photos.length===0)}
           onPointerDown={event=>event.preventDefault()}
           onMouseDown={event=>event.preventDefault()}
           onClick={handleSendMessage}
