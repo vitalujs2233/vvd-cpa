@@ -318,16 +318,6 @@ useEffect(() => {
     loading=true;
     const generation=sendGeneration.current;
     try {
-      const imageIds:string[]=[];
-    for(const photo of sentPhotos){
-      const data=new FormData();
-      data.append('image',photo.file);
-      const uploaded=await authorizedFetch(`${API}/chat/images`,{method:'POST',body:data});
-      const uploadResult=await uploaded.json();
-      if(!uploaded.ok || !uploadResult.success)throw new Error(uploadResult.detail||uploadResult.message||'Не удалось загрузить фото');
-      imageIds.push(String(uploadResult.id));
-    }
-
     const response = await authorizedFetch(`${API}/chat/messages`, {
         cache: 'no-store',
       });
@@ -598,6 +588,16 @@ const banChatUser = async (msg: ChatMessage) => {
   setSendError('');
   try {
     triggerHaptic.mediumImpact();
+
+      const imageIds:string[]=[];
+    for(const photo of sentPhotos){
+      const data=new FormData();
+      data.append('image',photo.file);
+      const uploaded=await authorizedFetch(`${API}/chat/images`,{method:'POST',body:data});
+      const uploadResult=await uploaded.json();
+      if(!uploaded.ok || !uploadResult.success)throw new Error(uploadResult.detail||uploadResult.message||'Не удалось загрузить фото');
+      imageIds.push(String(uploadResult.id));
+    }
 
     const response = await authorizedFetch(`${API}/chat/messages`, {
       method: 'POST',
