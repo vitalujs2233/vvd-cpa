@@ -1,5 +1,7 @@
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/shared/ui/Button';
 import React, { useState } from 'react';
-import { ArrowLeft, Settings, Bell, Globe, Info, LogOut, Lock, User, Coins, Sparkles, Crown, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Settings, Bell, Globe, Info, LogOut, Lock, Shield, Trash2, User, Coins, Sparkles, Crown, MessageSquare } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
 
