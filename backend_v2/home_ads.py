@@ -50,7 +50,7 @@ def lock_settings(conn):
     return conn.execute(text("SELECT autoplay FROM home_ad_settings WHERE id=1 FOR UPDATE")).scalar_one()
 
 def check_limit(conn, excluded=None):
-    count = conn.execute(text("SELECT count(*) FROM home_ad_banners WHERE is_active AND (:excluded IS NULL OR id<>CAST(:excluded AS uuid))"),{"excluded":str(excluded) if excluded else None}).scalar_one()
+    count = conn.execute(text("SELECT count(*) FROM home_ad_banners WHERE is_active AND (CAST(:excluded AS uuid) IS NULL OR id<>CAST(:excluded AS uuid))"),{"excluded":str(excluded) if excluded else None}).scalar_one()
     if count >= 4:
         raise HTTPException(409,"Можно включить не более 4 баннеров")
 
