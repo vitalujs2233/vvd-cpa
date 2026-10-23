@@ -180,9 +180,9 @@ export const Home: React.FC = () => {
           </Button>
         </div>
       </Card>
-      <Card variant="default" padding="lg" className="border border-accentGold/20 transition-all duration-300 hover:border-accentGold/40">
+      <Card variant="default" padding="md" className="border border-accentGold/20 transition-all duration-300 hover:border-accentGold/40">
         <button type="button" onClick={()=>{triggerHaptic.lightImpact();navigate("/why-vvd")}} className="flex items-center gap-3 w-full text-left">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-accentGold/40 bg-accentGold/10 text-accentGoldBright shadow-glass-inner"><InfoSparkles size={25} strokeWidth={1.8} className="drop-shadow-sm"/></span>
+          <span className="home-why-icon flex w-8 shrink-0 items-center justify-center text-accentGoldBright" aria-hidden="true"><InfoSparkles size={26} strokeWidth={1.7}/></span>
           <span className="flex-1"><strong className="block text-white">Почему VVD CPA?</strong><span className="text-xs text-textSecondary">Узнай о нашей платформе, преимуществах, выплатах и условиях сотрудничества.</span></span>
           <ChevronRight size={18} className="text-accentGoldBright"/>
         </button>
