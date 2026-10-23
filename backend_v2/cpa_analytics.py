@@ -9,7 +9,6 @@ from decimal import Decimal
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import text
 from database import engine
-from cpa_finance import FEE_RATE
 
 router = APIRouter(tags=["CPA Analytics"])
 ZERO = Decimal("0.00")
@@ -53,10 +52,6 @@ REAL = """v.is_test=FALSE AND e.activated_at IS NOT NULL
           AND v.finance_eligible_at>=e.activated_at
           AND v.created_at>=e.activated_at
           AND v.currency='USD'"""
-# Pending amounts are informational only: never ledger credits or withdrawable funds.
-PENDING_NET = f"""CASE WHEN v.is_real AND v.normalized_status='pending'
-                    THEN v.payout_gross-round(v.payout_gross*{FEE_RATE},2)
-                    ELSE 0 END"""
 # Separate click & conversion aggregation avoids multiplying clicks for
 # multi-postback conversion records. Filtering is parameterized throughout.
 CLICK_ROWS = """
@@ -94,9 +89,7 @@ def scalar(value):
 def summarize(conn, uid, params, *, admin=False):
     bind = {**params, "uid": uid}
     clicks = conn.execute(text("SELECT count(*) FROM ("+CLICK_ROWS+") k"), bind).scalar_one()
-    conv = conn.execute(text("SELECT normalized_status,is_test,is_real,status,id,payout_gross FROM ("+CONVERSION_ROWS+") v"), bind).mappings().all()
-    pending_income = sum((row["payout_gross"] - (row["payout_gross"] * FEE_RATE).quantize(Decimal("0.01"), rounding="ROUND_HALF_UP")
-                          for row in conv if row["is_real"] and row["normalized_status"] == "pending"), ZERO)
+    conv = conn.execute(text("SELECT normalized_status,is_test,is_real,status,id FROM ("+CONVERSION_ROWS+") v"), bind).mappings().all()
     ids = [row["id"] for row in conv if row["is_real"]]
     finance = {"gross": ZERO, "fee": ZERO, "partner": ZERO,
                "hold": ZERO, "released": ZERO, "real_withdrawable": ZERO}
@@ -128,7 +121,6 @@ def summarize(conn, uid, params, *, admin=False):
             "cr":round(100*count/clicks,2) if clicks else 0.0,
             "approved_cr":round(100*statuses["approved"]/clicks,2) if clicks else 0.0,
             "epc":scalar(finance["partner"] / clicks) if clicks else 0.0,
-            "pending_income":scalar(pending_income),
             "earned":scalar(finance["partner"]), "on_hold":scalar(finance["hold"]),
             "real_withdrawable":scalar(finance["real_withdrawable"]),
             "legacy_conversions":statuses["legacy"],"test_conversions":sum(bool(row["is_test"]) for row in conv),
@@ -216,13 +208,13 @@ def countries(conn, uid, params):
         WHERE v.is_real GROUP BY l.conversion_id
       ), events AS (
         SELECT country_code,country_name,1 AS clicks,0 AS conversions,
-               0 AS pending,0 AS approved,0 AS rejected,0::numeric AS income,0::numeric AS hold,0::numeric AS pending_income FROM clicks
+               0 AS pending,0 AS approved,0 AS rejected,0::numeric AS income,0::numeric AS hold FROM clicks
         UNION ALL
         SELECT k.country_code,k.country_name,0,1,
                CASE WHEN v.normalized_status='pending' THEN 1 ELSE 0 END,
                CASE WHEN v.normalized_status='approved' THEN 1 ELSE 0 END,
                CASE WHEN v.normalized_status='rejected' THEN 1 ELSE 0 END,
-               coalesce(a.income,0),coalesce(a.hold,0),"""+PENDING_NET+"""
+               coalesce(a.income,0),coalesce(a.hold,0)
         FROM conversions v
         LEFT JOIN public.clicks k ON k.click_id=v.click_id AND k.user_id=v.user_id
         LEFT JOIN amounts a ON a.conversion_id=v.id
@@ -234,14 +226,14 @@ def countries(conn, uid, params):
       )
       SELECT code AS country_code,max(CASE WHEN code IS NOT NULL THEN nullif(trim(country_name),'') END) AS country_name,
              sum(clicks) AS clicks,sum(conversions) AS conversions,sum(pending) AS pending,
-             sum(approved) AS approved,sum(rejected) AS rejected,sum(income) AS income,sum(hold) AS hold,sum(pending_income) AS pending_income
+             sum(approved) AS approved,sum(rejected) AS rejected,sum(income) AS income,sum(hold) AS hold
       FROM normalized GROUP BY code ORDER BY clicks DESC,code NULLS LAST
     """),bind).mappings().all()
     return [{"country_code":r["country_code"],
              "country_name":r["country_name"] or r["country_code"] or "Не определена",
              "clicks":int(r["clicks"]),"conversions":int(r["conversions"]),
              "pending":int(r["pending"]),"approved":int(r["approved"]),"rejected":int(r["rejected"]),
-             "income":scalar(r["income"]),"hold":scalar(r["hold"]),"pending_income":scalar(r["pending_income"]),
+             "income":scalar(r["income"]),"hold":scalar(r["hold"]),
              "cr":round(100*r["conversions"]/r["clicks"],2) if r["clicks"] else None,
              "epc":scalar(r["income"]/r["clicks"]) if r["clicks"] else None} for r in rows]
 
@@ -365,14 +357,14 @@ def traffic_subs(conn, uid, params, field="sub1", search="", limit=50, offset=0)
         WHERE v.is_real GROUP BY l.conversion_id
       ), events AS (
         SELECT k."""+field+""" AS value,1 AS clicks,0 AS conversions,
-               0 AS pending,0 AS approved,0 AS rejected,0::numeric AS income,0::numeric AS hold,0::numeric AS pending_income
+               0 AS pending,0 AS approved,0 AS rejected,0::numeric AS income,0::numeric AS hold
         FROM clicks c JOIN public.clicks k ON k.id=c.id
         UNION ALL
         SELECT k."""+field+""",0,1,
                CASE WHEN v.normalized_status='pending' THEN 1 ELSE 0 END,
                CASE WHEN v.normalized_status='approved' THEN 1 ELSE 0 END,
                CASE WHEN v.normalized_status='rejected' THEN 1 ELSE 0 END,
-               coalesce(a.income,0),coalesce(a.hold,0),"""+PENDING_NET+"""
+               coalesce(a.income,0),coalesce(a.hold,0)
         FROM conversions v
         LEFT JOIN public.clicks k ON k.click_id=v.click_id AND k.user_id=v.user_id
         LEFT JOIN amounts a ON a.conversion_id=v.id
@@ -380,14 +372,14 @@ def traffic_subs(conn, uid, params, field="sub1", search="", limit=50, offset=0)
       )
       SELECT value,sum(clicks) clicks,sum(conversions) conversions,
              sum(pending) pending,sum(approved) approved,sum(rejected) rejected,
-             sum(income) income,sum(hold) hold,sum(pending_income) pending_income
+             sum(income) income,sum(hold) hold
       FROM events
       WHERE :search='' OR strpos(lower(coalesce(value,'')),lower(:search))>0
       GROUP BY value ORDER BY clicks DESC,value NULLS LAST LIMIT :limit OFFSET :offset
     """),{**params,"uid":uid,"search":search.strip(),"limit":limit+1,"offset":offset}).mappings().all()
     return {"rows":[{"value":r["value"],
              **{k:int(r[k]) for k in ("clicks","conversions","pending","approved","rejected")},
-             "income":scalar(r["income"]),"hold":scalar(r["hold"]),"pending_income":scalar(r["pending_income"]),
+             "income":scalar(r["income"]),"hold":scalar(r["hold"]),
              "cr":round(100*r["conversions"]/r["clicks"],2) if r["clicks"] else None,
              "epc":scalar(r["income"]/r["clicks"]) if r["clicks"] else None} for r in rows[:limit]],
              "has_more":len(rows)>limit}
