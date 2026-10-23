@@ -33,14 +33,14 @@ export const HomeAdsAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
   <h1 className="text-xl font-bold text-white">Рекламные баннеры</h1>
   <p className="text-xs text-textSecondary">До 4 активных баннеров. Рекомендуемый формат изображения — 3:1. Изменения сразу доступны пользователям.</p>
   {message&&<p role="status" className="text-xs text-accentGoldBright">{message}</p>}
-  <label className="flex items-center justify-between rounded-card bg-bgCard p-3 text-sm text-white">Автоматическое перелистывание (5 секунд)<input type="checkbox" checked={autoplay} disabled={busy} onChange={e=>{const checked=e.target.checked;void perform(()=>apiRequest('/home-ads/admin/settings',{method:'PUT',body:JSON.stringify({autoplay:checked})}))}}/></label>
+  <label className="flex items-center justify-between rounded-card bg-bgCard p-3 text-sm text-white">Автоматическое перелистывание (5 секунд)<input type="checkbox" checked={autoplay} disabled={busy} onChange={e=>{const checked=e.target.checked;void perform(()=>apiRequest('/home-ads/admin/settings/autoplay',{method:'PUT',body:JSON.stringify({autoplay:checked})}))}}/></label>
   <div className="rounded-card bg-bgCard p-3 flex flex-col gap-3">
    <h2 className="font-bold text-white">Добавить баннер</h2>
    <input aria-label="Название баннера" placeholder="Название" maxLength={160} value={title} onChange={e=>setTitle(e.target.value)} className="w-full rounded-lg bg-black/30 p-3 text-white"/>
    <input aria-label="Ссылка баннера" placeholder="HTTPS, tg:// или /внутренняя-страница" value={target} onChange={e=>setTarget(e.target.value)} className="w-full rounded-lg bg-black/30 p-3 text-white"/>
    <label className="flex gap-2 items-center text-sm text-accentGoldBright"><Upload size={18}/>Выбрать изображение<input type="file" accept="image/jpeg,image/png,image/webp" className="max-w-36 text-xs" onChange={e=>{const f=e.target.files?.[0]||null;if(checkFile(f))setImage(f)}}/></label>
    {preview&&<img src={preview} alt="Предпросмотр загружаемого баннера" className="w-full aspect-[3/1] object-contain rounded-card bg-black/30"/>}
-   <button disabled={busy} onClick={create} className="rounded-xl bg-accentGoldBright p-3 font-bold text-black flex gap-2 items-center justify-center"><Plus size={18}/>Добавить (неактивный)</button>
+   <button disabled={busy} onClick={create} className="rounded-xl bg-[#EFC35C] p-3 font-bold text-[#15120B] flex gap-2 items-center justify-center disabled:opacity-50"><Plus size={18}/>Добавить (неактивный)</button>
   </div>
   {items.map((item,i)=><div key={item.id} className="rounded-card bg-bgCard p-3 flex flex-col gap-3">
    <img src={API_BASE_URL+item.image_url+'?v='+encodeURIComponent(item.updated_at||'')} alt={item.title} className="w-full aspect-[3/1] object-contain rounded-card bg-black/30"/>
