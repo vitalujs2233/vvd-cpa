@@ -1991,3 +1991,6 @@ async def process_referral_withdrawal(withdrawal_id: int, decision: str, data: C
 # Tools-only administrator settings and manual credits.
 from tools_admin import router as tools_admin_router
 app.include_router(tools_admin_router)
+
+from info_content import router as info_content_router
+app.include_router(info_content_router)
