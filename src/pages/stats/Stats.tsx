@@ -10,8 +10,8 @@ import { Card } from '@/shared/ui/Card';
 type Period = 'today'|'yesterday'|'7days'|'30days'|'all';
 type Day = {date:string;clicks:number;conversions:number;income:number;pending:number;approved:number;rejected:number};
 type Statuses = {pending:number;approved:number;rejected:number};
-type Summary = {clicks:number;conversions:number;cr:number;epc:number;earned:number;on_hold:number;real_withdrawable:number;statuses:Statuses};
-type Country = {country_code:string|null;country_name:string;clicks:number;conversions:number;pending:number;approved:number;rejected:number;income:number;hold:number;cr:number|null;epc:number|null};
+type Summary = {clicks:number;conversions:number;cr:number;epc:number;pending_income?:number;earned:number;on_hold:number;real_withdrawable:number;statuses:Statuses};
+type Country = {country_code:string|null;country_name:string;clicks:number;conversions:number;pending:number;approved:number;rejected:number;income:number;pending_income?:number;hold:number;cr:number|null;epc:number|null};
 type Click = {created_at:string;country_code:string|null;country_name:string;offer_name:string|null};
 type Offer = {id:string|null;label:string};
 const userTimezone=statisticsTimezone;
@@ -154,6 +154,7 @@ export const Stats:React.FC=()=>{
       {metric('CR',summary?`${summary.cr.toFixed(2)}%`:'—')}
       {metric('EPC',summary?money(summary.epc):'—')}
       {metric('Заработано',summary?money(summary.earned):'—')}
+      {metric('Ожидает подтверждения',summary?money(summary.pending_income??0):'—')}
       {metric('На удержании',summary?money(summary.on_hold):'—')}
       {metric('Доступно к выводу',summary?money(summary.real_withdrawable):'—')}
     </div>
@@ -189,11 +190,12 @@ export const Stats:React.FC=()=>{
         {orderedCountries.length?orderedCountries.map(c=><details key={c.country_code||'unknown'} className="border-b border-white/5 last:border-0">
           <summary className="grid grid-cols-[minmax(0,1.4fr)_0.7fr_0.8fr_1fr] gap-1 py-3 text-[11px] text-right cursor-pointer list-none items-center">
             <span className="text-white text-left break-words">{countryFlag(c.country_code)} {c.country_name} <span className="text-textSecondary">⌄</span></span>
-            <span>{c.clicks}</span><span>{c.conversions}</span><span className="text-success break-all">{money(c.income)}</span>
+            <span>{c.clicks}</span><span>{c.conversions}</span><span className="text-success break-all">{money(c.income)}{(c.pending_income??0)>0&&<small className="block text-accentGold text-[9px]">Ожидает {money(c.pending_income??0)}</small>}</span>
           </summary>
           <div className="grid grid-cols-2 gap-x-3 gap-y-2 p-2 mb-2 rounded-app-xs bg-white/5 text-[11px]">
             <span>Ожидают: <b>{c.pending}</b></span><span>Подтверждены: <b className="text-success">{c.approved}</b></span>
             <span>Отклонены: <b>{c.rejected}</b></span><span>В Hold: <b>{money(c.hold)}</b></span>
+            <span className="col-span-2">Ожидает подтверждения: <b>{money(c.pending_income??0)}</b></span>
             <span>CR: <b>{c.cr==null?'—':c.cr.toFixed(2)+'%'}</b></span><span>EPC: <b>{c.epc==null?'—':money(c.epc)}</b></span>
           </div>
         </details>):<p className="text-xs text-textSecondary py-3">{countrySearch?'Страна не найдена':loading?'Загрузка…':'Нет данных за период'}</p>}
@@ -207,7 +209,7 @@ export const Stats:React.FC=()=>{
       <tbody>{series.map(d=><tr key={d.date} className="border-t border-white/5"><td className="text-left py-2">{d.date.split('-').reverse().join('.')}</td><td>{d.clicks}</td><td>{d.conversions}</td><td className="text-success">{money(d.income)}</td></tr>)}</tbody></table>
       {!series.length&&<p className="text-xs text-textSecondary py-2">Нет данных за период</p>}</div>
     </details></Card>
-    <p className="text-[10px] text-textSecondary">Клики учитываются по дате перехода, конверсии — по дате создания конверсии. CR — конверсии / клики; EPC — заработок на клик. Доступный баланс — текущий, независимо от периода.</p>
+    <p className="text-[10px] text-textSecondary">Клики учитываются по дате перехода, конверсии — по дате создания конверсии. CR — конверсии / клики; EPC — заработок на клик. Ожидает подтверждения — сумма по ещё не подтверждённым конверсиям, недоступная к выводу. Доступный баланс — текущий, независимо от периода.</p>
     <Card padding="sm" className="!p-3">
       <details><summary className="text-sm font-bold text-white cursor-pointer">Последние клики</summary>
       <div className="mt-2">

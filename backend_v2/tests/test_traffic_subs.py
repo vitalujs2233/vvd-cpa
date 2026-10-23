@@ -4,7 +4,7 @@ from datetime import date
 from urllib.parse import urlsplit, parse_qs
 from sqlalchemy import text
 import test_stage3_neutral_links as links
-from cpa_analytics import arguments, traffic_subs
+from cpa_analytics import arguments, traffic_subs, countries
 
 class TrafficSubsTests(links.NeutralLinkTests):
     @classmethod
@@ -64,8 +64,9 @@ class TrafficSubsTests(links.NeutralLinkTests):
                 a=click('tiktok');click('tiktok');click(None)
                 old=click('yesterday','2026-10-19 10:00')
                 foreign=click('private',uid=links.SECOND)
-                v=conv(a);conv(a,status='pending');conv(a,status='rejected');conv(a,test=True);conv(a,status='1');conv(old)
+                v=conv(a);pending_id=conv(a,status='pending');conv(a,status='rejected');conv(a,test=True);conv(a,status='1');conv(old)
                 conv(foreign,uid=links.SECOND)
+                c.execute(text("UPDATE conversions SET payout_gross=0.35 WHERE id=:id"),{'id':pending_id})
                 # Corrupt foreign click link must not disclose the other owner's tag.
                 conv(foreign)
                 for kind,hold,balance in [('hold_credit',10,0),('hold_release',-4,4),('platform_fee_accrual',0,0)]:
@@ -75,6 +76,13 @@ class TrafficSubsTests(links.NeutralLinkTests):
                 self.assertEqual(rows['tiktok']['clicks'],2)
                 self.assertEqual(rows['tiktok']['conversions'],3)
                 self.assertEqual(rows['tiktok']['income'],10)
+                self.assertEqual(rows['tiktok']['pending_income'],0.28)
+                self.assertEqual(sum(r['pending_income'] for r in countries(c,links.FIRST,p)),0.28)
+                # Approval/rejection removes the estimate; no double counting or wallet writes.
+                for state in ('approved','rejected'):
+                    c.execute(text('UPDATE conversions SET status=:state WHERE id=:id'),{'id':pending_id,'state':state})
+                    self.assertEqual(sum(r['pending_income'] for r in traffic_subs(c,links.FIRST,p)['rows']),0)
+                c.execute(text("UPDATE conversions SET status='pending' WHERE id=:id"),{'id':pending_id})
                 self.assertEqual(rows['tiktok']['hold'],6)
                 self.assertEqual(rows['tiktok']['cr'],150)
                 self.assertEqual(rows['tiktok']['epc'],5)
