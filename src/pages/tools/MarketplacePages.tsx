@@ -76,12 +76,13 @@ export const ToolsTopupPage:React.FC=()=>{
   const [config,setConfig]=useState<TopupConfig|null>(null);
   const [invoices,setInvoices]=useState<ToolInvoice[]>([]);
   const sending=useRef(false), mounted=useRef(true), request=useRef({amount:'',key:''});
-  const previousPaid=useRef<string|null>(null);
+  const previousPaid=useRef<string|null>(null),issuedId=useRef<string|null>(null);
   const refresh=useCallback(async()=>{
     try{
       const [cfg,data]=await Promise.all([marketApi.topupConfig(),marketApi.paymentInvoices()]);
       if(!mounted.current)return;
       setConfig(cfg);setInvoices(data.invoices);setError('');
+      if(data.invoices.some(i=>i.id===issuedId.current&&(i.status==='paid'||i.status==='refunded'||i.status==='expired'))){request.current={amount:'',key:''};issuedId.current=null;}
       const paid=data.invoices.filter(i=>i.status==='paid'||i.status==='refunded').map(i=>i.id+i.status).join(',');
       if(previousPaid.current!==paid){if(previousPaid.current!==null)setNotice('Статус оплаты подтверждён сервером. Баланс и история обновлены.');previousPaid.current=paid;await Promise.all([w.refresh(),marketApi.transactions()]);}
     }catch(e){if(mounted.current)setError(toText(e));}
@@ -112,6 +113,7 @@ export const ToolsTopupPage:React.FC=()=>{
     if(request.current.amount!==amount)request.current={amount,key:crypto.randomUUID()};
     try{
       const invoice=await marketApi.topup(amount,request.current.key,stars);
+      issuedId.current=invoice.id;
       await refresh();
       if(invoice.status==='paid')setNotice('Этот счёт уже оплачен. Баланс обновлён.');
       else if(invoice.status==='expired'||invoice.status==='refunded'){
