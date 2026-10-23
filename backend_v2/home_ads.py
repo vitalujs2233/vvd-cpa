@@ -172,7 +172,7 @@ def reorder(payload:Reorder,x_telegram_init_data:Optional[str]=Header(None)):
 class Settings(BaseModel):
     autoplay:bool
 
-@router.put("/admin/settings")
+@router.put("/admin/settings/autoplay")
 def update_settings(payload:Settings,x_telegram_init_data:Optional[str]=Header(None)):
     admin(x_telegram_init_data)
     with engine.begin() as conn:
