@@ -12,10 +12,10 @@ const openTarget=(url:string,navigate:(path:string)=>void)=>{
   const parsed=new URL(url);
   if(parsed.protocol==='https:'){
    if(parsed.hostname==='t.me'||parsed.hostname==='telegram.me'){
-    const telegram=window.Telegram?.WebApp as (typeof window.Telegram.WebApp & {openTelegramLink?:(url:string)=>void;openLink?:(url:string)=>void})|undefined;
+    const telegram=window.Telegram?.WebApp as (TelegramWebApp & {openTelegramLink?:(url:string)=>void;openLink?:(url:string)=>void})|undefined;
     if(telegram?.openTelegramLink)telegram.openTelegramLink(url);
     else window.open(url,'_blank','noopener,noreferrer');
-   }else {const telegram=window.Telegram?.WebApp as (typeof window.Telegram.WebApp & {openLink?:(url:string)=>void})|undefined;
+   }else {const telegram=window.Telegram?.WebApp as (TelegramWebApp & {openLink?:(url:string)=>void})|undefined;
     if(telegram?.openLink)telegram.openLink(url);
    else window.open(url,'_blank','noopener,noreferrer');}
   }else if(parsed.protocol==='tg:'&&['resolve','join','user','addstickers'].includes(parsed.hostname)){
