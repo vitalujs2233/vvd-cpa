@@ -182,7 +182,7 @@ export const Home: React.FC = () => {
       </Card>
       <Card variant="default" padding="md" className="border border-accentGold/20 transition-all duration-300 hover:border-accentGold/40">
         <button type="button" onClick={()=>{triggerHaptic.lightImpact();navigate("/why-vvd")}} className="flex items-center gap-3 w-full text-left">
-          <span className="home-why-icon flex w-[70px] shrink-0 items-center justify-center text-accentGoldBright self-center" aria-hidden="true"><InfoSparkles size={70} strokeWidth={1.5}/></span>
+          <span className="home-why-icon relative flex h-10 w-12 shrink-0 self-center items-center justify-center text-accentGoldBright" aria-hidden="true"><InfoSparkles size={60} strokeWidth={1.5} className="absolute max-w-none"/></span>
           <span className="flex-1"><strong className="block text-white">Почему VVD CPA?</strong><span className="text-xs text-textSecondary">Узнай о нашей платформе, преимуществах, выплатах и условиях сотрудничества.</span></span>
           <ChevronRight size={18} className="text-accentGoldBright"/>
         </button>
