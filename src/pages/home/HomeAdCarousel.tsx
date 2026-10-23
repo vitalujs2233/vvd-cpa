@@ -68,7 +68,7 @@ export const HomeAdCarousel:React.FC=()=>{
  if(!count)return null;
  return <section aria-label="Рекламные баннеры" className="min-w-0 w-full">
   <div ref={rail} onScroll={updateActive} onTouchStart={()=>{interacting.current=true;if(timer.current)clearTimeout(timer.current)}} onPointerDown={()=>{interacting.current=true;if(timer.current)clearTimeout(timer.current)}} className="flex gap-3 overflow-x-auto snap-x snap-mandatory overscroll-x-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{touchAction:'pan-x pan-y'}}>
-   {feed.items.map(b=><div key={b.id} className="relative shrink-0 w-[91%] aspect-[3/1] snap-start overflow-hidden rounded-card bg-bgCard">
+   {feed.items.map(b=><div key={b.id} className={"relative shrink-0 "+(count===1?"w-full":"w-[91%]")+" aspect-[3/1] snap-start overflow-hidden rounded-card bg-bgCard"}>
     {failed.includes(b.id)?<div className="flex h-full items-center justify-center text-xs text-textSecondary">Изображение недоступно</div>:<img src={API_BASE_URL+b.image_url+'?v='+encodeURIComponent(b.updated_at)} alt={b.title} loading="lazy" decoding="async" className="block w-full h-full object-contain" onError={()=>setFailed(s=>[...s,b.id])}/>}
     {b.target_url&&<button type="button" aria-label={'Открыть: '+b.title} onClick={()=>openTarget(b.target_url,navigate)} className="absolute inset-0 w-full h-full cursor-pointer" />}
    </div>)}
