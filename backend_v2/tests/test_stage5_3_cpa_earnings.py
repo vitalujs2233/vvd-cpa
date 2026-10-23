@@ -744,6 +744,39 @@ class CPAStage53Integration(unittest.TestCase):
             self.assertIsNone(c.execute(text("SELECT conversion_id FROM cpa_conversion_disputes WHERE conversion_id=:id"),
                 {"id":cid}).first())
 
+    def test_31_traforce_hold_mapping_backfill_and_replay(self):
+        click=self.add_click("traforce-old-hold")
+        with engine.begin() as c:
+            c.execute(text("UPDATE cpa_networks SET name='Unrelated seeded network' WHERE name='Traforce'"))
+            c.execute(text("UPDATE cpa_networks SET name='Traforce',postback_status_map=postback_status_map || CAST(:map AS jsonb) WHERE id=:id"),
+                      {"id":self.network,"map":json.dumps({"5":"pending","1":"approved"})})
+        response=self.send(click,"5",gross="0.35")
+        self.assertEqual(response.status_code,200,response.text)
+        with engine.connect() as c:
+            before=c.execute(text("SELECT hold,balance FROM users WHERE telegram_id=:id"),{"id":UID}).one()
+        migration=(ROOT/"migrations/20261023114613_traforce_hold_credit.sql").read_text()
+        for _ in range(2):
+            with engine.begin() as c:
+                c.connection.cursor().execute(migration)
+        with engine.connect() as c:
+            after=c.execute(text("SELECT hold,balance FROM users WHERE telegram_id=:id"),{"id":UID}).one()
+            self.assertEqual(after.hold-before.hold,Decimal("0.28"))
+            self.assertEqual(after.balance,before.balance)
+            events=ledger_events_for_conversion(c,self.row(click)["id"])
+            self.assertEqual(len(events),2)
+            self.assertEqual(sum(e["hold_delta"] for e in events),Decimal("0.28"))
+            self.assertEqual(sum(e["platform_fee_delta"] for e in events),Decimal("0.07"))
+        # A subsequent provider approval is the same accrual, not another credit.
+        self.assertTrue(self.send(click,"1",gross="0.35").json()["duplicate"])
+        new=self.add_click("traforce-new-hold")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+            results=list(pool.map(lambda _:self.send(new,"5",gross="0.35"),range(4)))
+        self.assertTrue(all(r.status_code==200 for r in results))
+        self.assertEqual(sum(bool(r.json().get("hold_credited")) for r in results),1)
+        with engine.connect() as c:
+            self.assertEqual(len(ledger_events_for_conversion(c,self.row(new)["id"])),2)
+            self.assertEqual(self.row(new)["payout_net"],Decimal("0.28"))
+
 
 if __name__=="__main__":
     unittest.main()

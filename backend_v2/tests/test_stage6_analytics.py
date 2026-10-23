@@ -49,18 +49,6 @@ class Stage6AnalyticsTests(unittest.TestCase):
         self.assertEqual(report["earned"],0)
         self.assertNotIn("finance",report)
 
-    def test_pending_publisher_amount_is_not_spendable(self):
-        conn=MagicMock()
-        clicks=MagicMock();clicks.scalar_one.return_value=3
-        conversions=MagicMock();conversions.mappings.return_value.all.return_value=[
-            dict(id="pending",normalized_status="pending",status="pending",is_test=False,is_real=True,payout_gross=Decimal("0.35"))]
-        ledger=MagicMock();ledger.mappings.return_value.all.return_value=[]
-        conn.execute.side_effect=[clicks,conversions,ledger]
-        report=summarize(conn,None,{})
-        self.assertEqual(report["pending_income"],0.28)
-        for field in ("earned","on_hold","real_withdrawable","epc"):
-            self.assertEqual(report[field],0)
-
     def test_routes_are_read_only(self):
         route_methods={path:route.methods for route in router.routes for path in [route.path]}
         self.assertEqual(route_methods["/statistics/{telegram_id}"],{"GET"})

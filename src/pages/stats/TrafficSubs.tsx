@@ -5,7 +5,7 @@ import {readSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import {Card} from '@/shared/ui/Card';
 import {trafficFields} from '../offers/trafficTags';
 
-type Row={value:string|null;clicks:number;conversions:number;pending:number;approved:number;rejected:number;pending_income?:number;income:number;hold:number;cr:number|null;epc:number|null};
+type Row={value:string|null;clicks:number;conversions:number;pending:number;approved:number;rejected:number;income:number;hold:number;cr:number|null;epc:number|null};
 type Report={rows:Row[];has_more:boolean;success:boolean};
 const money=(n:number)=>'$'+n.toFixed(2);
 export const TrafficSubs:React.FC<{params:URLSearchParams;refreshKey:number}>=({params,refreshKey})=>{
@@ -58,11 +58,11 @@ export const TrafficSubs:React.FC<{params:URLSearchParams;refreshKey:number}>=({
     {loading&&<p role="status" className="text-[10px] text-textSecondary mt-2">Обновляем метки…</p>}
     <div className="overflow-x-auto max-h-80 mt-2" tabIndex={0} aria-label="Статистика по меткам, прокрутка вбок">
       <table className="w-full text-[11px] text-right whitespace-nowrap">
-        <thead className="text-textSecondary"><tr>{['Значение','Клики','Конв.','CR','Заработок','Ожидает подтверждения','EPC','Ожидают','Подтв.','Отклонены','Hold'].map((h,i)=><th key={h} className={'px-2 py-2 font-normal '+(i===0?'text-left':'')}>{h}</th>)}</tr></thead>
+        <thead className="text-textSecondary"><tr>{['Значение','Клики','Конв.','CR','Заработок','EPC','Ожидают','Подтв.','Отклонены','Hold'].map((h,i)=><th key={h} className={'px-2 py-2 font-normal '+(i===0?'text-left':'')}>{h}</th>)}</tr></thead>
         <tbody>{data?.rows.map(r=><tr key={r.value===null?'empty':'tag:'+r.value} className="border-t border-white/5">
           <td className="px-2 py-2 text-left whitespace-normal break-words min-w-[110px] max-w-[180px] select-text">{r.value??'Без метки'}</td>
           <td className="px-2">{r.clicks}</td><td className="px-2">{r.conversions}</td><td className="px-2">{r.cr===null?'—':r.cr.toFixed(2)+'%'}</td>
-          <td className="px-2 text-success">{money(r.income)}</td><td className="px-2 text-accentGold">{money(r.pending_income??0)}</td><td className="px-2">{r.epc===null?'—':money(r.epc)}</td>
+          <td className="px-2 text-success">{money(r.income)}</td><td className="px-2">{r.epc===null?'—':'$'+r.epc.toFixed(4)}</td>
           <td className="px-2">{r.pending}</td><td className="px-2">{r.approved}</td><td className="px-2">{r.rejected}</td><td className="px-2">{money(r.hold)}</td>
         </tr>)}</tbody>
       </table>
