@@ -2,7 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {apiRequest,API_BASE_URL} from '@/shared/lib/api';
 
-export type HomeAd={id:string;title:string;image_url:string;target_url:string;position:number;is_active:boolean};
+export type HomeAd={id:string;title:string;image_url:string;target_url:string;position:number;is_active:boolean;updated_at:string};
 type Feed={items:HomeAd[];autoplay:boolean};
 
 const openTarget=(url:string,navigate:(path:string)=>void)=>{
@@ -44,7 +44,7 @@ export const HomeAdCarousel:React.FC=()=>{
   const el=rail.current;
   if(!el)return;
   const child=el.children[index] as HTMLElement|undefined;
-  if(child)el.scrollTo({left:child.offsetLeft-(el.children[0] as HTMLElement).offsetLeft,behavior:reducedMotion?'instant':'smooth'});
+  if(child)el.scrollTo({left:child.offsetLeft-(el.children[0] as HTMLElement).offsetLeft,behavior:reducedMotion?'auto':'smooth'});
   setActive(index);
  };
  useEffect(()=>{
