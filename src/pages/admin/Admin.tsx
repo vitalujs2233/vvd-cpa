@@ -1,6 +1,7 @@
 import {readApiSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import { CPAManager } from './CPAManager';
+import { InfoAdmin } from './InfoAdmin';
 import { CPAUserHold } from './CPAUserHold';
 import { ToolsBalanceAdmin } from './ToolsBalanceAdmin';
 import { SupportTicketsAdmin } from './SupportTicketsAdmin';
@@ -91,6 +92,7 @@ export const Admin: React.FC = () => {
   'chatBans' |
   'toolsBalance' |
   'supportTickets' |
+  'info' |
   'cpa'
 >('menu');
   const [searchQuery, setSearchQuery] = useState('');
@@ -367,6 +369,7 @@ const saveChatBanner = async () => {
     | 'chatBans'
     | 'toolsBalance'
     | 'supportTickets'
+    | 'info'
     | 'cpa'
 ) => {
   triggerHaptic.lightImpact();
@@ -474,6 +477,7 @@ const saveChatBanner = async () => {
           <button type="button" onClick={() => handleSubViewChange('toolsBalance')} className="flex items-center justify-between rounded-card border border-accentGold/30 bg-bgCard px-4 py-4 text-left text-sm font-bold text-white">
             <span>Инструменты → Курс · Начисления</span><CreditCard size={18} className="text-accentGold"/>
           </button>
+          <button type="button" onClick={() => handleSubViewChange('info')} className="flex items-center justify-between rounded-card border border-accentGold/30 bg-bgCard px-4 py-4 text-left text-sm font-bold text-white"><span>Управление информацией</span><Newspaper size={18} className="text-accentGold"/></button>
           {/* Информационная карточка */}
           <Card padding="md" className="flex items-center gap-3 text-left border-accentPurple/10 bg-accentPurple/[0.02]">
             <div className="w-10 h-10 rounded-full bg-accentPurple/10 border border-accentPurple/20 flex items-center justify-center text-accentPurple shrink-0">
@@ -1082,6 +1086,7 @@ const saveChatBanner = async () => {
       )}
       {subView === 'toolsBalance' && <ToolsBalanceAdmin onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'supportTickets' && <SupportTicketsAdmin onBack={() => handleSubViewChange('menu')}/>}
+      {subView === 'info' && <InfoAdmin onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'cpa' && <CPAManager onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'chatBans' && (
   <div className="flex flex-col gap-4 animate-fade-in">
