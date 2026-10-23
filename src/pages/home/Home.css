@@ -38,16 +38,40 @@
   }
 }
 
-/* Subtle premium shimmer exclusively for the Why VVD CPA home icon. */
+/* Premium motion is scoped to the home Why VVD CPA icon only. */
 .home-why-icon svg {
   transform-origin: center;
-  animation: home-why-icon-glow 5.5s ease-in-out infinite;
-  will-change: filter;
+  animation: home-why-icon-premium 3.6s ease-in-out infinite;
+  will-change: transform, filter, opacity;
 }
-@keyframes home-why-icon-glow {
-  0%, 100% { opacity: .82; filter: drop-shadow(0 0 1px rgba(246,196,83,.12)); transform: scale(1); }
-  50% { opacity: 1; filter: drop-shadow(0 0 7px rgba(246,196,83,.45)); transform: scale(1.055); }
+@keyframes home-why-icon-premium {
+  0%, 100% {
+    transform: rotate(-4deg) scale(0.985);
+    opacity: .86;
+    filter: drop-shadow(0 0 2px rgba(246,196,83,.2)) brightness(.96);
+  }
+  25% {
+    transform: rotate(0deg) scale(1.02);
+    opacity: .98;
+    filter: drop-shadow(0 0 7px rgba(246,196,83,.5)) brightness(1.12);
+  }
+  50% {
+    transform: rotate(4deg) scale(1.035);
+    opacity: 1;
+    filter: drop-shadow(0 0 12px rgba(246,196,83,.65)) brightness(1.2);
+  }
+  75% {
+    transform: rotate(0deg) scale(1.02);
+    opacity: .98;
+    filter: drop-shadow(0 0 7px rgba(246,196,83,.5)) brightness(1.12);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .home-why-icon svg { animation: none; will-change: auto; }
+  .home-why-icon svg {
+    animation: none;
+    will-change: auto;
+    transform: none;
+    opacity: 1;
+    filter: none;
+  }
 }
