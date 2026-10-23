@@ -1,0 +1,15 @@
+import ts from 'typescript';
+import {readFileSync} from 'node:fs';
+import assert from 'node:assert/strict';
+const source=ts.transpileModule(readFileSync('src/pages/offers/trafficTags.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2020}}).outputText;
+const {taggedLink}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+const base='https://vvd-cpa-v2.onrender.com/r/s123';
+const tags={sub1:'tiktok',sub2:'кампания & лето',sub3:'a+b?x=1',sub4:'  ',sub5:'🎥'};
+const url=new URL(taggedLink(base,tags));
+assert.equal(url.origin+url.pathname,base);
+for(const field of ['sub1','sub2','sub3','sub5'])assert.equal(url.searchParams.get(field),tags[field]);
+assert.equal(url.searchParams.has('sub4'),false);
+assert.equal(taggedLink(base,{}),base);
+assert.equal(new URL(taggedLink(base+'?sub1=old&other=keep',{sub1:'new'})).searchParams.get('other'),'keep');
+assert.equal(new URL(taggedLink(base+'?sub1=old',{})).search,'');
+console.log('Traffic tag URL roundtrip and old links: passed');

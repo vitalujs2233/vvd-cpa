@@ -1,3 +1,4 @@
+import {TrafficSubs} from './TrafficSubs';
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { RefreshCw, TrendingUp } from 'lucide-react';
 import {statisticsSources, statisticsSnapshotKey, statisticsTimezone} from '@/shared/lib/startupData';
@@ -46,6 +47,7 @@ export const Stats:React.FC=()=>{
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState('');
   const [refreshing,setRefreshing]=useState(false);
+  const [subsRefresh,setSubsRefresh]=useState(0);
   const params=useMemo(()=>{
     const p=new URLSearchParams({period,tz:userTimezone});
     if(dateFrom)p.set('from',dateFrom);
@@ -127,7 +129,7 @@ export const Stats:React.FC=()=>{
   return <div className="flex flex-col gap-3 px-3 pt-3 pb-28 select-none animate-fade-in" data-testid="compact-analysis">
     <div className="flex items-center justify-between">
       <h1 className="text-xl font-bold text-white">Анализ</h1>
-      <button aria-label="Обновить статистику" onClick={()=>void load(true)} disabled={refreshing||loading} className="w-9 h-9 rounded-full border border-white/10 bg-bgCard/40 flex items-center justify-center text-textSecondary">
+      <button aria-label="Обновить статистику" onClick={()=>{setSubsRefresh(x=>x+1);void load(true);}} disabled={refreshing||loading} className="w-9 h-9 rounded-full border border-white/10 bg-bgCard/40 flex items-center justify-center text-textSecondary">
         <RefreshCw size={16} className={refreshing?'animate-spin':''}/>
       </button>
     </div>
@@ -198,6 +200,7 @@ export const Stats:React.FC=()=>{
       </div>
       <p className="text-[10px] text-textSecondary mt-2">Нажми на страну — статусы, Hold, CR и EPC.</p>
     </Card>
+    <TrafficSubs params={params} refreshKey={subsRefresh}/>
     <Card padding="sm" className="!p-3"><details>
       <summary className="text-sm font-bold cursor-pointer">Статистика по дням</summary>
       <div className="mt-2 max-h-64 overflow-auto"><table className="w-full text-[11px] text-right"><thead className="text-textSecondary"><tr><th className="text-left py-2">Дата</th><th>Клики</th><th>Конв.</th><th>Заработок</th></tr></thead>
