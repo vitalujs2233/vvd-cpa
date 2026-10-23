@@ -22,6 +22,7 @@ const countryFlag=(value:string|null)=>{
   return String.fromCodePoint(...[...value].map(letter=>127397+letter.charCodeAt(0)));
 };
 
+const epcMoney=(n:number)=>'$'+Number(n||0).toFixed(4);
 const money=(n:number)=>'$'+Number(n||0).toFixed(2);
 const periods:{id:Period;label:string}[]=[
   {id:'today',label:'Сегодня'},{id:'yesterday',label:'Вчера'},
@@ -152,7 +153,7 @@ export const Stats:React.FC=()=>{
       {metric('Клики',summary?.clicks??'—')}
       {metric('Конверсии',summary?.conversions??'—')}
       {metric('CR',summary?`${summary.cr.toFixed(2)}%`:'—')}
-      {metric('EPC',summary?money(summary.epc):'—')}
+      {metric('EPC',summary?epcMoney(summary.epc):'—')}
       {metric('Заработано',summary?money(summary.earned):'—')}
       {metric('На удержании',summary?money(summary.on_hold):'—')}
       {metric('Доступно к выводу',summary?money(summary.real_withdrawable):'—')}
@@ -194,7 +195,7 @@ export const Stats:React.FC=()=>{
           <div className="grid grid-cols-2 gap-x-3 gap-y-2 p-2 mb-2 rounded-app-xs bg-white/5 text-[11px]">
             <span>Ожидают: <b>{c.pending}</b></span><span>Подтверждены: <b className="text-success">{c.approved}</b></span>
             <span>Отклонены: <b>{c.rejected}</b></span><span>В Hold: <b>{money(c.hold)}</b></span>
-            <span>CR: <b>{c.cr==null?'—':c.cr.toFixed(2)+'%'}</b></span><span>EPC: <b>{c.epc==null?'—':money(c.epc)}</b></span>
+            <span>CR: <b>{c.cr==null?'—':c.cr.toFixed(2)+'%'}</b></span><span>EPC: <b>{c.epc==null?'—':epcMoney(c.epc)}</b></span>
           </div>
         </details>):<p className="text-xs text-textSecondary py-3">{countrySearch?'Страна не найдена':loading?'Загрузка…':'Нет данных за период'}</p>}
       </div>

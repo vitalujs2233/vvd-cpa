@@ -62,7 +62,7 @@ export const TrafficSubs:React.FC<{params:URLSearchParams;refreshKey:number}>=({
         <tbody>{data?.rows.map(r=><tr key={r.value===null?'empty':'tag:'+r.value} className="border-t border-white/5">
           <td className="px-2 py-2 text-left whitespace-normal break-words min-w-[110px] max-w-[180px] select-text">{r.value??'Без метки'}</td>
           <td className="px-2">{r.clicks}</td><td className="px-2">{r.conversions}</td><td className="px-2">{r.cr===null?'—':r.cr.toFixed(2)+'%'}</td>
-          <td className="px-2 text-success">{money(r.income)}</td><td className="px-2">{r.epc===null?'—':money(r.epc)}</td>
+          <td className="px-2 text-success">{money(r.income)}</td><td className="px-2">{r.epc===null?'—':'$'+r.epc.toFixed(4)}</td>
           <td className="px-2">{r.pending}</td><td className="px-2">{r.approved}</td><td className="px-2">{r.rejected}</td><td className="px-2">{money(r.hold)}</td>
         </tr>)}</tbody>
       </table>
