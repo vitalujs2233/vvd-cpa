@@ -1,11 +1,11 @@
 import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Bot, Check, ChevronRight, Clock, Copy, CreditCard, FileClock, Globe2, History, Package, Phone, Plus, Server, Settings2, ShieldCheck, Wallet, Wrench } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { triggerHaptic } from '@/shared/lib/telegram';
-import { marketApi, usd, modelPageUrl, type Character, type ToolWallet, type ToolTransaction, type ToolOrder, type ServiceInfo } from './marketApi';
+import { marketApi, usd, modelPageUrl, type Character, type ToolWallet, type ToolTransaction, type ToolOrder, type ServiceInfo, type ToolInvoice, type TopupConfig } from './marketApi';
 
 const emptyWallet:ToolWallet = { available:'0.00', reserved:'0.00', currency:'USD', payments_enabled:false };
 const inputClass='w-full rounded-app-xs border border-white/10 bg-bgCard px-3 py-3 text-sm text-textPrimary outline-none focus:border-accentGold/60';
@@ -68,57 +68,84 @@ export const Tools:React.FC=()=>{
   </Shell>;
 };
 
-// DEMO TOP-UP: server ledger belongs to signed-in Telegram user, not real wallet.
-// No localStorage, no Crypto Pay, no tool_wallets changes.
 export const ToolsTopupPage:React.FC=()=>{
   const w=useRemote(readWallet,emptyWallet);
-  const [amount,setAmount]=useState('5');
-  const [confirm,setConfirm]=useState(false);
-  const [busy,setBusy]=useState(false);
-  const [error,setError]=useState('');
-  const [invoices,setInvoices]=useState<{id:string;amount:string;currency:string;status:string;created_at:string}[]>([]);
-  const [invoiceError,setInvoiceError]=useState('');
-  useEffect(()=>{let mounted=true;marketApi.paymentInvoices().then(data=>{if(mounted)setInvoices(data.invoices);}).catch(()=>{if(mounted)setInvoiceError('История счетов сейчас недоступна.');});return()=>{mounted=false;};},[]);
-  const [demo,setDemo]=useState<{balance:string;transactions:{id:string;amount:string;created_at:string}[]}>({balance:'0',transactions:[]});
-  const refreshDemo=useCallback(async()=>{try{setDemo(await marketApi.demoTopups());setError('');}catch(e){setError(toText(e));}},[]);
-  useEffect(()=>{void refreshDemo();},[refreshDemo]);
-  const amountNum=Number(amount);
-  const valid=/^\d+(\.\d{1,2})?$/.test(amount)&&Number.isFinite(amountNum)&&amountNum>=5&&amountNum<=10000;
-  const addDemo=async()=>{
-    if(!valid||busy)return;
-    setBusy(true);setError('');
+  const [amount,setAmount]=useState('5'),[busy,setBusy]=useState(false),[error,setError]=useState('');
+  const [notice,setNotice]=useState('');
+  const [config,setConfig]=useState<TopupConfig|null>(null);
+  const [invoices,setInvoices]=useState<ToolInvoice[]>([]);
+  const sending=useRef(false), mounted=useRef(true), request=useRef({amount:'',key:''});
+  const previousPaid=useRef<string|null>(null);
+  const refresh=useCallback(async()=>{
     try{
-      // Server authenticates Telegram and writes a test-only operation.
-      await marketApi.createDemoTopup(amountNum);
-      await refreshDemo();setConfirm(false);
-    }catch(e){setError(toText(e));}
-    finally{setBusy(false);}
+      const [cfg,data]=await Promise.all([marketApi.topupConfig(),marketApi.paymentInvoices()]);
+      if(!mounted.current)return;
+      setConfig(cfg);setInvoices(data.invoices);setError('');
+      const paid=data.invoices.filter(i=>i.status==='paid'||i.status==='refunded').map(i=>i.id+i.status).join(',');
+      if(previousPaid.current!==paid){previousPaid.current=paid;await Promise.all([w.refresh(),marketApi.transactions()]);}
+    }catch(e){if(mounted.current)setError(toText(e));}
+  },[w.refresh]);
+  useEffect(()=>{
+    mounted.current=true;void refresh();
+    const timer=window.setInterval(()=>{if(document.visibilityState==='visible')void refresh();},5000);
+    const resume=()=>{if(document.visibilityState==='visible')void refresh();};
+    document.addEventListener('visibilitychange',resume);
+    return()=>{mounted.current=false;clearInterval(timer);document.removeEventListener('visibilitychange',resume);};
+  },[refresh]);
+  const amountNum=Number(amount),rate=Number(config?.stars_per_usd||0);
+  const stars=Math.ceil((Math.round(amountNum*100)*rate)/100-1e-9);
+  const valid=/^\d+(\.\d{1,2})?$/.test(amount)&&amountNum>=5&&amountNum<=10000&&stars>0&&stars<=100000;
+  const openPayment=(invoice:ToolInvoice)=>{
+    if(!invoice.payment_url||invoice.status!=='pending')return;
+    const tg=window.Telegram?.WebApp;
+    if(!tg?.openInvoice){setError('Откройте оплату в актуальной версии Telegram.');return;}
+    tg.openInvoice(invoice.payment_url,status=>{
+      if(!mounted.current)return;
+      setNotice(status==='paid'||status==='pending'?'Проверяем подтверждение оплаты…':status==='cancelled'?'Оплата закрыта. Средства не начислены.':'Оплата не завершена. Проверьте статус счёта.');
+      void refresh();
+    });
   };
-  return <Shell><NavHeader title="Пополнение баланса" subtitle="Тестовый режим — без реальной оплаты"/>
-    <Card className="flex flex-col gap-2"><p className="text-xs text-textSecondary">Реальный баланс инструментов (не меняется)</p><strong className="text-2xl text-accentBrightGold">{usd(w.value.available)}</strong></Card>
-    <Card className="flex flex-col gap-2"><p className="text-xs text-textSecondary">Тестовый баланс (привязан к Telegram-аккаунту)</p><strong className="text-2xl text-accentBrightGold">{usd(demo.balance)}</strong></Card>
+  const pay=async()=>{
+    if(!valid||sending.current||!config?.payments_enabled)return;
+    sending.current=true;setBusy(true);setError('');setNotice('');
+    if(request.current.amount!==amount)request.current={amount,key:crypto.randomUUID()};
+    try{
+      const invoice=await marketApi.topup(amount,request.current.key,stars);
+      await refresh();
+      if(invoice.status==='paid')setNotice('Этот счёт уже оплачен. Баланс обновлён.');
+      else if(invoice.status==='expired'||invoice.status==='refunded'){
+        request.current={amount:'',key:''};setNotice('Счёт закрыт. Нажмите «Пополнить» для нового счёта.');
+      }else openPayment(invoice);
+    }catch(e){setError(toText(e));}
+    finally{sending.current=false;if(mounted.current)setBusy(false);}
+  };
+  const labels:Record<string,string>={draft:'Создаётся',pending:'Ожидает оплаты',paid:'Оплачено · баланс зачислен',expired:'Срок истёк',failed:'Ошибка',cancelled:'Отменён',refunded:'Возврат выполнен'};
+  return <Shell><NavHeader title="Пополнение баланса" subtitle="Оплата Telegram Stars · баланс в USD"/>
+    <Card className="flex flex-col gap-2"><p className="text-xs text-textSecondary">Баланс инструментов</p><strong className="text-2xl text-accentBrightGold">{usd(w.value.available)}</strong>
+      {Number(w.value.refund_debt)>0&&<Status>Задолженность после возврата: {usd(w.value.refund_debt)}. Следующее пополнение сначала погасит её.</Status>}
+    </Card>
     <Card className="flex flex-col gap-4">
-      <label className="text-xs font-semibold text-textSecondary">Тестовая сумма в USD (минимум $5)
-        <input className={inputClass+' mt-2'} type="text" inputMode="decimal" value={amount} onChange={e=>{setAmount(e.target.value);setConfirm(false);}} placeholder="5.00"/>
+      <label className="text-xs font-semibold text-textSecondary">Сумма пополнения в USD
+        <input className={inputClass+' mt-2'} type="text" inputMode="decimal" value={amount} disabled={busy} onChange={e=>setAmount(e.target.value.replace(',','.'))} placeholder="5.00"/>
       </label>
-      <div className="grid grid-cols-5 gap-1">{[5,10,25,50,100].map(n=><button type="button" key={n} onClick={()=>{setAmount(String(n));setConfirm(false);}} className={'rounded-app-xs border px-1 py-2 text-xs '+(amount===String(n)?'border-accentGold bg-accentGold/10 text-textSecondary':'border-white/10 text-textSecondary')}>$​{n}</button>)}</div>
-      {!valid&&<p role="alert" className="text-xs text-error">Укажите сумму от $5 до $10 000, до двух знаков после запятой.</p>}
-      <div className="flex justify-between border-t border-white/10 pt-3 text-sm"><span className="text-textSecondary">Сумма тестового пополнения</span><strong>{valid?usd(amountNum):'—'}</strong></div>
-      {!confirm?<Button type="button" disabled={!valid} onClick={()=>setConfirm(true)}>Создать тестовый счёт</Button>:<>
-        <Status>Тестовый счёт на {usd(amountNum)} создан. Реальных платежей нет.</Status>
-        <Button type="button" disabled={busy} onClick={()=>void addDemo()}>{busy?'Сохраняем…':'Имитировать успешную оплату'}</Button>
-        <button type="button" onClick={()=>setConfirm(false)} className="text-xs text-textSecondary">Отменить</button>
-      </>}
+      <div className="grid grid-cols-5 gap-1">{[5,10,25,50,100].map(n=><button disabled={busy} type="button" key={n} onClick={()=>setAmount(String(n))} className={'rounded-app-xs border px-1 py-2 text-xs '+(amount===String(n)?'border-accentGold bg-accentGold/10 text-accentBrightGold':'border-white/10 text-textSecondary')}>${n}</button>)}</div>
+      <div className="flex justify-between text-sm"><span className="text-textSecondary">На баланс инструментов</span><strong>{valid?usd(amountNum):'—'}</strong></div>
+      <div className="flex justify-between text-sm"><span className="text-textSecondary">К оплате</span><strong>{valid?stars+' ⭐':'—'}</strong></div>
+      <p className="text-xs text-textSecondary">Внутренний баланс для покупки инструментов. Вывод и перевод другим пользователям недоступны. Стоимость в Stars показана до оплаты.</p>
+      {config&&!config.payments_enabled&&<Status>Пополнение через Stars скоро будет доступно.</Status>}
+      {config?.payments_enabled&&!valid&&<p role="alert" className="text-xs text-error">Сумма от $5 до $10 000, до двух знаков после запятой, не более 100 000 Stars за платёж.</p>}
+      <Button type="button" isLoading={busy} disabled={!valid||!config?.payments_enabled} onClick={()=>void pay()}>Пополнить через Stars</Button>
       {error&&<p role="alert" className="text-xs text-error">{error}</p>}
-      <Status>Демо-операции хранятся на сервере отдельно от реальных средств. Старые локальные тестовые $5 не переносятся автоматически.</Status>
+      {notice&&<Status>{notice}</Status>}
+      <Link to="/tools/history" className="text-xs text-accentBrightGold">История операций →</Link>
     </Card>
-    <Card className="flex flex-col gap-3"><h2 className="text-sm font-bold">Счета реального пополнения (только просмотр)</h2>
-      {invoiceError&&<p role="alert" className="text-xs text-textSecondary">{invoiceError}</p>}
-      {!invoiceError&&invoices.length===0&&<p className="text-xs text-textSecondary">Счетов пока нет. Приём настоящих платежей отключён.</p>}
-      {invoices.map(invoice=><div key={invoice.id} className="flex justify-between gap-2 border-t border-white/10 pt-2 text-xs"><span>{new Date(invoice.created_at).toLocaleString('ru-RU')} · {({draft:'Черновик',pending:'Ожидает',paid:'Оплачен',expired:'Истёк',cancelled:'Отменён',failed:'Ошибка'} as Record<string,string>)[invoice.status]||'Неизвестный статус'}</span><strong>{usd(invoice.amount)}</strong></div>)}
-    </Card>
-    <Card className="flex flex-col gap-3"><h2 className="text-sm font-bold">История тестовых пополнений</h2>
-      {demo.transactions.length===0?<p className="text-xs text-textSecondary">Серверных тестовых операций пока нет</p>:demo.transactions.map(p=><div key={p.id} className="flex justify-between gap-2 border-t border-white/10 pt-2 text-xs"><span>{new Date(p.created_at).toLocaleString('ru-RU')} · Тест успешно</span><strong>{usd(p.amount)}</strong></div>)}
+    <Card className="flex flex-col gap-3"><h2 className="text-sm font-bold">Счета пополнения</h2>
+      {!invoices.length&&<p className="text-xs text-textSecondary">Счетов пока нет</p>}
+      {invoices.map(i=><div key={i.id} className="border-t border-white/10 pt-3 text-xs">
+        <div className="flex justify-between gap-2"><span>{labels[i.status]||i.status}</span><strong>{usd(i.amount_usd)}</strong></div>
+        <p className="mt-1 text-textSecondary">{new Date(i.created_at).toLocaleString('ru-RU')}{i.stars_amount?' · '+i.stars_amount+' ⭐':''}</p>
+        {i.status==='pending'&&i.payment_url&&<Button type="button" size="sm" variant="outline" className="mt-2" onClick={()=>openPayment(i)}>Открыть оплату</Button>}
+      </div>)}
     </Card>
   </Shell>;
 };

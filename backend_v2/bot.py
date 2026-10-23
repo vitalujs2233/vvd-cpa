@@ -7,6 +7,7 @@ from aiogram.filters import CommandStart, CommandObject
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 
 from database import save_user
+import tools_stars
 from stars_payments import check_pre_checkout, credit_successful_payment, reverse_refunded_payment
 
 logging.basicConfig(level=logging.INFO)
@@ -61,10 +62,14 @@ async def cmd_start(message: types.Message, command: CommandObject):
 async def on_stars_pre_checkout(query: types.PreCheckoutQuery):
     """Only approve a verified, matching unpaid invoice within Telegram's deadline."""
     try:
-        accepted = await asyncio.to_thread(
-            check_pre_checkout, query.invoice_payload, query.from_user.id,
-            query.currency, query.total_amount,
-        )
+        if query.invoice_payload.startswith(tools_stars.PREFIX):
+            accepted = await asyncio.to_thread(
+                tools_stars.pre_checkout, query.invoice_payload, query.from_user.id,
+                query.currency, query.total_amount, query.id)
+        else:
+            accepted = await asyncio.to_thread(
+                check_pre_checkout, query.invoice_payload, query.from_user.id,
+                query.currency, query.total_amount)
         await query.answer(
             ok=accepted,
             error_message=None if accepted else "Счёт недействителен или устарел. Создайте новый.",
@@ -81,14 +86,14 @@ async def on_stars_successful_payment(message: types.Message):
         return
     try:
         credited = await asyncio.to_thread(
-            credit_successful_payment, payment.invoice_payload,
+            tools_stars.settle if payment.invoice_payload.startswith(tools_stars.PREFIX) else credit_successful_payment, payment.invoice_payload,
             message.from_user.id, payment.currency, payment.total_amount,
             payment.telegram_payment_charge_id,
         )
         if not credited:
             logger.error("Stars payment requires reconciliation; charge=%s", payment.telegram_payment_charge_id)
         else:
-            await message.answer("⭐ Оплата подтверждена! Цифровые кредиты добавлены в кошелёк.")
+            await message.answer("Оплата подтверждена. Баланс инструментов обновлён." if payment.invoice_payload.startswith(tools_stars.PREFIX) else "⭐ Оплата подтверждена! Цифровые кредиты добавлены в кошелёк.")
     except Exception:
         # IMPORTANT: don't acknowledge settlement as completed on a DB error.
         # Telegram may retry an update; order ID and charge ID are idempotent.
@@ -99,6 +104,11 @@ async def on_stars_successful_payment(message: types.Message):
 async def on_stars_refund(message: types.Message):
     refund = message.refunded_payment
     if not refund or not message.from_user or refund.currency != "XTR":
+        return
+    if (refund.invoice_payload or '').startswith(tools_stars.PREFIX):
+        await asyncio.to_thread(tools_stars.settle, refund.invoice_payload,
+                                message.from_user.id, refund.currency, refund.total_amount,
+                                refund.telegram_payment_charge_id, True)
         return
     try:
         await asyncio.to_thread(

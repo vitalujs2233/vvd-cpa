@@ -69,10 +69,19 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_bot():
     app.state.bot_task = asyncio.create_task(start_bot())
+    from tools_stars import reconciliation_loop
+    app.state.tools_stars_task = asyncio.create_task(reconciliation_loop(bot))
 
 
 @app.on_event("shutdown")
 async def shutdown_bot():
+    tools_task = getattr(app.state, "tools_stars_task", None)
+    if tools_task:
+        tools_task.cancel()
+        try:
+            await tools_task
+        except asyncio.CancelledError:
+            pass
     bot_task = getattr(app.state, "bot_task", None)
 
     if bot_task:
