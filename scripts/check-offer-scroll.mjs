@@ -1,15 +1,15 @@
 // Isolated browser fixture: no production API calls or Telegram authentication.
 import {chromium} from 'playwright';
 import {writeFileSync,unlinkSync} from 'node:fs';
-import {spawn} from 'node:child_process';
+import {createServer} from 'vite';
 import assert from 'node:assert/strict';
 const files=['scroll-fixture.html','scroll-fixture.tsx'];
 writeFileSync(files[0],'<html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><div id="root"></div><script type="module" src="/vvd-cpa/scroll-fixture.tsx"></script></body></html>');
 writeFileSync(files[1],`import React from 'react';import{createRoot}from'react-dom/client';import{MemoryRouter,Routes,Route}from'react-router-dom';import{OfferDetail}from'./src/pages/offers/OfferDetail';import'./src/index.css';createRoot(document.getElementById('root')).render(<div style={{minHeight:'100dvh'}}><MemoryRouter initialEntries={['/offers/test/test']}><Routes><Route path="/offers/:id/:offerId" element={<OfferDetail/>}/></Routes></MemoryRouter></div>);`);
-const server=spawn('node',['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port','3011'],{stdio:'pipe'});
+const server=await createServer({server:{host:'127.0.0.1',port:3011,strictPort:true}});
 let browser;
 try{
- await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('Vite startup timed out')),20000);server.stdout.on('data',data=>{if(data.toString().includes('Local:')){clearTimeout(timer);resolve();}});server.on('exit',code=>reject(Error('Vite exited '+code)));});
+ await server.listen();
  browser=await chromium.launch({headless:true});
  const page=await browser.newPage({viewport:{width:390,height:900},isMobile:true,hasTouch:true});
  await page.addInitScript(()=>{
@@ -39,4 +39,4 @@ try{
  await page.waitForFunction(()=>document.querySelector('[data-testid="offer-scroll"]').clientHeight===600);
  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  console.log('Passed: Telegram sheet height, full card bottom, copy button, horizontal tags and viewport resize.');
-}finally{await browser?.close();server.kill();for(const file of files)unlinkSync(file);}
+}finally{await browser?.close();await server.close();for(const file of files)unlinkSync(file);}
