@@ -1,0 +1,21 @@
+name: Offer viewport scrolling
+on:
+  push:
+    branches: [fix/offer-telegram-viewport]
+  pull_request:
+    paths: ['src/pages/offers/OfferDetail.tsx', 'scripts/check-offer-scroll.mjs', '.github/workflows/validate-offer-scroll.yml']
+permissions:
+  contents: read
+jobs:
+  mobile-scroll:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - run: npm install --no-save playwright
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/check-offer-scroll.mjs
