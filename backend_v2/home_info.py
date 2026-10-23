@@ -27,7 +27,7 @@ def published():
 @router.get("/images/{block_id}")
 def image(block_id:uuid.UUID):
     with engine.connect() as conn:
-        data=conn.execute(text("SELECT image_data FROM home_info_blocks WHERE id=:id AND is_active"),{"id":str(block_id)}).scalar_one_or_none()
+        data=conn.execute(text("SELECT image_data FROM home_info_blocks WHERE id=:id"),{"id":str(block_id)}).scalar_one_or_none()
     if data is None:raise HTTPException(404,"Изображение не найдено")
     return Response(content=bytes(data),media_type="image/webp",headers={"Cache-Control":"public,max-age=300","X-Content-Type-Options":"nosniff"})
 
