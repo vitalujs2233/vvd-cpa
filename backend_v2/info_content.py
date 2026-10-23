@@ -80,3 +80,29 @@ def restore(version_id:int,request:Request):
         c.execute(text("UPDATE vvd_info_versions SET status='archived' WHERE status='published'"))
         new_id=c.execute(text("INSERT INTO vvd_info_versions(status,content,created_by,published_at) VALUES ('published',CAST(:content AS jsonb),:uid,now()) RETURNING id"),{"content":json.dumps(previous,ensure_ascii=False),"uid":uid}).scalar_one()
     return {"success":True,"id":new_id}
+
+@router.post("/admin/info/image")
+async def upload_info_image(file:UploadFile=File(...)):
+    if file.content_type not in ("image/png","image/jpeg","image/webp"):
+        raise HTTPException(415,"Unsupported image")
+    raw=await file.read(3_000_001)
+    if len(raw)>3_000_000: raise HTTPException(413,"Image too large")
+    try:
+        with Image.open(BytesIO(raw)) as image:
+            image.verify()
+        with Image.open(BytesIO(raw)) as image:
+            if image.width>4000 or image.height>4000:
+                raise HTTPException(413,"Image dimensions too large")
+    except (OSError,ValueError):
+        raise HTTPException(422,"Invalid image")
+    image_id=uuid.uuid4()
+    with engine.begin() as c:
+        c.execute(text("INSERT INTO vvd_info_images(id,mime,image) VALUES (:id,:mime,:image)"),{"id":image_id,"mime":file.content_type,"image":raw})
+    return {"url":"/info/image/"+str(image_id)}
+
+@router.get("/info/image/{image_id}")
+def info_image(image_id:uuid.UUID):
+    with engine.connect() as c:
+        row=c.execute(text("SELECT mime,image FROM vvd_info_images WHERE id=:id"),{"id":image_id}).first()
+    if row is None: raise HTTPException(404)
+    return Response(content=row.image,media_type=row.mime,headers={"Cache-Control":"public, max-age=86400","X-Content-Type-Options":"nosniff"})
