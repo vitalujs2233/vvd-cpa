@@ -1,5 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {ArrowLeft} from 'lucide-react';
+import {getTelegramUser} from '@/shared/lib/telegram';
 import {Card} from '@/shared/ui/Card';
 import {Button} from '@/shared/ui/Button';
 import {marketApi,usd,TopupConfig,ToolAdminUser,ToolAdminCredit} from '../tools/marketApi';
@@ -10,18 +11,23 @@ export const ToolsBalanceAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
  const [q,setQ]=useState(''),[users,setUsers]=useState<ToolAdminUser[]>([]),[selected,setSelected]=useState<ToolAdminUser|null>(null);
  const [amount,setAmount]=useState(''),[reason,setReason]=useState(''),[review,setReview]=useState(false);
  const [credits,setCredits]=useState<ToolAdminCredit[]>([]),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
+ const storageKey='tools-admin-credit:'+getTelegramUser().id;
  const lock=useRef(false),request=useRef({signature:'',id:''});
  const load=async()=>{const [s,c,u]=await Promise.all([marketApi.adminSettings(),marketApi.adminCredits(),marketApi.adminUsers(q)]);setCfg(s);setRate(s.usd_per_star);setEnabled(s.enabled);setCredits(c.credits);setUsers(u.users);};
- useEffect(()=>{void load().catch(e=>setError(message(e)));},[]);
+ useEffect(()=>{void load().catch(e=>setError(message(e)));
+  try{const pending=JSON.parse(sessionStorage.getItem(storageKey)||'null');if(pending?.request?.id&&pending?.selected?.telegram_id){request.current=pending.request;setSelected(pending.selected);setAmount(pending.amount);setReason(pending.reason);setReview(true);setNotice('Восстановлено незавершённое начисление. Повторное подтверждение использует тот же запрос.');}}catch{}
+ },[]);
  const run=async(fn:()=>Promise<void>)=>{if(lock.current)return;lock.current=true;setBusy(true);setError('');setNotice('');try{await fn();}catch(e){setError(message(e));}finally{lock.current=false;setBusy(false);}};
  const save=()=>run(async()=>{if(!cfg)return;const s=await marketApi.saveSettings({usd_per_star:rate,enabled,version:cfg.version});setCfg(s);setNotice('Курс сохранён. Ранее созданные счета не изменены.');});
  const submit=()=>run(async()=>{
   if(!selected)return;
   const signature=JSON.stringify([selected.telegram_id,amount,reason.trim()]);
   if(request.current.signature!==signature)request.current={signature,id:crypto.randomUUID()};
+  try{sessionStorage.setItem(storageKey,JSON.stringify({request:request.current,selected,amount,reason}));}catch{}
   const result=await marketApi.manualCredit({telegram_id:selected.telegram_id,amount,reason:reason.trim(),request_id:request.current.id});
   // Keep the same key even after a lost response; reset only when starting another operation.
   setNotice((result.replayed?'Начисление уже выполнено: ':'Начислено: ')+usd(result.amount)+' · ID '+selected.telegram_id);
+  try{sessionStorage.removeItem(storageKey);}catch{}
   setReview(false);setAmount('');setReason('');setSelected(null);
   const [c,u]=await Promise.all([marketApi.adminCredits(),marketApi.adminUsers(q)]);setCredits(c.credits);setUsers(u.users);
  });
@@ -37,7 +43,7 @@ export const ToolsBalanceAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
    <Button isLoading={busy} onClick={()=>void save()}>Сохранить курс</Button>
   </Card>}
   <Card className="flex flex-col gap-3"><h2 className="font-bold">Начислить на баланс инструментов</h2>
-   <div className="flex gap-2"><input aria-label="Поиск пользователя" className={input} placeholder="VVD1, Telegram ID или username" value={q} disabled={busy||review} onChange={e=>setQ(e.target.value)}/><Button disabled={busy||review} variant="outline" onClick={()=>void run(async()=>{setUsers((await marketApi.adminUsers(q)).users);setSelected(null);})}>Найти</Button></div>
+   <div className="flex gap-2"><input aria-label="Поиск пользователя" className={input} placeholder="VVD1, Telegram ID или username" value={q} disabled={busy||review} onChange={e=>setQ(e.target.value)}/><Button size="sm" disabled={busy||review} variant="outline" onClick={()=>void run(async()=>{setUsers((await marketApi.adminUsers(q)).users);setSelected(null);})}>Найти</Button></div>
    {!review&&users.map(u=><button type="button" disabled={busy} key={u.telegram_id} onClick={()=>setSelected(u)} className={'rounded-app-xs border p-3 text-left text-sm '+(selected?.telegram_id===u.telegram_id?'border-accentGold bg-accentGold/10':'border-white/10')}>
     <b>{u.partner_code||u.first_name||u.telegram_id}</b> {u.username?'@'+u.username:''}<p className="text-xs text-textSecondary">ID {u.telegram_id} · {usd(u.available)}{Number(u.refund_debt)>0?' · долг '+usd(u.refund_debt):''}</p>
    </button>)}

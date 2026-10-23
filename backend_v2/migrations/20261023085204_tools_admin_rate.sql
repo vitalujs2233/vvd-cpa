@@ -2,6 +2,8 @@
 ALTER TABLE public.tool_wallets ALTER COLUMN available TYPE numeric(18,6), ALTER COLUMN reserved TYPE numeric(18,6), ALTER COLUMN refund_debt TYPE numeric(18,6);
 ALTER TABLE public.tool_transactions ALTER COLUMN amount TYPE numeric(18,6);
 ALTER TABLE public.tool_payment_invoices ALTER COLUMN amount_usd TYPE numeric(18,6), ADD COLUMN usd_per_star numeric(12,6), ADD COLUMN requested_amount_usd numeric(14,2);
+ALTER TABLE public.tool_payment_invoices DROP CONSTRAINT tool_payment_invoices_amount_usd_check;
+ALTER TABLE public.tool_payment_invoices ADD CONSTRAINT tool_payment_invoices_amount_usd_check CHECK(amount_usd BETWEEN 5 AND 10001);
 ALTER TABLE public.tool_payment_invoices DROP CONSTRAINT tool_stars_details;
 ALTER TABLE public.tool_payment_invoices ADD CONSTRAINT tool_stars_details CHECK(provider<>'telegram_stars' OR
  (stars_amount IS NOT NULL AND stars_amount BETWEEN 1 AND 100000 AND request_id IS NOT NULL AND expires_at IS NOT NULL

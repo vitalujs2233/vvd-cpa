@@ -146,11 +146,15 @@ class PaymentTests(unittest.TestCase):
             with pay.engine.begin() as c:c.execute(text("UPDATE tool_payment_settings SET usd_per_star=.013,enabled=true"))
             self.assertEqual(pay.quote('5','.013'),(Decimal('5.005'),385))
             self.assertEqual(pay.quote('13','.013'),(Decimal('13'),1000))
+            self.assertEqual(pay.quote('10000','.3'),(Decimal('10000.2'),33334))
             i=asyncio.run(pay.create_invoice(self.uid,'5',uuid4(),385,self.bot,Decimal('.013')))
             self.assertEqual(Decimal(i['amount_usd']),Decimal('5.005'))
             self.assertTrue(self.credit(i,str(uuid4())))
             self.assertEqual(self.wallet(),(Decimal('5.005'),0))
             self.assertEqual(self.ledger()[1],Decimal('5.005'))
+            with pay.engine.begin() as c:c.execute(text('UPDATE tool_payment_settings SET usd_per_star=.3'))
+            maximum=asyncio.run(pay.create_invoice(self.uid,'10000',uuid4(),33334,self.bot,Decimal('.3')))
+            self.assertEqual(Decimal(maximum['amount_usd']),Decimal('10000.2'))
 
     def test_new_rate_old_quote_rejected_retry_old_invoice_preserved(self):
         with patch.object(pay,'settings',side_effect=REAL_SETTINGS):
