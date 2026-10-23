@@ -1,5 +1,6 @@
 import './Home.css';
 import {HomeAdCarousel} from './HomeAdCarousel';
+import {HomeInfoBlocks} from './HomeInfoBlocks';
 import {HomeTicker} from './HomeTicker';
 import {readSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
@@ -191,6 +192,7 @@ export const Home: React.FC = () => {
         </button>
       </Card>
       <HomeAdCarousel/>
+      <HomeInfoBlocks/>
 
     </div>
   );

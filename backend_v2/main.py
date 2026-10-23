@@ -2000,3 +2000,6 @@ app.include_router(home_ads_router)
 
 from home_ticker import router as home_ticker_router
 app.include_router(home_ticker_router)
+
+from home_info import router as home_info_router
+app.include_router(home_info_router)
