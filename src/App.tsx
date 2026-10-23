@@ -5,6 +5,7 @@ import { MemoryRouter, Routes, Route, NavLink, Outlet } from 'react-router-dom';
 import { Home as HomeIcon, Grid, BarChart3, Wrench, User } from 'lucide-react';
 import { triggerHaptic } from '@/shared/lib/telegram';
 import { Home } from '@/pages/home/Home';
+import { InfoPage } from '@/pages/info/InfoPage';
 import { Offers } from '@/pages/offers/Offers';
 import { OfferDetail } from '@/pages/offers/OfferDetail';
 import { Withdrawal } from '@/pages/withdrawal/Withdrawal';
@@ -208,6 +209,7 @@ const MiniApp = () => {
           {/* Обертка Лейаута */}
           <Route path="/" element={<AppLayout />}>
             <Route index element={<Home />} />
+            <Route path="why-vvd" element={<InfoPage />} />
             <Route path="offers" element={<Offers />} />
             <Route path="stats" element={<Stats />} />
             {/* Существующий экран «Движ» сохранён */}

@@ -3,7 +3,7 @@ import {readSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wallet, History, Sparkles, Flame, Crown, Brain } from 'lucide-react';
+import { Wallet, History, Sparkles, Flame, Crown, Brain, Info, ChevronRight } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
@@ -179,6 +179,13 @@ export const Home: React.FC = () => {
             История
           </Button>
         </div>
+      </Card>
+      <Card variant="default" padding="lg" className="border border-accentGold/20">
+        <button type="button" onClick={()=>navigate("/why-vvd")} className="flex items-center gap-3 w-full text-left">
+          <Info size={23} className="text-accentGoldBright shrink-0"/>
+          <span className="flex-1"><strong className="block text-white">Почему VVD CPA?</strong><span className="text-xs text-textSecondary">Узнай о нашей платформе, преимуществах, выплатах и условиях сотрудничества.</span></span>
+          <ChevronRight size={18} className="text-accentGoldBright"/>
+        </button>
       </Card>
 
     </div>
