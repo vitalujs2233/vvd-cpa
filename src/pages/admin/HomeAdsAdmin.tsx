@@ -31,7 +31,7 @@ export const HomeAdsAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
  return <div className="flex flex-col gap-4 pb-24 animate-fade-in">
   <button onClick={onBack} className="flex gap-2 items-center text-accentGoldBright"><ArrowLeft size={18}/>Назад</button>
   <h1 className="text-xl font-bold text-white">Рекламные баннеры</h1>
-  <p className="text-xs text-textSecondary">До 4 активных баннеров. Рекомендуемый формат изображения — 3:1. Изменения сразу доступны пользователям.</p>
+  <p className="text-xs text-textSecondary">Добавляйте изображения по одному, повторяя форму для каждого баннера. Можно включить до 4 баннеров одновременно. Рекомендуемый формат — 3:1.</p>
   {message&&<p role="status" className="text-xs text-accentGoldBright">{message}</p>}
   <label className="flex items-center justify-between rounded-card bg-bgCard p-3 text-sm text-white">Автоматическое перелистывание (5 секунд)<input type="checkbox" checked={autoplay} disabled={busy} onChange={e=>{const checked=e.target.checked;void perform(()=>apiRequest('/home-ads/admin/settings/autoplay',{method:'PUT',body:JSON.stringify({autoplay:checked})}))}}/></label>
   <div className="rounded-card bg-bgCard p-3 flex flex-col gap-3">
@@ -50,7 +50,7 @@ export const HomeAdsAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
     <input aria-label="Изменить название" value={draftTitle} onChange={e=>setDraftTitle(e.target.value)} className="rounded-lg bg-black/30 p-3 text-white"/>
     <input aria-label="Изменить ссылку" value={draftTarget} onChange={e=>setDraftTarget(e.target.value)} className="rounded-lg bg-black/30 p-3 text-white"/>
     <label className="flex items-center gap-2 text-sm text-white"><input type="checkbox" checked={draftActive} onChange={e=>setDraftActive(e.target.checked)}/>Показывать пользователям</label>
-    <button disabled={busy} onClick={()=>saveEdit(item.id)} className="rounded-lg bg-accentGoldBright p-2 text-black flex items-center justify-center gap-2"><Save size={16}/>Сохранить</button>
+    <button disabled={busy} onClick={()=>saveEdit(item.id)} className="w-full min-h-12 rounded-xl bg-[#EFC35C] p-3 font-bold text-[#15120B] flex items-center justify-center gap-2 disabled:opacity-50"><Save size={16}/>Сохранить</button>
     <button onClick={()=>setEditing(null)} className="text-xs text-textSecondary">Отмена</button>
    </div>:<button onClick={()=>beginEdit(item)} className="rounded-lg border border-accentGold/30 p-2 text-accentGoldBright">Редактировать</button>}
    <label className="text-xs text-textSecondary">Заменить изображение <input type="file" accept="image/jpeg,image/png,image/webp" className="block mt-1 w-full" disabled={busy} onChange={e=>{replaceImage(item.id,e.target.files?.[0]||null);e.target.value=''}}/></label>
