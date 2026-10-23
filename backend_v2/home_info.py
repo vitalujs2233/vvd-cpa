@@ -21,7 +21,7 @@ SELECT_FIELDS="id,title,subtitle,description,target_url,is_active,position,creat
 @router.get("/published")
 def published():
     with engine.connect() as conn:
-        rows=conn.execute(text(f"SELECT {SELECT_FIELDS} FROM home_info_blocks WHERE is_active ORDER BY position,created_at")).mappings().all()
+        rows=conn.execute(text(f"SELECT {SELECT_FIELDS} FROM home_info_blocks WHERE is_active AND (length(trim(title))>0 OR length(trim(subtitle))>0 OR length(trim(description))>0 OR image_data IS NOT NULL) ORDER BY position,created_at")).mappings().all()
     return {"items":[serialize(row) for row in rows]}
 
 @router.get("/images/{block_id}")
@@ -39,17 +39,11 @@ def list_admin(x_telegram_init_data:Optional[str]=Header(None)):
     return {"items":[serialize(row) for row in rows]}
 
 class Block(BaseModel):
-    title:str=Field(min_length=1,max_length=180)
+    title:str=Field(default="",max_length=180)
     subtitle:str=Field(default="",max_length=180)
     description:str=Field(default="",max_length=1200)
     target_url:str=Field(default="",max_length=2048)
     is_active:bool=False
-    @field_validator("title")
-    @classmethod
-    def title_required(cls,v):
-        v=v.strip()
-        if not v:raise ValueError("Введите заголовок")
-        return v
     @field_validator("target_url")
     @classmethod
     def valid_target(cls,v):return safe_target(v)
