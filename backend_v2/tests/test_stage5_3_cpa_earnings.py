@@ -747,6 +747,7 @@ class CPAStage53Integration(unittest.TestCase):
     def test_31_traforce_hold_mapping_backfill_and_replay(self):
         click=self.add_click("traforce-old-hold")
         with engine.begin() as c:
+            c.execute(text("UPDATE cpa_networks SET name='Unrelated seeded network' WHERE name='Traforce'"))
             c.execute(text("UPDATE cpa_networks SET name='Traforce',postback_status_map=postback_status_map || CAST(:map AS jsonb) WHERE id=:id"),
                       {"id":self.network,"map":json.dumps({"5":"pending","1":"approved"})})
         response=self.send(click,"5",gross="0.35")
