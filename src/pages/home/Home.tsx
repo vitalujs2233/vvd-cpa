@@ -3,7 +3,7 @@ import {readSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wallet, History, Sparkles, Flame, Crown, Brain, Info, ChevronRight } from 'lucide-react';
+import { Wallet, History, Sparkles, Flame, Crown, Brain, Sparkles as InfoSparkles, ChevronRight } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
@@ -180,9 +180,9 @@ export const Home: React.FC = () => {
           </Button>
         </div>
       </Card>
-      <Card variant="default" padding="lg" className="border border-accentGold/20">
-        <button type="button" onClick={()=>navigate("/why-vvd")} className="flex items-center gap-3 w-full text-left">
-          <Info size={23} className="text-accentGoldBright shrink-0"/>
+      <Card variant="default" padding="lg" className="border border-accentGold/20 transition-all duration-300 hover:border-accentGold/40">
+        <button type="button" onClick={()=>{triggerHaptic.lightImpact();navigate("/why-vvd")}} className="flex items-center gap-3 w-full text-left">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-accentGold/40 bg-accentGold/10 text-accentGoldBright shadow-glass-inner"><InfoSparkles size={25} strokeWidth={1.8} className="drop-shadow-sm"/></span>
           <span className="flex-1"><strong className="block text-white">Почему VVD CPA?</strong><span className="text-xs text-textSecondary">Узнай о нашей платформе, преимуществах, выплатах и условиях сотрудничества.</span></span>
           <ChevronRight size={18} className="text-accentGoldBright"/>
         </button>
