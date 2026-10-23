@@ -32,7 +32,9 @@ export const OfferDetail:React.FC=()=>{
  useEffect(()=>{setTags({});},[offerId]);
  const generatedLink=link?taggedLink(link,tags):'';
  const back=()=>nav(offerId?'/offers/'+id:'/offers');
- return <div className="flex flex-col gap-4 p-4 select-none pb-32 animate-fade-in">
+ // This standalone route is outside AppLayout; body scrolling is disabled.
+ return <div className="h-[100dvh] w-full min-w-0 overflow-y-auto overflow-x-hidden scrollable-container" data-testid="offer-scroll">
+ <div className="flex flex-col gap-4 p-4 select-none pb-32 animate-fade-in">
    <div className="flex items-center gap-3"><button type="button" onClick={back} aria-label="Назад" className="w-11 h-11 rounded-full bg-bgCard/40 border border-white/10 flex items-center justify-center text-textSecondary"><ArrowLeft size={18}/></button>
      <div><span className="text-[10px] text-accentPurple font-bold uppercase tracking-wider">{offer?'Оффер':'Вертикаль'}</span><h1 className="text-xl font-bold text-white">{offer?.title||vertical?.title||'Офферы'}</h1></div></div>
    {loading&&!vertical&&<p role="status" className="text-xs text-textSecondary">Загружаем данные…</p>}
@@ -63,5 +65,6 @@ export const OfferDetail:React.FC=()=>{
        <p className="text-xs text-textSecondary">Подключение ссылки готовится</p>}
      </Card>
    </>}
+ </div>
  </div>
 };
