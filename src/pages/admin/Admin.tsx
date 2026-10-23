@@ -369,6 +369,7 @@ const saveChatBanner = async () => {
     | 'toolsBalance'
     | 'supportTickets'
     | 'cpa'
+    | 'information'
 ) => {
   triggerHaptic.lightImpact();
   setSubView(view);
