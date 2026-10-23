@@ -157,7 +157,7 @@ def delete_banner(banner_id:uuid.UUID,x_telegram_init_data:Optional[str]=Header(
 class Reorder(BaseModel):
     ids:list[uuid.UUID]=Field(max_length=500)
 
-@router.put("/admin/order")
+@router.put("/admin/order/items")
 def reorder(payload:Reorder,x_telegram_init_data:Optional[str]=Header(None)):
     admin(x_telegram_init_data)
     if len(set(payload.ids))!=len(payload.ids):raise HTTPException(422,"Повторяющиеся ID")
