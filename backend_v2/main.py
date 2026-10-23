@@ -1994,3 +1994,6 @@ app.include_router(tools_admin_router)
 
 from info_content import router as info_content_router
 app.include_router(info_content_router)
+
+from home_ads import router as home_ads_router
+app.include_router(home_ads_router)
