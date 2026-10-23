@@ -1997,3 +1997,6 @@ app.include_router(info_content_router)
 
 from home_ads import router as home_ads_router
 app.include_router(home_ads_router)
+
+from home_ticker import router as home_ticker_router
+app.include_router(home_ticker_router)

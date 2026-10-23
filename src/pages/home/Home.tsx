@@ -1,5 +1,6 @@
 import './Home.css';
 import {HomeAdCarousel} from './HomeAdCarousel';
+import {HomeTicker} from './HomeTicker';
 import {readSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import React, { useEffect, useState } from 'react';
@@ -96,6 +97,7 @@ export const Home: React.FC = () => {
         {error&&<button className="ml-2 underline" onClick={()=>setRetry(n=>n+1)}>Повторить</button>}
         {error&&balance&&' Показаны последние полученные данные.'}
       </p>}
+      <HomeTicker/>
       {/* Парящая градиентная карта Баланса с золотой фоновой короной и золотым свечением */}
       <Card variant="glow" padding="lg" className="flex flex-col gap-5 relative overflow-hidden animate-float">
         {/* Фоновое золотое неоновое свечение */}

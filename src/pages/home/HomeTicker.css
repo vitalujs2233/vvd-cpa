@@ -1,0 +1,13 @@
+.vvd-ticker{height:34px;min-height:34px;width:100%;min-width:0;display:flex;align-items:center;gap:8px;padding:0 10px;overflow:hidden;border:1px solid rgba(234,185,70,.55);border-radius:12px;background:#090909;box-shadow:0 0 11px rgba(223,167,52,.15);box-sizing:border-box}
+.vvd-ticker-icon{flex:none;color:#e8bd62}
+.vvd-ticker-viewport{flex:1;min-width:0;overflow:hidden;white-space:nowrap}
+.vvd-ticker-track{display:flex;width:max-content;animation:vvd-ticker-scroll var(--vvd-ticker-duration,20s) linear infinite;will-change:transform}
+.vvd-ticker-group{display:flex;align-items:center;flex:none;width:max-content;white-space:nowrap}
+.vvd-ticker-separator{flex:none;margin:0 16px;color:#a87c2d;font-size:12px}
+.vvd-ticker-message{display:inline-block;flex:none;padding:0;border:0;background:transparent;font:inherit;font-size:12px;font-weight:600;line-height:20px;white-space:nowrap;cursor:default}
+button.vvd-ticker-message{cursor:pointer;text-decoration:underline;text-decoration-color:transparent;text-underline-offset:2px}
+button.vvd-ticker-message:focus-visible{text-decoration-color:currentColor;outline:1px solid currentColor}
+.vvd-ticker-static{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+@keyframes vvd-ticker-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.vvd-ticker:hover .vvd-ticker-track,.vvd-ticker:focus-within .vvd-ticker-track{animation-play-state:paused}
+@media(prefers-reduced-motion:reduce){.vvd-ticker-track{animation:none!important;will-change:auto}}
