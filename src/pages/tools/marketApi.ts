@@ -4,7 +4,7 @@ export type ServiceStatus = 'available' | 'connecting' | 'unavailable';
 export type ServiceInfo = { id: string; title: string; category: string; description: string; status: ServiceStatus; price: string | null };
 export type ToolWallet = { available: string; reserved: string; currency: 'USD'; payments_enabled: boolean; refund_debt?: string };
 export type ToolInvoice = {id:string;amount_usd:string;stars_amount:number|null;status:string;payment_url:string|null;created_at:string;expires_at:string|null};
-export type TopupConfig = {payments_enabled:boolean;stars_per_usd:string|null;min_usd:string;max_usd:string};
+export type TopupConfig = {payments_enabled:boolean;stars_per_usd:string|null;usd_per_star:string;enabled:boolean;server_ready:boolean;version:number;min_usd:string;max_usd:string};
 export type ToolTransaction = { id: string; kind: 'topup'|'purchase'|'refund'|'adjustment'; amount: string; status: string; created_at: string; service: string|null };
 export type ToolOrder = { id: string; service_id: string; title: string; status: string; amount: string; created_at: string };
 export type Character = {
@@ -26,10 +26,15 @@ const write = <T>(path:string, method:'POST'|'PUT', body:object) => apiRequest<T
   method, headers:authHeaders(), body:JSON.stringify(body)
 });
 export const marketApi = {
+  adminSettings:()=>get<TopupConfig>('/admin/settings'),
+  saveSettings:(body:{usd_per_star:string;enabled:boolean;version:number})=>write<TopupConfig>('/admin/settings','PUT',body),
+  adminUsers:(q:string)=>get<{users:ToolAdminUser[]}>('/admin/users?q='+encodeURIComponent(q)),
+  adminCredits:()=>get<{credits:ToolAdminCredit[]}>('/admin/credits'),
+  manualCredit:(body:{telegram_id:string;amount:string;reason:string;request_id:string})=>write<{id:string;amount:string;replayed:boolean}>('/admin/credits','POST',body),
   wallet:()=>get<ToolWallet>('/wallet'),
   topupConfig:()=>get<TopupConfig>('/topup-config'),
   paymentInvoices:()=>get<{invoices:ToolInvoice[]}>('/payment-invoices'),
-  topup:(amount:string,request_id:string,expected_stars:number)=>write<ToolInvoice>('/topup','POST',{amount,request_id,expected_stars,terms_version:'tools-stars-v1'}),
+  topup:(amount:string,request_id:string,expected_stars:number,expected_usd_per_star:string)=>write<ToolInvoice>('/topup','POST',{amount,request_id,expected_stars,expected_usd_per_star,terms_version:'tools-stars-v1'}),
   catalog:()=>apiRequest<{services:ServiceInfo[];payment_provider:{status:string;assets:string[]}}>('/tools-market/catalog'),
   transactions:()=>get<{transactions:ToolTransaction[]}>('/transactions'),
   orders:()=>get<{orders:ToolOrder[]}>('/orders'),
@@ -40,6 +45,8 @@ export const marketApi = {
     write<Character>('/ai','POST',value),
   publicModel:(slug:string)=>apiRequest<PublicCharacter>('/tools-market/public/ai/'+encodeURIComponent(slug))
 };
-export const usd = (input:string|number|null|undefined) => '$'+Number(input ?? 0).toFixed(2);
+export type ToolAdminUser={telegram_id:string;partner_code:string|null;first_name:string;username:string|null;available:string;refund_debt:string};
+export type ToolAdminCredit={id:string;telegram_id:string;amount:string;admin_actor_id:string;reason:string;created_at:string};
+export const usd = (input:string|number|null|undefined) => '$'+Number(input ?? 0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:6,useGrouping:false});
 export const modelPageUrl = (slug:string) =>
   window.location.origin + '/vvd-cpa/model/' + encodeURIComponent(slug);

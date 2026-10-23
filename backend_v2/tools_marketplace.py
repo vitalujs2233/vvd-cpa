@@ -165,6 +165,7 @@ def payment_invoices(x_telegram_init_data: Optional[str] = Header(None)):
 class StarsTopupPayload(DemoTopupPayload):
     terms_version: Literal["tools-stars-v1"]
     request_id: UUID
+    expected_usd_per_star: Optional[Decimal] = Field(default=None, ge=Decimal(".000001"), le=1, decimal_places=6)
     expected_stars: int = Field(strict=True, ge=1, le=100000)
 
 
@@ -172,7 +173,7 @@ class StarsTopupPayload(DemoTopupPayload):
 async def topup(payload: StarsTopupPayload, x_telegram_init_data: Optional[str] = Header(None)):
     uid = owner(x_telegram_init_data)
     from bot import bot
-    return await tools_stars.create_invoice(uid, payload.amount, payload.request_id, payload.expected_stars, bot)
+    return await tools_stars.create_invoice(uid, payload.amount, payload.request_id, payload.expected_stars, bot, payload.expected_usd_per_star)
 
 @router.post("/orders",status_code=503)
 def orders_disabled(x_telegram_init_data: Optional[str] = Header(None)):

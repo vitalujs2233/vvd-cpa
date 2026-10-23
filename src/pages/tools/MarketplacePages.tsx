@@ -94,8 +94,8 @@ export const ToolsTopupPage:React.FC=()=>{
     document.addEventListener('visibilitychange',resume);
     return()=>{mounted.current=false;clearInterval(timer);document.removeEventListener('visibilitychange',resume);};
   },[refresh]);
-  const amountNum=Number(amount),rate=Number(config?.stars_per_usd||0);
-  const stars=Math.ceil((Math.round(amountNum*100)*rate)/100-1e-9);
+  const amountNum=Number(amount),rate=Number(config?.usd_per_star||0);
+  const stars=Math.ceil(Math.round(amountNum*100)*10000/Math.round(rate*1000000));
   const valid=/^\d+(\.\d{1,2})?$/.test(amount)&&amountNum>=5&&amountNum<=10000&&stars>0&&stars<=100000;
   const openPayment=(invoice:ToolInvoice)=>{
     if(!invoice.payment_url||invoice.status!=='pending')return;
@@ -112,7 +112,7 @@ export const ToolsTopupPage:React.FC=()=>{
     sending.current=true;setBusy(true);setError('');setNotice('');
     if(request.current.amount!==amount)request.current={amount,key:crypto.randomUUID()};
     try{
-      const invoice=await marketApi.topup(amount,request.current.key,stars);
+      const invoice=await marketApi.topup(amount,request.current.key,stars,config.usd_per_star);
       issuedId.current=invoice.id;
       await refresh();
       if(invoice.status==='paid')setNotice('Этот счёт уже оплачен. Баланс обновлён.');
@@ -132,8 +132,9 @@ export const ToolsTopupPage:React.FC=()=>{
         <input className={inputClass+' mt-2'} type="text" inputMode="decimal" value={amount} disabled={busy} onChange={e=>setAmount(e.target.value.replace(',','.'))} placeholder="5.00"/>
       </label>
       <div className="grid grid-cols-5 gap-1">{[5,10,25,50,100].map(n=><button disabled={busy} type="button" key={n} onClick={()=>setAmount(String(n))} className={'rounded-app-xs border px-1 py-2 text-xs '+(amount===String(n)?'border-accentGold bg-accentGold/10 text-accentBrightGold':'border-white/10 text-textSecondary')}>${n}</button>)}</div>
-      <div className="flex justify-between text-sm"><span className="text-textSecondary">На баланс инструментов</span><strong>{valid?usd(amountNum):'—'}</strong></div>
+      <div className="flex justify-between text-sm"><span className="text-textSecondary">На баланс инструментов</span><strong>{valid?usd(stars*rate):'—'}</strong></div>
       <div className="flex justify-between text-sm"><span className="text-textSecondary">К оплате</span><strong>{valid?stars+' ⭐':'—'}</strong></div>
+      <p className="text-xs text-textSecondary">1 ⭐ = {usd(rate)}. Минимум $5. Количество Stars округляется вверх; вся оплаченная сумма зачисляется по курсу.</p>
       <p className="text-xs text-textSecondary">Внутренний баланс для покупки инструментов. Вывод и перевод другим пользователям недоступны. Стоимость в Stars показана до оплаты.</p>
       {config&&!config.payments_enabled&&<Status>Пополнение через Stars скоро будет доступно.</Status>}
       {config?.payments_enabled&&!valid&&<p role="alert" className="text-xs text-error">Сумма от $5 до $10 000, до двух знаков после запятой, не более 100 000 Stars за платёж.</p>}

@@ -2,6 +2,7 @@ import {readApiSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import { CPAManager } from './CPAManager';
 import { CPAUserHold } from './CPAUserHold';
+import { ToolsBalanceAdmin } from './ToolsBalanceAdmin';
 import { SupportTicketsAdmin } from './SupportTicketsAdmin';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -88,6 +89,7 @@ export const Admin: React.FC = () => {
   'withdrawals' |
   'banner' |
   'chatBans' |
+  'toolsBalance' |
   'supportTickets' |
   'cpa'
 >('menu');
@@ -363,6 +365,7 @@ const saveChatBanner = async () => {
     | 'withdrawals'
     | 'banner'
     | 'chatBans'
+    | 'toolsBalance'
     | 'supportTickets'
     | 'cpa'
 ) => {
@@ -467,6 +470,9 @@ const saveChatBanner = async () => {
           </button>
           <button type="button" onClick={() => handleSubViewChange('supportTickets')} className="flex items-center justify-between rounded-card border border-accentGold/30 bg-bgCard px-4 py-4 text-left text-sm font-bold text-white">
             <span>Обращения поддержки</span><Newspaper size={18} className="text-accentGold"/>
+          </button>
+          <button type="button" onClick={() => handleSubViewChange('toolsBalance')} className="flex items-center justify-between rounded-card border border-accentGold/30 bg-bgCard px-4 py-4 text-left text-sm font-bold text-white">
+            <span>Инструменты → Курс · Начисления</span><CreditCard size={18} className="text-accentGold"/>
           </button>
           {/* Информационная карточка */}
           <Card padding="md" className="flex items-center gap-3 text-left border-accentPurple/10 bg-accentPurple/[0.02]">
@@ -1074,6 +1080,7 @@ const saveChatBanner = async () => {
           </div>
         </div>
       )}
+      {subView === 'toolsBalance' && <ToolsBalanceAdmin onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'supportTickets' && <SupportTicketsAdmin onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'cpa' && <CPAManager onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'chatBans' && (
