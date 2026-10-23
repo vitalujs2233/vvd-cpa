@@ -27,7 +27,7 @@ export const HomeAdsAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
  const saveEdit=(id:string)=>void perform(async()=>{await apiRequest('/home-ads/admin/'+id,{method:'PUT',body:JSON.stringify({title:draftTitle,target_url:draftTarget,is_active:draftActive})});setEditing(null)});
  const replaceImage=(id:string,file:File|null)=>{if(!checkFile(file)||!file)return;const body=new FormData();body.append('image',file);void perform(()=>apiRequest('/home-ads/admin/'+id+'/image',{method:'POST',body}))};
  const remove=(item:HomeAd)=>{if(!window.confirm('Удалить баннер «'+item.title+'»?'))return;void perform(()=>apiRequest('/home-ads/admin/'+item.id,{method:'DELETE'}))};
- const move=(index:number,direction:number)=>{const next=[...items];const to=index+direction;if(to<0||to>=next.length)return;[next[index],next[to]]=[next[to],next[index]];void perform(()=>apiRequest('/home-ads/admin/order',{method:'PUT',body:JSON.stringify({ids:next.map(x=>x.id)})}))};
+ const move=(index:number,direction:number)=>{const next=[...items];const to=index+direction;if(to<0||to>=next.length)return;[next[index],next[to]]=[next[to],next[index]];void perform(()=>apiRequest('/home-ads/admin/order/items',{method:'PUT',body:JSON.stringify({ids:next.map(x=>x.id)})}))};
  return <div className="flex flex-col gap-4 pb-24 animate-fade-in">
   <button onClick={onBack} className="flex gap-2 items-center text-accentGoldBright"><ArrowLeft size={18}/>Назад</button>
   <h1 className="text-xl font-bold text-white">Рекламные баннеры</h1>
