@@ -37,3 +37,17 @@
     animation: none;
   }
 }
+
+/* Subtle premium shimmer exclusively for the Why VVD CPA home icon. */
+.home-why-icon svg {
+  transform-origin: center;
+  animation: home-why-icon-glow 5.5s ease-in-out infinite;
+  will-change: filter;
+}
+@keyframes home-why-icon-glow {
+  0%, 100% { opacity: .82; filter: drop-shadow(0 0 1px rgba(246,196,83,.12)); transform: scale(1); }
+  50% { opacity: 1; filter: drop-shadow(0 0 7px rgba(246,196,83,.45)); transform: scale(1.055); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-why-icon svg { animation: none; will-change: auto; }
+}
