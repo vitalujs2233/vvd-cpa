@@ -4,6 +4,8 @@ ALTER TABLE public.tool_payment_invoices ADD CONSTRAINT tool_payment_invoices_pr
 ALTER TABLE public.tool_payment_invoices DROP CONSTRAINT tool_payment_invoices_status_check;
 ALTER TABLE public.tool_payment_invoices ADD CONSTRAINT tool_payment_invoices_status_check CHECK(status IN ('draft','pending','paid','expired','cancelled','failed','refunded'));
 ALTER TABLE public.tool_payment_invoices
+ ADD COLUMN terms_version TEXT,
+ ADD COLUMN terms_accepted_at TIMESTAMPTZ,
  ADD COLUMN stars_amount INTEGER,
  ADD COLUMN stars_per_usd NUMERIC(18,6),
  ADD COLUMN request_id UUID,
@@ -14,7 +16,8 @@ ALTER TABLE public.tool_payment_invoices
    (stars_amount IS NOT NULL AND stars_amount BETWEEN 1 AND 100000
     AND stars_per_usd IS NOT NULL AND stars_per_usd BETWEEN 1 AND 100000
     AND stars_amount=CEIL(amount_usd*stars_per_usd)
-    AND request_id IS NOT NULL AND expires_at IS NOT NULL)),
+    AND request_id IS NOT NULL AND expires_at IS NOT NULL
+    AND terms_version IS NOT NULL AND terms_version='tools-stars-v1' AND terms_accepted_at IS NOT NULL)),
  ADD CONSTRAINT tool_stars_settled CHECK(provider<>'telegram_stars' OR status NOT IN ('paid','refunded') OR
    (provider_invoice_id IS NOT NULL AND paid_at IS NOT NULL)),
  ADD CONSTRAINT tool_stars_refunded CHECK(status<>'refunded' OR refunded_at IS NOT NULL),

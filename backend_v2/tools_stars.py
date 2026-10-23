@@ -76,8 +76,8 @@ def prepare(uid, amount, request_id, expected_stars):
         if row:
             return dict(row)
         row = c.execute(text("""INSERT INTO tool_payment_invoices
-            (id,telegram_id,provider,amount_usd,stars_amount,stars_per_usd,request_id,expires_at)
-            VALUES (:id,:uid,'telegram_stars',:amount,:stars,:rate,:key,NOW()+INTERVAL '30 minutes')
+            (id,telegram_id,provider,amount_usd,stars_amount,stars_per_usd,request_id,expires_at,terms_version,terms_accepted_at)
+            VALUES (:id,:uid,'telegram_stars',:amount,:stars,:rate,:key,NOW()+INTERVAL '30 minutes','tools-stars-v1',NOW())
             RETURNING *"""), {'id': uuid4(), 'uid': uid, 'amount': amount, 'stars': stars,
                                'rate': cfg['stars_per_usd'], 'key': request_id}).mappings().one()
         return dict(row)

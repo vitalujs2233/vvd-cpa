@@ -1,7 +1,7 @@
 """Tools marketplace API. No live payment/order creation without reviewed provider adapters."""
 from decimal import Decimal
 from urllib.parse import urlsplit
-from typing import Optional
+from typing import Optional, Literal
 from uuid import UUID
 import re
 from fastapi import APIRouter, Header, HTTPException
@@ -163,6 +163,7 @@ def payment_invoices(x_telegram_init_data: Optional[str] = Header(None)):
 
 
 class StarsTopupPayload(DemoTopupPayload):
+    terms_version: Literal["tools-stars-v1"]
     request_id: UUID
     expected_stars: int = Field(strict=True, ge=1, le=100000)
 

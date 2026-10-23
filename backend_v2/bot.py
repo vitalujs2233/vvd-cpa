@@ -3,7 +3,7 @@ import logging
 import os
 
 from aiogram import Bot, Dispatcher, F, types
-from aiogram.filters import CommandStart, CommandObject
+from aiogram.filters import CommandStart, CommandObject, Command
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 
 from database import save_user
@@ -56,6 +56,15 @@ async def cmd_start(message: types.Message, command: CommandObject):
         ),
         reply_markup=keyboard,
     )
+
+
+@dp.message(Command("paysupport"))
+async def tools_payment_support(message: types.Message):
+    await message.answer(
+        "По вопросам пополнения инструментов и возврата Stars откройте VVD CPA → Инструменты → Пополнение → Поддержка по оплате и возвратам. "
+        "Укажите дату, сумму и номер счёта. Никому не отправляйте пароли или коды входа.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(
+            text="Открыть VVD CPA", web_app=WebAppInfo(url="https://vitalujs2233.github.io/vvd-cpa/"))]]))
 
 
 @dp.pre_checkout_query()

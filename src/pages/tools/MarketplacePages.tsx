@@ -72,6 +72,7 @@ export const ToolsTopupPage:React.FC=()=>{
   const w=useRemote(readWallet,emptyWallet);
   const [amount,setAmount]=useState('5'),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const [notice,setNotice]=useState('');
+  const [accepted,setAccepted]=useState(false);
   const [config,setConfig]=useState<TopupConfig|null>(null);
   const [invoices,setInvoices]=useState<ToolInvoice[]>([]);
   const sending=useRef(false), mounted=useRef(true), request=useRef({amount:'',key:''});
@@ -82,7 +83,7 @@ export const ToolsTopupPage:React.FC=()=>{
       if(!mounted.current)return;
       setConfig(cfg);setInvoices(data.invoices);setError('');
       const paid=data.invoices.filter(i=>i.status==='paid'||i.status==='refunded').map(i=>i.id+i.status).join(',');
-      if(previousPaid.current!==paid){previousPaid.current=paid;await Promise.all([w.refresh(),marketApi.transactions()]);}
+      if(previousPaid.current!==paid){if(previousPaid.current!==null)setNotice('Статус оплаты подтверждён сервером. Баланс и история обновлены.');previousPaid.current=paid;await Promise.all([w.refresh(),marketApi.transactions()]);}
     }catch(e){if(mounted.current)setError(toText(e));}
   },[w.refresh]);
   useEffect(()=>{
@@ -106,7 +107,7 @@ export const ToolsTopupPage:React.FC=()=>{
     });
   };
   const pay=async()=>{
-    if(!valid||sending.current||!config?.payments_enabled)return;
+    if(!valid||!accepted||sending.current||!config?.payments_enabled)return;
     sending.current=true;setBusy(true);setError('');setNotice('');
     if(request.current.amount!==amount)request.current={amount,key:crypto.randomUUID()};
     try{
@@ -134,7 +135,9 @@ export const ToolsTopupPage:React.FC=()=>{
       <p className="text-xs text-textSecondary">Внутренний баланс для покупки инструментов. Вывод и перевод другим пользователям недоступны. Стоимость в Stars показана до оплаты.</p>
       {config&&!config.payments_enabled&&<Status>Пополнение через Stars скоро будет доступно.</Status>}
       {config?.payments_enabled&&!valid&&<p role="alert" className="text-xs text-error">Сумма от $5 до $10 000, до двух знаков после запятой, не более 100 000 Stars за платёж.</p>}
-      <Button type="button" isLoading={busy} disabled={!valid||!config?.payments_enabled} onClick={()=>void pay()}>Пополнить через Stars</Button>
+      <label className="flex items-start gap-2 text-xs text-textSecondary"><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)} className="mt-1"/>Понимаю, что пополнение предназначено только для инструментов; сумма USD и стоимость Stars указаны выше. По вопросам оплаты и возврата обращусь в поддержку.</label>
+      <Link to="/support" className="text-xs text-accentBrightGold">Поддержка по оплате и возвратам →</Link>
+      <Button type="button" isLoading={busy} disabled={!valid||!accepted||!config?.payments_enabled} onClick={()=>void pay()}>Пополнить через Stars</Button>
       {error&&<p role="alert" className="text-xs text-error">{error}</p>}
       {notice&&<Status>{notice}</Status>}
       <Link to="/tools/history" className="text-xs text-accentBrightGold">История операций →</Link>
