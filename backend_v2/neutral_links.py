@@ -8,6 +8,7 @@ permits or prevents redirect.
 import ipaddress
 import re
 import uuid
+import unicodedata
 from urllib.parse import urlsplit, parse_qsl, urlencode, urlunsplit
 from fastapi import APIRouter, Header, HTTPException, Request, BackgroundTasks
 from click_geo import public_client_ip, enrich_click_country
@@ -118,10 +119,24 @@ def create_personal_link(offer_id:str,x_telegram_init_data:str|None=Header(None)
     except IntegrityError as exc:
         raise HTTPException(503,"Не удалось сохранить ссылку") from exc
 
+def _traffic_tags(request: Request):
+    tags = {}
+    for field in ("sub1", "sub2", "sub3", "sub4", "sub5"):
+        values = request.query_params.getlist(field)
+        if len(values) > 1:
+            raise HTTPException(422, f"{field}: укажите одно значение")
+        raw = values[0] if values else ""
+        if len(raw) > 128 or any(unicodedata.category(c) in ("Cc", "Cs") for c in raw):
+            raise HTTPException(422, f"{field}: до 128 символов без управляющих символов")
+        tags[field] = raw.strip() or None
+    return tags
+
+
 @router.get("/r/{suffix}")
 def neutral_click_redirect(suffix:str, request:Request, background_tasks:BackgroundTasks):
     if not re.fullmatch(r"s[a-f0-9]{32}",suffix):
         raise HTTPException(404,"Ссылка не найдена")
+    tags=_traffic_tags(request)
     click_id=str(uuid.uuid4())
     visitor_ip=public_client_ip(request)
     try:
@@ -140,13 +155,13 @@ def neutral_click_redirect(suffix:str, request:Request, background_tasks:Backgro
                 offer["partner_param"],row["partner_code"])
             conn.execute(text("""
               INSERT INTO clicks(user_id,partner_code,click_id,vertical,
-                  offer_id,network_id,smartlink_id,ip_address)
+                  offer_id,network_id,smartlink_id,ip_address,sub1,sub2,sub3,sub4,sub5)
               VALUES(:user_id,:partner_code,:click_id,:vertical,
-                  :offer_id,:network_id,:smartlink_id,:ip_address)
+                  :offer_id,:network_id,:smartlink_id,:ip_address,:sub1,:sub2,:sub3,:sub4,:sub5)
             """),{"user_id":row["user_id"],"partner_code":row["partner_code"],
                   "click_id":click_id,"vertical":offer["vertical_slug"],
                   "offer_id":offer["id"],"network_id":offer["network_id"],
-                  "smartlink_id":row["smartlink_id"],"ip_address":visitor_ip})
+                  "smartlink_id":row["smartlink_id"],"ip_address":visitor_ip,**tags})
     except SQLAlchemyError as exc:
         raise HTTPException(503,"Регистрация перехода временно недоступна") from exc
     if visitor_ip:

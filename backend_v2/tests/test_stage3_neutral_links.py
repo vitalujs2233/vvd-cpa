@@ -68,6 +68,7 @@ class NeutralLinkTests(unittest.TestCase):
             conn.connection.cursor().execute(stage3)
             conn.execute(text("ALTER TABLE cpa_networks ADD COLUMN IF NOT EXISTS click_param VARCHAR(48)"))
             conn.connection.cursor().execute((ROOT/"migrations/20261017_universal_cpa_integrations.sql").read_text())
+            conn.connection.cursor().execute((ROOT/"migrations/20261023103728_traffic_subs.sql").read_text())
             conn.execute(text("UPDATE cpa_verticals SET cpa_link_allowed=TRUE WHERE slug='utilities'"))
             conn.execute(text("""INSERT INTO users(telegram_id,first_name,partner_code,status)
                VALUES(:id,'Tester',:code,'active') ON CONFLICT(telegram_id)

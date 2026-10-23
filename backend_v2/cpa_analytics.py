@@ -339,3 +339,62 @@ def admin_analytics(telegram_id:int|None=None,period:str="all",vertical:str|None
                 "offers":grouped(conn,telegram_id,params,"offers"),
                 "networks":grouped(conn,telegram_id,params,"networks"),
                 "partners":grouped(conn,telegram_id,params,"partners")}
+
+
+def traffic_subs(conn, uid, params, field="sub1", search="", limit=50, offset=0):
+    # Only allow known column names; all values remain bound parameters.
+    if field not in ("sub1", "sub2", "sub3", "sub4", "sub5"):
+        raise HTTPException(422, "Unknown sub field")
+    rows = conn.execute(text("""
+      WITH clicks AS ("""+CLICK_ROWS+"""), conversions AS ("""+CONVERSION_ROWS+"""),
+      amounts AS (
+        SELECT l.conversion_id,
+          sum(CASE WHEN l.operation_type IN ('hold_credit','hold_reversal') THEN l.hold_delta
+                   WHEN l.operation_type='balance_reversal' THEN l.balance_delta ELSE 0 END) income,
+          sum(CASE WHEN l.operation_type IN ('hold_credit','hold_release','manual_hold_release','hold_reversal')
+                   THEN l.hold_delta ELSE 0 END) hold
+        FROM public.cpa_ledger l JOIN conversions v ON v.id=l.conversion_id
+        WHERE v.is_real GROUP BY l.conversion_id
+      ), events AS (
+        SELECT k."""+field+""" AS value,1 AS clicks,0 AS conversions,
+               0 AS pending,0 AS approved,0 AS rejected,0::numeric AS income,0::numeric AS hold
+        FROM clicks c JOIN public.clicks k ON k.id=c.id
+        UNION ALL
+        SELECT k."""+field+""",0,1,
+               CASE WHEN v.normalized_status='pending' THEN 1 ELSE 0 END,
+               CASE WHEN v.normalized_status='approved' THEN 1 ELSE 0 END,
+               CASE WHEN v.normalized_status='rejected' THEN 1 ELSE 0 END,
+               coalesce(a.income,0),coalesce(a.hold,0)
+        FROM conversions v
+        LEFT JOIN public.clicks k ON k.click_id=v.click_id AND k.user_id=v.user_id
+        LEFT JOIN amounts a ON a.conversion_id=v.id
+        WHERE NOT v.is_test AND v.normalized_status IN ('pending','approved','rejected')
+      )
+      SELECT value,sum(clicks) clicks,sum(conversions) conversions,
+             sum(pending) pending,sum(approved) approved,sum(rejected) rejected,
+             sum(income) income,sum(hold) hold
+      FROM events
+      WHERE :search='' OR strpos(lower(coalesce(value,'')),lower(:search))>0
+      GROUP BY value ORDER BY clicks DESC,value NULLS LAST LIMIT :limit OFFSET :offset
+    """),{**params,"uid":uid,"search":search.strip(),"limit":limit+1,"offset":offset}).mappings().all()
+    return {"rows":[{"value":r["value"],
+             **{k:int(r[k]) for k in ("clicks","conversions","pending","approved","rejected")},
+             "income":scalar(r["income"]),"hold":scalar(r["hold"]),
+             "cr":round(100*r["conversions"]/r["clicks"],2) if r["clicks"] else None,
+             "epc":scalar(r["income"]/r["clicks"]) if r["clicks"] else None} for r in rows[:limit]],
+             "has_more":len(rows)>limit}
+
+
+@router.get("/statistics/{telegram_id}/subs")
+def partner_subs(telegram_id:int,period:str="all",vertical:str|None=None,
+                 offer_id:str|None=None,network_id:int|None=None,
+                 date_from:date|None=Query(None,alias="from"),
+                 date_to:date|None=Query(None,alias="to"),tz:str="UTC",
+                 field:str=Query("sub1",pattern="^sub[1-5]$"),
+                 search:str=Query("",max_length=128),limit:int=Query(50,ge=1,le=100),
+                 offset:int=Query(0,ge=0)):
+    # access_guard enforces signed Telegram owner/admin on /statistics/{id}/*.
+    if date_from and date_to and date_from>date_to: raise HTTPException(422,"Invalid date range")
+    params=arguments(period,date_from,date_to,vertical,offer_id,network_id,tz)
+    with engine.connect() as conn:
+        return {"success":True,"field":field,**traffic_subs(conn,telegram_id,params,field,search,limit,offset)}
