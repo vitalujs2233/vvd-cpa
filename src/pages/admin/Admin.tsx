@@ -2,6 +2,7 @@ import {readApiSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import { CPAManager } from './CPAManager';
 import { InfoAdmin } from './InfoAdmin';
+import { HomeAdsAdmin } from './HomeAdsAdmin';
 import { CPAUserHold } from './CPAUserHold';
 import { ToolsBalanceAdmin } from './ToolsBalanceAdmin';
 import { SupportTicketsAdmin } from './SupportTicketsAdmin';
@@ -92,7 +93,7 @@ export const Admin: React.FC = () => {
   'chatBans' |
   'toolsBalance' |
   'supportTickets' |
-  'cpa' | 'information'
+  'cpa' | 'information' | 'homeAds'
 >('menu');
   const [searchQuery, setSearchQuery] = useState('');
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>(()=>readApiSnapshot('/admin/users')?.users||[]);
@@ -370,6 +371,7 @@ const saveChatBanner = async () => {
     | 'supportTickets'
     | 'cpa'
     | 'information'
+    | 'homeAds'
 ) => {
   triggerHaptic.lightImpact();
   setSubView(view);
@@ -453,6 +455,7 @@ const saveChatBanner = async () => {
       {/* ================= VIEW 1: ГЛАВНОЕ МЕНЮ АДМИНКИ ================= */}
       {subView === 'menu' && (
         <div className="flex flex-col gap-4">
+          <button type="button" onClick={()=>handleSubViewChange('homeAds')} className="w-full rounded-card border border-accentGold/30 bg-bgCard p-4 text-left text-accentGoldBright font-bold">Рекламные баннеры →</button>
           <button type="button" onClick={()=>handleSubViewChange('information')} className="w-full rounded-card border border-accentGold/30 bg-bgCard p-4 text-left text-accentGoldBright font-bold">Управление информацией →</button>
           {/* Шапка админ-панели */}
           <div className="flex items-center gap-3 text-left">
@@ -1085,6 +1088,7 @@ const saveChatBanner = async () => {
       )}
       {subView === 'toolsBalance' && <ToolsBalanceAdmin onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'supportTickets' && <SupportTicketsAdmin onBack={() => handleSubViewChange('menu')}/>}
+      {subView === 'homeAds' && <HomeAdsAdmin onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'information' && <InfoAdmin onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'cpa' && <CPAManager onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'chatBans' && (
