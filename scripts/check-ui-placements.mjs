@@ -9,7 +9,7 @@ const api = readFileSync('backend_v2/tools_marketplace.py', 'utf8');
 
 assert.doesNotMatch(home, /StarsTopup|StarsWallet|ToolsTopup|Пополнить|Баланс инструментов/i,
   'Home must never contain tools wallet or top-up');
-assert.match(home, /balance\.available\.toFixed\(2\)/);
+assert.match(home, /amount\(balance\?\.available\)/);
 assert.match(home, /handleDvizhClick/);
 assert.match(app, /to="\/tools"/);
 assert.match(app, /path="dvizh"/);
@@ -19,7 +19,7 @@ for (const route of ['topup','history','purchases','numbers','proxy','ai']) {
 assert.match(market, /Баланс инструментов/);
 assert.match(market, /usd\(w\.value\.available\)/);
 assert.match(market, /Пополнить/);
-assert.doesNotMatch(market, /StarsWallet|openStarsInvoice|⭐/);
+assert.doesNotMatch(market, /StarsWallet|openStarsInvoice/);
 assert.match(studio, /Новый персонаж/);
 assert.match(studio, /Выбрать мой смартлинк|Выбрать ссылку/);
 assert.match(readFileSync('src/pages/tools/PublicAIChat.tsx','utf8'), /Виртуальный собеседник/);

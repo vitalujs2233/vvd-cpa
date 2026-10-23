@@ -1,7 +1,7 @@
 """Tools marketplace API. No live payment/order creation without reviewed provider adapters."""
 from decimal import Decimal
 from urllib.parse import urlsplit
-from typing import Optional
+from typing import Optional, Literal
 from uuid import UUID
 import re
 from fastapi import APIRouter, Header, HTTPException
@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import text
 from database import engine
 from stars_payments import require_telegram_id
+import tools_stars
 
 router = APIRouter(prefix="/tools-market", tags=["Tools marketplace"])
 
@@ -76,8 +77,8 @@ def wallet(x_telegram_init_data: Optional[str] = Header(None)):
     uid = owner(x_telegram_init_data)
     with engine.begin() as conn:
         conn.execute(text("INSERT INTO tool_wallets(telegram_id) VALUES(:uid) ON CONFLICT DO NOTHING"),{"uid":uid})
-        row = conn.execute(text("SELECT available,reserved FROM tool_wallets WHERE telegram_id=:uid"),{"uid":uid}).one()
-    return {"currency":"USD","available":str(row.available),"reserved":str(row.reserved),"payments_enabled":False}
+        row = conn.execute(text("SELECT available,reserved,refund_debt FROM tool_wallets WHERE telegram_id=:uid"),{"uid":uid}).one()
+    return {"currency":"USD","available":str(row.available),"reserved":str(row.reserved),"refund_debt":str(row.refund_debt),"payments_enabled":tools_stars.settings()["payments_enabled"]}
 
 @router.get("/catalog")
 def catalog():
@@ -143,29 +144,35 @@ def create_demo_topup(payload: DemoTopupPayload, x_telegram_init_data: Optional[
         """), {"uid":uid,"amount":payload.amount}).one()
     return {"id":str(row.id),"amount":str(row.amount),"created_at":row.created_at.isoformat()}
 
+@router.get("/topup-config")
+def topup_config(x_telegram_init_data: Optional[str] = Header(None)):
+    owner(x_telegram_init_data)
+    return tools_stars.settings()
+
+
 @router.get("/payment-invoices")
 def payment_invoices(x_telegram_init_data: Optional[str] = Header(None)):
-    """Read-only invoice history; never trusts client-supplied status or credits wallets."""
     uid = owner(x_telegram_init_data)
-    with engine.connect() as conn:
-        rows = conn.execute(text("""
-          SELECT id, amount_usd, currency, status, created_at, updated_at, paid_at
-          FROM tool_payment_invoices WHERE telegram_id=:uid
-          ORDER BY created_at DESC LIMIT 100
-        """), {"uid": uid}).all()
-    return {"invoices": [
-        {"id": str(r.id), "amount": str(r.amount_usd), "currency": r.currency,
-         "status": r.status, "created_at": r.created_at.isoformat(),
-         "updated_at": r.updated_at.isoformat(),
-         "paid_at": r.paid_at.isoformat() if r.paid_at else None}
-        for r in rows
-    ]}
+    with engine.begin() as conn:
+        conn.execute(text("""UPDATE tool_payment_invoices SET status='expired',updated_at=NOW()
+            WHERE telegram_id=:uid AND provider='telegram_stars' AND status IN ('draft','pending')
+            AND expires_at<NOW()"""), {'uid': uid})
+        rows = conn.execute(text("""SELECT * FROM tool_payment_invoices
+            WHERE telegram_id=:uid ORDER BY created_at DESC LIMIT 100"""), {'uid': uid}).mappings().all()
+        return {'invoices': [{**tools_stars.public(row), 'amount': str(row['amount_usd'])} for row in rows]}
 
 
-@router.post("/topup",status_code=503)
-def topup_disabled(x_telegram_init_data: Optional[str] = Header(None)):
-    owner(x_telegram_init_data)
-    raise HTTPException(503,"Платёжный провайдер не подключён. Счета не создаются.")
+class StarsTopupPayload(DemoTopupPayload):
+    terms_version: Literal["tools-stars-v1"]
+    request_id: UUID
+    expected_stars: int = Field(strict=True, ge=1, le=100000)
+
+
+@router.post("/topup")
+async def topup(payload: StarsTopupPayload, x_telegram_init_data: Optional[str] = Header(None)):
+    uid = owner(x_telegram_init_data)
+    from bot import bot
+    return await tools_stars.create_invoice(uid, payload.amount, payload.request_id, payload.expected_stars, bot)
 
 @router.post("/orders",status_code=503)
 def orders_disabled(x_telegram_init_data: Optional[str] = Header(None)):
