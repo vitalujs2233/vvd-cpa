@@ -17,7 +17,7 @@ log = logging.getLogger(__name__)
 PREFIX = 'vvdtools:'
 
 
-def settings():
+def legacy_settings():
     try:
         rate = Decimal(os.getenv('TOOLS_STARS_PER_USD', '0'))
         if not rate.is_finite() or not Decimal('1') <= rate <= Decimal('100000') or rate != rate.quantize(Decimal('.000001')):
@@ -28,6 +28,27 @@ def settings():
                and bool(rate) and bool(os.getenv('BOT_TOKEN')))
     return {'payments_enabled': enabled, 'stars_per_usd': str(rate) if rate else None,
             'min_usd': '5.00', 'max_usd': '10000.00', 'currency': 'XTR'}
+
+
+def settings():
+    with engine.connect() as c:
+        row = c.execute(text('SELECT * FROM tool_payment_settings WHERE id=1')).mappings().one()
+    ready = os.getenv('TOOLS_STARS_ENABLED', 'false').lower() == 'true' and bool(os.getenv('BOT_TOKEN'))
+    return {'payments_enabled': ready and row['enabled'], 'enabled': row['enabled'], 'server_ready': ready,
+            'usd_per_star': str(row['usd_per_star']), 'stars_per_usd': None, 'version': row['version'],
+            'min_usd': '5.00', 'max_usd': '10000.00', 'currency': 'XTR'}
+
+
+def quote(amount, usd_per_star):
+    # price() performs common input validation; Decimal division avoids inverse-rate rounding.
+    amount, _ = price(amount, '1')
+    rate = Decimal(str(usd_per_star))
+    if not rate.is_finite() or not Decimal('.000001') <= rate <= 1 or rate != rate.quantize(Decimal('.000001')):
+        raise HTTPException(422, 'Некорректный курс Stars.')
+    stars = int((amount / rate).to_integral_value(rounding=ROUND_CEILING))
+    if stars > 100000:
+        raise HTTPException(422, 'Не более 100 000 Stars за платёж.')
+    return stars * rate, stars
 
 
 def price(amount, rate):
@@ -53,21 +74,23 @@ def public(row):
             ('id', 'amount_usd', 'currency', 'stars_amount', 'status', 'payment_url', 'created_at', 'updated_at', 'paid_at', 'expires_at')}
 
 
-def prepare(uid, amount, request_id, expected_stars):
+def prepare(uid, amount, request_id, expected_stars, expected_rate=None):
     cfg = settings()
     if not cfg['payments_enabled']:
         raise HTTPException(503, 'Пополнение через Stars пока не включено.')
-    amount, stars = price(amount, cfg['stars_per_usd'])
+    requested = Decimal(str(amount))
+    rate = cfg.get('usd_per_star')
+    amount, stars = quote(amount, rate) if rate else price(amount, cfg['stars_per_usd'])
     with engine.begin() as c:
         # Serialize requests from the same owner, including different request keys.
         c.execute(text('SELECT pg_advisory_xact_lock(:uid)'), {'uid': uid})
         row = c.execute(text("SELECT * FROM tool_payment_invoices WHERE telegram_id=:uid AND request_id=:key"),
                         {'uid': uid, 'key': request_id}).mappings().first()
         if row:
-            if row['amount_usd'] != amount:
+            if (row['requested_amount_usd'] or row['amount_usd']) != requested:
                 raise HTTPException(409, 'Этот запрос уже использован для другой суммы.')
             return dict(row)
-        if stars != expected_stars:
+        if stars != expected_stars or (rate and (expected_rate is None or Decimal(str(expected_rate)) != Decimal(rate))):
             raise HTTPException(409, 'Тариф изменился. Обновите страницу перед оплатой.')
         row = c.execute(text("""SELECT * FROM tool_payment_invoices
             WHERE telegram_id=:uid AND provider='telegram_stars' AND amount_usd=:amount
@@ -76,24 +99,24 @@ def prepare(uid, amount, request_id, expected_stars):
         if row:
             return dict(row)
         row = c.execute(text("""INSERT INTO tool_payment_invoices
-            (id,telegram_id,provider,amount_usd,stars_amount,stars_per_usd,request_id,expires_at,terms_version,terms_accepted_at)
-            VALUES (:id,:uid,'telegram_stars',:amount,:stars,:rate,:key,NOW()+INTERVAL '30 minutes','tools-stars-v1',NOW())
+            (id,telegram_id,provider,amount_usd,stars_amount,stars_per_usd,request_id,expires_at,terms_version,terms_accepted_at,usd_per_star,requested_amount_usd)
+            VALUES (:id,:uid,'telegram_stars',:amount,:stars,:rate,:key,NOW()+INTERVAL '30 minutes','tools-stars-v1',NOW(),:usd_rate,:requested)
             RETURNING *"""), {'id': uuid4(), 'uid': uid, 'amount': amount, 'stars': stars,
-                               'rate': cfg['stars_per_usd'], 'key': request_id}).mappings().one()
+                               'rate': cfg['stars_per_usd'], 'key': request_id, 'usd_rate':rate,'requested':requested if rate else None}).mappings().one()
         return dict(row)
 
 
-async def create_invoice(uid, amount, request_id, expected_stars, bot):
-    row = await asyncio.to_thread(prepare, uid, amount, request_id, expected_stars)
+async def create_invoice(uid, amount, request_id, expected_stars, bot, expected_rate=None):
+    row = await asyncio.to_thread(prepare, uid, amount, request_id, expected_stars, expected_rate)
     if row['payment_url'] or row['status'] not in ('draft', 'pending'):
         return public(row)
     from aiogram.types import LabeledPrice
     try:
         url = await bot.create_invoice_link(
             title='Баланс инструментов VVD CPA',
-            description=f"Пополнение на ${row['amount_usd']:.2f} для оплаты инструментов. Не для вывода.",
+            description=f"Пополнение на ${row['amount_usd']:f} для оплаты инструментов. Не для вывода.",
             payload=PREFIX + str(row['id']), provider_token='', currency='XTR',
-            prices=[LabeledPrice(label=f"Баланс ${row['amount_usd']:.2f}", amount=row['stars_amount'])])
+            prices=[LabeledPrice(label=f"Баланс ${row['amount_usd']:f}", amount=row['stars_amount'])])
     except Exception:
         # An ambiguous timeout leaves the SAME invoice recoverable. Additional
         # links share its payload; pre-checkout locks prevent a second payment.

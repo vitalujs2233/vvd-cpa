@@ -1987,3 +1987,7 @@ async def process_referral_withdrawal(withdrawal_id: int, decision: str, data: C
         message='Реферальная выплата оплачена' if decision=='paid' else 'Реферальная выплата отклонена. Средства возвращены на реферальный баланс.'
         await send_partner_notification(result['user_id'],message+'\nСумма: $'+format(result['amount'],'.2f'))
     return result
+
+# Tools-only administrator settings and manual credits.
+from tools_admin import router as tools_admin_router
+app.include_router(tools_admin_router)
