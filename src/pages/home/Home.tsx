@@ -1,4 +1,5 @@
 import './Home.css';
+import {HomeAdCarousel} from './HomeAdCarousel';
 import {readSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import React, { useEffect, useState } from 'react';
@@ -187,6 +188,7 @@ export const Home: React.FC = () => {
           <ChevronRight size={18} className="text-accentGoldBright"/>
         </button>
       </Card>
+      <HomeAdCarousel/>
 
     </div>
   );
