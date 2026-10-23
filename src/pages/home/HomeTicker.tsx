@@ -28,7 +28,6 @@ export const HomeTicker:React.FC=()=>{
  const [feed,setFeed]=useState<TickerFeed>({enabled:false,items:[]});
  const [duration,setDuration]=useState(20);
  const [reduced,setReduced]=useState(false);
- const track=useRef<HTMLDivElement>(null);
  const group=useRef<HTMLDivElement>(null);
  const navigate=useNavigate();
  useEffect(()=>{
@@ -43,13 +42,13 @@ export const HomeTicker:React.FC=()=>{
  },[]);
  const items=feed.items.filter(item=>item.is_active);
  useEffect(()=>{
-  if(!feed.enabled||!items.length||!group.current)return;
+  if(!feed.enabled||!items.length||!group.current||reduced)return;
   const measure=()=>{const width=group.current?.getBoundingClientRect().width||0;if(width)setDuration(Math.max(8,width/40))};
   measure();
   const observer=new ResizeObserver(measure);
   observer.observe(group.current);
   return()=>observer.disconnect();
- },[feed]);
+ },[feed,reduced]);
  if(!feed.enabled||!items.length)return null;
  const renderGroup=(duplicate:boolean)=><div ref={duplicate?undefined:group} className="vvd-ticker-group" aria-hidden={duplicate}>
   {items.map(item=><React.Fragment key={item.id}>
@@ -61,7 +60,7 @@ export const HomeTicker:React.FC=()=>{
   <Megaphone size={14} className="vvd-ticker-icon" aria-hidden="true"/>
   <div className="vvd-ticker-viewport">
    {reduced?<div className="vvd-ticker-static">{items.map(item=><span key={item.id} style={{color:tickerColor(item.color)}}>✦ {item.text}　</span>)}</div>:
-   <div ref={track} className="vvd-ticker-track" style={{'--vvd-ticker-duration':duration+'s'} as React.CSSProperties}>{renderGroup(false)}{renderGroup(true)}</div>}
+   <div className="vvd-ticker-track" style={{'--vvd-ticker-duration':duration+'s'} as React.CSSProperties}>{renderGroup(false)}{renderGroup(true)}</div>}
   </div>
  </section>;
 };
