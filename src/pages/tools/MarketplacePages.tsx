@@ -206,7 +206,7 @@ export const ToolsProxy:React.FC=()=>{
       <p className="text-xs text-textSecondary">Стоимость: появится после проверки тарифов API. Доступность выбранных параметров не подтверждена.</p>
       <Button type="button" disabled={!config||busy||!Number.isInteger(selection.quantity)||selection.quantity<1||selection.quantity>100} isLoading={busy} onClick={()=>void preview()}>Проверить выбор (демо)</Button>
       {notice&&<Status>{notice}</Status>}{error&&<p role="alert" className="text-xs text-error">{error}</p>}
-      <Link to="/tools/my-proxies" className="text-xs text-accentBrightGold">Мои прокси →</Link>
+      <Link to="/tools/proxy/my" className="text-xs text-accentBrightGold">Мои прокси →</Link>
     </Card>
   </Shell>;
 };
