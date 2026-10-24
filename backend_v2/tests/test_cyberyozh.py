@@ -60,6 +60,56 @@ class AdapterTests(unittest.TestCase):
                 self.assertEqual(result.status_code,503)
                 self.assertEqual(client.post('/tools-market/proxy/orders').status_code,503)
 
+    def test_offset_pagination_preserves_filters(self):
+        calls=[]
+        def handler(r):
+            calls.append(r)
+            self.assertEqual(r.url.params['country'],'49')
+            if 'offset' not in r.url.params:
+                return httpx.Response(200,json={'results':[{'id':1}], 'next':'https://app.cyberyozh.com/api/v1/numbers/search/?offset=100&limit=100'})
+            self.assertEqual(r.url.params['offset'],'100')
+            return httpx.Response(200,json={'results':[{'id':2}], 'next':None})
+        rows=Client(httpx.MockTransport(handler)).rows('numbers/search/',{'country':'49'})
+        self.assertEqual(rows,[{'id':1},{'id':2}]);self.assertEqual(len(calls),2)
+
+    def test_repeated_page_and_foreign_next_fail_closed(self):
+        for next_url in ('?page=2','https://evil.example/numbers/search/?page=2'):
+            calls=[]
+            def handler(r):
+                calls.append(r)
+                return httpx.Response(200,json={'results':[{'id':1}],'next':next_url})
+            with self.assertRaises(ProviderError):Client(httpx.MockTransport(handler)).rows('numbers/search/')
+            self.assertLessEqual(len(calls),2)
+
+    def test_total_budget_stops_pagination(self):
+        calls=[];clock=[0]
+        def handler(r):
+            calls.append(r);clock[0]+=12
+            return httpx.Response(200,json={'results':[{'id':len(calls)}],'next':'?offset='+str(len(calls)*100)})
+        with patch('cyberyozh.client.time.monotonic',side_effect=lambda:clock[0]):
+            with self.assertRaisesRegex(ProviderError,'provider_timeout'):
+                Client(httpx.MockTransport(handler)).rows('numbers/search/')
+        self.assertEqual(len(calls),2)
+
+    def test_catalog_cache_single_flight_expiry_and_errors(self):
+        from cyberyozh.catalog_cache import CatalogCache
+        from threading import Event
+        cache=CatalogCache();started=Event();release=Event();calls=[]
+        def load():
+            calls.append(1);started.set();release.wait(2);return [{'id':1}]
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            first=pool.submit(cache.get,'public',load,15,2);started.wait(1)
+            second=pool.submit(cache.get,'public',load,15,2);release.set()
+            self.assertEqual(first.result(),second.result())
+        self.assertEqual(len(calls),1)
+        a=cache.get('public',load,15,2);a[0]['id']=9
+        self.assertEqual(cache.get('public',load,15,2),[{'id':1}])
+        with cache.lock:cache.values['public']=(0,[],False)
+        cache.get('public',load,15,2);self.assertEqual(len(calls),2)
+        def fail():raise ProviderError('provider_http_429')
+        with self.assertRaises(ProviderError):cache.get('failed',fail,15,2)
+        with self.assertRaises(ProviderError):cache.get('failed',lambda:self.fail('negative cache missed'),15,2)
+
     def test_dev_only_mock_and_closed_live_gate(self):
         for app in ('production',''):
             with patch.dict(os.environ,{'CYBERYOZH_MODE':'mock','APP_ENV':app}):self.assertFalse(settings()['mock'])

@@ -17,32 +17,32 @@ function Select({label,value,onChange,options,disabled=false}:{label:string;valu
 }
 function useCatalog(category:CyberCategory) {
   const [data,setData]=useState<CyberCatalog|null>(null),[error,setError]=useState(''),[revision,setRevision]=useState(0);
-  useEffect(()=>{let active=true;setError('');setData(null);cyberApi.catalog(category).then(d=>{if(active)setData(d);}).catch(e=>{if(active)setError(errorText(e));});return()=>{active=false;};},[category,revision]);
+  useEffect(()=>{let active=true;setError('');cyberApi.catalog(category).then(d=>{if(active)setData(d);}).catch(e=>{if(active)setError(errorText(e));});return()=>{active=false;};},[category,revision]);
   return {data,error,retry:()=>setRevision(v=>v+1)};
 }
 function PurchaseState({category,offer,quantity=1,mock}:{category:CyberCategory;offer:CyberOffer|null;quantity?:number;mock:boolean}) {
-  const [total,setTotal]=useState(''),[unit,setUnit]=useState(''),[error,setError]=useState('');
-  useEffect(()=>{let active=true;setTotal('');setUnit('');setError('');if(offer?.available)cyberApi.quote(category,{...offer,quantity}).then(d=>{if(active){setTotal(d.amount);setUnit(d.offer.price);}}).catch(e=>{if(active)setError(errorText(e));});return()=>{active=false;};},[category,offer,quantity]);
+  const [total,setTotal]=useState(''),[unit,setUnit]=useState(''),[error,setError]=useState(''),[revision,setRevision]=useState(0);
+  useEffect(()=>{let active=true;setTotal('');setUnit('');setError('');if(offer?.available)cyberApi.quote(category,{...offer,quantity}).then(d=>{if(active){setTotal(d.amount);setUnit(d.offer.price);}}).catch(e=>{if(active)setError(errorText(e));});return()=>{active=false;};},[category,offer,quantity,revision]);
   return <><div className="flex justify-between text-sm"><span className="text-textSecondary">Наличие</span><b>{offer?(offer.available?(offer.stock||'В наличии'):'Нет в наличии'):'Нет данных'}</b></div>
     {category==='proxy'&&<div className="flex justify-between text-sm"><span className="text-textSecondary">За штуку за выбранный срок</span><b>{unit?usd(unit):'—'}</b></div>}
     <div className="flex justify-between text-sm"><span className="text-textSecondary">{mock?'Тестовая стоимость':'Итого'}</span><b>{total?usd(total):'—'}</b></div>
-    {error&&<Notice>{error}</Notice>}<Button type="button" disabled>{category==='numbers'?'Купить номер':'Купить прокси'}</Button>
+    {error&&<><Notice>{error}</Notice><Button size="sm" variant="secondary" onClick={()=>setRevision(v=>v+1)}>Повторить проверку цены</Button></>}<Button type="button" disabled>{category==='numbers'?'Купить номер':'Купить прокси'}</Button>
   </>;
 }
 export function NumbersPanel(){
   const {data,error,retry}=useCatalog('numbers');
   const [country,setCountry]=useState(''),[service,setService]=useState(''),[provider,setProvider]=useState(''),[period,setPeriod]=useState('');
-  const [offers,setOffers]=useState<CyberOffer[]>([]),[searchError,setSearchError]=useState(''),[loading,setLoading]=useState(false);
+  const [offers,setOffers]=useState<CyberOffer[]>([]),[searchError,setSearchError]=useState(''),[loading,setLoading]=useState(false),[revision,setRevision]=useState(0);
   useEffect(()=>{let active=true;setOffers([]);setSearchError('');setLoading(false);
     if(country&&service&&provider&&period){setLoading(true);cyberApi.search({country,service,provider,period}).then(d=>{if(active)setOffers(d.offers);}).catch(e=>{if(active)setSearchError(errorText(e));}).finally(()=>{if(active)setLoading(false);});}
-    return()=>{active=false;};},[country,service,provider,period]);
+    return()=>{active=false;};},[country,service,provider,period,revision]);
   const selected=offers[0]||null;
   return <><Card className="flex flex-col gap-3">
     <Select label="Страна" value={country} onChange={setCountry} options={(data?.countries||[]).map(r=>({value:r.code,label:r.name}))}/>
     <Select label="Тип номера" value={provider} onChange={v=>{setProvider(v);setPeriod('');setService('');}} options={Object.keys(data?.periods||{}).map(v=>({value:v,label:providerNames[v]||v}))}/>
     <Select label="Сервис" value={service} onChange={setService} options={(data?.services||[]).filter(r=>r.provider===provider).map(r=>({value:r.code,label:r.name}))}/>
     <Select label="Срок" value={period} onChange={setPeriod} options={(data?.periods[provider]||[]).map(v=>({value:v,label:periodNames[v]||v}))}/>
-    {loading&&<Notice>Проверяем наличие…</Notice>}{searchError&&<Notice>{searchError}</Notice>}
+    {loading&&<Notice>Проверяем наличие…</Notice>}{searchError&&<><Notice>{searchError}</Notice><Button size="sm" variant="secondary" onClick={()=>setRevision(v=>v+1)}>Повторить поиск</Button></>}
     <PurchaseState category="numbers" offer={selected} mock={!!data?.mock}/>
   </Card>{error?<><Notice>{error}</Notice><Button size="sm" variant="secondary" onClick={retry}>Повторить загрузку</Button></>:<Notice>{data?.message||'Загружаем каталог…'}</Notice>}
     <MyLink category="numbers"/>
