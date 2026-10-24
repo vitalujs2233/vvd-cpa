@@ -1,4 +1,3 @@
-import {NumbersPanel, ProxyPanel, OwnedPanel} from './CyberYozhPanels';
 import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -186,7 +185,7 @@ export const ToolsPurchases:React.FC=()=>{
   </Shell>;
 };
 
-export const ToolsNumbers:React.FC=()=> <Shell><NavHeader title="Виртуальные номера" subtitle="Каталог поставщиков"/><NumbersPanel/></Shell>;
-export const MyNumbers:React.FC=()=> <Shell><NavHeader title="Мои номера"/><OwnedPanel category="numbers"/></Shell>;
-export const ToolsProxy:React.FC=()=> <Shell><NavHeader title="Прокси" subtitle="Каталог поставщиков"/><ProxyPanel/></Shell>;
-export const MyProxies:React.FC=()=> <Shell><NavHeader title="Мои прокси"/><OwnedPanel category="proxy"/></Shell>;
+export const ToolsNumbers:React.FC=()=> <Shell><NavHeader title="Виртуальные номера" subtitle="Каталог поставщиков"/><Empty title="Подключаем нового поставщика" subtitle="Виртуальные номера временно недоступны. Покупки отключены."/></Shell>;
+export const MyNumbers:React.FC=()=> <Shell><NavHeader title="Мои номера"/><Empty title="Новые покупки недоступны" subtitle="История покупок сохранена в общем разделе «Мои покупки»."/></Shell>;
+export const ToolsProxy:React.FC=()=> <Shell><NavHeader title="Прокси" subtitle="Каталог поставщиков"/><Empty title="Подключаем нового поставщика" subtitle="Аренда прокси временно недоступна. Покупки отключены."/></Shell>;
+export const MyProxies:React.FC=()=> <Shell><NavHeader title="Мои прокси"/><Empty title="Новые покупки недоступны" subtitle="История покупок сохранена в общем разделе «Мои покупки»."/></Shell>;
