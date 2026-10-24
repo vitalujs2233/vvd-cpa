@@ -177,6 +177,14 @@ class AdapterTests(unittest.TestCase):
         for qty in (0,4,True):
             with self.assertRaises(ProviderError):quote(Proxy(c),'proxy',{'id':offers[1]['id'],'period_months':3,'quantity':qty})
 
+    def test_duplicate_proxy_groups_do_not_invalidate_quote(self):
+        c=MockClient(); original=c.rows
+        c.rows=lambda path,params=None: original(path,params)*3
+        offers=Proxy(c).catalog()
+        self.assertEqual(len(offers),3)
+        result,qty,total,_=quote(Proxy(c),'proxy',{**offers[0],'quantity':1})
+        self.assertEqual(total,Decimal(offers[0]['price']))
+
     def test_proxy_buy_contract_and_individual_ids(self):
         requests=[];ids=[RID,str(uuid4())]
         def handler(r):

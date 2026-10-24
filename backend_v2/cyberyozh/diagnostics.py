@@ -11,12 +11,16 @@ def run():
     try:
         data = Client().request('GET', 'numbers/search/', {'provider':'virtual','period':'MIN_15','country':'49','service':'aax','page_size':100})
         rows = data.get('results', []) if isinstance(data, dict) else data
+        log.warning('CyberYozh probe numbers fields=%s', sorted(rows[0]) if rows else [])
         log.warning('CyberYozh probe numbers count=%s rows=%s next=%s sample=%s',
                     data.get('count') if isinstance(data,dict) else len(rows), len(rows), bool(data.get('next')) if isinstance(data,dict) else False,
                     [{k:r.get(k) for k in ('id','code','slug','country_code','provider','period','is_active','count')} for r in rows[:3]])
         log.warning('CyberYozh probe numbers matches=%s price_present=%s',
                     sum(str(r.get('country_code'))=='49' and r.get('code')=='aax' for r in rows),
                     sum(r.get('cost') is not None for r in rows))
+        data2 = Client().request('GET', 'numbers/search/', {'provider':'virtual','period':'MIN_15','country_code':'49','service_code':'aax','page_size':100})
+        rows2 = data2.get('results', [])
+        log.warning('CyberYozh probe code filters count=%s sample=%s fields=%s', data2.get('count'), [{k:r.get(k) for k in ('country_code','service_code','provider','period','is_active','count')} for r in rows2[:2]], sorted(rows2[0]) if rows2 else [])
     except Exception as exc:
         log.warning('CyberYozh probe numbers error=%s', exc.code if isinstance(exc,ProviderError) else type(exc).__name__)
     try:
