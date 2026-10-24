@@ -141,6 +141,9 @@ class Client:
             if not isinstance(data, dict) or not isinstance(data.get('results'), list):
                 raise ProviderError('invalid_response')
             rows = data['results']
+            if path == 'numbers/search/' and 'country_code' in original and any(
+                    str(row.get('country_code')) != str(original['country_code']) for row in rows):
+                raise ProviderError('unsupported_catalog_filter')
             fingerprint = sha256(json.dumps(rows, sort_keys=True, default=str).encode()).digest()
             if fingerprint in seen_pages and rows:
                 raise ProviderError('pagination_loop')

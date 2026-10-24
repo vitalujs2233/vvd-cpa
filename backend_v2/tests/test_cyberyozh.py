@@ -151,6 +151,46 @@ class AdapterTests(unittest.TestCase):
         _,qty,total,_=quote(a,'numbers',result)
         self.assertEqual((qty,total),(1,Decimal('1.20')))
 
+    def test_live_number_schema_and_country_filter(self):
+        calls=[]
+        def handler(r):
+            calls.append(r)
+            self.assertEqual(r.url.params['country_code'],'49')
+            self.assertNotIn('country',r.url.params)
+            self.assertNotIn('service',r.url.params)
+            rows=[{'country_code':'49','service_code':'apd','service_name':'Example',
+                   'provider':'virtual','period':'MIN_15','price':'1.234','is_active':True,'count':'<500'}]
+            return httpx.Response(200,json={'results':rows,'next':None})
+        a=Numbers(Client(httpx.MockTransport(handler)))
+        with patch.dict(os.environ,{'CYBERYOZH_MARKUP_NUMBERS_PERCENT':'35'}):
+            offer=a.search('virtual','MIN_15','49','apd')[0]
+            self.assertEqual(offer['price'],'1.67')
+            self.assertEqual(offer['title'],'Example')
+            self.assertTrue(offer['available'])
+            result,qty,total,_=quote(a,'numbers',offer)
+            self.assertEqual(result['id'],offer['id'])
+            self.assertEqual(total,Decimal('1.67'))
+            self.assertEqual(a.search('virtual','MIN_15','49','absent'),[])
+
+    def test_number_ignored_country_filter_stops_first_page(self):
+        calls=[]
+        def handler(r):
+            calls.append(r)
+            return httpx.Response(200,json={'results':[{'country_code':'187'}], 'next':'?page=2','count':23237})
+        with self.assertRaisesRegex(ProviderError,'unsupported_catalog_filter'):
+            Numbers(Client(httpx.MockTransport(handler))).search('virtual','MIN_15','49','apd')
+        self.assertEqual(len(calls),1)
+
+    def test_number_missing_price_is_not_zero(self):
+        c=MockClient();original=c.rows
+        def rows(path,params=None):
+            result=original(path,params)
+            if path=='numbers/search/':result[0].pop('cost')
+            return result
+        c.rows=rows
+        with self.assertRaisesRegex(ProviderError,'invalid_price'):
+            Numbers(c).search('virtual','MIN_15','2','example')
+
     def test_number_unavailable_and_price_change(self):
         c=MockClient();original=c.rows
         def rows(path,params=None):
