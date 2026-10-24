@@ -13,6 +13,7 @@ from .numbers import Numbers
 from .proxy import Proxy
 from .orders import Orders, OrderError
 from .mock import MockClient
+from . import prepared_catalog
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -67,10 +68,21 @@ def catalog(category: Literal['numbers', 'proxy'], response: Response,
         a = adapter(category)
         if a is None:
             return result
-        if category == 'numbers':
-            result.update(a.catalog())
+        if cfg['mock']:
+            if category == 'numbers':
+                result.update(a.catalog())
+            else:
+                result['offers'] = [public_offer(r) for r in a.catalog()]
         else:
-            result['offers'] = [public_offer(r) for r in a.catalog()]
+            snapshot = prepared_catalog.read(category)
+            if snapshot is None:
+                result['status'] = 'updating'
+                result['message'] = 'Обновляем предложения поставщика в фоне. Повторите через несколько секунд.'
+                return result
+            result.update(snapshot['catalog'])
+            result['updated_at'] = snapshot['updated_at']
+            result['message'] = 'Показаны сохранённые предложения. Цена и наличие уточняются отдельно.'
+            return result
         if cfg['mock']:
             result['message'] = 'Тестовый каталог. Реальных покупок и списаний нет.'
         else:
@@ -144,6 +156,8 @@ class Selection(BaseModel):
     country: str = Field(default='', max_length=32)
     service: str = Field(default='', max_length=80)
     period_months: int = Field(default=1, ge=1, le=12)
+    days: Optional[int] = Field(default=None, ge=1, le=366)
+    price: Optional[str] = Field(default=None, max_length=40)
     quantity: int = Field(default=1, ge=1, le=10, strict=True)
 
 
@@ -164,10 +178,27 @@ def price(category: Literal['numbers', 'proxy'], selection: Selection, response:
 
 
 _probe_started = False
+_refresh_started = False
+
+async def refresh_public_catalogs():
+    import asyncio
+    while True:
+        if settings()['ready']:
+            for category in ('numbers', 'proxy'):
+                try:
+                    await asyncio.to_thread(prepared_catalog.refresh, category)
+                except Exception as exc:
+                    code = exc.code if isinstance(exc, ProviderError) else type(exc).__name__
+                    logger.warning('CyberYozh background catalog refresh failed: %s %s', category, code)
+        await asyncio.sleep(180)
 
 @router.on_event('startup')
 async def optional_catalog_probe():
-    global _probe_started
+    global _probe_started, _refresh_started
+    if not _refresh_started:
+        _refresh_started = True
+        import asyncio
+        asyncio.create_task(refresh_public_catalogs())
     # Explicit operator opt-in; no HTTP bypass, database access or paid requests.
     import os
     if os.getenv('CYBERYOZH_CATALOG_PROBE') == '1' and settings()['ready']:

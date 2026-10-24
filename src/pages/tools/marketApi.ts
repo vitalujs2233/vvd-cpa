@@ -54,7 +54,7 @@ export const modelPageUrl = (slug:string) =>
 // SMS/proxy credentials must never enter the app's persistent API snapshot cache.
 export type CyberCategory = 'numbers'|'proxy';
 export type CyberOffer = {id:string;title:string;country:string;country_name?:string;service?:string;provider?:string;period?:string;category?:string;period_months?:number;days?:number|null;max_quantity?:number;available:boolean;stock?:string;price:string;protocols?:string[]};
-export type CyberCatalog = {status:string;mock:boolean;purchases_enabled:boolean;message:string;countries:{code:string;name:string}[];services:{code:string;name:string;provider:string}[];periods:Record<string,string[]>;offers:CyberOffer[]};
+export type CyberCatalog = {status:string;updated_at?:string;mock:boolean;purchases_enabled:boolean;message:string;countries:{code:string;name:string}[];services:{code:string;name:string;provider:string}[];periods:Record<string,string[]>;offers:CyberOffer[]};
 export type CyberOrder = {id:string;amount:string;created_at:string;state:string;selection:CyberOffer&{quantity:number}};
 export type CyberItem = {id:string;status?:string;phone_number?:string;expiration_time?:string|null;history_sms_code?:string[];can_cancel?:boolean;can_extend?:boolean;connection_host?:string;connection_port?:string;connection_login?:string;connection_password?:string;public_ipaddress?:string;system_status?:string;expired?:boolean;access_starts_at?:string;access_expires_at?:string;can_refresh_ip?:boolean};
 const cyberRequest = async <T,>(path:string, body?:object):Promise<T> => {
