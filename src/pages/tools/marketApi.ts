@@ -2,6 +2,9 @@ import { apiRequest } from '@/shared/lib/api';
 
 export type ServiceStatus = 'available' | 'connecting' | 'unavailable';
 export type ServiceInfo = { id: string; title: string; category: string; description: string; status: ServiceStatus; price: string | null };
+export type ProxySelection = {proxy_type:'ipv4'|'isp';country:'US'|'DE'|'PL';quantity:number;days:7|14|30};
+export type ProxyConfig = {mode:'demo';provider:string;purchases_enabled:boolean;countries:{code:string;label:string}[];proxy_types:{id:string;label:string}[];durations_days:number[];notice:string};
+export type ProxyQuote = {mode:'demo';selection:ProxySelection;price_usd:null;available:false;purchases_enabled:false;message:string};
 export type ToolWallet = { available: string; reserved: string; currency: 'USD'; payments_enabled: boolean; refund_debt?: string };
 export type ToolInvoice = {id:string;amount_usd:string;stars_amount:number|null;status:string;payment_url:string|null;created_at:string;expires_at:string|null};
 export type TopupConfig = {payments_enabled:boolean;stars_per_usd:string|null;usd_per_star:string;enabled:boolean;server_ready:boolean;version:number;min_usd:string;max_usd:string};
@@ -32,6 +35,8 @@ export const marketApi = {
   adminCredits:()=>get<{credits:ToolAdminCredit[]}>('/admin/credits'),
   manualCredit:(body:{telegram_id:string;amount:string;reason:string;request_id:string})=>write<{id:string;amount:string;replayed:boolean}>('/admin/credits','POST',body),
   wallet:()=>get<ToolWallet>('/wallet'),
+  proxyConfig:()=>apiRequest<ProxyConfig>('/tools-market/proxy/config'),
+  proxyQuote:(selection:ProxySelection)=>write<ProxyQuote>('/proxy/quote','POST',selection),
   topupConfig:()=>get<TopupConfig>('/topup-config'),
   paymentInvoices:()=>get<{invoices:ToolInvoice[]}>('/payment-invoices'),
   topup:(amount:string,request_id:string,expected_stars:number,expected_usd_per_star:string)=>write<ToolInvoice>('/topup','POST',{amount,request_id,expected_stars,expected_usd_per_star,terms_version:'tools-stars-v1'}),
