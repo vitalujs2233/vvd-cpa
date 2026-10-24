@@ -187,5 +187,27 @@ export const ToolsPurchases:React.FC=()=>{
 
 export const ToolsNumbers:React.FC=()=> <Shell><NavHeader title="Виртуальные номера" subtitle="Каталог поставщиков"/><Empty title="Подключаем нового поставщика" subtitle="Виртуальные номера временно недоступны. Покупки отключены."/></Shell>;
 export const MyNumbers:React.FC=()=> <Shell><NavHeader title="Мои номера"/><Empty title="Новые покупки недоступны" subtitle="История покупок сохранена в общем разделе «Мои покупки»."/></Shell>;
-export const ToolsProxy:React.FC=()=> <Shell><NavHeader title="Прокси" subtitle="Каталог поставщиков"/><Empty title="Подключаем нового поставщика" subtitle="Аренда прокси временно недоступна. Покупки отключены."/></Shell>;
+export const ToolsProxy:React.FC=()=>{
+  const [config,setConfig]=useState<ProxyConfig|null>(null);
+  const [selection,setSelection]=useState<ProxySelection>({proxy_type:'ipv4',country:'US',quantity:1,days:7});
+  const [notice,setNotice]=useState('');
+  const [error,setError]=useState('');
+  const [busy,setBusy]=useState(false);
+  useEffect(()=>{let alive=true;void marketApi.proxyConfig().then(c=>{if(alive)setConfig(c);}).catch(e=>{if(alive)setError(toText(e));});return()=>{alive=false;};},[]);
+  const preview=async()=>{setBusy(true);setError('');setNotice('');try{const result=await marketApi.proxyQuote(selection);setNotice(result.message);}catch(e){setError(toText(e));}finally{setBusy(false);}};
+  return <Shell><NavHeader title="Прокси" subtitle="Proxy-Seller · демонстрационный каталог"/>
+    <Status>{config?.notice||'Подготовка каталога. Покупки и списания отключены.'}</Status>
+    <Card className="flex flex-col gap-3">
+      <h2 className="text-base font-bold">Выбор прокси</h2>
+      <label className="text-xs text-textSecondary">Тип прокси<select className={inputClass} value={selection.proxy_type} onChange={e=>setSelection(s=>({...s,proxy_type:e.target.value as ProxySelection['proxy_type']}))}><option value="ipv4">IPv4</option><option value="isp">Статические ISP</option></select></label>
+      <label className="text-xs text-textSecondary">Страна<select className={inputClass} value={selection.country} onChange={e=>setSelection(s=>({...s,country:e.target.value as ProxySelection['country']}))}><option value="US">США</option><option value="DE">Германия</option><option value="PL">Польша</option></select></label>
+      <label className="text-xs text-textSecondary">Срок аренды<select className={inputClass} value={selection.days} onChange={e=>setSelection(s=>({...s,days:Number(e.target.value) as ProxySelection['days']}))}><option value={7}>7 дней</option><option value={14}>14 дней</option><option value={30}>30 дней</option></select></label>
+      <label className="text-xs text-textSecondary">Количество IP<input className={inputClass} type="number" min={1} max={100} step={1} value={selection.quantity} onChange={e=>setSelection(s=>({...s,quantity:Number(e.target.value)}))}/></label>
+      <p className="text-xs text-textSecondary">Стоимость: появится после проверки тарифов API. Доступность выбранных параметров не подтверждена.</p>
+      <Button type="button" disabled={!config||busy||!Number.isInteger(selection.quantity)||selection.quantity<1||selection.quantity>100} isLoading={busy} onClick={()=>void preview()}>Проверить выбор (демо)</Button>
+      {notice&&<Status>{notice}</Status>}{error&&<p role="alert" className="text-xs text-error">{error}</p>}
+      <Link to="/tools/proxy/my" className="text-xs text-accentBrightGold">Мои прокси →</Link>
+    </Card>
+  </Shell>;
+};
 export const MyProxies:React.FC=()=> <Shell><NavHeader title="Мои прокси"/><Empty title="Новые покупки недоступны" subtitle="История покупок сохранена в общем разделе «Мои покупки»."/></Shell>;
