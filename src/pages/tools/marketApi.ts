@@ -1,4 +1,4 @@
-import { apiRequest } from '@/shared/lib/api';
+import { apiRequest, API_BASE_URL, authorizedFetch } from '@/shared/lib/api';
 
 export type ServiceStatus = 'available' | 'connecting' | 'unavailable';
 export type ServiceInfo = { id: string; title: string; category: string; description: string; status: ServiceStatus; price: string | null };
@@ -50,3 +50,30 @@ export type ToolAdminCredit={id:string;telegram_id:string;amount:string;admin_ac
 export const usd = (input:string|number|null|undefined) => '$'+Number(input ?? 0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:6,useGrouping:false});
 export const modelPageUrl = (slug:string) =>
   window.location.origin + '/vvd-cpa/model/' + encodeURIComponent(slug);
+
+// SMS/proxy credentials must never enter the app's persistent API snapshot cache.
+export type CyberCategory = 'numbers'|'proxy';
+export type CyberOffer = {id:string;title:string;country:string;country_name?:string;service?:string;provider?:string;period?:string;category?:string;period_months?:number;days?:number|null;max_quantity?:number;available:boolean;stock?:string;price:string;protocols?:string[]};
+export type CyberCatalog = {status:string;mock:boolean;purchases_enabled:boolean;message:string;countries:{code:string;name:string}[];services:{code:string;name:string;provider:string}[];periods:Record<string,string[]>;offers:CyberOffer[]};
+export type CyberOrder = {id:string;amount:string;created_at:string;state:string;selection:CyberOffer&{quantity:number}};
+export type CyberItem = {id:string;status?:string;phone_number?:string;expiration_time?:string|null;history_sms_code?:string[];can_cancel?:boolean;can_extend?:boolean;connection_host?:string;connection_port?:string;connection_login?:string;connection_password?:string;public_ipaddress?:string;system_status?:string;expired?:boolean;access_starts_at?:string;access_expires_at?:string;can_refresh_ip?:boolean};
+const cyberRequest = async <T,>(path:string, body?:object):Promise<T> => {
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),30000);
+  try {
+  const response=await authorizedFetch(API_BASE_URL+'/tools-market'+path,{
+    method:body?'POST':'GET',cache:'no-store',signal:controller.signal,headers:{'Content-Type':'application/json'},
+    ...(body?{body:JSON.stringify(body)}:{})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:'Не удалось загрузить данные сервиса');
+  return data as T;
+  } finally {clearTimeout(timer);}
+};
+export const cyberApi = {
+  catalog:(category:CyberCategory)=>cyberRequest<CyberCatalog>('/'+category+'/catalog'),
+  search:(values:{provider:string;period:string;country:string;service:string})=>cyberRequest<{offers:CyberOffer[]}>('/numbers/search?'+new URLSearchParams(values)),
+  quote:(category:CyberCategory,selection:object)=>cyberRequest<{amount:string;currency:string;mock:boolean}>('/'+category+'/quote',selection),
+  orders:(category:CyberCategory)=>cyberRequest<{orders:CyberOrder[]}>('/'+category+'/orders'),
+  detail:(category:CyberCategory,id:string)=>cyberRequest<{items:CyberItem[];state:string;actions_enabled:boolean}>('/'+category+'/orders/'+encodeURIComponent(id))
+};
