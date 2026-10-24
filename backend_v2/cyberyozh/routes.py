@@ -29,6 +29,10 @@ def provider_failure(exc, fallback, status=503):
         'markup_not_configured': 'Цена недоступна: требуется настройка наценки.',
         'provider_http_401': 'Поставщик временно недоступен. Обратитесь в поддержку.',
         'provider_http_403': 'Поставщик временно недоступен. Обратитесь в поддержку.',
+        'invalid_price': 'Поставщик пока не предоставил корректную цену. Повторите позже.',
+        'unsupported_catalog_filter': 'Поиск у поставщика временно недоступен. Повторите позже.',
+        'provider_timeout': 'Поставщик не успел ответить. Повторите проверку позже.',
+        'out_of_stock': 'Выбранный товар сейчас недоступен. Обновите выбор.',
         'provider_http_429': 'Слишком много запросов к поставщику. Повторите позже.',
     }
     return HTTPException(503 if code in messages else status, messages.get(code, fallback))

@@ -27,16 +27,19 @@ class Numbers:
     def search(self, provider, period, country, service):
         if period not in PERIODS.get(provider, []):
             raise ProviderError('invalid_period')
+        # Live API uses country_code and returns service_code/service_name/price.
+        # Service filtering is local: the live endpoint ignores service_code.
+        # Cache this bounded country/provider/period read across service selections.
         rows = self.client.rows('numbers/search/', {'provider': provider, 'period': period,
-                                                    'country': country, 'service': service})
+                                                    'country_code': country})
         offers = []
         for r in rows:
-            if str(r.get('country_code')) != country or r.get('code') != service or r.get('provider') != provider:
+            if str(r.get('country_code')) != country or r.get('service_code', r.get('code')) != service or r.get('provider') != provider or r.get('period') not in (None, period):
                 continue
-            cost = money(r['cost'])
+            cost = money(r.get('price', r.get('cost')))
             available = r.get('is_active') is True and str(r.get('count', '0')) not in ('0', '', 'None')
-            offers.append({'id': str(r['id']), 'country': country, 'country_name': r['country_name'],
-                           'service': service, 'title': r['name'], 'provider': provider, 'period': period,
+            offers.append({'id': str(r.get('id') or f'{provider}:{period}:{country}:{service}'), 'country': country, 'country_name': r.get('country_name', country),
+                           'service': service, 'title': r.get('service_name', r.get('name', service)), 'provider': provider, 'period': period,
                            'available': available, 'stock': str(r.get('count', '0')), 'cost': str(cost),
                            'price': str(retail(cost, 'numbers'))})
         return offers

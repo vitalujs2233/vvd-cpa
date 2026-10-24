@@ -1,38 +1,31 @@
-"""Opt-in, read-only supplier contract probe. Never logs key, costs or owned data."""
+"""Opt-in read-only acceptance probe, no secrets or supplier costs in logs."""
 import logging
-from collections import Counter
-from .client import Client, ProviderError
+import os
+import tempfile
+import time
+from .client import Client, ProviderError, settings
+from .numbers import Numbers
 from .proxy import Proxy
 from .purchase import quote
 
 log = logging.getLogger(__name__)
 
 def run():
+    # The Render process can run several workers; only one probes each deploy.
     try:
-        data = Client().request('GET', 'numbers/search/', {'provider':'virtual','period':'MIN_15','country':'49','service':'aax','page_size':100})
-        rows = data.get('results', []) if isinstance(data, dict) else data
-        log.warning('CyberYozh probe numbers fields=%s', sorted(rows[0]) if rows else [])
-        log.warning('CyberYozh probe numbers count=%s rows=%s next=%s sample=%s',
-                    data.get('count') if isinstance(data,dict) else len(rows), len(rows), bool(data.get('next')) if isinstance(data,dict) else False,
-                    [{k:r.get(k) for k in ('id','code','slug','country_code','provider','period','is_active','count')} for r in rows[:3]])
-        log.warning('CyberYozh probe numbers matches=%s price_present=%s',
-                    sum(str(r.get('country_code'))=='49' and r.get('code')=='aax' for r in rows),
-                    sum(r.get('cost') is not None for r in rows))
-        data2 = Client().request('GET', 'numbers/search/', {'provider':'virtual','period':'MIN_15','country_code':'49','service_code':'aax','page_size':100})
-        rows2 = data2.get('results', [])
-        log.warning('CyberYozh probe code filters count=%s sample=%s fields=%s', data2.get('count'), [{k:r.get(k) for k in ('country_code','service_code','provider','period','is_active','count')} for r in rows2[:2]], sorted(rows2[0]) if rows2 else [])
-    except Exception as exc:
-        log.warning('CyberYozh probe numbers error=%s', exc.code if isinstance(exc,ProviderError) else type(exc).__name__)
-    try:
-        a=Proxy(Client()); offers=a.catalog()
-        keys=Counter((r['id'],r['period_months']) for r in offers)
-        sample=next((r for r in offers if r['category']=='lte' and r['country'].lower()=='us' and r.get('days')==1),None)
-        log.warning('CyberYozh probe proxy offers=%s duplicate_keys=%s sample=%s',len(offers),sum(n>1 for n in keys.values()),
-                    {k:sample.get(k) for k in ('id','period_months','days','available','max_quantity')} if sample else None)
-        if sample:
-            matches=[r for r in offers if r['id']==sample['id'] and r['period_months']==sample['period_months']]
-            log.warning('CyberYozh probe proxy matches=%s identical=%s',len(matches),all(r==sample for r in matches))
-            _,q,total,_=quote(a,'proxy',{**sample,'quantity':1})
-            log.warning('CyberYozh probe proxy quote_ok quantity=%s retail=%s',q,total)
-    except Exception as exc:
-        log.warning('CyberYozh probe proxy error=%s',exc.code if isinstance(exc,ProviderError) else type(exc).__name__)
+        fd = os.open(os.path.join(tempfile.gettempdir(), 'cyberyozh-catalog-probe-v3'), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        os.close(fd)
+    except FileExistsError:
+        return
+    for category in ('numbers', 'proxy'):
+        started = time.monotonic()
+        try:
+            a = Numbers(Client()) if category == 'numbers' else Proxy(Client())
+            offers = a.search('virtual','MIN_15','49','apd') if category == 'numbers' else a.catalog()
+            sample = next((r for r in offers if r['available'] and (category == 'numbers' or (r['category']=='lte' and r['country'].lower()=='us' and r.get('days')==1))), None)
+            log.warning('CyberYozh acceptance category=%s offers=%s available_sample=%s seconds=%.2f purchases=%s', category, len(offers), bool(sample), time.monotonic()-started, settings()['purchases_enabled'])
+            if sample:
+                _, q, total, _ = quote(a, category, {**sample, 'quantity':1})
+                log.warning('CyberYozh acceptance quote_ok category=%s quantity=%s retail=%s seconds=%.2f',category,q,total,time.monotonic()-started)
+        except Exception as exc:
+            log.warning('CyberYozh acceptance category=%s error=%s',category,exc.code if isinstance(exc,ProviderError) else type(exc).__name__)
