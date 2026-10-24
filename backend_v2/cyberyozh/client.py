@@ -1,6 +1,9 @@
 """Official v1 transport. Mutations are NEVER retried (provider is not idempotent)."""
 import os
 import time
+import math
+from email.utils import parsedate_to_datetime
+from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from urllib.parse import urlsplit
 import httpx
@@ -36,7 +39,10 @@ def retail(cost, category):
     # Missing/invalid owner configuration fails closed, never sells at an accidental zero markup.
     names = {'numbers': 'NUMBERS', 'lte': 'MOBILE', 'residential_static': 'ISP'}
     try:
-        pct = money(os.environ['CYBERYOZH_MARKUP_' + names[category] + '_PERCENT'])
+        try:
+            pct = money(os.environ['CYBERYOZH_MARKUP_' + names[category] + '_PERCENT'])
+        except ProviderError:
+            raise ProviderError('invalid_markup') from None
         if pct > 1000:
             raise ProviderError('invalid_markup')
     except KeyError:
@@ -53,8 +59,14 @@ class Client:
         self.base = base.rstrip('/') + '/'
         self.key = os.getenv('CYBERYOZH_API_KEY', '')
         self.transport = transport
-        self.timeout = min(30, max(1, float(os.getenv('CYBERYOZH_TIMEOUT_SECONDS', '15'))))
-        self.retries = min(2, max(0, int(os.getenv('CYBERYOZH_READ_RETRIES', '1'))))
+        try:
+            timeout = float(os.getenv('CYBERYOZH_TIMEOUT_SECONDS', '15'))
+            if not math.isfinite(timeout):
+                raise ValueError()
+            self.timeout = min(30, max(1, timeout))
+            self.retries = min(2, max(0, int(os.getenv('CYBERYOZH_READ_RETRIES', '1'))))
+        except ValueError:
+            raise ProviderError('invalid_config') from None
 
     def request(self, method, path, params=None, body=None):
         if not self.key:
@@ -68,13 +80,26 @@ class Client:
                     r = client.request(method, self.base + path, params=params, json=body,
                                        headers={'X-Api-Key': self.key, 'Accept': 'application/json'})
                 if r.status_code in (429, 502, 503, 504) and attempt + 1 < attempts:
-                    time.sleep(.25 * (attempt + 1))
+                    delay = .25 * (attempt + 1)
+                    retry_after = r.headers.get('Retry-After')
+                    if retry_after:
+                        try:
+                            delay = float(retry_after)
+                        except ValueError:
+                            try:
+                                delay = (parsedate_to_datetime(retry_after) - datetime.now(timezone.utc)).total_seconds()
+                            except (ValueError, TypeError, OverflowError):
+                                raise ProviderError('provider_http_429') from None
+                        # Do not retry earlier than the provider allows or hold a request indefinitely.
+                        if not math.isfinite(delay) or delay > 5:
+                            raise ProviderError('provider_http_429')
+                    time.sleep(max(0, delay))
                     continue
                 if not 200 <= r.status_code < 300:
                     # Only documented pre-purchase validation/auth/balance failures are definite.
                     raise ProviderError('provider_http_' + str(r.status_code), r.status_code in (400, 401, 402, 403, 429))
                 try:
-                    return r.json()
+                    return r.json(parse_float=Decimal)
                 except ValueError:
                     raise ProviderError('invalid_response') from None
             except httpx.RequestError:

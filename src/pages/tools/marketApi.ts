@@ -73,7 +73,7 @@ const cyberRequest = async <T,>(path:string, body?:object):Promise<T> => {
 export const cyberApi = {
   catalog:(category:CyberCategory)=>cyberRequest<CyberCatalog>('/'+category+'/catalog'),
   search:(values:{provider:string;period:string;country:string;service:string})=>cyberRequest<{offers:CyberOffer[]}>('/numbers/search?'+new URLSearchParams(values)),
-  quote:(category:CyberCategory,selection:object)=>cyberRequest<{amount:string;currency:string;mock:boolean}>('/'+category+'/quote',selection),
+  quote:(category:CyberCategory,selection:object)=>cyberRequest<{amount:string;currency:string;mock:boolean;offer:CyberOffer}>('/'+category+'/quote',selection),
   orders:(category:CyberCategory)=>cyberRequest<{orders:CyberOrder[]}>('/'+category+'/orders'),
   detail:(category:CyberCategory,id:string)=>cyberRequest<{items:CyberItem[];state:string;actions_enabled:boolean}>('/'+category+'/orders/'+encodeURIComponent(id))
 };

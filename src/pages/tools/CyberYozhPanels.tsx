@@ -21,9 +21,10 @@ function useCatalog(category:CyberCategory) {
   return {data,error,retry:()=>setRevision(v=>v+1)};
 }
 function PurchaseState({category,offer,quantity=1,mock}:{category:CyberCategory;offer:CyberOffer|null;quantity?:number;mock:boolean}) {
-  const [total,setTotal]=useState(''),[error,setError]=useState('');
-  useEffect(()=>{let active=true;setTotal('');setError('');if(offer?.available)cyberApi.quote(category,{...offer,quantity}).then(d=>{if(active)setTotal(d.amount);}).catch(e=>{if(active)setError(errorText(e));});return()=>{active=false;};},[category,offer,quantity]);
+  const [total,setTotal]=useState(''),[unit,setUnit]=useState(''),[error,setError]=useState('');
+  useEffect(()=>{let active=true;setTotal('');setUnit('');setError('');if(offer?.available)cyberApi.quote(category,{...offer,quantity}).then(d=>{if(active){setTotal(d.amount);setUnit(d.offer.price);}}).catch(e=>{if(active)setError(errorText(e));});return()=>{active=false;};},[category,offer,quantity]);
   return <><div className="flex justify-between text-sm"><span className="text-textSecondary">Наличие</span><b>{offer?(offer.available?(offer.stock||'В наличии'):'Нет в наличии'):'Нет данных'}</b></div>
+    {category==='proxy'&&<div className="flex justify-between text-sm"><span className="text-textSecondary">За штуку за выбранный срок</span><b>{unit?usd(unit):'—'}</b></div>}
     <div className="flex justify-between text-sm"><span className="text-textSecondary">{mock?'Тестовая стоимость':'Итого'}</span><b>{total?usd(total):'—'}</b></div>
     {error&&<Notice>{error}</Notice>}<Button type="button" disabled>{category==='numbers'?'Купить номер':'Купить прокси'}</Button>
   </>;

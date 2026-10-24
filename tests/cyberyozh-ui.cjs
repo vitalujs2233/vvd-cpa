@@ -28,16 +28,16 @@ test('preparation has no fake price or enabled purchase',async()=>{
 });
 test('numbers country / service / period selection gets server price',async()=>{
  const offer={id:'1',price:'1.20',available:true,stock:'5'};const calls=[];
- const f=await mount('NumbersPanel',{catalog:async()=>({...empty,mock:true,message:'Тестовый каталог',countries:[{code:'2',name:'Test'}],services:[{code:'example',name:'Example',provider:'virtual'}],periods:{virtual:['MIN_15']}}),search:async s=>{calls.push(s);return {offers:[offer]};},quote:async()=>({amount:'1.20'})});
+ const f=await mount('NumbersPanel',{catalog:async()=>({...empty,mock:true,message:'Тестовый каталог',countries:[{code:'2',name:'Test'}],services:[{code:'example',name:'Example',provider:'virtual'}],periods:{virtual:['MIN_15']}}),search:async s=>{calls.push(s);return {offers:[offer]};},quote:async()=>({amount:'1.20',offer})});
  await f.select('Страна','2');await f.select('Тип номера','virtual');await f.select('Сервис','example');await f.select('Срок','MIN_15');
  assert.equal(calls.length,1);assert.equal(calls[0].country,'2');assert.ok(f.text().includes('$1.20'));assert.ok(f.text().includes('Тестовая стоимость'));
  f.view.unmount();
 });
 test('proxy country period quantity use server total and reset dependent selection',async()=>{
  const offer={id:'p',title:'ISP',category:'residential_static',country:'de',period_months:3,max_quantity:2,available:true,price:'8.80',protocols:['socks5']};const calls=[];
- const f=await mount('ProxyPanel',{catalog:async()=>({...empty,offers:[offer]}),quote:async(c,s)=>{calls.push(s);return {amount:s.quantity===2?'17.60':'8.80'};}});
+ const f=await mount('ProxyPanel',{catalog:async()=>({...empty,offers:[offer]}),quote:async(c,s)=>{calls.push(s);return {amount:s.quantity===2?'17.60':'8.80',offer};}});
  await f.select('Тип прокси','residential_static');await f.select('Страна','de');await f.select('Тариф','p');await f.select('Срок аренды','3');await f.select('Количество','2');
- assert.ok(f.text().includes('$17.60'));assert.equal(calls.at(-1).quantity,2);
+ assert.ok(f.text().includes('За штуку за выбранный срок'));assert.ok(f.text().includes('$8.80'));assert.ok(f.text().includes('$17.60'));assert.equal(calls.at(-1).quantity,2);
  await f.select('Страна','');assert.ok(!f.text().includes('$17.60'));
  f.view.unmount();
 });
