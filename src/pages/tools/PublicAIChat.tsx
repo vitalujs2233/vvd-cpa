@@ -3,7 +3,7 @@ import { Info,Send,ChevronLeft,ExternalLink,MessageCircle,UserRound } from 'luci
 import { marketApi, type PublicCharacter } from './marketApi';
 import { aiApi,fileUrl,type ChatEntry,type PublicSession } from './aiApi';
 
-const err=(e:unknown)=>e instanceof Error?e.message:'Не удалось связаться с сервером';
+const err=(e:unknown)=>e instanceof Error&&e.message!=='network_error'?e.message:'Не удалось связаться с сервером. Проверьте соединение и попробуйте снова.';
 export const PublicAIPage:React.FC<{slug:string}>=({slug})=>{
   const [person,setPerson]=useState<PublicCharacter|null>(null),[session,setSession]=useState<PublicSession|null>(null);
   const [entries,setEntries]=useState<ChatEntry[]>([]),[text,setText]=useState(''),[busy,setBusy]=useState(false);
@@ -64,7 +64,7 @@ export const PublicAIPage:React.FC<{slug:string}>=({slug})=>{
       </div>}
       {person&&<div className="max-w-[87%] rounded-2xl rounded-tl-sm bg-bgCard px-4 py-3 text-sm leading-6">{person.greeting||'Привет!'}</div>}
       {entries.map((m,i)=><div key={i} className={'flex '+(m.role==='user'?'justify-end':'justify-start')}>
-        <div className={'max-w-[87%] whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm leading-6 '+(m.role==='user'?'rounded-tr-sm bg-accentGold/20':'rounded-tl-sm bg-bgCard')}>{m.content}{m.offer&&<button type="button" disabled={!adult} onClick={()=>void offer()} className="mt-3 block w-full rounded-app-xs border border-accentGold/40 p-3 text-left text-xs text-accentBrightGold disabled:opacity-60">Реклама · {m.offer.title} →</button>}
+        <div className={'max-w-[87%] whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm leading-6 '+(m.role==='user'?'rounded-tr-sm bg-accentGold/20':'rounded-tl-sm bg-bgCard')}>{m.content}{m.photo&&<img src={fileUrl(m.photo.url)} alt={m.photo.title||'Фото персонажа'} className="mt-3 h-auto w-full rounded-xl" onLoad={()=>bottom.current?.scrollIntoView({behavior:'smooth'})}/>}{m.offer&&<button type="button" disabled={!adult} onClick={()=>void offer()} className="mt-3 block w-full rounded-app-xs border border-accentGold/40 p-3 text-left text-xs text-accentBrightGold disabled:opacity-60">Реклама · {m.offer.title} →</button>}
         </div>
       </div>)}
       {busy&&<p className="text-xs text-textSecondary" role="status">Генерируется ответ…</p>}

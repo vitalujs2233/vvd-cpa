@@ -9,6 +9,7 @@ import sys
 import time
 import uuid
 import unittest
+from unittest.mock import AsyncMock, patch
 from pathlib import Path
 from urllib.parse import urlencode
 from fastapi import HTTPException, UploadFile
@@ -66,6 +67,64 @@ class AISystemTests(unittest.TestCase):
         with engine.begin() as conn:
             conn.execute(text('DELETE FROM public.smartlinks WHERE user_id IN (:a,:b)'),{'a':UID,'b':UID+1})
             conn.execute(text('DELETE FROM public.users WHERE telegram_id IN (:a,:b)'),{'a':UID,'b':UID+1})
+
+    def test_chat_persists_context_photos_and_session_isolation(self):
+        studio.link_config(self.id,studio.LinkConfig(kind='smartlink',smartlink_id=self.own),signed())
+        req=Request({'type':'http','client':('203.0.113.29',8080),'method':'POST','path':'/'})
+        first=studio.session_create(self.slug,studio.SessionCreate(),req)
+        second=studio.session_create(self.slug,studio.SessionCreate(),req)
+        blob=io.BytesIO();Image.new('RGB',(48,48),(100,100,100)).save(blob,format='PNG');blob.seek(0)
+        uploaded=asyncio.run(studio.add_photo(self.id,UploadFile(file=blob,filename='test.png'),True,signed()))
+        pid=uuid.UUID(uploaded['id'])
+        with engine.begin() as conn:
+            conn.execute(text("UPDATE tool_ai_photos SET auto_allowed=true WHERE id=:id"),{'id':pid})
+            photo=conn.execute(text("SELECT * FROM tool_ai_photos WHERE id=:id"),{'id':pid}).mappings().one()
+        with patch.dict(os.environ,{'AI_API_KEY':'unit-test-only'}), \
+             patch.object(studio,'completion',AsyncMock(return_value=('Neutral answer',{'prompt_tokens':5,'completion_tokens':3}))) as provider, \
+             patch.object(studio,'select_photo',AsyncMock(return_value=photo)):
+            result=asyncio.run(studio.send_message(self.slug,studio.ChatMessage(token=first['token'],message='My favourite colour is green. Photo please.')))
+            self.assertEqual(result['photo']['id'],str(pid))
+            restored=studio.session_create(self.slug,studio.SessionCreate(token=first['token']),req)
+            self.assertEqual(len(restored['messages']),2)
+            self.assertEqual(restored['messages'][1]['photo']['id'],str(pid))
+            isolated=studio.session_create(self.slug,studio.SessionCreate(token=second['token']),req)
+            self.assertEqual(isolated['messages'],[])
+            with engine.begin() as conn:
+                conn.execute(text("UPDATE tool_ai_sessions SET updated_at=now()-INTERVAL '5 seconds' WHERE token_hash=:hash"),{'hash':studio.session_hash(first['token'])})
+            with patch.object(studio,'select_photo',AsyncMock(return_value=None)):
+                asyncio.run(studio.send_message(self.slug,studio.ChatMessage(token=first['token'],message='What colour did I mention?')))
+            context=provider.call_args.args[0]
+            self.assertIn('green',context[1]['content'])
+            self.assertEqual(context[2]['content'],'Neutral answer')
+        asyncio.run(studio.remove_photo(pid,signed()))
+
+    def test_failed_provider_keeps_user_history_without_fake_reply_or_charge(self):
+        studio.link_config(self.id,studio.LinkConfig(kind='smartlink',smartlink_id=self.own),signed())
+        req=Request({'type':'http','client':('203.0.113.30',8080),'method':'POST','path':'/'})
+        session=studio.session_create(self.slug,studio.SessionCreate(),req)
+        with patch.dict(os.environ,{'AI_API_KEY':'unit-test-only'}), \
+             patch.object(studio,'completion',AsyncMock(side_effect=HTTPException(503,'Provider unavailable'))), \
+             patch.object(studio,'select_photo',AsyncMock(return_value=None)):
+            with self.assertRaises(HTTPException) as error:
+                asyncio.run(studio.send_message(self.slug,studio.ChatMessage(token=session['token'],message='Hello')))
+            self.assertEqual(error.exception.status_code,503)
+        restored=studio.session_create(self.slug,studio.SessionCreate(token=session['token']),req)
+        self.assertEqual([m['role'] for m in restored['messages']],['user'])
+        with engine.connect() as conn:
+            costs=conn.execute(text("SELECT sum(cost_usd) FROM tool_ai_usage WHERE model_id=:mid"),{'mid':self.id}).scalar()
+            self.assertEqual(costs,0)
+
+    def test_auto_photo_requires_content_check(self):
+        blob=io.BytesIO();Image.new('RGB',(48,48),(100,100,100)).save(blob,format='PNG');blob.seek(0)
+        photo=asyncio.run(studio.add_photo(self.id,UploadFile(file=blob,filename='test.png'),True,signed()))
+        pid=uuid.UUID(photo['id'])
+        with patch.object(studio,'image_allowed',AsyncMock(return_value=False)):
+            with self.assertRaises(HTTPException) as error:
+                asyncio.run(studio.photo_settings(pid,studio.PhotoSettings(auto_allowed=True),signed()))
+            self.assertEqual(error.exception.status_code,422)
+        with engine.connect() as conn:
+            self.assertFalse(conn.execute(text('SELECT auto_allowed FROM tool_ai_photos WHERE id=:pid'),{'pid':pid}).scalar())
+        asyncio.run(studio.remove_photo(pid,signed()))
 
     def test_link_requires_actual_owner(self):
         with self.assertRaises(HTTPException) as exc:

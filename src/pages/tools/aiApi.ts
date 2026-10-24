@@ -8,11 +8,18 @@ const auth = () => {
 };
 export type Smartlink = {id:string;url:string;title:string;offer:string|null};
 export type Photo = {id:string;url:string;preview_url?:string;title:string;description:string;auto_allowed:boolean;send_rule:string};
-export type ChatEntry = {role:'user'|'assistant';content:string;photo?:{url:string}|null;offer?:{title:string;advertising:true}|null};
+export type ChatEntry = {role:'user'|'assistant';content:string;photo?:{url:string;title?:string}|null;offer?:{title:string;advertising:true}|null};
 export type PublicSession = {token:string;greeting:string;messages:ChatEntry[];can_chat:boolean;offer:{title:string;available:boolean}};
 export type ConversationSettings = {chat_style:string;reply_length:'short'|'medium'|'detailed';photo_mode:'automatic'|'rules'|'combined';link_kind?:'smartlink'|'external';smartlink_id?:string|null;spend_limit?:string};
 export type ModelStats = {visits:number;conversations:number;messages:number;clicks:number;cost_usd:string|null};
 export const fileUrl = (path:string) => path.startsWith('/')?base+path:path;
+async function publicRequest<T>(path:string, options:RequestInit):Promise<T> {
+  const controller=new AbortController();
+  const timer=window.setTimeout(()=>controller.abort(),75000);
+  try{return await apiRequest<T>(path,{...options,signal:controller.signal});}
+  catch(e){if(controller.signal.aborted)throw new Error('Сервер не успел ответить. Обновите чат перед повторной отправкой.');throw e;}
+  finally{window.clearTimeout(timer);}
+}
 export const aiApi = {
   links:()=>apiRequest<{links:Smartlink[]}>('/ai-studio/my-smartlinks',{headers:auth()}),
   chooseLink:(id:string,kind:'smartlink'|'external',smartlink_id:string|null,external_url:string|null,button_label:string,spend_limit:number)=>
@@ -33,9 +40,9 @@ export const aiApi = {
   removePhoto:(id:string)=>apiRequest('/ai-studio/photos/'+id,{method:'DELETE',headers:auth()}),
   deleteModel:(id:string)=>apiRequest('/ai-studio/models/'+id,{method:'DELETE',headers:auth()}),
   stats:(id:string)=>apiRequest<ModelStats>('/ai-studio/models/'+id+'/stats',{headers:auth()}),
-  begin:(slug:string,token:string|null)=>apiRequest<PublicSession>('/ai-studio/public/'+encodeURIComponent(slug)+'/session',
+  begin:(slug:string,token:string|null)=>publicRequest<PublicSession>('/ai-studio/public/'+encodeURIComponent(slug)+'/session',
     {method:'POST',body:JSON.stringify({token})}),
-  send:(slug:string,token:string,message:string)=>apiRequest<ChatEntry>('/ai-studio/public/'+encodeURIComponent(slug)+'/messages',
+  send:(slug:string,token:string,message:string)=>publicRequest<ChatEntry>('/ai-studio/public/'+encodeURIComponent(slug)+'/messages',
     {method:'POST',body:JSON.stringify({token,message})}),
   click:(slug:string,token:string|null,adult_confirmed:boolean)=>apiRequest<{url:string}>('/ai-studio/public/'+encodeURIComponent(slug)+'/click',
     {method:'POST',body:JSON.stringify({token,adult_confirmed})})
