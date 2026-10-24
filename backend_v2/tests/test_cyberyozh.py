@@ -244,6 +244,21 @@ class AdapterTests(unittest.TestCase):
             quote(adapter, 'proxy', {'id': RID, 'period_months': 1,
                                      'days': 1, 'price': '0.01', 'quantity': 1})
 
+    def test_proxy_selection_schema_preserves_daily_variant(self):
+        from cyberyozh.routes import Selection
+        choice = Selection.model_validate({'id': RID, 'period_months': 1,
+                                           'days': 1, 'price': '14.30', 'quantity': 1})
+        self.assertEqual(choice.model_dump()['days'], 1)
+        self.assertEqual(choice.model_dump()['price'], '14.30')
+
+    def test_prepared_catalog_keeps_last_good_snapshot(self):
+        from cyberyozh import prepared_catalog
+        prepared_catalog.save('proxy', {'offers': [{'price': '14.30'}]})
+        first = prepared_catalog.read('proxy')
+        self.assertIsNotNone(first['updated_at'])
+        first['catalog']['offers'][0]['price'] = '0.00'
+        self.assertEqual(prepared_catalog.read('proxy')['catalog']['offers'][0]['price'], '14.30')
+
     def test_proxy_buy_contract_and_individual_ids(self):
         requests=[];ids=[RID,str(uuid4())]
         def handler(r):
