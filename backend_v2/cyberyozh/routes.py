@@ -156,6 +156,8 @@ class Selection(BaseModel):
     country: str = Field(default='', max_length=32)
     service: str = Field(default='', max_length=80)
     period_months: int = Field(default=1, ge=1, le=12)
+    days: Optional[int] = Field(default=None, ge=1, le=366)
+    price: Optional[str] = Field(default=None, max_length=40)
     quantity: int = Field(default=1, ge=1, le=10, strict=True)
 
 
