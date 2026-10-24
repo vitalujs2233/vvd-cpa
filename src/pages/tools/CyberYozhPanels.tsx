@@ -17,7 +17,7 @@ function Select({label,value,onChange,options,disabled=false}:{label:string;valu
 }
 function useCatalog(category:CyberCategory) {
   const [data,setData]=useState<CyberCatalog|null>(null),[error,setError]=useState(''),[revision,setRevision]=useState(0);
-  useEffect(()=>{let active=true;setError('');cyberApi.catalog(category).then(d=>{if(active)setData(d);}).catch(e=>{if(active)setError(errorText(e));});return()=>{active=false;};},[category,revision]);
+  useEffect(()=>{let active=true;let timer:ReturnType<typeof setTimeout>|undefined;setError('');cyberApi.catalog(category).then(d=>{if(active){setData(d);if(d.status==='updating')timer=setTimeout(()=>setRevision(v=>v+1),5000);}}).catch(e=>{if(active)setError(errorText(e));});return()=>{active=false;if(timer)clearTimeout(timer);};},[category,revision]);
   return {data,error,retry:()=>setRevision(v=>v+1)};
 }
 function PurchaseState({category,offer,quantity=1,mock}:{category:CyberCategory;offer:CyberOffer|null;quantity?:number;mock:boolean}) {
@@ -26,6 +26,7 @@ function PurchaseState({category,offer,quantity=1,mock}:{category:CyberCategory;
   return <><div className="flex justify-between text-sm"><span className="text-textSecondary">Наличие</span><b>{offer?(offer.available?(offer.stock||'В наличии'):'Нет в наличии'):'Нет данных'}</b></div>
     {category==='proxy'&&<div className="flex justify-between text-sm"><span className="text-textSecondary">За штуку за выбранный срок</span><b>{unit?usd(unit):'—'}</b></div>}
     <div className="flex justify-between text-sm"><span className="text-textSecondary">{mock?'Тестовая стоимость':'Итого'}</span><b>{total?usd(total):'—'}</b></div>
+    {offer?.available&&!total&&<Notice>Предварительная цена: {usd(offer.price)} за штуку. Актуальную стоимость ещё проверяем.</Notice>}
     {error&&<><Notice>{error}</Notice><Button size="sm" variant="secondary" onClick={()=>setRevision(v=>v+1)}>Повторить проверку цены</Button></>}<Button type="button" disabled>{category==='numbers'?'Купить номер':'Купить прокси'}</Button>
   </>;
 }
@@ -44,7 +45,7 @@ export function NumbersPanel(){
     <Select label="Срок" value={period} onChange={setPeriod} options={(data?.periods[provider]||[]).map(v=>({value:v,label:periodNames[v]||v}))}/>
     {loading&&<Notice>Проверяем наличие…</Notice>}{searchError&&<><Notice>{searchError}</Notice><Button size="sm" variant="secondary" onClick={()=>setRevision(v=>v+1)}>Повторить поиск</Button></>}
     <PurchaseState category="numbers" offer={selected} mock={!!data?.mock}/>
-  </Card>{error?<><Notice>{error}</Notice><Button size="sm" variant="secondary" onClick={retry}>Повторить загрузку</Button></>:<Notice>{data?.message||'Загружаем каталог…'}</Notice>}
+  </Card>{error?<><Notice>{error}</Notice><Button size="sm" variant="secondary" onClick={retry}>Повторить загрузку</Button></>:<Notice>{data?.message||'Загружаем каталог…'}{data?.updated_at?` Обновлено: ${new Date(data.updated_at).toLocaleString('ru-RU')}`:''}</Notice>}
     <MyLink category="numbers"/>
   </>;
 }
@@ -61,7 +62,7 @@ export function ProxyPanel(){
     <Select label="Количество" value={selected?String(quantity):''} onChange={v=>setQuantity(Number(v)||1)} options={selected?Array.from({length:selected.max_quantity||0},(_,i)=>({value:String(i+1),label:String(i+1)})):[]}/>
     {selected&&<p className="text-xs text-textSecondary">Безлимитный трафик · {(selected.protocols||[]).join(', ')}</p>}
     <PurchaseState category="proxy" offer={selected} quantity={quantity} mock={!!data?.mock}/>
-  </Card>{error?<><Notice>{error}</Notice><Button size="sm" variant="secondary" onClick={retry}>Повторить загрузку</Button></>:<Notice>{data?.message||'Загружаем каталог…'}</Notice>}<MyLink category="proxy"/></>;
+  </Card>{error?<><Notice>{error}</Notice><Button size="sm" variant="secondary" onClick={retry}>Повторить загрузку</Button></>:<Notice>{data?.message||'Загружаем каталог…'}{data?.updated_at?` Обновлено: ${new Date(data.updated_at).toLocaleString('ru-RU')}`:''}</Notice>}<MyLink category="proxy"/></>;
 }
 function MyLink({category}:{category:CyberCategory}){return <Link to={'/tools/'+category+'/my'} className="flex items-center justify-between rounded-app-xs border border-white/10 bg-white/[0.03] p-4 text-sm"><span>{category==='numbers'?'Мои номера':'Мои прокси'}</span><ChevronRight size={17}/></Link>;}
 function Expiry({value}:{value?:string|null}){
