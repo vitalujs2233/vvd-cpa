@@ -50,7 +50,7 @@ export const PublicAIPage:React.FC<{slug:string}>=({slug})=>{
       {person?.photo_url?<img className="h-11 w-11 rounded-full object-cover" src={person.photo_url} alt="Аватар"/>:
         <div className="flex h-11 w-11 items-center justify-center rounded-full bg-accentGold/10 text-accentBrightGold"><UserRound/></div>}
       <div className="min-w-0 flex-1"><h1 className="truncate text-base font-bold">{person?.name||'Диалог'}</h1>
-        <p className="text-xs text-textSecondary">{session?.can_chat?'Чат доступен':'Общение временно недоступно'}</p></div>
+        <p className="flex items-center gap-1.5 text-xs text-textSecondary">{session?.can_chat?<><span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-green-500"/>В сети</>:'Общение временно недоступно'}</p></div>
       <button type="button" onClick={()=>setInfo(!info)} aria-label="Информация о чате" className="rounded-full border border-white/10 p-2 text-accentBrightGold"><Info size={20}/></button>
     </header>
     {info&&<section className="border-b border-white/10 bg-bgCard p-4 text-sm">
@@ -67,7 +67,9 @@ export const PublicAIPage:React.FC<{slug:string}>=({slug})=>{
         <div className={'max-w-[87%] whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm leading-6 '+(m.role==='user'?'rounded-tr-sm bg-accentGold/20':'rounded-tl-sm bg-bgCard')}>{m.content}{m.photo&&<img src={fileUrl(m.photo.url)} alt={m.photo.title||'Фото персонажа'} className="mt-3 h-auto w-full rounded-xl" onLoad={()=>bottom.current?.scrollIntoView({behavior:'smooth'})}/>}{m.offer&&<button type="button" disabled={!adult} onClick={()=>void offer()} className="mt-3 block w-full rounded-app-xs border border-accentGold/40 p-3 text-left text-xs text-accentBrightGold disabled:opacity-60">Реклама · {m.offer.title} →</button>}
         </div>
       </div>)}
-      {busy&&<p className="text-xs text-textSecondary" role="status">Генерируется ответ…</p>}
+      {busy&&<div className="flex w-fit items-center gap-1.5 rounded-2xl rounded-tl-sm bg-bgCard px-4 py-4" role="status" aria-label="AI печатает">
+        {[0,1,2].map(dot=><span key={dot} aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-accentBrightGold motion-safe:animate-pulse" style={{animationDelay:`${dot*200}ms`,animationDuration:'1.2s'}}/>)}
+      </div>}
       {error&&<div role="alert" className="rounded-app-xs border border-white/10 p-3 text-xs text-textSecondary">{error}</div>}
       <div ref={bottom}/>
     </div>
