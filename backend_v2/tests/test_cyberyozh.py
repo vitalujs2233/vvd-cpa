@@ -225,6 +225,25 @@ class AdapterTests(unittest.TestCase):
         result,qty,total,_=quote(Proxy(c),'proxy',{**offers[0],'quantity':1})
         self.assertEqual(total,Decimal(offers[0]['price']))
 
+    def test_proxy_quote_matches_exact_daily_variant_and_price(self):
+        class VariantAdapter:
+            def catalog(self):
+                return [
+                    {'id': RID, 'period_months': 1, 'days': 1, 'price': '1.30',
+                     'cost': '1.00', 'available': True, 'max_quantity': 10},
+                    {'id': RID, 'period_months': 1, 'days': 7, 'price': '7.80',
+                     'cost': '6.00', 'available': True, 'max_quantity': 10},
+                ]
+        adapter = VariantAdapter()
+        for days, price in ((1, '1.30'), (7, '7.80')):
+            offer, quantity, total, _ = quote(adapter, 'proxy',
+                {'id': RID, 'period_months': 1, 'days': days, 'price': price, 'quantity': 1})
+            self.assertEqual(offer['days'], days)
+            self.assertEqual(total, Decimal(price))
+        with self.assertRaises(ProviderError):
+            quote(adapter, 'proxy', {'id': RID, 'period_months': 1,
+                                     'days': 1, 'price': '0.01', 'quantity': 1})
+
     def test_proxy_buy_contract_and_individual_ids(self):
         requests=[];ids=[RID,str(uuid4())]
         def handler(r):
