@@ -117,7 +117,7 @@ class Client:
 
     def rows(self, path, params=None):
         ttl = {'numbers/countries/': 300, 'numbers/services/': 300,
-               'numbers/search/': 15, 'proxies/shop/': 20}.get(path)
+               'numbers/search/': 75, 'proxies/shop/': 75}.get(path)
         if ttl and self.transport is None:
             key = (sha256(self.key.encode()).digest(), self.base, path,
                    tuple(sorted((str(k), str(v)) for k, v in (params or {}).items())))
