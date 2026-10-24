@@ -12,8 +12,6 @@ from stars_payments import require_telegram_id
 import tools_stars
 
 router = APIRouter(prefix="/tools-market", tags=["Tools marketplace"])
-from cyberyozh.routes import router as cyberyozh_router
-router.include_router(cyberyozh_router)
 
 def owner(header: Optional[str]) -> int:
     return require_telegram_id(header)
