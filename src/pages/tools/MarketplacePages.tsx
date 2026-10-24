@@ -1,3 +1,4 @@
+import {NumbersPanel, ProxyPanel, OwnedPanel} from './CyberYozhPanels';
 import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -185,22 +186,7 @@ export const ToolsPurchases:React.FC=()=>{
   </Shell>;
 };
 
-export const ToolsNumbers:React.FC=()=>{
-  const [country,setCountry]=useState(''),[service,setService]=useState('');
-  return <Shell><NavHeader title="Виртуальные номера" subtitle="Каталог поставщиков"/><Card className="flex flex-col gap-3">
-    <label className="text-xs text-textSecondary">Страна<select className={inputClass+' mt-2'} value={country} onChange={e=>setCountry(e.target.value)} disabled><option value="">Нет доступных стран</option></select></label>
-    <label className="text-xs text-textSecondary">Сервис<select className={inputClass+' mt-2'} value={service} onChange={e=>setService(e.target.value)} disabled><option value="">Нет доступных сервисов</option></select></label>
-    <div className="flex justify-between text-sm"><span className="text-textSecondary">Наличие</span><b>Нет данных</b></div><div className="flex justify-between text-sm"><span className="text-textSecondary">Цена</span><b>—</b></div>
-    <Button type="button" disabled>Купить номер</Button>
-  </Card><Status>Сервис скоро будет доступен. Страны, цены, сроки, SMS и отмены появятся после подключения разрешённого поставщика.</Status>
-    <Link to="/tools/numbers/my" className="flex items-center justify-between rounded-app-xs border border-white/10 bg-white/[0.03] p-4 text-sm"><span>Мои номера</span><ChevronRight size={17}/></Link>
-  </Shell>;
-};
-export const MyNumbers:React.FC=()=> <Shell><NavHeader title="Мои номера"/><Empty title="Активных номеров нет" subtitle="Полученные SMS будут отображаться только после реальной покупки у подключённого поставщика"/></Shell>;
-export const ToolsProxy:React.FC=()=> <Shell><NavHeader title="Прокси" subtitle="Каталог поставщиков"/><Card className="flex flex-col gap-3">
-  {['Страна','Тип прокси','Срок аренды','Тариф'].map(label=><label key={label} className="text-xs text-textSecondary">{label}<select className={inputClass+' mt-2'} disabled><option>Нет доступных вариантов</option></select></label>)}
-  <div className="flex justify-between text-sm"><span className="text-textSecondary">Стоимость</span><strong>—</strong></div><Button type="button" disabled>Купить</Button></Card>
-  <Status>Подключение сервиса. Тарифы, доступность, цены и данные доступа будут загружаться с сервера поставщика.</Status>
-  <Link to="/tools/proxy/my" className="flex items-center justify-between rounded-app-xs border border-white/10 bg-white/[0.03] p-4 text-sm"><span>Мои прокси</span><ChevronRight size={17}/></Link>
-</Shell>;
-export const MyProxies:React.FC=()=> <Shell><NavHeader title="Мои прокси"/><Empty title="Прокси пока не приобретены" subtitle="Адреса и авторизация станут доступны только владельцам реальных заказов"/></Shell>;
+export const ToolsNumbers:React.FC=()=> <Shell><NavHeader title="Виртуальные номера" subtitle="Каталог поставщиков"/><NumbersPanel/></Shell>;
+export const MyNumbers:React.FC=()=> <Shell><NavHeader title="Мои номера"/><OwnedPanel category="numbers"/></Shell>;
+export const ToolsProxy:React.FC=()=> <Shell><NavHeader title="Прокси" subtitle="Каталог поставщиков"/><ProxyPanel/></Shell>;
+export const MyProxies:React.FC=()=> <Shell><NavHeader title="Мои прокси"/><OwnedPanel category="proxy"/></Shell>;
