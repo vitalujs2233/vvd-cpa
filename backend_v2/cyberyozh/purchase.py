@@ -12,6 +12,11 @@ def quote(adapter, category, selection):
     elif category == 'proxy':
         quantity = selection.get('quantity', 1)
         rows = [r for r in adapter.catalog() if r['id'] == selection['id'] and r['period_months'] == selection['period_months']]
+        # Distinguish per-day variants sharing the same product ID and month period.
+        if selection.get('days') is not None:
+            rows = [r for r in rows if r.get('days') == selection['days']]
+        if selection.get('price') is not None:
+            rows = [r for r in rows if str(r['price']) == str(selection['price'])]
     else:
         raise ProviderError('invalid_category', True)
     if len(rows) != 1 or not rows[0]['available']:
