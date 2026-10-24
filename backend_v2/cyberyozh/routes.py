@@ -1,4 +1,5 @@
 """Isolated authenticated routes mounted under the existing /tools-market prefix."""
+import logging
 from typing import Literal, Optional
 from uuid import UUID
 from fastapi import APIRouter, Header, HTTPException, Query, Response
@@ -14,6 +15,23 @@ from .orders import Orders, OrderError
 from .mock import MockClient
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+
+
+def provider_failure(exc, fallback, status=503):
+    code = exc.code if isinstance(exc, ProviderError) else 'invalid_response'
+    # Only locally generated error codes: never log response bodies, query values or secrets.
+    logger.warning('CyberYozh read failed: %s', code)
+    messages = {
+        'invalid_base': 'Ошибка настройки сервиса. Обратитесь в поддержку.',
+        'invalid_config': 'Ошибка настройки сервиса. Обратитесь в поддержку.',
+        'invalid_markup': 'Цена недоступна: требуется настройка наценки.',
+        'markup_not_configured': 'Цена недоступна: требуется настройка наценки.',
+        'provider_http_401': 'Поставщик временно недоступен. Обратитесь в поддержку.',
+        'provider_http_403': 'Поставщик временно недоступен. Обратитесь в поддержку.',
+        'provider_http_429': 'Слишком много запросов к поставщику. Повторите позже.',
+    }
+    return HTTPException(503 if code in messages else status, messages.get(code, fallback))
 
 
 def adapter(category):
@@ -41,10 +59,10 @@ def catalog(category: Literal['numbers', 'proxy'], response: Response,
     result = {'status': 'ready' if cfg['ready'] else 'preparation', 'mock': cfg['mock'],
               'purchases_enabled': False, 'message': READY_MESSAGE,
               'countries': [], 'services': [], 'periods': {}, 'offers': []}
-    a = adapter(category)
-    if a is None:
-        return result
     try:
+        a = adapter(category)
+        if a is None:
+            return result
         if category == 'numbers':
             result.update(a.catalog())
         else:
@@ -54,8 +72,8 @@ def catalog(category: Literal['numbers', 'proxy'], response: Response,
         else:
             result['message'] = 'Каталог подключён. Покупки ожидают проверки и включения владельцем.'
         return result
-    except (ProviderError, KeyError, TypeError, ValueError):
-        raise HTTPException(503, 'Каталог временно недоступен. Попробуйте обновить позже.') from None
+    except (ProviderError, KeyError, TypeError, ValueError) as exc:
+        raise provider_failure(exc, 'Каталог временно недоступен. Попробуйте обновить позже.') from None
 
 
 @router.get('/numbers/search')
@@ -64,13 +82,13 @@ def search(response: Response, provider: str = Query(max_length=32), period: str
            x_telegram_init_data: Optional[str] = Header(None)):
     require_telegram_id(x_telegram_init_data)
     no_store(response)
-    a = adapter('numbers')
-    if a is None:
-        return {'offers': [], 'message': READY_MESSAGE}
     try:
+        a = adapter('numbers')
+        if a is None:
+            return {'offers': [], 'message': READY_MESSAGE}
         return {'offers': [public_offer(r) for r in a.search(provider, period, country, service)]}
-    except (ProviderError, KeyError, TypeError, ValueError):
-        raise HTTPException(503, 'Не удалось проверить наличие и цену.') from None
+    except (ProviderError, KeyError, TypeError, ValueError) as exc:
+        raise provider_failure(exc, 'Не удалось проверить наличие и цену.') from None
 
 
 @router.post('/{category}/orders')
@@ -106,13 +124,13 @@ def detail(category: Literal['numbers', 'proxy'], order_id: UUID, response: Resp
     # Ownership checked BEFORE accessing the shared supplier account.
     with engine.connect() as c:
         ids = [str(r[0]) for r in c.execute(text('SELECT provider_order_id FROM tool_cyberyozh_items WHERE order_id=:id'), {'id': str(order_id)})]
-    a = adapter(category)
-    if not ids or a is None:
-        return {'items': [], 'state': order['state'], 'actions_enabled': False}
     try:
+        a = adapter(category)
+        if not ids or a is None:
+            return {'items': [], 'state': order['state'], 'actions_enabled': False}
         return {'items': a.details(ids), 'state': order['state'], 'actions_enabled': False}
-    except (ProviderError, KeyError, ValueError, TypeError):
-        raise HTTPException(503, 'Не удалось обновить данные заказа. Покупка повторно не отправлялась.') from None
+    except (ProviderError, KeyError, ValueError, TypeError) as exc:
+        raise provider_failure(exc, 'Не удалось обновить данные заказа. Покупка повторно не отправлялась.') from None
 
 
 class Selection(BaseModel):
@@ -130,12 +148,12 @@ def price(category: Literal['numbers', 'proxy'], selection: Selection, response:
           x_telegram_init_data: Optional[str] = Header(None)):
     require_telegram_id(x_telegram_init_data)
     no_store(response)
-    a = adapter(category)
-    if a is None:
-        raise HTTPException(503, READY_MESSAGE)
     try:
+        a = adapter(category)
+        if a is None:
+            raise HTTPException(503, READY_MESSAGE)
         offer, quantity, amount, _ = quote(a, category, selection.model_dump())
         return {'offer': public_offer(offer), 'quantity': quantity, 'amount': str(amount),
                 'currency': 'USD', 'mock': settings()['mock'], 'purchases_enabled': False}
-    except (ProviderError, KeyError, TypeError, ValueError):
-        raise HTTPException(409, 'Цена или наличие изменились. Обновите выбор.') from None
+    except (ProviderError, KeyError, TypeError, ValueError) as exc:
+        raise provider_failure(exc, 'Цена или наличие изменились. Обновите выбор.', 409) from None

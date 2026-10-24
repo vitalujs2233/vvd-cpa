@@ -32,6 +32,34 @@ class AdapterTests(unittest.TestCase):
         with patch.dict(os.environ,{'CYBERYOZH_MARKUP_NUMBERS_PERCENT':'NaN'}):
             with self.assertRaises(ProviderError):retail('1','numbers')
 
+    def test_live_markups_and_exact_provider_decimals(self):
+        with patch.dict(os.environ, {'CYBERYOZH_MARKUP_NUMBERS_PERCENT':'35', 'CYBERYOZH_MARKUP_ISP_PERCENT':'30'}):
+            self.assertEqual(retail('10','numbers'), Decimal('13.50'))
+            self.assertEqual(retail('10','lte'), Decimal('13.00'))
+            self.assertEqual(retail('10','residential_static'), Decimal('13.00'))
+        value=Client(httpx.MockTransport(lambda r:httpx.Response(200,content=b'{"cost":0.123456789123456789}'))).request('GET','numbers/search/')
+        self.assertEqual(value['cost'],Decimal('0.123456789123456789'))
+
+    def test_retry_after_does_not_retry_early(self):
+        calls=[]
+        def handler(r):
+            calls.append(r);return httpx.Response(429,headers={'Retry-After':'60'})
+        with patch.dict(os.environ,{'CYBERYOZH_READ_RETRIES':'2'}),patch('cyberyozh.client.time.sleep') as sleep:
+            with self.assertRaises(ProviderError):Client(httpx.MockTransport(handler)).request('GET','numbers/search/')
+            self.assertEqual(len(calls),1);sleep.assert_not_called()
+
+    def test_invalid_configuration_is_safe_http_error(self):
+        app=FastAPI();app.include_router(router,prefix='/tools-market')
+        with patch('cyberyozh.routes.require_telegram_id',return_value=123),patch.dict(os.environ,{'CYBERYOZH_MODE':'live','CYBERYOZH_API_BASE':'https://invalid.example/secret'}):
+            with TestClient(app) as client:
+                for path in ('numbers/catalog','proxy/catalog','numbers/search?provider=virtual&period=MIN_15&country=2&service=example'):
+                    result=client.get('/tools-market/'+path)
+                    self.assertEqual(result.status_code,503)
+                    self.assertNotIn('secret',result.text)
+                result=client.post('/tools-market/proxy/quote',json={'id':'example'})
+                self.assertEqual(result.status_code,503)
+                self.assertEqual(client.post('/tools-market/proxy/orders').status_code,503)
+
     def test_dev_only_mock_and_closed_live_gate(self):
         for app in ('production',''):
             with patch.dict(os.environ,{'CYBERYOZH_MODE':'mock','APP_ENV':app}):self.assertFalse(settings()['mock'])
