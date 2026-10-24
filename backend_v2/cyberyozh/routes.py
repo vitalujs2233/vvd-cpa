@@ -159,8 +159,11 @@ def price(category: Literal['numbers', 'proxy'], selection: Selection, response:
         raise provider_failure(exc, 'Цена или наличие изменились. Обновите выбор.', 409) from None
 
 
+_probe_started = False
+
 @router.on_event('startup')
 async def optional_catalog_probe():
+    global _probe_started
     # Explicit operator opt-in; no HTTP bypass, database access or paid requests.
     import os
     if os.getenv('CYBERYOZH_CATALOG_PROBE') == '1' and settings()['ready']:

@@ -26,7 +26,13 @@ class Proxy:
                         'max_quantity': max(0, maximum), 'available': r['stock_status'] == 'in_stock' and maximum > 0,
                         'price': str(retail(cost, category)), 'cost': str(cost), 'protocols': r['protocols'],
                         'traffic': 'unlimited', 'manual_renew_supported': r.get('is_manual_renewal_possible') is True})
-        return offers
+        # Shop groups can repeat the exact same product/period. Collapse only
+        # identical offers; conflicting variants remain ambiguous and fail closed.
+        unique = []
+        for offer in offers:
+            if offer not in unique:
+                unique.append(offer)
+        return unique
 
     def buy(self, offer, quantity):
         if type(quantity) is not int or not 1 <= quantity <= offer['max_quantity']:
