@@ -5,7 +5,11 @@ import math
 from email.utils import parsedate_to_datetime
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urljoin, parse_qsl
+from hashlib import sha256
+import json
+import logging
+from .catalog_cache import catalog_cache
 import httpx
 
 READY_MESSAGE = 'Сервис готовится к подключению'
@@ -59,6 +63,7 @@ class Client:
         self.base = base.rstrip('/') + '/'
         self.key = os.getenv('CYBERYOZH_API_KEY', '')
         self.transport = transport
+        self.deadline = time.monotonic() + 22
         try:
             timeout = float(os.getenv('CYBERYOZH_TIMEOUT_SECONDS', '15'))
             if not math.isfinite(timeout):
@@ -75,8 +80,11 @@ class Client:
             raise ProviderError('invalid_path')
         attempts = self.retries + 1 if method == 'GET' else 1
         for attempt in range(attempts):
+            remaining = self.deadline - time.monotonic()
+            if remaining <= 0:
+                raise ProviderError('provider_timeout')
             try:
-                with httpx.Client(timeout=self.timeout, transport=self.transport, follow_redirects=False) as client:
+                with httpx.Client(timeout=min(self.timeout, remaining / 4), transport=self.transport, follow_redirects=False) as client:
                     r = client.request(method, self.base + path, params=params, json=body,
                                        headers={'X-Api-Key': self.key, 'Accept': 'application/json'})
                 if r.status_code in (429, 502, 503, 504) and attempt + 1 < attempts:
@@ -91,7 +99,7 @@ class Client:
                             except (ValueError, TypeError, OverflowError):
                                 raise ProviderError('provider_http_429') from None
                         # Do not retry earlier than the provider allows or hold a request indefinitely.
-                        if not math.isfinite(delay) or delay > 5:
+                        if not math.isfinite(delay) or delay > 5 or delay >= self.deadline - time.monotonic():
                             raise ProviderError('provider_http_429')
                     time.sleep(max(0, delay))
                     continue
@@ -108,15 +116,49 @@ class Client:
         raise ProviderError()
 
     def rows(self, path, params=None):
-        result = []
-        # Paginate by local page number; NEVER follow an upstream URL with the API key.
-        for page in range(1, 101):
-            data = self.request('GET', path, {**(params or {}), 'page': page, 'page_size': 100})
+        ttl = {'numbers/countries/': 300, 'numbers/services/': 300,
+               'numbers/search/': 15, 'proxies/shop/': 20}.get(path)
+        if ttl and self.transport is None:
+            key = (sha256(self.key.encode()).digest(), self.base, path,
+                   tuple(sorted((str(k), str(v)) for k, v in (params or {}).items())))
+            return catalog_cache.get(key, lambda: self._rows(path, params), ttl,
+                                     self.deadline - time.monotonic())
+        return self._rows(path, params)
+
+    def _rows(self, path, params=None):
+        result, seen_queries, seen_pages = [], set(), set()
+        original = dict(params or {})
+        query = {**original, 'page_size': 100}
+        expected = urlsplit(self.base + path)
+        for _ in range(100):
+            signature = tuple(sorted((str(k), str(v)) for k, v in query.items()))
+            if signature in seen_queries:
+                raise ProviderError('pagination_loop')
+            seen_queries.add(signature)
+            data = self.request('GET', path, query)
             if isinstance(data, list):
                 return data
             if not isinstance(data, dict) or not isinstance(data.get('results'), list):
                 raise ProviderError('invalid_response')
-            result.extend(data['results'])
-            if not data.get('next'):
+            rows = data['results']
+            fingerprint = sha256(json.dumps(rows, sort_keys=True, default=str).encode()).digest()
+            if fingerprint in seen_pages and rows:
+                raise ProviderError('pagination_loop')
+            seen_pages.add(fingerprint)
+            result.extend(rows)
+            next_page = data.get('next')
+            if not next_page:
                 return result
+            if not isinstance(next_page, str) or not rows:
+                raise ProviderError('invalid_response')
+            target = urlsplit(urljoin(self.base + path, next_page))
+            # Follow the provider's pagination parameters (offset/cursor/page), never its host.
+            if (target.scheme, target.netloc, target.path) != (expected.scheme, expected.netloc, expected.path) or target.fragment:
+                raise ProviderError('invalid_pagination')
+            query = dict(parse_qsl(target.query, keep_blank_values=True))
+            if len(seen_queries) == 1:
+                logging.getLogger(__name__).info('CyberYozh pagination path=%s keys=%s', path, ','.join(sorted(k for k in query if k in ('page', 'offset', 'limit', 'cursor', 'page_size'))))
+            if not query or any(k in query and str(query[k]) != str(v) for k, v in original.items()):
+                raise ProviderError('invalid_pagination')
+            query.update(original)
         raise ProviderError('catalog_too_large')

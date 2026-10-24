@@ -48,3 +48,24 @@ test('catalog error has retry; no purchase becomes available',async()=>{
  await act(async()=>retry.props.onClick());assert.ok(f.text().includes('Сервис готовится к подключению'));
  f.view.unmount();
 });
+
+test('slow catalog resolves without losing data; failed search can be retried',async()=>{
+ let finish;const pending=new Promise(r=>finish=r);let searches=0;
+ const offer={id:'1',price:'1.35',available:true,stock:'5'};
+ const f=await mount('NumbersPanel',{catalog:()=>pending,search:async()=>{if(!searches++)throw Error('Поставщик временно недоступен');return {offers:[offer]};},quote:async()=>({amount:'1.35',offer})});
+ assert.ok(f.text().includes('Загружаем каталог'));
+ await act(async()=>finish({...empty,countries:[{code:'2',name:'Test'}],services:[{code:'example',name:'Example',provider:'virtual'}],periods:{virtual:['MIN_15']}}));
+ await f.select('Страна','2');await f.select('Тип номера','virtual');await f.select('Сервис','example');await f.select('Срок','MIN_15');
+ assert.ok(f.text().includes('Поставщик временно недоступен'));
+ const retry=f.view.root.findAllByType('button').find(b=>b.props.children==='Повторить поиск');
+ await act(async()=>retry.props.onClick());assert.ok(f.text().includes('$1.35'));f.view.unmount();
+});
+
+test('catalog API deduplicates in-flight reads and translates aborted fetch',async()=>{
+ const exports={};let finish,abortTimeout,calls=0;
+ const apiCode=ts.transpileModule(fs.readFileSync('src/pages/tools/marketApi.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
+ vm.runInNewContext(apiCode,{exports,Error,Map,Promise,AbortController,URLSearchParams,setTimeout:fn=>{abortTimeout=fn;return 1;},clearTimeout:()=>{},require:()=>({API_BASE_URL:'https://test.invalid',apiRequest:()=>{},authorizedFetch:(_url,init)=>{calls++;return new Promise((resolve,reject)=>{finish=()=>resolve({ok:true,json:async()=>empty});init.signal.addEventListener('abort',()=>reject(Error('Fetch is aborted')));});}})});
+ const a=exports.cyberApi.catalog('numbers'),b=exports.cyberApi.catalog('numbers');assert.equal(calls,1);finish();await Promise.all([a,b]);
+ const failed=exports.cyberApi.catalog('proxy');abortTimeout();await assert.rejects(failed,/Сервис отвечает слишком долго/);
+ const retry=exports.cyberApi.catalog('proxy');finish();await retry;assert.equal(calls,3);
+});

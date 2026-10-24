@@ -65,14 +65,26 @@ const cyberRequest = async <T,>(path:string, body?:object):Promise<T> => {
     method:body?'POST':'GET',cache:'no-store',signal:controller.signal,headers:{'Content-Type':'application/json'},
     ...(body?{body:JSON.stringify(body)}:{})
   });
-  const data=await response.json().catch(()=>({}));
+  const data=await response.json().catch(()=>{throw new Error('Не удалось прочитать ответ сервиса. Повторите загрузку.');});
   if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:'Не удалось загрузить данные сервиса');
   return data as T;
+  } catch(error) {
+    if(controller.signal.aborted)throw new Error('Сервис отвечает слишком долго. Повторите загрузку.');
+    throw error;
   } finally {clearTimeout(timer);}
 };
+const cyberReads=new Map<string,Promise<unknown>>();
+function catalogRead<T>(path:string):Promise<T>{
+  const existing=cyberReads.get(path);if(existing)return existing as Promise<T>;
+  const request=cyberRequest<T>(path).finally(()=>cyberReads.delete(path));
+  cyberReads.set(path,request);return request;
+}
 export const cyberApi = {
-  catalog:(category:CyberCategory)=>cyberRequest<CyberCatalog>('/'+category+'/catalog'),
-  search:(values:{provider:string;period:string;country:string;service:string})=>cyberRequest<{offers:CyberOffer[]}>('/numbers/search?'+new URLSearchParams(values)),
+  catalog:(category:CyberCategory)=>catalogRead<CyberCatalog>('/'+category+'/catalog').then(data=>{
+    if(!data||!Array.isArray(data.countries)||!Array.isArray(data.services)||!Array.isArray(data.offers)||typeof data.message!=='string')throw new Error('Некорректный ответ каталога. Повторите загрузку.');
+    return data;
+  }),
+  search:(values:{provider:string;period:string;country:string;service:string})=>catalogRead<{offers:CyberOffer[]}>('/numbers/search?'+new URLSearchParams(values)),
   quote:(category:CyberCategory,selection:object)=>cyberRequest<{amount:string;currency:string;mock:boolean;offer:CyberOffer}>('/'+category+'/quote',selection),
   orders:(category:CyberCategory)=>cyberRequest<{orders:CyberOrder[]}>('/'+category+'/orders'),
   detail:(category:CyberCategory,id:string)=>cyberRequest<{items:CyberItem[];state:string;actions_enabled:boolean}>('/'+category+'/orders/'+encodeURIComponent(id))

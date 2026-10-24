@@ -187,3 +187,37 @@ Workflow `.github/workflows/validate-cyberyozh.yml` выполняет backend �
    выпуск включения, а не побочный эффект добавления ключа.
 6. Только после этой приёмки разрешить реальные покупки. Эта подготовительная
    версия не объявляется полностью работающей интеграцией CyberYozh.
+
+## Catalog loading correction (2026-10-24)
+
+Production logs showed a single numbers search issuing page=43 through page=100
+between 14:35:21Z and 14:37:06Z, ending in `catalog_too_large`. The old client
+ignored the provider's `next` parameters and incremented a local page number.
+The browser stopped waiting after 30 seconds while that loop continued. Provider
+429 responses were also observed on countries/services reloads.
+
+The client now reads next-page query parameters only after validating the exact
+HTTPS origin and endpoint path, preserves selection filters, detects repeated
+pages, and applies a shared 22-second operation budget across pagination/retries.
+Individual HTTP phase timeouts are capped by the remaining budget; a continuously
+streaming response can still exceed an HTTPX inactivity timeout, so the independent
+30-second browser guard remains and always reports a human-readable retry message.
+
+Process-local public supplier row caches: countries/services 300s, number searches
+15s, proxy shop 20s; max 256 cached keys. Concurrent identical loads share a future;
+failed loads are cached for 5s, never as empty successful catalogs. Keys separate
+supplier credentials and selection parameters. No owned order, SMS or proxy
+credential responses are cached. Cache contains supplier data only on the server;
+retail markups are applied after retrieval. This cache is per process, not shared
+across Render replicas. Real purchases remain hard-disabled; before enabling
+purchases a fresh uncached quote/availability check is still required.
+
+Frontend deduplicates only in-flight public catalog/search reads, keeps loaded
+catalogs during refresh, and offers retry for search/quote failures. No timeout
+increase, markup changes, schema changes or wallet operations are involved.
+
+Tests cover offset pagination, filter preservation, repeated-page rejection,
+foreign next URLs, operation deadline, cache expiry/single-flight/error caching,
+slow React resolution, retry and friendly abort errors. These are simulated tests;
+Telegram device verification and inspection of live next-page parameters remain
+necessary before claiming complete real-world acceptance.
