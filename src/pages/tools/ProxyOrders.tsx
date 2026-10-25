@@ -37,7 +37,7 @@ function ProxyCard({proxy:p,index}:{proxy:DeliveredProxy;index:number}) {
     {p.endpoints.map(e=><div key={e.protocol+e.port} className="min-w-0">
       <p className="text-xs text-textSecondary">Полный адрес · {e.protocol}</p>
       <div className="flex items-center min-w-0"><span className="min-w-0 flex-1 break-all text-xs font-mono">{proxyAddress({...p,login:undefined,password:undefined},e)}{p.login!==undefined?' · с авторизацией':''}</span>{copyButton(`адрес ${e.protocol}`,proxyAddress(p,e))}</div>
-      <Button type="button" size="sm" onClick={()=>void copy(`адрес ${e.protocol}`,proxyAddress(p,e))}>Скопировать прокси целиком · {e.protocol}</Button>
+      <Button type="button" size="sm" style={{whiteSpace:"normal",height:"auto",minHeight:44,maxWidth:"100%"}} onClick={()=>void copy(`адрес ${e.protocol}`,proxyAddress(p,e))}>Скопировать прокси целиком · {e.protocol}</Button>
     </div>)}
     {expiry&&<p className="text-xs text-textSecondary">Действует до: {expiry}{Date.parse(p.expires_at!)<=Date.now()?' · Срок действия истёк':''}</p>}
     {(p.mobile_operator!==undefined||p.rotation_minutes!==undefined)&&<div className={box}><p className="text-xs font-bold">Мобильный прокси</p>{p.mobile_operator&&<p className="break-all text-xs">Оператор: {p.mobile_operator}</p>}{p.rotation_minutes!==undefined&&<p className="text-xs">Ротация: {p.rotation_minutes===0?'по запросу':`${p.rotation_minutes} мин.`}</p>}</div>}
