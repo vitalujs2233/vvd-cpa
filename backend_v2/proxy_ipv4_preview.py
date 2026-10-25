@@ -15,6 +15,19 @@ from stars_payments import require_telegram_id
 
 router = APIRouter(prefix="/tools-market/proxy-ipv4", tags=["Proxy-IPv4 preview"])
 
+# Only IPv6 has a documented, reliable supplier order-to-proxy reference.
+SUPPORTED_PURCHASE_TYPES = ('ipv6',)
+CHECKOUT_DISABLED = 'Покупки временно недоступны. Проводится проверка системы выдачи.'
+UNVERIFIED_DELIVERY = 'Покупка этого типа временно недоступна: проверяется привязка прокси к заказу.'
+
+def purchases_enabled():
+    return os.getenv("PROXY_IPV4_PURCHASES_ENABLED", "false").lower() == "true"
+
+def purchase_reason(kind):
+    if not purchases_enabled(): return CHECKOUT_DISABLED
+    if kind not in SUPPORTED_PURCHASE_TYPES: return UNVERIFIED_DELIVERY
+    return None
+
 class Quote(BaseModel):
     proxy_type: str
     country: str = Field(pattern=r"^[A-Za-z]{3}$")
@@ -92,7 +105,7 @@ async def catalog(proxy_type: str = Query("ipv4"), x_telegram_init_data: str | N
         if mobile_tariff_error:
             data["mobile_tariff_error"] = mobile_tariff_error
     return {
-        "type": proxy_type, "data": data, "purchases_enabled": False,
+        "type": proxy_type, "data": data, "purchases_enabled": purchase_reason(proxy_type) is None,
         "minimum_count": 10 if proxy_type == "ipv6" else 1,
     }
 
@@ -123,7 +136,7 @@ async def quote(body: Quote, x_telegram_init_data: str | None = Header(default=N
         sell = (cost * (Decimal(1) + markup()/100)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     except Exception:
         raise HTTPException(502,"Неверная цена поставщика")
-    return {"customer_total_usd":str(sell), "purchases_enabled":False}
+    return {"customer_total_usd":str(sell), "purchases_enabled":purchase_reason(body.proxy_type) is None}
 
 # Safe staging only: no supplier order, no wallet reservation, no wallet debit.
 class PrepareOrder(Quote):
@@ -146,7 +159,7 @@ async def prepare_order(body: PrepareOrder, x_telegram_init_data: str | None = H
             raise HTTPException(409,"Этот идентификатор уже использован для другого заказа")
         return {"id":str(existing["id"]),"status":existing["status"],
                 "customer_total_usd":str(existing["quoted_amount"]),
-                "purchases_enabled":False}
+                "purchases_enabled":purchase_reason(body.proxy_type) is None}
     calculated = await quote(Quote(**selection), x_telegram_init_data)
     amount = Decimal(calculated["customer_total_usd"])
     with engine.begin() as conn:
@@ -171,7 +184,7 @@ async def prepare_order(body: PrepareOrder, x_telegram_init_data: str | None = H
     return {"id":str(row["id"]),"status":row["status"],
             "customer_total_usd":str(row["quoted_amount"]),
             "wallet_sufficient":available >= row["quoted_amount"],
-            "purchases_enabled":False}
+            "purchases_enabled":purchase_reason(body.proxy_type) is None}
 
 @router.get("/orders")
 def proxy_orders(x_telegram_init_data: str | None = Header(default=None)):
@@ -185,7 +198,7 @@ def proxy_orders(x_telegram_init_data: str | None = Header(default=None)):
     return {"orders":[{"id":str(r["id"]),"proxy_type":r["proxy_type"],
              "selection":r["selection"],"amount_usd":str(r["quoted_amount"]),
              "status":r["status"],"created_at":r["created_at"].isoformat()} for r in rows],
-            "purchases_enabled":False}
+            "purchases_enabled":purchases_enabled()}
 
 # Provider checkout contract, staged without any payment or purchase side effects.
 # Proxy-IPv4 POST /order does not document an idempotency key.
@@ -244,12 +257,17 @@ async def order_readiness(order_id: UUID, x_telegram_init_data: str | None = Hea
         raise HTTPException(502,"Не удалось проверить баланс поставщика")
     available = wallet["available"] if wallet else Decimal("0")
     supplier_cost = Decimal(str(supplier["amount"]))
-    # Repricing is mandatory before actual checkout, which remains disabled.
-    return {"status":"prepared","can_purchase":False,"purchases_enabled":False,
+    if supplier.get("currency") != "USD" or not supplier_cost.is_finite() or supplier_cost <= 0:
+        raise HTTPException(502,"Некорректная цена поставщика")
+    # Readiness never charges; actual checkout always reprices again.
+    reason = purchase_reason(selection["proxy_type"])
+    if not reason and available < order["quoted_amount"]: reason = "Недостаточно средств на балансе инструментов"
+    if not reason and supplier_balance < supplier_cost: reason = "Недостаточно средств у поставщика"
+    return {"status":"prepared","can_purchase":reason is None,"purchases_enabled":purchase_reason(selection["proxy_type"]) is None,
             "wallet_sufficient":available >= order["quoted_amount"],
             "provider_balance_checked":True,
             "supplier_balance_sufficient":supplier_balance >= supplier_cost,
-            "reason":"Покупки не активированы; сумма будет перепроверена перед списанием"}
+            "reason":reason or "Сумма будет перепроверена перед списанием"}
 
 async def provider_checkout(selection: dict) -> dict:
     """Single POST only; caller MUST persist 'submitting' before invoking.
@@ -299,7 +317,7 @@ def order_status(order_id: UUID, x_telegram_init_data: str | None = Header(defau
         "status":row["status"],"provider_order_id":row["provider_order_id"],
         "created_at":row["created_at"].isoformat(),
         "updated_at":row["updated_at"].isoformat(),
-        "purchases_enabled":False,
+        "purchases_enabled":purchase_reason(row["proxy_type"]) is None,
     }
 
 def proxy_items(response: dict) -> list[dict]:
@@ -331,8 +349,8 @@ def detect_delivery(before: set[str], after: list[dict], selection: dict) -> set
 async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Header(default=None)):
     """One-shot checkout, disabled by default until supplier fulfilment is verified."""
     uid = require_telegram_id(x_telegram_init_data)
-    if os.getenv("PROXY_IPV4_PURCHASES_ENABLED", "false").lower() != "true":
-        raise HTTPException(503, "Покупки пока отключены")
+    if not purchases_enabled():
+        raise HTTPException(503, CHECKOUT_DISABLED)
     with engine.connect() as conn:
         order = conn.execute(text("""
             SELECT selection,quoted_amount,status,provider_order_id
@@ -346,6 +364,9 @@ async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Head
     if order["status"] != "prepared":
         raise HTTPException(409,"Заявка уже обрабатывается или закрыта")
     selection = order["selection"]
+    reason = purchase_reason(selection["proxy_type"])
+    if reason:
+        raise HTTPException(503, reason)
     fresh = await quote(Quote(**selection), x_telegram_init_data)
     if Decimal(fresh["customer_total_usd"]) != order["quoted_amount"]:
         raise HTTPException(409,"Цена изменилась, подготовьте новую заявку")
@@ -437,8 +458,9 @@ async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Head
 @router.get("/checkout-config")
 def checkout_config(x_telegram_init_data: str | None = Header(default=None)):
     require_telegram_id(x_telegram_init_data)
-    enabled = os.getenv("PROXY_IPV4_PURCHASES_ENABLED", "false").lower() == "true"
-    return {"purchases_enabled": enabled, "supported_purchase_types": ["ipv4", "ipv6", "isp", "mobile"]}
+    enabled = purchases_enabled()
+    return {"purchases_enabled": enabled, "supported_purchase_types": list(SUPPORTED_PURCHASE_TYPES),
+            "reason": None if enabled else CHECKOUT_DISABLED, "unsupported_reason": UNVERIFIED_DELIVERY}
 
 
 def match_order_proxies(items: list, kind: str, order_number: str) -> list:

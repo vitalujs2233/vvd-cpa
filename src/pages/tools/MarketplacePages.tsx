@@ -190,9 +190,10 @@ export const ToolsPurchases:React.FC=()=>{
 export const ToolsNumbers:React.FC=()=>{
   const nav=useNavigate();
   const [canBuy,setCanBuy]=useState(false),[buying,setBuying]=useState(false),[pending,setPending]=useState(false);
+  const [checkoutReason,setCheckoutReason]=useState('Проверяем доступность покупки…');
   const purchaseRef=useRef<{request_id:string;country:string;service:string;confirmed_price:string}|null>(null);
   const busyRef=useRef(false);
-  useEffect(()=>{let live=true;marketApi.noirCheckoutConfig().then(c=>{if(live)setCanBuy(c.purchases_enabled);}).catch(()=>{});return()=>{live=false;};},[]);
+  useEffect(()=>{let live=true;marketApi.noirCheckoutConfig().then(c=>{if(live){setCanBuy(c.purchases_enabled);setCheckoutReason(c.reason||'Покупки временно недоступны. Проводится проверка системы выдачи.');}}).catch(()=>{if(live)setCheckoutReason('Не удалось проверить доступность покупки. Откройте страницу повторно.');});return()=>{live=false;};},[]);
   const buy=async()=>{
     if(busyRef.current||(!purchaseRef.current&&(!price?.price||!price.available||stale||!canBuy)))return;
     busyRef.current=true;setBuying(true);setError('');
@@ -225,7 +226,7 @@ export const ToolsNumbers:React.FC=()=>{
   return <Shell><NavHeader title="Виртуальные номера" subtitle="Приём SMS · Noir SMS"/>
     <Card className="flex flex-col gap-3">
       <div className="flex items-center gap-2"><Phone size={20} className="text-accentBrightGold"/><h2 className="text-base font-bold">Выбор номера</h2></div>
-      <Status>{loading?'Загружаем страны…':canBuy?'Оплата с баланса инструментов. Используйте номер только для своих разрешённых аккаунтов.':'Покупки временно отключены.'}</Status>
+      <Status>{loading?'Загружаем страны…':canBuy?'Оплата с баланса инструментов. Используйте номер только для своих разрешённых аккаунтов.':checkoutReason}</Status>
       <label className="text-xs text-textSecondary">Страна<select aria-label="Страна" className={inputClass} value={country} disabled={!countries.length||buying||pending} onChange={e=>{setCountry(e.target.value);setService('');setError('');}}><option value="">{loading?'Загрузка…':countries.length?'Выберите страну':'Нет доступных стран'}</option>{countries.map(c=><option key={c.code} value={c.code}>{countryName(c.code)}</option>)}</select></label>
       <label className="text-xs text-textSecondary">Сервис для SMS<select aria-label="Сервис для SMS" className={inputClass} value={service} disabled={!services.length||servicesLoading||buying||pending} onChange={e=>{setService(e.target.value);setError('');}}><option value="">{servicesLoading?'Загружаем сервисы…':services.length?'Выберите сервис':country?'Нет доступных сервисов':'Сначала выберите страну'}</option>{services.map(s=><option key={s.code} value={s.code}>{s.name}</option>)}</select></label>
       <div className="flex items-center justify-between text-sm"><span className="text-textSecondary">Стоимость номера</span><strong>{priceLoading?'Проверяем…':price?.price&&!stale?usd(price.price):'—'}</strong></div>
@@ -348,8 +349,11 @@ export const ToolsProxy:React.FC=()=>{
   const [busy,setBusy]=useState(false);
   const [purchased,setPurchased]=useState(false);
   const [notice,setNotice]=useState('');
-  const [checkout,setCheckout]=useState(false);
-  useEffect(()=>{marketApi.proxyIpv4CheckoutConfig().then(x=>setCheckout(x.purchases_enabled)).catch(()=>setCheckout(false));},[]);
+  const [checkoutConfig,setCheckoutConfig]=useState<Awaited<ReturnType<typeof marketApi.proxyIpv4CheckoutConfig>>|null>(null);
+  const [checkoutError,setCheckoutError]=useState('');
+  useEffect(()=>{let active=true;marketApi.proxyIpv4CheckoutConfig().then(x=>{if(active)setCheckoutConfig(x);}).catch(()=>{if(active)setCheckoutError('Не удалось проверить доступность покупки. Откройте страницу повторно.');});return()=>{active=false;};},[]);
+  const checkout=!!checkoutConfig?.purchases_enabled&&checkoutConfig.supported_purchase_types.includes(kind);
+  const checkoutReason=checkoutError||(!checkoutConfig?'Проверяем доступность покупки…':!checkoutConfig.purchases_enabled?checkoutConfig.reason||'Покупки временно недоступны. Проводится проверка системы выдачи.':checkoutConfig.unsupported_reason||'Покупка этого типа временно недоступна: проверяется привязка прокси к заказу.');
   const requestKey=useRef<{signature:string;id:string}|null>(null);
   useEffect(()=>{let active=true;setCatalog(null);setError('');setQuote(null);setPurchased(false);setNotice('');marketApi.proxyIpv4Catalog(kind).then(data=>{if(active){setCatalog(data);setCountry(data.data.countries[0]?.code||'');setDays(data.data.days[0]||7);setQuantity(data.minimum_count);setOperator('');setRotation(0);}}).catch(e=>{if(active)setError(toText(e));});return()=>{active=false;};},[kind]);
   const options=catalog?.data;
@@ -360,7 +364,7 @@ export const ToolsProxy:React.FC=()=>{
   const price=async()=>{setBusy(true);setError('');resetQuote();try{setQuote(await marketApi.proxyIpv4Quote({proxy_type:kind,country,days,count:quantity,...(kind==='mobile'?{mobile_operator:selectedOperator?.name,rotation_time:selectedOperator?.rotationTime.includes(rotation)?rotation:selectedOperator?.rotationTime[0]}:{})}));}catch(e){setError(toText(e));}finally{setBusy(false);}};
   const purchase=async()=>{
     if(!quote||busy||purchased)return;
-    if(!checkout){setError('Оплата временно недоступна. Деньги не списаны.');return;}
+    if(!checkout){setError(checkoutReason);return;}
     if(!window.confirm('Купить прокси за '+usd(quote.customer_total_usd)+'? Сумма будет списана с баланса инструментов.'))return;
     const selection={proxy_type:kind,country,days,count:quantity,...(kind==='mobile'?{mobile_operator:selectedOperator?.name,rotation_time:selectedOperator?.rotationTime.includes(rotation)?rotation:selectedOperator?.rotationTime[0]}:{})};
     const signature=JSON.stringify(selection);
@@ -368,9 +372,13 @@ export const ToolsProxy:React.FC=()=>{
     setBusy(true);setError('');setNotice('');
     try{
       const order=await marketApi.proxyIpv4Prepare({...selection,request_id:requestKey.current.id});
+      if(Number(order.customer_total_usd)!==Number(quote.customer_total_usd)){
+        setQuote(null);requestKey.current=null;
+        setError('Цена изменилась. Рассчитайте и подтвердите новую стоимость. Средства не списаны.');return;
+      }
       await marketApi.proxyIpv4Purchase(order.id);
       setPurchased(true);
-      setNotice('Покупка подтверждена. Прокси доступны в разделе «Мои прокси».');
+      setNotice('Заказ подтверждён. Статус выдачи и данные подключения — в разделе «Мои прокси».');
     }catch(e){
       setError(toText(e)+' Если заказ обрабатывается, проверьте его в «Мои прокси». Не оформляйте повторную покупку.');
     }finally{setBusy(false);}
@@ -379,6 +387,7 @@ export const ToolsProxy:React.FC=()=>{
   return <Shell><NavHeader title="Прокси"/>
     <Card className="flex flex-col gap-3">
       <h2 className="text-base font-bold">Выбор прокси</h2>
+      {!checkout&&<Status>{checkoutReason}</Status>}
       {!catalog&&<p className="text-xs text-textSecondary">Каталог ещё не загружен.</p>}
       <label className="text-xs text-textSecondary">Тип прокси<select className={inputClass} value={kind} onChange={e=>choose(e.target.value)}><option value="ipv4">Прокси IPv4</option><option value="ipv6">Прокси IPv6</option><option value="isp">Прокси ISP</option><option value="mobile">Мобильные прокси</option></select></label>
       <label className="text-xs text-textSecondary">Страна<select className={inputClass} value={country} onChange={e=>{setCountry(e.target.value);setOperator('');setRotation(0);resetQuote();}}>{options?.countries.map(x=><option key={x.code} value={x.code}>{x.name} ({x.code})</option>)}</select></label>

@@ -1,5 +1,7 @@
 # Purchase readiness — 2026-10-25
 
+Historical disabled-rollout audit. The later owner-authorized activation stage is documented in [CHECKOUT_ACTIVATION.md](CHECKOUT_ACTIVATION.md); that report supersedes the gates below.
+
 Only existing tools/Noir/Proxy-IPv4 code is in scope. No keys, markup rates or production balances are edited. No real purchase is authorized or executed by this task.
 
 ## Rollout gates

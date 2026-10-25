@@ -34,3 +34,5 @@ test('in-flight proxy reads deduplicate and reject data from an old Telegram ses
  const rejected=assert.rejects(first,/Сессия изменилась/);window.Telegram.WebApp.initData='two';const second=exports.marketApi.proxyIpv4OrderProxies('order');assert.equal(pending.length,2);
  pending[0](delivery);await rejected;pending[1]({...delivery,proxies:[]});assert.equal((await second).proxies.length,0);
 });
+
+test('enabled global gate cannot enable unsupported order types',async()=>{const f=await mount({proxyIpv4CheckoutConfig:async()=>({purchases_enabled:true,supported_purchase_types:['ipv6']})},[{...order,status:'prepared'}]);const buy=f.view.root.findAllByType('button').find(b=>JSON.stringify(b.props.children).includes('Купить за'));assert.ok(buy.props.disabled);assert.ok(f.text().includes('Проводится проверка системы выдачи'));f.close();});

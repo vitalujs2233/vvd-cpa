@@ -1,7 +1,8 @@
 """Run only against disposable PostgreSQL. Never uses a provider account."""
 import os
+import asyncio
 import unittest
-from uuid import uuid4
+from uuid import UUID, uuid4
 from decimal import Decimal as D
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch, AsyncMock
@@ -27,9 +28,9 @@ class ProxyWalletTests(unittest.TestCase):
             c.execute(text('ALTER TABLE tool_wallets ADD COLUMN IF NOT EXISTS refund_debt numeric(14,2) NOT NULL DEFAULT 0'))
         with cls.db.begin() as c:
             c.execute(text('''CREATE TABLE IF NOT EXISTS tool_proxy_order_intents (
-                id uuid PRIMARY KEY, telegram_id bigint NOT NULL, request_id uuid NOT NULL,
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(), telegram_id bigint NOT NULL, request_id uuid NOT NULL,
                 proxy_type text NOT NULL, selection jsonb NOT NULL, quoted_amount numeric NOT NULL,
-                provider_cost numeric, provider_order_id text UNIQUE, status text NOT NULL DEFAULT 'prepared',
+                provider_cost numeric, supplier_submitted_at timestamptz, provider_order_id text UNIQUE, status text NOT NULL DEFAULT 'prepared',
                 created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now(),
                 UNIQUE(telegram_id,request_id))'''))
     def setUp(self):
@@ -41,6 +42,43 @@ class ProxyWalletTests(unittest.TestCase):
         oid=uuid4()
         with self.db.begin() as c:c.execute(text("INSERT INTO tool_proxy_order_intents(id,telegram_id,request_id,proxy_type,selection,quoted_amount) VALUES(:id,:u,:r,'ipv6','{}',:a)"),dict(id=oid,u=self.uid,r=uuid4(),a=D(amount)))
         return oid
+    def test_checkout_delivery_replay_and_foreign_owner(self):
+        async def scenario():
+            receipt='fixture-'+str(uuid4())
+            items=[{'id':str(i),'ip':f'192.0.2.1:{10000+i}','protocol':'SOCKS5'} for i in range(10)]
+            async def provider(path,params):
+                if path=='get/order/price':return {'amount':'1','balance':'100','currency':'USD'}
+                return {'proxies':[{'orderId':receipt,'ips':items},{'orderId':'foreign','ips':[{'id':'foreign','ip':'192.0.2.99:80','protocol':'HTTP'}]}]}
+            with patch.object(routes,'engine',self.db),patch.object(routes,'require_telegram_id',return_value=self.uid),patch.dict(os.environ,PROXY_IPV4_PURCHASES_ENABLED='true',PROXY_IPV4_MARKUP_PERCENT='30'),patch.object(routes,'quote',new_callable=AsyncMock,return_value={'customer_total_usd':'1.30'}),patch.object(routes,'provider',side_effect=provider),patch.object(routes,'provider_checkout',new_callable=AsyncMock,return_value={'success':True,'orderNumber':receipt}) as checkout:
+                body=routes.PrepareOrder(proxy_type='ipv6',country='GBR',days=30,count=10,request_id=uuid4())
+                order=await routes.prepare_order(body,'test');oid=UUID(order['id'])
+                self.assertEqual(order['id'],(await routes.prepare_order(body,'test'))['id'])
+                await routes.purchase_order(oid,'test');await routes.purchase_order(oid,'test')
+                self.assertEqual(checkout.await_count,1);self.assertEqual(self.balances(),(D('8.70'),D('0')))
+                delivered=await routes.order_proxies(oid,'test')
+                self.assertEqual(len(delivered['proxies']),10);self.assertFalse(delivered['delivery_pending'])
+                items.pop();partial=await routes.order_proxies(oid,'test')
+                self.assertEqual(len(partial['proxies']),9);self.assertTrue(partial['delivery_pending'])
+                with patch.object(routes,'require_telegram_id',return_value=self.uid+1):
+                    with self.assertRaises(HTTPException) as error:await routes.order_proxies(oid,'test')
+                    self.assertEqual(error.exception.status_code,404)
+        asyncio.run(scenario())
+
+    def test_supplier_timeout_blocks_second_checkout_and_unsupported_type(self):
+        async def scenario():
+            with patch.object(routes,'engine',self.db),patch.object(routes,'require_telegram_id',return_value=self.uid),patch.dict(os.environ,PROXY_IPV4_PURCHASES_ENABLED='true',PROXY_IPV4_MARKUP_PERCENT='30'),patch.object(routes,'quote',new_callable=AsyncMock,return_value={'customer_total_usd':'1.30'}),patch.object(routes,'provider',new_callable=AsyncMock,return_value={'amount':'1','balance':'100','currency':'USD'}),patch.object(routes,'provider_checkout',new_callable=AsyncMock,side_effect=TimeoutError) as checkout:
+                for kind in ['ipv4','isp','mobile']:
+                    body=routes.PrepareOrder(proxy_type=kind,country='GBR',days=30,count=10,request_id=uuid4())
+                    order=await routes.prepare_order(body,'test')
+                    with self.assertRaises(HTTPException):await routes.purchase_order(UUID(order['id']),'test')
+                checkout.assert_not_called();self.assertEqual(self.balances(),(D('10'),D('0')))
+                body=routes.PrepareOrder(proxy_type='ipv6',country='GBR',days=30,count=10,request_id=uuid4())
+                order=await routes.prepare_order(body,'test');oid=UUID(order['id'])
+                for _ in range(2):
+                    with self.assertRaises(HTTPException):await routes.purchase_order(oid,'test')
+                self.assertEqual(checkout.await_count,1);self.assertEqual(self.balances(),(D('8.70'),D('1.30')))
+        asyncio.run(scenario())
+
     def test_concurrent_reservation_and_confirmation_once(self):
         with ThreadPoolExecutor(max_workers=4) as pool:list(pool.map(lambda _:w.reserve_order(self.uid,self.oid),range(4)))
         self.assertEqual(self.balances(),(D('8.70'),D('1.30')))
@@ -99,3 +137,12 @@ class ProxyPurchaseGateTests(unittest.IsolatedAsyncioTestCase):
             return data
         with patch.object(routes,'require_telegram_id',return_value=42),patch.object(routes,'provider',side_effect=foreign):
             with self.assertRaises(HTTPException):await routes.quote(body,'signed-test')
+
+    async def test_config_and_quotes_for_all_types(self):
+        with patch.object(routes,'require_telegram_id',return_value=42),patch.dict(os.environ,PROXY_IPV4_PURCHASES_ENABLED='true'):
+            self.assertEqual(routes.checkout_config('test')['supported_purchase_types'],['ipv6'])
+        async def supplier(path,params):
+            return {'get/days':{'days':[30]},'get/countries':{'countries':[{'alpha3code':'GBR'}]},'get/order/price':{'amount':'10','currency':'USD'}}[path]
+        with patch.object(routes,'require_telegram_id',return_value=42),patch.object(routes,'provider',side_effect=supplier),patch.dict(os.environ,PROXY_IPV4_MARKUP_PERCENT='30'):
+            for kind in ['ipv4','ipv6','isp']:
+                self.assertEqual((await routes.quote(routes.Quote(proxy_type=kind,country='GBR',days=30,count=10),'test'))['customer_total_usd'],'13.00')
