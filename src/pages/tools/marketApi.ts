@@ -1,6 +1,6 @@
 import { apiRequest } from '@/shared/lib/api';
 
-export type ProxyIpv4Catalog = {type:string;data:{days:number[];countries:{code:string;name:string}[];tariffs?:{country:string;mobileOperator:{name:string;rotationTime:number[]}[]}[]};minimum_count:number;purchases_enabled:boolean};
+export type ProxyIpv4Catalog = {type:string;data:{days:number[];countries:{code:string;name:string}[];tariffs?:{country:string;mobileOperator:{name:string;rotationTime:number[]}[]}[];mobile_tariff_error?:string};minimum_count:number;purchases_enabled:boolean};
 export type ProxyIpv4Quote = {customer_total_usd:string;purchases_enabled:boolean};
 export type ServiceStatus = 'available' | 'connecting' | 'unavailable';
 export type ServiceInfo = { id: string; title: string; category: string; description: string; status: ServiceStatus; price: string | null };
