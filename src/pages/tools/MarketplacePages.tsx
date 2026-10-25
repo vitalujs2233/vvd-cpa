@@ -241,7 +241,7 @@ export const ToolsNumbers:React.FC=()=>{
 export const MyNumbers:React.FC=()=>{
   type NumberOrder=import('./marketApi').NoirOrder;
   const [orders,setOrders]=useState<NumberOrder[]>([]),[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false);
-  const [error,setError]=useState(''),[notice,setNotice]=useState(''),[copied,setCopied]=useState('');
+  const [error,setError]=useState(''),[notice,setNotice]=useState(''),[copied,setCopied]=useState(''),[autoPaused,setAutoPaused]=useState(false);
   const [revealed,setRevealed]=useState<Record<string,string>>({}),[names,setNames]=useState<Record<string,string>>({});
   const refreshRef=useRef<()=>void>(()=>{}),copyTimer=useRef<ReturnType<typeof setTimeout>>(),copyVersion=useRef(0);
   const alive=useRef(true),resolvedCountries=useRef(new Set<string>());
@@ -256,9 +256,9 @@ export const MyNumbers:React.FC=()=>{
     const limited=(o:NumberOrder)=>o.state==='unknown'||(!!o.expires_at&&Date.parse(o.expires_at)<=Date.now());
     const run=async()=>{
       if(!active||busy)return;
-      if(Date.now()-started>=30*60*1000){setError('Автообновление приостановлено. Нажмите «Обновить заказы», чтобы продолжить проверку.');return;}
+      if(Date.now()-started>=30*60*1000){setAutoPaused(true);setError('Автообновление приостановлено. Нажмите «Обновить заказы», чтобы продолжить проверку.');return;}
       const candidates=current.filter(o=>waiting(o)&&(!limited(o)||(attempts.get(o.id)||0)<6));
-      if(!listNeeded&&!candidates.length){if(current.some(waiting))setError('Результат ещё уточняется. Нажмите «Обновить заказы» для новой проверки.');return;}
+      if(!listNeeded&&!candidates.length){if(current.some(waiting)){setAutoPaused(true);setError('Результат ещё уточняется. Нажмите «Обновить заказы» для новой проверки.');}return;}
       const stamp=version,isList=listNeeded;listNeeded=false;busy=true;
       const order=isList?undefined:candidates[cursor++%candidates.length];
       if(order&&limited(order))attempts.set(order.id,(attempts.get(order.id)||0)+1);
@@ -269,7 +269,7 @@ export const MyNumbers:React.FC=()=>{
         if(active&&stamp===version){setOrders([...current]);setError('');failures=0;}
       }catch{
         failed=true;
-        if(active&&stamp===version){failures++;if(isList)listNeeded=true;setError(failures>=5?'Сервер временно недоступен. Автообновление приостановлено — нажмите «Обновить заказы».':'Не удалось обновить данные. Повторим автоматически; последние данные сохранены.');}
+        if(active&&stamp===version){failures++;if(failures>=5)setAutoPaused(true);if(isList)listNeeded=true;setError(failures>=5?'Сервер временно недоступен. Автообновление приостановлено — нажмите «Обновить заказы».':'Не удалось обновить данные. Повторим автоматически; последние данные сохранены.');}
       }finally{
         busy=false;
         if(active){setLoading(false);setRefreshing(false);
@@ -281,7 +281,7 @@ export const MyNumbers:React.FC=()=>{
         }
       }
     };
-    refreshRef.current=()=>{version++;listNeeded=true;failures=0;started=Date.now();attempts.clear();setError('');setRefreshing(true);clearTimeout(timer);void run();};
+    refreshRef.current=()=>{version++;listNeeded=true;failures=0;started=Date.now();attempts.clear();setAutoPaused(false);setError('');setRefreshing(true);clearTimeout(timer);void run();};
     void run();
     return()=>{active=false;clearTimeout(timer);refreshRef.current=()=>{};};
   },[]);
@@ -317,7 +317,7 @@ export const MyNumbers:React.FC=()=>{
       <section aria-label="Входящее сообщение" className="min-w-0 rounded-app-xs border border-white/10 bg-black/20 p-3">
         <h3 className="text-sm font-semibold">Входящее сообщение</h3>
         <div className="mt-3 flex items-center gap-2 text-xs text-textSecondary">{o.status==='received'?<Check size={17} className="shrink-0 text-accentBrightGold" aria-hidden="true"/>:<Clock size={17} className="shrink-0" aria-hidden="true"/>}<span>{label(o)}</span></div>
-        {o.status==='waiting'&&o.state!=='refunded'&&<p className="mt-2 text-[11px] leading-5 text-textSecondary">{o.expires_at&&Date.parse(o.expires_at)<=Date.now()?'Срок ожидания завершился. Уточняем результат у сервера. Возврат пока не подтверждён.':'Данные обновляются автоматически.'}</p>}
+        {o.status==='waiting'&&o.state!=='refunded'&&<p className="mt-2 text-[11px] leading-5 text-textSecondary">{autoPaused?'Автообновление приостановлено. Нажмите «Обновить заказы».':o.expires_at&&Date.parse(o.expires_at)<=Date.now()?'Срок ожидания завершился. Уточняем результат у сервера. Возврат пока не подтверждён.':'Данные обновляются автоматически.'}</p>}
         {o.status==='received'&&o.sms.map((sms,i)=>{
           const key=o.id+':'+i+':'+sms.received_at,shown=revealed[key]===sms.code;
           return <div key={key} className="mt-4 min-w-0 border-t border-white/5 pt-3">
