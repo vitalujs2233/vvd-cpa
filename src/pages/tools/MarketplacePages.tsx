@@ -198,12 +198,56 @@ export const ToolsProxy:React.FC=()=>{
   const [quote,setQuote]=useState<import('./marketApi').ProxyIpv4Quote|null>(null);
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
+  const [prepared,setPrepared]=useState('');
+  const requestKey=useRef<{signature:string;id:string}|null>(null);
   useEffect(()=>{let active=true;setCatalog(null);setError('');setQuote(null);marketApi.proxyIpv4Catalog(kind).then(data=>{if(active){setCatalog(data);setCountry(data.data.countries[0]?.code||'');setDays(data.data.days[0]||7);setQuantity(data.minimum_count);setOperator('');setRotation(0);}}).catch(e=>{if(active)setError(toText(e));});return()=>{active=false;};},[kind]);
   const options=catalog?.data;
   const operators=options?.tariffs?.find(t=>t.country===country)?.mobileOperator||[];
   const selectedOperator=operators.find(x=>x.name===operator)||operators[0];
   const choose=(next:string)=>{setKind(next);setQuote(null);};
   const price=async()=>{setBusy(true);setError('');setQuote(null);try{setQuote(await marketApi.proxyIpv4Quote({proxy_type:kind,country,days,count:quantity,...(kind==='mobile'?{mobile_operator:selectedOperator?.name,rotation_time:selectedOperator?.rotationTime.includes(rotation)?rotation:selectedOperator?.rotationTime[0]}:{})}));}catch(e){setError(toText(e));}finally{setBusy(false);}};
+  const prepare=async()=>{
+    if(!quote||busy)return;
+    const selection={proxy_type:kind,country,days,count:quantity,...(kind==='mobile'?{mobile_operator:selectedOperator?.name,rotation_time:selectedOperator?.rotationTime.includes(rotation)?rotation:selectedOperator?.rotationTime[0]}:{})};
+    const signature=JSON.stringify(selection);
+    if(requestKey.current?.signature!==signature)requestKey.current={signature,id:crypto.randomUUID()};
+    setBusy(true);setError('');setPrepared('');
+    try{
+      const result=await marketApi.proxyIpv4Prepare({...selection,request_id:requestKey.current.id});
+      setPrepared('Заявка №'+result.id.slice(0,8)+' подготовлена. Цена: 
+  return <Shell><NavHeader title="Прокси" subtitle="Proxy-IPv4 · каталог и расчёт цены"/>
+    <Status>IPv4, IPv6, ISP и мобильные прокси. Доступные страны и сроки загружаются через API поставщика. Покупки отключены.</Status>
+    <Card className="flex flex-col gap-3">
+      <h2 className="text-base font-bold">Выбор прокси</h2>
+      {!catalog&&<p className="text-xs text-textSecondary">Каталог ещё не загружен.</p>}
+      <label className="text-xs text-textSecondary">Тип прокси<select className={inputClass} value={kind} onChange={e=>choose(e.target.value)}><option value="ipv4">Прокси IPv4</option><option value="ipv6">Прокси IPv6</option><option value="isp">Прокси ISP</option><option value="mobile">Мобильные прокси</option></select></label>
+      <label className="text-xs text-textSecondary">Страна<select className={inputClass} value={country} onChange={e=>{setCountry(e.target.value);setOperator('');setRotation(0);setQuote(null);}}>{options?.countries.map(x=><option key={x.code} value={x.code}>{x.name} ({x.code})</option>)}</select></label>
+      <label className="text-xs text-textSecondary">Срок аренды<select className={inputClass} value={days} onChange={e=>{setDays(Number(e.target.value));setQuote(null);}}>{options?.days.map(x=><option key={x} value={x}>{x} дней</option>)}</select></label>
+      <label className="text-xs text-textSecondary">Количество IP (минимум {minimum})<input className={inputClass} type="number" min={minimum} max={1000} step={1} value={quantity} onChange={e=>{setQuantity(Number(e.target.value));setQuote(null);}}/></label>
+      {kind==='mobile'&&options?.mobile_tariff_error&&<p className="text-xs text-amber-400">{options.mobile_tariff_error}. Страны и сроки доступны, но выбор оператора и расчёт цены пока заблокированы.</p>}
+      {kind==='mobile'&&<><label className="text-xs text-textSecondary">Оператор<select className={inputClass} value={selectedOperator?.name||''} onChange={e=>{setOperator(e.target.value);setRotation(0);setQuote(null);}}>{operators.map(x=><option key={x.name} value={x.name}>{x.name}</option>)}</select></label><label className="text-xs text-textSecondary">Ротация IP<select className={inputClass} value={selectedOperator?.rotationTime.includes(rotation)?rotation:selectedOperator?.rotationTime[0]||0} onChange={e=>{setRotation(Number(e.target.value));setQuote(null);}}>{selectedOperator?.rotationTime.map(x=><option key={x} value={x}>{x===0?'По ссылке':x+' минут'}</option>)}</select></label></>}
+      <Button type="button" disabled={!catalog||busy||!country||!options?.days.length||!Number.isInteger(quantity)||quantity<minimum||quantity>1000||(kind==='mobile'&&!selectedOperator)} onClick={price}>{busy?'Проверяем цену…':'Узнать цену (без покупки)'}</Button>
+      {quote&&<Status>Цена: ${quote.customer_total_usd}. Заказ не создан, деньги не списаны.</Status>}
+      {quote&&<Button type="button" disabled={busy} onClick={prepare}>{busy?'Подготавливаем…':'Подготовить заявку (без списания)'}</Button>}
+      {prepared&&<Status>{prepared}</Status>}
+      {error&&<p className="text-xs text-red-400">{error}</p>}
+      <Link to="/tools/proxy/my" className="text-xs text-accentBrightGold">Мои прокси →</Link>
+    </Card>
+  </Shell>;
+};
+export const MyProxies:React.FC=()=>{
+  const [orders,setOrders]=useState<Awaited<ReturnType<typeof marketApi.proxyIpv4Orders>>['orders']>([]);
+  const [error,setError]=useState('');
+  useEffect(()=>{let active=true;marketApi.proxyIpv4Orders().then(x=>{if(active)setOrders(x.orders);}).catch(e=>{if(active)setError(toText(e));});return()=>{active=false;};},[]);
+  return <Shell><NavHeader title="Мои прокси" subtitle="Подготовленные заявки · без списаний"/>
+    {error&&<Status>{error}</Status>}
+    {orders.length===0&&<Empty title="Покупок пока нет" subtitle="Подготовленные заявки появятся здесь. Реальная выдача прокси пока отключена."/>}
+    {orders.map(o=><Card key={o.id} className="flex flex-col gap-2"><b className="text-sm">{o.proxy_type.toUpperCase()} · {o.selection.country}</b><p className="text-xs text-textSecondary">{o.selection.count} IP · {o.selection.days} дней · {usd(o.amount_usd)}</p><Status>Статус: {o.status==='prepared'?'Заявка подготовлена, не оплачена':o.status}</Status></Card>)}
+  </Shell>;
+};
++result.customer_total_usd+'. '+(result.wallet_sufficient===false?'На балансе инструментов недостаточно средств. ':'')+'Покупка отключена, деньги не списаны.');
+    }catch(e){setError(toText(e));}finally{setBusy(false);}
+  };
   const minimum=catalog?.minimum_count||(kind==='ipv6'?10:1);
   return <Shell><NavHeader title="Прокси" subtitle="Proxy-IPv4 · каталог и расчёт цены"/>
     <Status>IPv4, IPv6, ISP и мобильные прокси. Доступные страны и сроки загружаются через API поставщика. Покупки отключены.</Status>
