@@ -313,13 +313,13 @@ async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Head
     if order["status"] != "prepared":
         raise HTTPException(409,"Заявка уже обрабатывается или закрыта")
     selection = order["selection"]
-    if selection["proxy_type"] != "ipv6":
-        raise HTTPException(422,"Покупка этого типа пока недоступна")
     fresh = await quote(Quote(**selection), x_telegram_init_data)
     if Decimal(fresh["customer_total_usd"]) != order["quoted_amount"]:
         raise HTTPException(409,"Цена изменилась, подготовьте новую заявку")
     params = {"proxyType":selection["proxy_type"],"days":selection["days"],
               "country":selection["country"],"count":selection["count"],"goal":"instagram"}
+    if selection["proxy_type"] == "mobile":
+        params.update({"mobileOperator":selection["mobile_operator"],"rotationTime":selection["rotation_time"]})
     supplier = await provider("get/order/price",params)
     cost = Decimal(str(supplier["amount"]))
     balance = Decimal(str(supplier["balance"]))
@@ -358,7 +358,7 @@ async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Head
 def checkout_config(x_telegram_init_data: str | None = Header(default=None)):
     require_telegram_id(x_telegram_init_data)
     enabled = os.getenv("PROXY_IPV4_PURCHASES_ENABLED", "false").lower() == "true"
-    return {"purchases_enabled": enabled, "supported_purchase_types": ["ipv6"]}
+    return {"purchases_enabled": enabled, "supported_purchase_types": ["ipv4", "ipv6", "isp", "mobile"]}
 
 
 @router.get("/orders/{order_id}/proxies")
