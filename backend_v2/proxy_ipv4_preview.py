@@ -62,7 +62,7 @@ async def catalog(proxy_type: str = Query("ipv4"), x_telegram_init_data: str | N
     mobile_tariff_error = None
     if proxy_type == "mobile":
         try:
-            tariffs_response = await provider("get/tariffs", {})
+            tariffs_response = await provider("get/mobile/tariffs", {})
             tariffs = tariffs_response.get("tariffs", [])
             if not isinstance(tariffs, list):
                 raise HTTPException(502, "Неверный формат мобильных тарифов")
@@ -108,15 +108,17 @@ async def quote(body: Quote, x_telegram_init_data: str | None = Header(default=N
         raise HTTPException(422,"Страна или срок недоступны")
     params = {"proxyType":body.proxy_type,"days":body.days,"country":body.country.upper(),"count":body.count,"goal":"instagram"}
     if body.proxy_type == "mobile":
-        tariffs = await provider("get/tariffs", {})
+        tariffs = await provider("get/mobile/tariffs", {})
         valid = any(t.get("country") == body.country.upper() and any(op.get("name") == body.mobile_operator and body.rotation_time in op.get("rotationTime",[]) for op in t.get("mobileOperator",[])) for t in tariffs.get("tariffs",[]))
         if not valid:
             raise HTTPException(422,"Выберите действительного оператора и ротацию")
         params.update({"mobileOperator":body.mobile_operator,"rotationTime":body.rotation_time})
     result = await provider("get/order/price", params)
+    if result.get("currency") != "USD":
+        raise HTTPException(502,"Поставщик вернул неподдерживаемую валюту")
     try:
         cost = Decimal(str(result["amount"]))
-        if not cost.is_finite() or cost < 0:
+        if not cost.is_finite() or cost <= 0:
             raise ValueError()
         sell = (cost * (Decimal(1) + markup()/100)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     except Exception:
@@ -271,6 +273,8 @@ async def provider_checkout(selection: dict) -> dict:
     if not isinstance(response, dict):
         raise ValueError("Unexpected supplier response")
     if response.get("success") is True:
+        if response.get("currency") != "USD" or response.get("proxyType") != selection["proxy_type"]:
+            raise ValueError("Supplier receipt mismatch")
         order_number = response.get("orderNumber")
         if not isinstance(order_number, (str, int)) or not str(order_number).strip():
             raise ValueError("Supplier accepted order without orderNumber")
@@ -350,6 +354,8 @@ async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Head
     if selection["proxy_type"] == "mobile":
         params.update({"mobileOperator":selection["mobile_operator"],"rotationTime":selection["rotation_time"]})
     supplier = await provider("get/order/price",params)
+    if supplier.get("currency") != "USD":
+        raise HTTPException(502,"Поставщик вернул неподдерживаемую валюту")
     cost = Decimal(str(supplier["amount"]))
     balance = Decimal(str(supplier["balance"]))
     if not cost.is_finite() or cost <= 0 or not balance.is_finite():
@@ -465,3 +471,9 @@ async def order_proxies(order_id: UUID, x_telegram_init_data: str | None = Heade
             "delivery_pending":len(proxies) != expected,
             "expected_count":expected,
             "verification_required":not bool(matches)}
+
+
+@router.on_event("startup")
+async def log_purchase_gate():
+    import logging
+    logging.getLogger(__name__).info("Proxy purchases enabled=%s", os.getenv("PROXY_IPV4_PURCHASES_ENABLED", "false").lower() == "true")
