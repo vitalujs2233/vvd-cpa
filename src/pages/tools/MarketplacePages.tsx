@@ -241,10 +241,20 @@ export const ToolsProxy:React.FC=()=>{
 export const MyProxies:React.FC=()=>{
   const [orders,setOrders]=useState<Awaited<ReturnType<typeof marketApi.proxyIpv4Orders>>['orders']>([]);
   const [error,setError]=useState('');
+  const [details,setDetails]=useState('');
+  const [loadingId,setLoadingId]=useState('');
   useEffect(()=>{let active=true;marketApi.proxyIpv4Orders().then(x=>{if(active)setOrders(x.orders);}).catch(e=>{if(active)setError(toText(e));});return()=>{active=false;};},[]);
-  return <Shell><NavHeader title="Мои прокси" subtitle="Подготовленные заявки · без списаний"/>
+  const check=async(id:string)=>{
+    setLoadingId(id);setError('');setDetails('');
+    try{
+      const item=await marketApi.proxyIpv4OrderStatus(id);
+      setDetails('Заявка '+item.id.slice(0,8)+': '+(item.status==='prepared'?'подготовлена, не оплачена':item.status)+(item.provider_order_id?' · заказ поставщика '+item.provider_order_id:''));
+    }catch(e){setError(toText(e));}finally{setLoadingId('');}
+  };
+  return <Shell><NavHeader title="Мои прокси" subtitle="Заявки и статусы заказов"/>
     {error&&<Status>{error}</Status>}
+    {details&&<Status>{details}</Status>}
     {orders.length===0&&<Empty title="Покупок пока нет" subtitle="Подготовленные заявки появятся здесь. Реальная выдача прокси пока отключена."/>}
-    {orders.map(o=><Card key={o.id} className="flex flex-col gap-2"><b className="text-sm">{o.proxy_type.toUpperCase()} · {o.selection.country}</b><p className="text-xs text-textSecondary">{o.selection.count} IP · {o.selection.days} дней · {usd(o.amount_usd)}</p><Status>Статус: {o.status==='prepared'?'Заявка подготовлена, не оплачена':o.status}</Status></Card>)}
+    {orders.map(o=><Card key={o.id} className="flex flex-col gap-2"><b className="text-sm">{o.proxy_type.toUpperCase()} · {o.selection.country}</b><p className="text-xs text-textSecondary">{o.selection.count} IP · {o.selection.days} дней · {usd(o.amount_usd)}</p><Status>Статус: {o.status==='prepared'?'Заявка подготовлена, не оплачена':o.status}</Status><Button type="button" size="sm" disabled={loadingId===o.id} onClick={()=>void check(o.id)}>{loadingId===o.id?'Проверяем…':'Проверить статус'}</Button></Card>)}
   </Shell>;
 };
