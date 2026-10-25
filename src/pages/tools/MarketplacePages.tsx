@@ -1,3 +1,4 @@
+import { ApiError } from '@/shared/lib/api';
 import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -186,6 +187,25 @@ export const ToolsPurchases:React.FC=()=>{
 };
 
 export const ToolsNumbers:React.FC=()=>{
+  const nav=useNavigate();
+  const [canBuy,setCanBuy]=useState(false),[buying,setBuying]=useState(false),[pending,setPending]=useState(false);
+  const purchaseRef=useRef<{request_id:string;country:string;service:string;confirmed_price:string}|null>(null);
+  const busyRef=useRef(false);
+  useEffect(()=>{let live=true;marketApi.noirCheckoutConfig().then(c=>{if(live)setCanBuy(c.purchases_enabled);}).catch(()=>{});return()=>{live=false;};},[]);
+  const buy=async()=>{
+    if(busyRef.current||(!purchaseRef.current&&(!price?.price||!price.available||stale||!canBuy)))return;
+    busyRef.current=true;setBuying(true);setError('');
+    if(!purchaseRef.current)purchaseRef.current={request_id:crypto.randomUUID(),country,service,confirmed_price:price!.price!};
+    try {
+      const order=await marketApi.noirPurchase(purchaseRef.current);
+      purchaseRef.current=null;setPending(false);
+      if(order.state==='released'){setError(order.message||'Покупка не состоялась. Средства возвращены.');setRevision(v=>v+1);}
+      else nav('/tools/numbers/my');
+    } catch(e){
+      if(e instanceof ApiError&&e.status>=400&&e.status<500){purchaseRef.current=null;setPending(false);setRevision(v=>v+1);setError(e.message);}
+      else {setPending(true);setError('Не удалось получить результат. Нажмите «Проверить покупку» — повторного списания не будет.');}
+    } finally {busyRef.current=false;setBuying(false);}
+  };
   const [country,setCountry]=useState(''),[service,setService]=useState(''),[error,setError]=useState('');
   const [countries,setCountries]=useState<{code:string}[]>([]);
   const [services,setServices]=useState<import('./marketApi').NoirService[]>([]);
@@ -204,21 +224,47 @@ export const ToolsNumbers:React.FC=()=>{
   return <Shell><NavHeader title="Виртуальные номера" subtitle="Приём SMS · Noir SMS"/>
     <Card className="flex flex-col gap-3">
       <div className="flex items-center gap-2"><Phone size={20} className="text-accentBrightGold"/><h2 className="text-base font-bold">Выбор номера</h2></div>
-      <Status>{loading?'Загружаем страны…':'Каталог Noir SMS. Покупки пока отключены, средства не списываются.'}</Status>
-      <label className="text-xs text-textSecondary">Страна<select aria-label="Страна" className={inputClass} value={country} disabled={!countries.length} onChange={e=>{setCountry(e.target.value);setService('');setError('');}}><option value="">{loading?'Загрузка…':countries.length?'Выберите страну':'Нет доступных стран'}</option>{countries.map(c=><option key={c.code} value={c.code}>{countryName(c.code)}</option>)}</select></label>
-      <label className="text-xs text-textSecondary">Сервис для SMS<select aria-label="Сервис для SMS" className={inputClass} value={service} disabled={!services.length||servicesLoading} onChange={e=>{setService(e.target.value);setError('');}}><option value="">{servicesLoading?'Загружаем сервисы…':services.length?'Выберите сервис':country?'Нет доступных сервисов':'Сначала выберите страну'}</option>{services.map(s=><option key={s.code} value={s.code}>{s.name}</option>)}</select></label>
+      <Status>{loading?'Загружаем страны…':canBuy?'Оплата с баланса инструментов. Используйте номер только для своих разрешённых аккаунтов.':'Покупки временно отключены.'}</Status>
+      <label className="text-xs text-textSecondary">Страна<select aria-label="Страна" className={inputClass} value={country} disabled={!countries.length||buying||pending} onChange={e=>{setCountry(e.target.value);setService('');setError('');}}><option value="">{loading?'Загрузка…':countries.length?'Выберите страну':'Нет доступных стран'}</option>{countries.map(c=><option key={c.code} value={c.code}>{countryName(c.code)}</option>)}</select></label>
+      <label className="text-xs text-textSecondary">Сервис для SMS<select aria-label="Сервис для SMS" className={inputClass} value={service} disabled={!services.length||servicesLoading||buying||pending} onChange={e=>{setService(e.target.value);setError('');}}><option value="">{servicesLoading?'Загружаем сервисы…':services.length?'Выберите сервис':country?'Нет доступных сервисов':'Сначала выберите страну'}</option>{services.map(s=><option key={s.code} value={s.code}>{s.name}</option>)}</select></label>
       <div className="flex items-center justify-between text-sm"><span className="text-textSecondary">Стоимость номера</span><strong>{priceLoading?'Проверяем…':price?.price&&!stale?usd(price.price):'—'}</strong></div>
       {price&&!stale&&<Status>{price.message||(price.available?`В наличии: ${price.stock} шт.`:'Нет в наличии')}</Status>}
       {stale&&<Status>Цена устарела. Обновите данные перед проверкой.</Status>}
-      <Button type="button" disabled>Купить номер · скоро</Button>
+      <Button type="button" disabled={buying||(!pending&&(!canBuy||!price?.available||stale||priceLoading))} onClick={()=>void buy()}>{buying?'Проверяем покупку…':pending?'Проверить покупку':'Купить номер'}</Button>
       {error&&<p role="alert" className="text-xs text-error">{error}</p>}
-      <Button type="button" variant="secondary" disabled={loading||servicesLoading||priceLoading} onClick={()=>setRevision(v=>v+1)}>Обновить каталог и цену</Button>
+      <Button type="button" variant="secondary" disabled={loading||servicesLoading||priceLoading||buying||pending} onClick={()=>setRevision(v=>v+1)}>Обновить каталог и цену</Button>
       <Link to="/tools/numbers/my" className="text-xs text-accentBrightGold">Мои номера →</Link>
     </Card>
-    <Card className="flex flex-col gap-2"><b className="text-sm">Как будет работать</b><p className="text-xs leading-5 text-textSecondary">Выберите страну и сервис, проверьте цену, оплатите с баланса инструментов VVD CPA и получите номер. Код SMS и статус заказа будут доступны в разделе «Мои номера».</p></Card>
+    <Card className="flex flex-col gap-2"><b className="text-sm">Как это работает</b><p className="text-xs leading-5 text-textSecondary">Выберите страну и сервис, проверьте цену, оплатите с баланса инструментов VVD CPA и получите номер. Код SMS и статус заказа будут доступны в разделе «Мои номера».</p></Card>
   </Shell>;
 };
-export const MyNumbers:React.FC=()=> <Shell><NavHeader title="Мои номера" subtitle="Номера и полученные SMS"/><Empty title="Номеров пока нет" subtitle="После подключения Noir SMS здесь будут отображаться заказы, коды SMS и статусы отмены."/><Link to="/tools/numbers" className="text-xs text-accentBrightGold">Выбрать номер →</Link></Shell>;
+export const MyNumbers:React.FC=()=>{
+  const [orders,setOrders]=useState<import('./marketApi').NoirOrder[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[copied,setCopied]=useState('');
+  const refresh=useCallback(async()=>{setError('');try{const result=await marketApi.noirOrders();setOrders(result.orders);}catch(e){setError(toText(e));}finally{setLoading(false);}},[]);
+  useEffect(()=>{void refresh();},[refresh]);
+  useEffect(()=>{let active=true;const timer=setTimeout(async()=>{
+    const waiting=orders.find(o=>o.state==='settled'&&o.status==='waiting');
+    if(!waiting)return;
+    try{const updated=await marketApi.noirOrder(waiting.id);if(active)setOrders(rows=>[...rows.filter(o=>o.id!==updated.id),updated]);}catch(e){if(active)setError(toText(e));}
+  },5000);return()=>{active=false;clearTimeout(timer);};},[orders]);
+  const copy=async(id:string,value:string)=>{try{await navigator.clipboard.writeText(value);setCopied(id);}catch{setError('Не удалось скопировать. Выделите и скопируйте вручную.');}};
+  const labels:Record<string,string>={waiting:'Ожидаем SMS',received:'SMS получено',expired:'Срок истёк',canceled:'Отменён'};
+  return <Shell><NavHeader title="Мои номера" subtitle="Номера и полученные SMS"/>
+    {loading&&<Status>Загружаем заказы…</Status>}{error&&<p role="alert" className="text-xs text-error">{error}</p>}
+    {!loading&&!orders.length&&<Empty title="Номеров пока нет" subtitle="После покупки номер и сообщения появятся здесь."/>}
+    {orders.map(o=><Card key={o.id} className="flex flex-col gap-3">
+      <div className="flex justify-between"><b>{o.country.toUpperCase()} · {o.service}</b><b>{usd(o.amount)}</b></div>
+      <p className="text-xs text-textSecondary">{new Date(o.created_at).toLocaleString()}</p>
+      {o.phone&&<div className="flex items-center justify-between gap-2"><b className="break-all select-text">+{o.phone.replace(/^\+/, '')}</b><Button variant="secondary" onClick={()=>void copy(o.id,o.phone!)}>{copied===o.id?'Скопировано':'Копировать'}</Button></div>}
+      <Status>{o.message||(o.state==='refunded'?'Средства возвращены на баланс инструментов':labels[o.status||'']||'Заказ обрабатывается')}</Status>
+      {o.expires_at&&<p className="text-xs text-textSecondary">Действует до: {new Date(o.expires_at).toLocaleString()}</p>}
+      {o.sms.map((sms,i)=><div key={i} className="rounded-app-xs border border-white/10 p-3"><b className="select-text">{sms.code}</b><p className="text-xs whitespace-pre-wrap break-words select-text">{sms.text}</p></div>)}
+      <p className="text-[10px] break-all text-textSecondary">ID: {o.id}</p>
+    </Card>)}
+    <Button variant="secondary" onClick={()=>void refresh()}>Обновить заказы</Button>
+    <Link to="/tools/numbers" className="text-xs text-accentBrightGold">Выбрать номер →</Link>
+  </Shell>;
+};
 export const ToolsProxy:React.FC=()=>{
   const [catalog,setCatalog]=useState<import('./marketApi').ProxyIpv4Catalog|null>(null);
   const [kind,setKind]=useState('ipv4');

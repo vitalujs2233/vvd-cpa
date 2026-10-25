@@ -21,12 +21,11 @@ class Prices(unittest.TestCase):
         data=normalize('services',{'currency':'USD','country':'us','services':[{'service':'example','name':'Example','stock':1}]},'us')
         self.assertIsNone(data['services'][0]['price']);self.assertFalse(data['services'][0]['available'])
         self.assertNotIn('cost',public(data)['services'][0])
-    def test_auth_and_closed_purchase(self):
+    def test_catalog_auth_and_parameter_validation(self):
         app=FastAPI();app.include_router(router)
         with TestClient(app) as c:
             self.assertEqual(c.get('/tools-market/numbers/countries').status_code,401)
             with patch('noir_sms_catalog.require_telegram_id',return_value=99):
-                self.assertEqual(c.post('/tools-market/numbers/orders').status_code,503)
                 self.assertEqual(c.get('/tools-market/numbers/prices?country=../&service=a').status_code,422)
 
 class Reads(unittest.IsolatedAsyncioTestCase):

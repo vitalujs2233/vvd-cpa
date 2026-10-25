@@ -28,7 +28,8 @@ const write = <T>(path:string, method:'POST'|'PUT', body:object) => apiRequest<T
   method, headers:authHeaders(), body:JSON.stringify(body)
 });
 export type NoirService = {code:string;name:string;price:string|null;stock:number;available:boolean;message:string|null};
-export type NoirQuote = NoirService & {country:string;currency:'USD';expires_at:number;purchases_enabled:false};
+export type NoirQuote = NoirService & {country:string;currency:'USD';expires_at:number;purchases_enabled:boolean};
+export type NoirOrder = {id:string;request_id:string;country:string;service:string;amount:string;created_at:string;state:string;phone:string|null;status:string|null;expires_at:string|null;sms:{code:string;text:string;received_at:string}[];message:string|null};
 const noirPending = new Map<string,Promise<unknown>>();
 function noirGet<T>(path:string):Promise<T> {
   const existing=noirPending.get(path); if(existing)return existing as Promise<T>;
@@ -38,7 +39,16 @@ function noirGet<T>(path:string):Promise<T> {
   }).finally(()=>noirPending.delete(path));
   noirPending.set(path,request);return request;
 }
+const noirPurchaseRequest=async(body:{request_id:string;country:string;service:string;confirmed_price:string})=>{
+  const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),40000);
+  try{return await apiRequest<NoirOrder>('/tools-market/numbers/orders',{method:'POST',headers:authHeaders(),body:JSON.stringify(body),signal:controller.signal});}
+  finally{clearTimeout(timer);}
+};
 export const marketApi = {
+  noirCheckoutConfig:()=>noirGet<{purchases_enabled:boolean}>('/checkout-config'),
+  noirPurchase:noirPurchaseRequest,
+  noirOrders:()=>noirGet<{orders:NoirOrder[]}>('/orders'),
+  noirOrder:(id:string)=>noirGet<NoirOrder>('/orders/'+encodeURIComponent(id)),
   noirCountries:()=>noirGet<{countries:{code:string}[]}>('/countries'),
   noirServices:(country:string)=>noirGet<{services:NoirService[]}>('/services?country='+encodeURIComponent(country)),
   noirPrice:(country:string,service:string)=>noirGet<NoirQuote>('/prices?country='+encodeURIComponent(country)+'&service='+encodeURIComponent(service)),
