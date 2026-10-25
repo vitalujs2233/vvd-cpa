@@ -27,7 +27,21 @@ const get = <T>(path:string) => apiRequest<T>('/tools-market'+path, { headers: a
 const write = <T>(path:string, method:'POST'|'PUT', body:object) => apiRequest<T>('/tools-market'+path,{
   method, headers:authHeaders(), body:JSON.stringify(body)
 });
+export type NoirService = {code:string;name:string;price:string|null;stock:number;available:boolean;message:string|null};
+export type NoirQuote = NoirService & {country:string;currency:'USD';expires_at:number;purchases_enabled:false};
+const noirPending = new Map<string,Promise<unknown>>();
+function noirGet<T>(path:string):Promise<T> {
+  const existing=noirPending.get(path); if(existing)return existing as Promise<T>;
+  const request=get<T>('/numbers'+path).catch((e:unknown)=>{
+    if(e instanceof Error && e.message==='network_error')throw new Error('Нет соединения с каталогом. Повторите загрузку.');
+    throw e;
+  }).finally(()=>noirPending.delete(path));
+  noirPending.set(path,request);return request;
+}
 export const marketApi = {
+  noirCountries:()=>noirGet<{countries:{code:string}[]}>('/countries'),
+  noirServices:(country:string)=>noirGet<{services:NoirService[]}>('/services?country='+encodeURIComponent(country)),
+  noirPrice:(country:string,service:string)=>noirGet<NoirQuote>('/prices?country='+encodeURIComponent(country)+'&service='+encodeURIComponent(service)),
   proxyIpv4CheckoutConfig:()=>get<{purchases_enabled:boolean;supported_purchase_types:string[]}>('/proxy-ipv4/checkout-config'),
   proxyIpv4Catalog:(kind:string)=>get<ProxyIpv4Catalog>('/proxy-ipv4/catalog?proxy_type='+encodeURIComponent(kind)),
   proxyIpv4Prepare:(body:{request_id:string;proxy_type:string;country:string;days:number;count:number;mobile_operator?:string;rotation_time?:number})=>write<{id:string;status:string;customer_total_usd:string;wallet_sufficient?:boolean;purchases_enabled:boolean}>('/proxy-ipv4/orders/prepare','POST',body),

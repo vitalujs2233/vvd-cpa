@@ -1,0 +1,39 @@
+name: Noir catalogue and tools ledger
+on:
+  pull_request:
+    branches: [main]
+    paths: ['backend_v2/noir_sms_catalog.py', 'backend_v2/tools_order_ledger.py', 'backend_v2/tests/test_noir_catalog.py', 'backend_v2/tests/test_tools_order_ledger.py', 'backend_v2/migrations/*tools_order_ledger.sql', 'src/pages/tools/MarketplacePages.tsx', 'src/pages/tools/marketApi.ts', '.github/workflows/validate-noir.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: noir_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg2://postgres:test-only@localhost:5432/noir_test
+      BOT_TOKEN: test-only
+      TOOLS_LEDGER_TEST_DB: '1'
+      PYTHONPATH: backend_v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r backend_v2/requirements.txt
+      - run: python -m unittest backend_v2.tests.test_noir_catalog backend_v2.tests.test_tools_order_ledger -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-audit --no-fund
+      - run: npm install --no-save --package-lock=false react-test-renderer@18.3.1
+      - run: node --test tests/noir-ui.cjs
+      - run: npm run build
