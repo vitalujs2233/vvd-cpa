@@ -30,13 +30,16 @@ const write = <T>(path:string, method:'POST'|'PUT', body:object) => apiRequest<T
 export type NoirService = {code:string;name:string;price:string|null;stock:number;available:boolean;message:string|null};
 export type NoirQuote = NoirService & {country:string;currency:'USD';expires_at:number;purchases_enabled:boolean};
 export type NoirOrder = {id:string;request_id:string;country:string;service:string;amount:string;created_at:string;state:string;phone:string|null;status:string|null;expires_at:string|null;sms:{code:string;text:string;received_at:string}[];message:string|null};
+let noirSession = '';
 const noirPending = new Map<string,Promise<unknown>>();
 function noirGet<T>(path:string):Promise<T> {
+  const session=window.Telegram?.WebApp?.initData||'';
+  if(session!==noirSession){noirPending.clear();noirSession=session;}
   const existing=noirPending.get(path); if(existing)return existing as Promise<T>;
-  const request=get<T>('/numbers'+path).catch((e:unknown)=>{
+  const request=get<T>('/numbers'+path).then(data=>{if(session!==(window.Telegram?.WebApp?.initData||''))throw new Error('Сессия изменилась. Откройте раздел заново.');return data;}).catch((e:unknown)=>{
     if(e instanceof Error && e.message==='network_error')throw new Error('Нет соединения с каталогом. Повторите загрузку.');
     throw e;
-  }).finally(()=>noirPending.delete(path));
+  }).finally(()=>{if(noirPending.get(path)===request)noirPending.delete(path);});
   noirPending.set(path,request);return request;
 }
 const noirPurchaseRequest=async(body:{request_id:string;country:string;service:string;confirmed_price:string})=>{

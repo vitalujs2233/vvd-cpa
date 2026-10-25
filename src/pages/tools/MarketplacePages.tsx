@@ -239,29 +239,98 @@ export const ToolsNumbers:React.FC=()=>{
   </Shell>;
 };
 export const MyNumbers:React.FC=()=>{
-  const [orders,setOrders]=useState<import('./marketApi').NoirOrder[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[copied,setCopied]=useState('');
-  const refresh=useCallback(async()=>{setError('');try{const result=await marketApi.noirOrders();setOrders(result.orders);}catch(e){setError(toText(e));}finally{setLoading(false);}},[]);
-  useEffect(()=>{void refresh();},[refresh]);
-  useEffect(()=>{let active=true;const timer=setTimeout(async()=>{
-    const waiting=orders.find(o=>o.state==='settled'&&o.status==='waiting');
-    if(!waiting)return;
-    try{const updated=await marketApi.noirOrder(waiting.id);if(active)setOrders(rows=>[...rows.filter(o=>o.id!==updated.id),updated]);}catch(e){if(active)setError(toText(e));}
-  },5000);return()=>{active=false;clearTimeout(timer);};},[orders]);
-  const copy=async(id:string,value:string)=>{try{await navigator.clipboard.writeText(value);setCopied(id);}catch{setError('Не удалось скопировать. Выделите и скопируйте вручную.');}};
-  const labels:Record<string,string>={waiting:'Ожидаем SMS',received:'SMS получено',expired:'Срок истёк',canceled:'Отменён'};
+  type NumberOrder=import('./marketApi').NoirOrder;
+  const [orders,setOrders]=useState<NumberOrder[]>([]),[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false);
+  const [error,setError]=useState(''),[notice,setNotice]=useState(''),[copied,setCopied]=useState('');
+  const [revealed,setRevealed]=useState<Record<string,string>>({}),[names,setNames]=useState<Record<string,string>>({});
+  const refreshRef=useRef<()=>void>(()=>{}),copyTimer=useRef<ReturnType<typeof setTimeout>>(),copyVersion=useRef(0);
+  const alive=useRef(true),resolvedCountries=useRef(new Set<string>());
+  useEffect(()=>{alive.current=true;return()=>{alive.current=false;copyVersion.current++;clearTimeout(copyTimer.current);};},[]);
+  // One scheduler owns list + status requests. Manual refresh queues behind an in-flight
+  // request and invalidates its result, so a late response cannot replace newer data.
+  useEffect(()=>{
+    let active=true,busy=false,listNeeded=true,version=0,failures=0,cursor=0;
+    let current:NumberOrder[]=[],started=Date.now(),timer:ReturnType<typeof setTimeout>;
+    const attempts=new Map<string,number>();
+    const waiting=(o:NumberOrder)=>!['refunded','released'].includes(o.state)&&!['received','expired','canceled'].includes(o.status||'')&&(o.status==='waiting'||['reserved','submitting','unknown'].includes(o.state));
+    const limited=(o:NumberOrder)=>o.state==='unknown'||(!!o.expires_at&&Date.parse(o.expires_at)<=Date.now());
+    const run=async()=>{
+      if(!active||busy)return;
+      if(Date.now()-started>=30*60*1000){setError('Автообновление приостановлено. Нажмите «Обновить заказы», чтобы продолжить проверку.');return;}
+      const candidates=current.filter(o=>waiting(o)&&(!limited(o)||(attempts.get(o.id)||0)<6));
+      if(!listNeeded&&!candidates.length){if(current.some(waiting))setError('Результат ещё уточняется. Нажмите «Обновить заказы» для новой проверки.');return;}
+      const stamp=version,isList=listNeeded;listNeeded=false;busy=true;
+      const order=isList?undefined:candidates[cursor++%candidates.length];
+      if(order&&limited(order))attempts.set(order.id,(attempts.get(order.id)||0)+1);
+      let failed=false;
+      try{
+        if(isList){const result=await marketApi.noirOrders();if(active&&stamp===version)current=result.orders;}
+        else if(order){const updated=await marketApi.noirOrder(order.id);if(active&&stamp===version)current=current.map(o=>o.id===updated.id?updated:o);}
+        if(active&&stamp===version){setOrders([...current]);setError('');failures=0;}
+      }catch{
+        failed=true;
+        if(active&&stamp===version){failures++;if(isList)listNeeded=true;setError(failures>=5?'Сервер временно недоступен. Автообновление приостановлено — нажмите «Обновить заказы».':'Не удалось обновить данные. Повторим автоматически; последние данные сохранены.');}
+      }finally{
+        busy=false;
+        if(active){setLoading(false);setRefreshing(false);
+          if(stamp!==version)timer=setTimeout(()=>void run(),0);
+          else if(failures<5){
+            const pending=current.filter(waiting);
+            if(listNeeded||pending.length){const delay=failed?Math.min(60000,5000*2**(failures-1)):pending.length&&pending.every(limited)?30000:5000;timer=setTimeout(()=>void run(),delay);}
+          }
+        }
+      }
+    };
+    refreshRef.current=()=>{version++;listNeeded=true;failures=0;started=Date.now();attempts.clear();setError('');setRefreshing(true);clearTimeout(timer);void run();};
+    void run();
+    return()=>{active=false;clearTimeout(timer);refreshRef.current=()=>{};};
+  },[]);
+  const countryKeys=[...new Set(orders.map(o=>o.country))].sort().join(',');
+  useEffect(()=>{
+    let active=true;
+    void (async()=>{for(const country of countryKeys.split(',').filter(Boolean).slice(0,10)){
+      if(resolvedCountries.current.has(country))continue;
+      try{const data=await marketApi.noirServices(country);if(!active)return;resolvedCountries.current.add(country);setNames(n=>({...n,...Object.fromEntries(data.services.map(s=>[country+':'+s.code,s.name]))}));}
+      catch{if(!active)return;resolvedCountries.current.add(country);break;/* Historical services can disappear from the live catalogue. Keep the honest service code. */}
+    }})();
+    return()=>{active=false;};
+  },[countryKeys]);
+  const copy=async(key:string,value:string,kind:'number'|'code')=>{
+    const version=++copyVersion.current;
+    try{await navigator.clipboard.writeText(value);if(!alive.current||version!==copyVersion.current)return;
+      setCopied(key);setNotice(kind==='number'?'Номер скопирован':'Код скопирован');clearTimeout(copyTimer.current);
+      copyTimer.current=setTimeout(()=>{setCopied('');setNotice('');},2000);
+    }catch{if(alive.current&&version===copyVersion.current)setNotice('Не удалось скопировать. Попробуйте ещё раз.');}
+  };
+  const countryName=(code:string)=>{try{return new Intl.DisplayNames(['ru'],{type:'region'}).of(code.toUpperCase())||code.toUpperCase();}catch{return code.toUpperCase();}};
+  const labels:Record<string,string>={waiting:'Ожидаем сообщение',received:'Сообщение получено',expired:'Срок действия истёк',canceled:'Заказ отменён',refunded:'Средства возвращены',unknown:'Результат уточняется'};
+  const label=(o:NumberOrder)=>o.state==='refunded'?labels.refunded:o.state==='released'?'Покупка не состоялась':o.state==='unknown'?labels.unknown:labels[o.status||'']||'Заказ обрабатывается';
+  const iconButton='flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-accentBrightGold transition duration-150 hover:bg-white/5 active:scale-95 active:bg-accentGold/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accentGold';
   return <Shell><NavHeader title="Мои номера" subtitle="Номера и полученные SMS"/>
-    {loading&&<Status>Загружаем заказы…</Status>}{error&&<p role="alert" className="text-xs text-error">{error}</p>}
-    {!loading&&!orders.length&&<Empty title="Номеров пока нет" subtitle="После покупки номер и сообщения появятся здесь."/>}
-    {orders.map(o=><Card key={o.id} className="flex flex-col gap-3">
-      <div className="flex justify-between"><b>{o.country.toUpperCase()} · {o.service}</b><b>{usd(o.amount)}</b></div>
-      <p className="text-xs text-textSecondary">{new Date(o.created_at).toLocaleString()}</p>
-      {o.phone&&<div className="flex items-center justify-between gap-2"><b className="break-all select-text">+{o.phone.replace(/^\+/, '')}</b><Button variant="secondary" onClick={()=>void copy(o.id,o.phone!)}>{copied===o.id?'Скопировано':'Копировать'}</Button></div>}
-      <Status>{o.message||(o.state==='refunded'?'Средства возвращены на баланс инструментов':labels[o.status||'']||'Заказ обрабатывается')}</Status>
-      {o.expires_at&&<p className="text-xs text-textSecondary">Действует до: {new Date(o.expires_at).toLocaleString()}</p>}
-      {o.sms.map((sms,i)=><div key={i} className="rounded-app-xs border border-white/10 p-3"><b className="select-text">{sms.code}</b><p className="text-xs whitespace-pre-wrap break-words select-text">{sms.text}</p></div>)}
-      <p className="text-[10px] break-all text-textSecondary">ID: {o.id}</p>
+    <p role="status" aria-live="polite" className="text-xs text-accentBrightGold empty:hidden">{notice}</p>
+    {loading&&<Status>Загружаем заказы…</Status>}{error&&<p role="alert" className="text-xs leading-5 text-textSecondary">{error}</p>}
+    {!loading&&!error&&!orders.length&&<Empty title="Номеров пока нет" subtitle="После покупки номер и сообщения появятся здесь."/>}
+    {orders.map(o=><Card key={o.id} className="min-w-0 flex flex-col gap-4">
+      <div className="flex min-w-0 items-start justify-between gap-3"><div className="min-w-0"><h2 className="break-words text-sm font-bold">{countryName(o.country)} · {names[o.country+':'+o.service]||o.service}</h2><p className="mt-1 text-[11px] text-textSecondary">{new Date(o.created_at).toLocaleString()}</p></div><b className="shrink-0 text-sm text-accentBrightGold">{usd(o.amount)}</b></div>
+      <p className="text-xs text-textSecondary">Статус: {label(o)}</p>
+      {o.phone&&<div><p className="mb-2 text-xs text-textSecondary">Номер телефона</p><div className="flex min-w-0 items-center gap-2 rounded-app-xs border border-accentGold/20 bg-black/20 p-2 pl-3"><span className="min-w-0 flex-1 break-all select-text text-lg font-semibold tracking-wide">{o.phone.startsWith('+')?o.phone:'+'+o.phone}</span><button type="button" aria-label="Скопировать номер" className={iconButton} onClick={()=>void copy(o.id,o.phone!,'number')}>{copied===o.id?<Check size={18} aria-hidden="true"/>:<Copy size={18} aria-hidden="true"/>}</button></div></div>}
+      <section aria-label="Входящее сообщение" className="min-w-0 rounded-app-xs border border-white/10 bg-black/20 p-3">
+        <h3 className="text-sm font-semibold">Входящее сообщение</h3>
+        <div className="mt-3 flex items-center gap-2 text-xs text-textSecondary">{o.status==='received'?<Check size={17} className="shrink-0 text-accentBrightGold" aria-hidden="true"/>:<Clock size={17} className="shrink-0" aria-hidden="true"/>}<span>{label(o)}</span></div>
+        {o.status==='waiting'&&o.state!=='refunded'&&<p className="mt-2 text-[11px] leading-5 text-textSecondary">{o.expires_at&&Date.parse(o.expires_at)<=Date.now()?'Срок ожидания завершился. Уточняем результат у сервера. Возврат пока не подтверждён.':'Данные обновляются автоматически.'}</p>}
+        {o.status==='received'&&o.sms.map((sms,i)=>{
+          const key=o.id+':'+i+':'+sms.received_at,shown=revealed[key]===sms.code;
+          return <div key={key} className="mt-4 min-w-0 border-t border-white/5 pt-3">
+            {sms.code&&<><p className="mb-2 text-xs text-textSecondary">Код</p><div className="flex min-w-0 items-center gap-2 rounded-app-xs border border-white/10 bg-white/[0.03] p-2 pl-3"><span className="min-w-0 flex-1 break-all font-mono text-lg tracking-widest" aria-label={shown?'Код подтверждения':'Код скрыт'}>{shown?sms.code:'••••••'}</span><button type="button" aria-label="Скопировать код" className={iconButton} onClick={()=>void copy(key,sms.code,'code')}>{copied===key?<Check size={18} aria-hidden="true"/>:<Copy size={18} aria-hidden="true"/>}</button></div><button type="button" aria-expanded={shown} className="min-h-[44px] py-2 text-xs text-accentBrightGold" onClick={()=>setRevealed(v=>({...v,[key]:shown?'':sms.code}))}>{shown?'Скрыть код':'Показать код'}</button></>}
+            <p className="mb-1 text-xs text-textSecondary">Текст сообщения</p><p className="whitespace-pre-wrap break-words select-text text-xs leading-5">{sms.code&&!shown?'Текст скрыт вместе с кодом.':sms.text}</p>
+          </div>;
+        })}
+        {o.message&&<p className="mt-3 break-words text-xs leading-5 text-textSecondary">{o.message}</p>}
+      </section>
+      {o.expires_at&&<p className="text-[11px] text-textSecondary">Действует до {new Date(o.expires_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} · {new Date(o.expires_at).toLocaleDateString()}</p>}
+      <p className="break-all text-[10px] text-textSecondary">ID: {o.id}</p>
     </Card>)}
-    <Button variant="secondary" onClick={()=>void refresh()}>Обновить заказы</Button>
+    <Button variant="secondary" disabled={loading||refreshing} onClick={()=>refreshRef.current()}>{refreshing?'Обновляем…':'Обновить заказы'}</Button>
     <Link to="/tools/numbers" className="text-xs text-accentBrightGold">Выбрать номер →</Link>
   </Shell>;
 };
