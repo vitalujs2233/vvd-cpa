@@ -180,3 +180,58 @@ def proxy_orders(x_telegram_init_data: str | None = Header(default=None)):
              "selection":r["selection"],"amount_usd":str(r["quoted_amount"]),
              "status":r["status"],"created_at":r["created_at"].isoformat()} for r in rows],
             "purchases_enabled":False}
+
+# Provider checkout contract, staged without any payment or purchase side effects.
+# Proxy-IPv4 POST /order does not document an idempotency key.
+# Never automatically retry a request after it might have reached the provider.
+def provider_order_payload(selection: dict) -> dict:
+    kind = selection["proxy_type"]
+    if kind not in ("ipv4", "ipv6", "isp", "mobile"):
+        raise ValueError("Unsupported proxy type")
+    payload = {
+        "proxyType": kind, "days": selection["days"],
+        "country": selection["country"], "count": selection["count"],
+        "goal": "instagram", "authType": "login",
+    }
+    if kind == "ipv6":
+        payload["protocol"] = "SOCKS5"
+    if kind == "mobile":
+        if not selection.get("mobile_operator") or selection.get("rotation_time") is None:
+            raise ValueError("Missing mobile operator or rotation")
+        payload["mobileOperator"] = selection["mobile_operator"]
+        payload["rotationTime"] = selection["rotation_time"]
+    return payload
+
+@router.get("/orders/{order_id}/readiness")
+async def order_readiness(order_id: UUID, x_telegram_init_data: str | None = Header(default=None)):
+    uid = require_telegram_id(x_telegram_init_data)
+    with engine.connect() as conn:
+        order = conn.execute(text("""
+            SELECT selection,quoted_amount,status FROM tool_proxy_order_intents
+            WHERE id=:id AND telegram_id=:uid
+        """), {"id":order_id,"uid":uid}).mappings().first()
+        wallet = conn.execute(text("""
+            SELECT available,reserved FROM tool_wallets WHERE telegram_id=:uid
+        """), {"uid":uid}).mappings().first()
+    if not order:
+        raise HTTPException(404,"Заявка не найдена")
+    if order["status"] != "prepared":
+        return {"status":order["status"],"can_purchase":False,"reason":"Заявка не готова к оплате"}
+    try:
+        provider_order_payload(order["selection"])
+    except (KeyError, ValueError):
+        raise HTTPException(422,"Параметры заявки недействительны")
+    # Provider account balance is read-only; no supplier purchase is initiated.
+    supplier = await provider("get/balance", {})
+    try:
+        supplier_balance = Decimal(str(supplier["balance"]))
+        if not supplier_balance.is_finite() or supplier_balance < 0:
+            raise ValueError()
+    except (KeyError, ValueError, ArithmeticError):
+        raise HTTPException(502,"Не удалось проверить баланс поставщика")
+    available = wallet["available"] if wallet else Decimal("0")
+    # Repricing is mandatory before actual checkout, which remains disabled.
+    return {"status":"prepared","can_purchase":False,"purchases_enabled":False,
+            "wallet_sufficient":available >= order["quoted_amount"],
+            "provider_balance_checked":True,
+            "reason":"Покупки не активированы; сумма будет перепроверена перед списанием"}
