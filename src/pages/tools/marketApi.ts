@@ -1,6 +1,8 @@
 import { apiRequest } from '@/shared/lib/api';
 
 export type ProxyIpv4Catalog = {type:string;data:{days:number[];countries:{code:string;name:string}[];tariffs?:{country:string;mobileOperator:{name:string;rotationTime:number[]}[]}[];mobile_tariff_error?:string};minimum_count:number;purchases_enabled:boolean};
+export type DeliveredProxy = {id:string;host:string;endpoints:{protocol:string;port:string}[];login?:string;password?:string;expires_at?:string;mobile_operator?:string;rotation_minutes?:number};
+export type ProxyDelivery = {status:string;proxies:DeliveredProxy[];delivery_pending:boolean;expected_count:number;verification_required?:boolean};
 export type ProxyIpv4Quote = {customer_total_usd:string;purchases_enabled:boolean};
 export type ServiceStatus = 'available' | 'connecting' | 'unavailable';
 export type ServiceInfo = { id: string; title: string; category: string; description: string; status: ServiceStatus; price: string | null };
@@ -47,6 +49,19 @@ const noirPurchaseRequest=async(body:{request_id:string;country:string;service:s
   try{return await apiRequest<NoirOrder>('/tools-market/numbers/orders',{method:'POST',headers:authHeaders(),body:JSON.stringify(body),signal:controller.signal});}
   finally{clearTimeout(timer);}
 };
+// Deduplicate only in-flight reads. Connection credentials are never persisted.
+const proxyReads = new Map<string, Promise<unknown>>();
+let proxyReadSession = '';
+function proxyRead<T>(path:string):Promise<T> {
+  const session=window.Telegram?.WebApp?.initData||'';
+  if(session!==proxyReadSession){proxyReads.clear();proxyReadSession=session;}
+  const existing=proxyReads.get(path);if(existing)return existing as Promise<T>;
+  const request=get<T>(path).then(value=>{
+    if(session!==(window.Telegram?.WebApp?.initData||''))throw new Error('Сессия изменилась. Откройте раздел заново.');
+    return value;
+  }).finally(()=>{if(proxyReads.get(path)===request)proxyReads.delete(path);});
+  proxyReads.set(path,request);return request;
+}
 export const marketApi = {
   noirCheckoutConfig:()=>noirGet<{purchases_enabled:boolean}>('/checkout-config'),
   noirPurchase:noirPurchaseRequest,
@@ -58,10 +73,10 @@ export const marketApi = {
   proxyIpv4CheckoutConfig:()=>get<{purchases_enabled:boolean;supported_purchase_types:string[]}>('/proxy-ipv4/checkout-config'),
   proxyIpv4Catalog:(kind:string)=>get<ProxyIpv4Catalog>('/proxy-ipv4/catalog?proxy_type='+encodeURIComponent(kind)),
   proxyIpv4Prepare:(body:{request_id:string;proxy_type:string;country:string;days:number;count:number;mobile_operator?:string;rotation_time?:number})=>write<{id:string;status:string;customer_total_usd:string;wallet_sufficient?:boolean;purchases_enabled:boolean}>('/proxy-ipv4/orders/prepare','POST',body),
-  proxyIpv4OrderProxies:(id:string)=>get<{status:string;proxies:unknown[];delivery_pending:boolean}>('/proxy-ipv4/orders/'+encodeURIComponent(id)+'/proxies'),
+  proxyIpv4OrderProxies:(id:string)=>proxyRead<ProxyDelivery>('/proxy-ipv4/orders/'+encodeURIComponent(id)+'/proxies'),
   proxyIpv4Purchase:(id:string)=>write<{status:string;order_number:string}>('/proxy-ipv4/orders/'+encodeURIComponent(id)+'/purchase','POST',{}),
-  proxyIpv4OrderStatus:(id:string)=>get<{id:string;proxy_type:string;selection:{country:string;days:number;count:number};amount_usd:string;status:string;provider_order_id:string|null;created_at:string;updated_at:string;purchases_enabled:boolean}>('/proxy-ipv4/orders/'+encodeURIComponent(id)+'/status'),
-  proxyIpv4Orders:()=>get<{orders:{id:string;proxy_type:string;selection:{country:string;days:number;count:number};amount_usd:string;status:string;created_at:string}[];purchases_enabled:boolean}>('/proxy-ipv4/orders'),
+  proxyIpv4OrderStatus:(id:string)=>proxyRead<{id:string;proxy_type:string;selection:{country:string;days:number;count:number};amount_usd:string;status:string;provider_order_id:string|null;created_at:string;updated_at:string;purchases_enabled:boolean}>('/proxy-ipv4/orders/'+encodeURIComponent(id)+'/status'),
+  proxyIpv4Orders:()=>proxyRead<{orders:{id:string;proxy_type:string;selection:{country:string;days:number;count:number};amount_usd:string;status:string;created_at:string}[];purchases_enabled:boolean}>('/proxy-ipv4/orders'),
   proxyIpv4Quote:(body:{proxy_type:string;country:string;days:number;count:number;mobile_operator?:string;rotation_time?:number})=>write<ProxyIpv4Quote>('/proxy-ipv4/quote','POST',body),
   adminSettings:()=>get<TopupConfig>('/admin/settings'),
   saveSettings:(body:{usd_per_star:string;enabled:boolean;version:number})=>write<TopupConfig>('/admin/settings','PUT',body),

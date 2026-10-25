@@ -319,18 +319,9 @@ def store_delivery(owner: int, order_id: UUID, ids: set[str]) -> None:
         """), {"ids":json.dumps(sorted(ids)),"id":order_id,"owner":owner})
 
 def detect_delivery(before: set[str], after: list[dict], selection: dict) -> set[str]:
-    fresh = [p for p in after if str(p.get("id")) not in before]
-    expected = selection["count"]
-    if len(fresh) != expected:
-        return set()
-    country = selection["country"].upper()
-    for item in fresh:
-        supplied_country = item.get("country") or item.get("countryCode")
-        if isinstance(supplied_country, dict):
-            supplied_country = supplied_country.get("alpha3code") or supplied_country.get("code")
-        if supplied_country and str(supplied_country).upper() != country:
-            return set()
-    return proxy_ids(fresh)
+    # Inventory differences cannot establish ownership (external purchases may race).
+    # Kept for compatibility; only explicit supplier order references may be delivered.
+    return set()
 
 @router.post("/orders/{order_id}/purchase")
 async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Header(default=None)):
@@ -425,21 +416,7 @@ async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Head
             except Exception:
                 pass
             raise HTTPException(503,"Заказ поставщика подтверждён, требуется сверка учёта. Повтор запрещён")
-        if kind != "ipv6":
-            try:
-                assigned = set()
-                for attempt in range(4):
-                    if attempt:
-                        await asyncio.sleep(2)
-                    inventory = proxy_items(await provider("get/proxies",{"proxyType":kind}))
-                    assigned = detect_delivery(before,inventory,selection)
-                    if assigned:
-                        break
-                if assigned:
-                    store_delivery(uid,order_id,assigned)
-                settled["delivery_ready"] = bool(assigned)
-            except Exception:
-                settled["delivery_ready"] = False
+        settled["delivery_ready"] = False
         return settled
     finally:
         if locked:
@@ -459,45 +436,32 @@ def checkout_config(x_telegram_init_data: str | None = Header(default=None)):
 
 
 def match_order_proxies(items: list, kind: str, order_number: str) -> list:
-    """Only return records explicitly linked to this order by the supplier."""
-    if kind == "ipv6":
-        return [item for item in items if isinstance(item, dict)
-                and str(item.get("orderId", "")) == order_number]
-    # Some supplier responses may include an order reference for individual IPs.
-    # Without an explicit reference, the provider's global inventory is not
-    # attributable to a customer, and must never be disclosed.
-    return [item for item in items if isinstance(item, dict)
-            and str(item.get("orderId") or item.get("orderNumber") or "") == order_number]
+    from proxy_delivery import linked_items
+    return linked_items(items, kind, order_number)
 
 
 @router.get("/orders/{order_id}/proxies")
 async def order_proxies(order_id: UUID, x_telegram_init_data: str | None = Header(default=None)):
-    """Deliver only supplier records explicitly tagged with this owner's order ID."""
+    from proxy_delivery import connection_data
     uid = require_telegram_id(x_telegram_init_data)
     with engine.connect() as conn:
         order = conn.execute(text("""
-            SELECT proxy_type,status,provider_order_id FROM tool_proxy_order_intents
+            SELECT proxy_type,status,provider_order_id,selection FROM tool_proxy_order_intents
             WHERE id=:id AND telegram_id=:uid
         """), {"id":order_id,"uid":uid}).mappings().first()
     if not order:
         raise HTTPException(404,"Заявка не найдена")
     if order["status"] != "fulfilled" or not order["provider_order_id"]:
         raise HTTPException(409,"Заказ ещё не подтверждён")
-    if order["proxy_type"] != "ipv6":
-        with engine.connect() as conn:
-            saved = conn.execute(text("""
-                SELECT delivered_proxy_ids FROM tool_proxy_order_intents
-                WHERE id=:id AND telegram_id=:uid
-            """), {"id":order_id,"uid":uid}).scalar()
-        if not saved:
-            return {"status":"fulfilled","proxies":[],"delivery_pending":True}
-        response = await provider("get/proxies",{"proxyType":order["proxy_type"]})
-        ids = set(str(x) for x in saved)
-        matched = [p for p in proxy_items(response) if str(p.get("id")) in ids]
-        return {"status":"fulfilled","proxies":matched,
-                "delivery_pending":len(matched)!=len(ids)}
-    response = await provider("get/proxies",{"proxyType":order["proxy_type"]})
-    matches = match_order_proxies(response.get("proxies", []),
-                                  order["proxy_type"],str(order["provider_order_id"]))
-    return {"status":"fulfilled","proxies":matches,
-            "delivery_pending":len(matches)==0}
+    # Historical delivered_proxy_ids were inferred from a global inventory delta.
+    # They are not ownership proof and must not authorize disclosure.
+    response = await provider("get/proxies", {"proxyType":order["proxy_type"]})
+    matches = match_order_proxies(proxy_items(response), order["proxy_type"], str(order["provider_order_id"]))
+    proxies = connection_data(matches)
+    expected = order["selection"]["count"]
+    if len(proxies) > expected:
+        proxies = []  # Conflicting supplier attribution requires verification.
+    return {"status":"fulfilled", "proxies":proxies,
+            "delivery_pending":len(proxies) != expected,
+            "expected_count":expected,
+            "verification_required":not bool(matches)}

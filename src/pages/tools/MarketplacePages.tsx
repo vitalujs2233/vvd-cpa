@@ -1,3 +1,4 @@
+import { ProxyOrders } from './ProxyOrders';
 import { ApiError } from '@/shared/lib/api';
 import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -394,48 +395,4 @@ export const ToolsProxy:React.FC=()=>{
     </Card>
   </Shell>;
 };
-export const MyProxies:React.FC=()=>{
-  const [orders,setOrders]=useState<Awaited<ReturnType<typeof marketApi.proxyIpv4Orders>>['orders']>([]);
-  const [error,setError]=useState('');
-  const [details,setDetails]=useState('');
-  const [proxies,setProxies]=useState<unknown[]>([]);
-  const [busy,setBusy]=useState('');
-  const [checkout,setCheckout]=useState(false);
-  useEffect(()=>{marketApi.proxyIpv4CheckoutConfig().then(x=>setCheckout(x.purchases_enabled&&x.supported_purchase_types.length>0)).catch(()=>setCheckout(false));},[]);
-  const reload=async()=>{const data=await marketApi.proxyIpv4Orders();setOrders(data.orders);};
-  useEffect(()=>{let active=true;marketApi.proxyIpv4Orders().then(data=>{if(active)setOrders(data.orders);}).catch(e=>{if(active)setError(toText(e));});return()=>{active=false;};},[]);
-  const check=async(id:string)=>{
-    setBusy(id);setError('');setDetails('');setProxies([]);
-    try{
-      const item=await marketApi.proxyIpv4OrderStatus(id);
-      setDetails('Заявка '+item.id.slice(0,8)+': '+(item.status==='prepared'?'подготовлена, не оплачена':item.status)+(item.provider_order_id?' · заказ поставщика '+item.provider_order_id:''));
-      if(item.status==='fulfilled'){
-        const delivery=await marketApi.proxyIpv4OrderProxies(id);
-        setProxies(delivery.proxies);
-        if(delivery.delivery_pending)setDetails('Покупка подтверждена. Данные подключения ещё не привязаны к заказу поставщиком.');
-      }
-      await reload();
-    }catch(e){setError(toText(e));}finally{setBusy('');}
-  };
-  const purchase=async(id:string)=>{
-    if(!checkout)return;
-    if(!window.confirm('Подтвердить покупку прокси? Средства будут списаны с баланса инструментов.'))return;
-    setBusy(id);setError('');
-    try{await marketApi.proxyIpv4Purchase(id);await reload();setDetails('Заказ подтверждён. Нажмите «Показать прокси».');}
-    catch(e){setError(toText(e));await reload();}
-    finally{setBusy('');}
-  };
-  return <Shell><NavHeader title="Мои прокси"/>
-    {error&&<Status>{error}</Status>}
-    {details&&<Status>{details}</Status>}
-    {proxies.length>0&&<Card className="flex flex-col gap-2"><h2 className="text-sm font-bold">Данные подключения</h2><pre className="overflow-auto whitespace-pre-wrap break-all text-xs">{JSON.stringify(proxies,null,2)}</pre></Card>}
-    {orders.length===0&&<Empty title="Покупок пока нет" subtitle="Купленные прокси появятся здесь."/>}
-    {orders.map(o=><Card key={o.id} className="flex flex-col gap-2">
-      <b className="text-sm">{o.proxy_type.toUpperCase()} · {o.selection.country}</b>
-      <p className="text-xs text-textSecondary">{o.selection.count} IP · {o.selection.days} дней · {usd(o.amount_usd)}</p>
-      <Status>Статус: {o.status==='prepared'?'Ожидает оплаты':o.status==='uncertain'?'Проверяем оплату':o.status}</Status>
-      {o.status==='prepared'&&<Button type="button" size="sm" disabled={busy===o.id} onClick={()=>{if(!checkout){setError('Сервер пока не разрешает оплату. Средства не списаны.');return;}void purchase(o.id);}}>Купить за {usd(o.amount_usd)}</Button>}
-      {o.status==='fulfilled'&&<Button type="button" size="sm" disabled={busy===o.id} onClick={()=>void check(o.id)}>{busy===o.id?'Загружаем…':'Показать прокси'}</Button>}
-    </Card>)}
-  </Shell>;
-};
+export const MyProxies:React.FC=()=> <Shell><NavHeader title="Мои прокси"/><ProxyOrders/></Shell>;
