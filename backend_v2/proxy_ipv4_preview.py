@@ -222,7 +222,14 @@ async def order_readiness(order_id: UUID, x_telegram_init_data: str | None = Hea
     except (KeyError, ValueError):
         raise HTTPException(422,"Параметры заявки недействительны")
     # Provider account balance is read-only; no supplier purchase is initiated.
-    supplier = await provider("get/balance", {})
+    selection = order["selection"]
+    params = {"proxyType":selection["proxy_type"],"days":selection["days"],
+              "country":selection["country"],"count":selection["count"],
+              "goal":"instagram"}
+    if selection["proxy_type"] == "mobile":
+        params.update({"mobileOperator":selection["mobile_operator"],
+                       "rotationTime":selection["rotation_time"]})
+    supplier = await provider("get/order/price", params)
     try:
         supplier_balance = Decimal(str(supplier["balance"]))
         if not supplier_balance.is_finite() or supplier_balance < 0:
@@ -230,10 +237,12 @@ async def order_readiness(order_id: UUID, x_telegram_init_data: str | None = Hea
     except (KeyError, ValueError, ArithmeticError):
         raise HTTPException(502,"Не удалось проверить баланс поставщика")
     available = wallet["available"] if wallet else Decimal("0")
+    supplier_cost = Decimal(str(supplier["amount"]))
     # Repricing is mandatory before actual checkout, which remains disabled.
     return {"status":"prepared","can_purchase":False,"purchases_enabled":False,
             "wallet_sufficient":available >= order["quoted_amount"],
             "provider_balance_checked":True,
+            "supplier_balance_sufficient":supplier_balance >= supplier_cost,
             "reason":"Покупки не активированы; сумма будет перепроверена перед списанием"}
 
 async def provider_checkout(selection: dict) -> dict:
