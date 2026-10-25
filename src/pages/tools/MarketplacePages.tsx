@@ -214,7 +214,10 @@ export const ToolsProxy:React.FC=()=>{
     setBusy(true);setError('');setPrepared('');
     try{
       const result=await marketApi.proxyIpv4Prepare({...selection,request_id:requestKey.current.id});
-      setPrepared('Заявка №'+result.id.slice(0,8)+' подготовлена. Цена: 
+      setPrepared('Заявка №'+result.id.slice(0,8)+' подготовлена. Цена: $'+result.customer_total_usd+'. '+(result.wallet_sufficient===false?'Недостаточно средств на балансе инструментов. ':'')+'Покупка отключена, деньги не списаны.');
+    }catch(e){setError(toText(e));}finally{setBusy(false);}
+  };
+  const minimum=catalog?.minimum_count||(kind==='ipv6'?10:1);
   return <Shell><NavHeader title="Прокси" subtitle="Proxy-IPv4 · каталог и расчёт цены"/>
     <Status>IPv4, IPv6, ISP и мобильные прокси. Доступные страны и сроки загружаются через API поставщика. Покупки отключены.</Status>
     <Card className="flex flex-col gap-3">
