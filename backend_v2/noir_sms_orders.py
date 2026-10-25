@@ -133,7 +133,7 @@ def reserve_purchase(uid,request,selection,cost,retail):
 
 @router.get('/checkout-config')
 async def config(uid:int=Depends(owner)):
-    return {'purchases_enabled':enabled()}
+    return {'purchases_enabled':enabled(), 'reason':None if enabled() else 'Покупки временно недоступны. Проводится проверка системы выдачи.'}
 
 @router.post('/orders')
 async def purchase(body:Purchase,response:Response,uid:int=Depends(owner)):

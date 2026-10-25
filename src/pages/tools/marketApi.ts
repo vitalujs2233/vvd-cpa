@@ -63,14 +63,14 @@ function proxyRead<T>(path:string):Promise<T> {
   proxyReads.set(path,request);return request;
 }
 export const marketApi = {
-  noirCheckoutConfig:()=>noirGet<{purchases_enabled:boolean}>('/checkout-config'),
+  noirCheckoutConfig:()=>noirGet<{purchases_enabled:boolean;reason?:string|null}>('/checkout-config'),
   noirPurchase:noirPurchaseRequest,
   noirOrders:()=>noirGet<{orders:NoirOrder[]}>('/orders'),
   noirOrder:(id:string)=>noirGet<NoirOrder>('/orders/'+encodeURIComponent(id)),
   noirCountries:()=>noirGet<{countries:{code:string}[]}>('/countries'),
   noirServices:(country:string)=>noirGet<{services:NoirService[]}>('/services?country='+encodeURIComponent(country)),
   noirPrice:(country:string,service:string)=>noirGet<NoirQuote>('/prices?country='+encodeURIComponent(country)+'&service='+encodeURIComponent(service)),
-  proxyIpv4CheckoutConfig:()=>get<{purchases_enabled:boolean;supported_purchase_types:string[]}>('/proxy-ipv4/checkout-config'),
+  proxyIpv4CheckoutConfig:()=>get<{purchases_enabled:boolean;supported_purchase_types:string[];reason?:string|null;unsupported_reason?:string}>('/proxy-ipv4/checkout-config'),
   proxyIpv4Catalog:(kind:string)=>get<ProxyIpv4Catalog>('/proxy-ipv4/catalog?proxy_type='+encodeURIComponent(kind)),
   proxyIpv4Prepare:(body:{request_id:string;proxy_type:string;country:string;days:number;count:number;mobile_operator?:string;rotation_time?:number})=>write<{id:string;status:string;customer_total_usd:string;wallet_sufficient?:boolean;purchases_enabled:boolean}>('/proxy-ipv4/orders/prepare','POST',body),
   proxyIpv4OrderProxies:(id:string)=>proxyRead<ProxyDelivery>('/proxy-ipv4/orders/'+encodeURIComponent(id)+'/proxies'),

@@ -47,7 +47,7 @@ function ProxyCard({proxy:p,index}:{proxy:DeliveredProxy;index:number}) {
 export function ProxyOrders() {
   const [orders,setOrders]=useState<Order[]>([]),[deliveries,setDeliveries]=useState<Record<string,ProxyDelivery>>({});
   const [opened,setOpened]=useState<Record<string,boolean>>({}),[error,setError]=useState(''),[errors,setErrors]=useState<Record<string,string>>({});
-  const [busy,setBusy]=useState(false),[loaded,setLoaded]=useState(false),[paused,setPaused]=useState(false),[checkout,setCheckout]=useState(false);
+  const [busy,setBusy]=useState(false),[loaded,setLoaded]=useState(false),[paused,setPaused]=useState(false),[checkout,setCheckout]=useState<string[]>([]);
   const refresh=useRef<()=>void>(()=>{}),purchaseRef=useRef<(id:string)=>Promise<void>>(async()=>{});
   useEffect(()=>{
     let active=true,running=false,queued=false,cycles=0,failures=0;
@@ -95,11 +95,11 @@ export function ProxyOrders() {
       try{await marketApi.proxyIpv4Purchase(id);}catch{if(active)setError('Не удалось подтвердить покупку. Обновляем статус заказа.');}
       finally{running=false;if(active)void run(true);}
     };
-    marketApi.proxyIpv4CheckoutConfig().then(c=>{if(active)setCheckout(c.purchases_enabled&&c.supported_purchase_types.length>0);}).catch(()=>{});
+    marketApi.proxyIpv4CheckoutConfig().then(c=>{if(active)setCheckout(c.purchases_enabled?c.supported_purchase_types:[]);}).catch(()=>{});
     void run(true);
     return()=>{active=false;clearTimeout(timer);};
   },[]);
-  const purchase=(o:Order)=>{if(checkout&&window.confirm('Подтвердить покупку прокси? Средства будут списаны с баланса инструментов.'))void purchaseRef.current(o.id);};
+  const purchase=(o:Order)=>{if(checkout.includes(o.proxy_type)&&window.confirm('Подтвердить покупку прокси? Средства будут списаны с баланса инструментов.'))void purchaseRef.current(o.id);};
   return <>
     {error&&<p role="alert" className={box}>{error}</p>}
     {!loaded&&busy&&<p className="text-sm text-textSecondary">Загружаем заказы…</p>}
@@ -116,7 +116,8 @@ export function ProxyOrders() {
         <p className={box}>Выдача: {delivery}</p>
         {d?.verification_required&&<p className="text-xs text-textSecondary">Ожидаем подтверждение привязки прокси к заказу.</p>}
         {errors[o.id]&&<p role="alert" className="text-xs text-textSecondary">{errors[o.id]}</p>}
-        {o.status==='prepared'&&<Button type="button" size="sm" disabled={busy||!checkout} onClick={()=>purchase(o)}>Купить за {usd(o.amount_usd)}</Button>}
+        {o.status==='prepared'&&!checkout.includes(o.proxy_type)&&<p className="text-xs text-textSecondary">Покупки временно недоступны. Проводится проверка системы выдачи.</p>}
+        {o.status==='prepared'&&<Button type="button" size="sm" disabled={busy||!checkout.includes(o.proxy_type)} onClick={()=>purchase(o)}>Купить за {usd(o.amount_usd)}</Button>}
         {o.status==='fulfilled'&&<Button type="button" size="sm" aria-expanded={!!opened[o.id]} onClick={()=>setOpened(v=>({...v,[o.id]:!v[o.id]}))}>{opened[o.id]?'Скрыть прокси':'Посмотреть мои прокси'}</Button>}
         {opened[o.id]&&d?.proxies.map((p,i)=><ProxyCard key={p.id} proxy={p} index={i}/>)}
       </Card>;
