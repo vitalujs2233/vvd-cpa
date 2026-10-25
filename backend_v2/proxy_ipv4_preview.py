@@ -62,7 +62,7 @@ async def catalog(proxy_type: str = Query("ipv4"), x_telegram_init_data: str | N
     mobile_tariff_error = None
     if proxy_type == "mobile":
         try:
-            tariffs_response = await provider("get/tariffs", {})
+            tariffs_response = await provider("get/mobile/tariffs", {})
             tariffs = tariffs_response.get("tariffs", [])
             if not isinstance(tariffs, list):
                 raise HTTPException(502, "Неверный формат мобильных тарифов")
@@ -104,7 +104,7 @@ async def quote(body: Quote, x_telegram_init_data: str | None = Header(default=N
         raise HTTPException(422,"Страна или срок недоступны")
     params = {"proxyType":body.proxy_type,"days":body.days,"country":body.country.upper(),"count":body.count,"goal":"instagram"}
     if body.proxy_type == "mobile":
-        tariffs = await provider("get/tariffs", {})
+        tariffs = await provider("get/mobile/tariffs", {})
         valid = any(t.get("country") == body.country.upper() and any(op.get("name") == body.mobile_operator and body.rotation_time in op.get("rotationTime",[]) for op in t.get("mobileOperator",[])) for t in tariffs.get("tariffs",[]))
         if not valid:
             raise HTTPException(422,"Выберите действительного оператора и ротацию")
