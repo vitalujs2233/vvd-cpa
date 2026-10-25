@@ -5,6 +5,7 @@ import os
 from decimal import Decimal, ROUND_HALF_UP
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 from stars_payments import require_telegram_id
@@ -29,10 +30,15 @@ async def provider(path, params):
             return json.loads(response.read(100000))
     try:
         result = await asyncio.to_thread(fetch)
+    except HTTPError as exc:
+        raise HTTPException(502, "HTTP ошибка поставщика: " + str(exc.code))
+    except (URLError, TimeoutError):
+        raise HTTPException(502, "Нет соединения с поставщиком")
     except Exception:
-        raise HTTPException(502, "Ошибка связи с поставщиком")
+        raise HTTPException(502, "Ошибка обработки ответа поставщика")
     if not isinstance(result, dict) or result.get("success") is not True:
-        raise HTTPException(502, "Поставщик отклонил запрос")
+        error_code = result.get("error_id")
+        raise HTTPException(502, "Поставщик отклонил запрос" + (" (код " + str(error_code) + ")" if isinstance(error_code, int) else ""))
     return result
 
 def markup():
@@ -49,6 +55,11 @@ async def catalog(proxy_type: str = Query("ipv4"), x_telegram_init_data: str | N
     require_telegram_id(x_telegram_init_data)
     if proxy_type not in ("ipv4", "ipv6", "isp", "mobile"):
         raise HTTPException(422, "Неизвестный тип прокси")
+    if proxy_type == "mobile":
+        tariffs_response = await provider("get/mobile/tariffs", {})
+        tariffs = tariffs_response.get("tariffs", [])
+        if not isinstance(tariffs, list):
+            raise HTTPException(502, "Неверный формат мобильных тарифов")
     d, c = await asyncio.gather(
         provider("get/days", {"proxyType": proxy_type}),
         provider("get/countries", {"proxyType": proxy_type}),
@@ -62,8 +73,7 @@ async def catalog(proxy_type: str = Query("ipv4"), x_telegram_init_data: str | N
     ]
     data = {"days": days, "countries": countries}
     if proxy_type == "mobile":
-        tariffs = await provider("get/mobile/tariffs", {})
-        data["tariffs"] = tariffs.get("tariffs", [])
+        data["tariffs"] = tariffs
         available = {t.get("country") for t in data["tariffs"] if isinstance(t, dict)}
         data["countries"] = [x for x in countries if x["code"] in available]
     return {
