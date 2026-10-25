@@ -32,4 +32,10 @@ One sequential polling loop: 10 seconds, maximum 30 cycles; up to 5 consecutive 
 
 Before publishing, review backend and frontend together: the delivery response is normalized for this UI. Production deploy is deliberately excluded by the task. Real Telegram/device verification and real supplier attribution remain separate checks, not claimed by mocked tests.
 
-Local result: 30 frontend tests (12 proxy-specific, 18 existing numbers/catalogue regression tests) and 15 backend tests passed; TypeScript and production build passed. Browser screenshots could not be produced in this environment: downloaded Chromium could not launch (SIGTRAP). Mobile layout uses wrapping containers and 44px touch targets and is covered structurally by tests, but visual verification on iPhone/Android is still required. No simulated image is presented as a screenshot.
+Verification completed: 30 frontend tests (12 proxy-specific, 18 existing numbers/catalogue regression tests), 15 backend tests, TypeScript and production build passed. Chromium in GitHub Actions also passed browser checks at 320px and 390px: no horizontal overflow, hidden password by default, reveal/hide, no page errors. Fixtures prohibit purchases and external network requests.
+
+Screenshots (mock data, not live orders): [320px partial delivery](proxy-320.png), [390px full delivery](proxy-390.png).
+
+Browser verification: https://github.com/vitalujs2233/vvd-cpa/actions/runs/40233861014
+
+Local Chromium failed to launch; GitHub Actions supplied the browser verification and screenshots. Actual Telegram/iPhone/Android testing and real supplier attribution were not performed. Production remains unchanged.
