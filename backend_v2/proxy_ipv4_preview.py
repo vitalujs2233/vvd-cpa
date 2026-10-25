@@ -15,7 +15,9 @@ class Quote(BaseModel):
     proxy_type: str
     country: str = Field(pattern=r"^[A-Za-z]{3}$")
     days: int = Field(ge=1, le=365)
-    count: int = Field(ge=1, le=100)
+    count: int = Field(ge=1, le=1000)
+    mobile_operator: str | None = None
+    rotation_time: int | None = None
 
 async def provider(path, params):
     key = os.getenv("PROXY_IPV4_API_KEY", "").strip()
@@ -46,20 +48,34 @@ def markup():
 async def catalog(x_telegram_init_data: str | None = Header(default=None)):
     require_telegram_id(x_telegram_init_data)
     types = {}
-    for kind in ("ipv4", "isp"):
+    for kind in ("ipv4", "ipv6", "isp", "mobile"):
         d, c = await asyncio.gather(provider("get/days", {"proxyType":kind}), provider("get/countries", {"proxyType":kind}))
         types[kind] = {"days": d.get("days", []), "countries": [{"code":x["alpha3code"], "name":x["name"]} for x in c.get("countries", []) if isinstance(x,dict) and "alpha3code" in x and "name" in x]}
-    return {"types":types, "purchases_enabled":False}
+    try:
+        tariffs = await provider("get/mobile/tariffs", {})
+        types["mobile"]["tariffs"] = tariffs.get("tariffs", [])
+    except HTTPException:
+        types["mobile"]["tariffs"] = []
+    return {"types":types, "purchases_enabled":False, "minimum_count":{"ipv4":5,"ipv6":10,"isp":1,"mobile":1}}
 
 @router.post("/quote")
 async def quote(body: Quote, x_telegram_init_data: str | None = Header(default=None)):
     require_telegram_id(x_telegram_init_data)
-    if body.proxy_type not in ("ipv4", "isp"):
+    if body.proxy_type not in ("ipv4", "ipv6", "isp", "mobile"):
         raise HTTPException(422,"Тип недоступен")
+    if body.count < {"ipv4":5,"ipv6":10,"isp":1,"mobile":1}[body.proxy_type]:
+        raise HTTPException(422,"Минимальное количество для выбранного типа не соблюдено")
     d, c = await asyncio.gather(provider("get/days", {"proxyType":body.proxy_type}), provider("get/countries", {"proxyType":body.proxy_type}))
     if body.days not in d.get("days",[]) or body.country.upper() not in [x.get("alpha3code") for x in c.get("countries",[]) if isinstance(x,dict)]:
         raise HTTPException(422,"Страна или срок недоступны")
-    result = await provider("get/order/price", {"proxyType":body.proxy_type,"days":body.days,"country":body.country.upper(),"count":body.count,"goal":"other"})
+    params = {"proxyType":body.proxy_type,"days":body.days,"country":body.country.upper(),"count":body.count,"goal":"instagram"}
+    if body.proxy_type == "mobile":
+        tariffs = await provider("get/mobile/tariffs", {})
+        valid = any(t.get("country") == body.country.upper() and any(op.get("name") == body.mobile_operator and body.rotation_time in op.get("rotationTime",[]) for op in t.get("mobileOperator",[])) for t in tariffs.get("tariffs",[]))
+        if not valid:
+            raise HTTPException(422,"Выберите действительного оператора и ротацию")
+        params.update({"mobileOperator":body.mobile_operator,"rotationTime":body.rotation_time})
+    result = await provider("get/order/price", params)
     try:
         cost = Decimal(str(result["amount"]))
         if not cost.is_finite() or cost < 0:
