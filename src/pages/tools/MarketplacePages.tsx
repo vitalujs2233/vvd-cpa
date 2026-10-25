@@ -185,8 +185,27 @@ export const ToolsPurchases:React.FC=()=>{
   </Shell>;
 };
 
-export const ToolsNumbers:React.FC=()=> <Shell><NavHeader title="Виртуальные номера" subtitle="Каталог поставщиков"/><Empty title="Подключаем нового поставщика" subtitle="Виртуальные номера временно недоступны. Покупки отключены."/></Shell>;
-export const MyNumbers:React.FC=()=> <Shell><NavHeader title="Мои номера"/><Empty title="Новые покупки недоступны" subtitle="История покупок сохранена в общем разделе «Мои покупки»."/></Shell>;
+export const ToolsNumbers:React.FC=()=>{
+  const [country,setCountry]=useState('');
+  const [service,setService]=useState('');
+  const [error,setError]=useState('');
+  const countries:{code:string;name:string}[]=[];
+  const services:{code:string;name:string;price:string;count:number}[]=[];
+  return <Shell><NavHeader title="Виртуальные номера" subtitle="Приём SMS · Noir SMS"/>
+    <Card className="flex flex-col gap-3">
+      <div className="flex items-center gap-2"><Phone size={20} className="text-accentBrightGold"/><h2 className="text-base font-bold">Выбор номера</h2></div>
+      <Status>Готовим подключение Noir SMS. Каталог и цены пока не загружены с сервера. Покупки отключены, средства не списываются.</Status>
+      <label className="text-xs text-textSecondary">Страна<select className={inputClass} value={country} disabled={!countries.length} onChange={e=>{setCountry(e.target.value);setService('');setError('');}}><option value="">Страны появятся после подключения API</option>{countries.map(c=><option key={c.code} value={c.code}>{c.name}</option>)}</select></label>
+      <label className="text-xs text-textSecondary">Сервис для SMS<select className={inputClass} value={service} disabled={!services.length} onChange={e=>{setService(e.target.value);setError('');}}><option value="">Сервисы появятся после подключения API</option>{services.map(s=><option key={s.code} value={s.code}>{s.name} · {usd(s.price)} · {s.count} шт.</option>)}</select></label>
+      <div className="flex items-center justify-between text-sm"><span className="text-textSecondary">Стоимость номера</span><strong>—</strong></div>
+      <Button type="button" disabled>Купить номер · скоро</Button>
+      {error&&<p role="alert" className="text-xs text-error">{error}</p>}
+      <Link to="/tools/numbers/my" className="text-xs text-accentBrightGold">Мои номера →</Link>
+    </Card>
+    <Card className="flex flex-col gap-2"><b className="text-sm">Как будет работать</b><p className="text-xs leading-5 text-textSecondary">Выберите страну и сервис, проверьте цену, оплатите с баланса инструментов VVD CPA и получите номер. Код SMS и статус заказа будут доступны в разделе «Мои номера».</p></Card>
+  </Shell>;
+};
+export const MyNumbers:React.FC=()=> <Shell><NavHeader title="Мои номера" subtitle="Номера и полученные SMS"/><Empty title="Номеров пока нет" subtitle="После подключения Noir SMS здесь будут отображаться заказы, коды SMS и статусы отмены."/><Link to="/tools/numbers" className="text-xs text-accentBrightGold">Выбрать номер →</Link></Shell>;
 export const ToolsProxy:React.FC=()=>{
   const [catalog,setCatalog]=useState<import('./marketApi').ProxyIpv4Catalog|null>(null);
   const [kind,setKind]=useState('ipv4');
