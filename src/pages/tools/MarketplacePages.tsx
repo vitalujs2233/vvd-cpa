@@ -248,26 +248,3 @@ export const MyProxies:React.FC=()=>{
     {orders.map(o=><Card key={o.id} className="flex flex-col gap-2"><b className="text-sm">{o.proxy_type.toUpperCase()} · {o.selection.country}</b><p className="text-xs text-textSecondary">{o.selection.count} IP · {o.selection.days} дней · {usd(o.amount_usd)}</p><Status>Статус: {o.status==='prepared'?'Заявка подготовлена, не оплачена':o.status}</Status></Card>)}
   </Shell>;
 };
-+result.customer_total_usd+'. '+(result.wallet_sufficient===false?'На балансе инструментов недостаточно средств. ':'')+'Покупка отключена, деньги не списаны.');
-    }catch(e){setError(toText(e));}finally{setBusy(false);}
-  };
-  const minimum=catalog?.minimum_count||(kind==='ipv6'?10:1);
-  return <Shell><NavHeader title="Прокси" subtitle="Proxy-IPv4 · каталог и расчёт цены"/>
-    <Status>IPv4, IPv6, ISP и мобильные прокси. Доступные страны и сроки загружаются через API поставщика. Покупки отключены.</Status>
-    <Card className="flex flex-col gap-3">
-      <h2 className="text-base font-bold">Выбор прокси</h2>
-      {!catalog&&<p className="text-xs text-textSecondary">Каталог ещё не загружен.</p>}
-      <label className="text-xs text-textSecondary">Тип прокси<select className={inputClass} value={kind} onChange={e=>choose(e.target.value)}><option value="ipv4">Прокси IPv4</option><option value="ipv6">Прокси IPv6</option><option value="isp">Прокси ISP</option><option value="mobile">Мобильные прокси</option></select></label>
-      <label className="text-xs text-textSecondary">Страна<select className={inputClass} value={country} onChange={e=>{setCountry(e.target.value);setOperator('');setRotation(0);setQuote(null);}}>{options?.countries.map(x=><option key={x.code} value={x.code}>{x.name} ({x.code})</option>)}</select></label>
-      <label className="text-xs text-textSecondary">Срок аренды<select className={inputClass} value={days} onChange={e=>{setDays(Number(e.target.value));setQuote(null);}}>{options?.days.map(x=><option key={x} value={x}>{x} дней</option>)}</select></label>
-      <label className="text-xs text-textSecondary">Количество IP (минимум {minimum})<input className={inputClass} type="number" min={minimum} max={1000} step={1} value={quantity} onChange={e=>{setQuantity(Number(e.target.value));setQuote(null);}}/></label>
-      {kind==='mobile'&&options?.mobile_tariff_error&&<p className="text-xs text-amber-400">{options.mobile_tariff_error}. Страны и сроки доступны, но выбор оператора и расчёт цены пока заблокированы.</p>}
-      {kind==='mobile'&&<><label className="text-xs text-textSecondary">Оператор<select className={inputClass} value={selectedOperator?.name||''} onChange={e=>{setOperator(e.target.value);setRotation(0);setQuote(null);}}>{operators.map(x=><option key={x.name} value={x.name}>{x.name}</option>)}</select></label><label className="text-xs text-textSecondary">Ротация IP<select className={inputClass} value={selectedOperator?.rotationTime.includes(rotation)?rotation:selectedOperator?.rotationTime[0]||0} onChange={e=>{setRotation(Number(e.target.value));setQuote(null);}}>{selectedOperator?.rotationTime.map(x=><option key={x} value={x}>{x===0?'По ссылке':x+' минут'}</option>)}</select></label></>}
-      <Button type="button" disabled={!catalog||busy||!country||!options?.days.length||!Number.isInteger(quantity)||quantity<minimum||quantity>1000||(kind==='mobile'&&!selectedOperator)} onClick={price}>{busy?'Проверяем цену…':'Узнать цену (без покупки)'}</Button>
-      {quote&&<Status>Цена: ${quote.customer_total_usd}. Заказ не создан, деньги не списаны.</Status>}
-      {error&&<p className="text-xs text-red-400">{error}</p>}
-      <Link to="/tools/proxy/my" className="text-xs text-accentBrightGold">Мои прокси →</Link>
-    </Card>
-  </Shell>;
-};
-export const MyProxies:React.FC=()=> <Shell><NavHeader title="Мои прокси"/><Empty title="Новые покупки недоступны" subtitle="История покупок сохранена в общем разделе «Мои покупки»."/></Shell>;
