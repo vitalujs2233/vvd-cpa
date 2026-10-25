@@ -244,6 +244,8 @@ export const MyProxies:React.FC=()=>{
   const [details,setDetails]=useState('');
   const [proxies,setProxies]=useState<unknown[]>([]);
   const [busy,setBusy]=useState('');
+  const [checkout,setCheckout]=useState(false);
+  useEffect(()=>{marketApi.proxyIpv4CheckoutConfig().then(x=>setCheckout(x.purchases_enabled&&x.supported_purchase_types.includes('ipv6'))).catch(()=>setCheckout(false));},[]);
   const reload=async()=>{const data=await marketApi.proxyIpv4Orders();setOrders(data.orders);};
   useEffect(()=>{let active=true;marketApi.proxyIpv4Orders().then(data=>{if(active)setOrders(data.orders);}).catch(e=>{if(active)setError(toText(e));});return()=>{active=false;};},[]);
   const check=async(id:string)=>{
@@ -259,6 +261,14 @@ export const MyProxies:React.FC=()=>{
       await reload();
     }catch(e){setError(toText(e));}finally{setBusy('');}
   };
+  const purchase=async(id:string)=>{
+    if(!checkout)return;
+    if(!window.confirm('Подтвердить покупку IPv6? Средства будут списаны с баланса инструментов.'))return;
+    setBusy(id);setError('');
+    try{await marketApi.proxyIpv4Purchase(id);await reload();setDetails('Заказ подтверждён. Нажмите «Показать прокси».');}
+    catch(e){setError(toText(e));await reload();}
+    finally{setBusy('');}
+  };
   return <Shell><NavHeader title="Мои прокси" subtitle="Заявки, статусы и выданные прокси"/>
     {error&&<Status>{error}</Status>}
     {details&&<Status>{details}</Status>}
@@ -268,6 +278,7 @@ export const MyProxies:React.FC=()=>{
       <b className="text-sm">{o.proxy_type.toUpperCase()} · {o.selection.country}</b>
       <p className="text-xs text-textSecondary">{o.selection.count} IP · {o.selection.days} дней · {usd(o.amount_usd)}</p>
       <Status>Статус: {o.status==='prepared'?'Заявка подготовлена, не оплачена':o.status==='uncertain'?'Проверяется у поставщика':o.status}</Status>
+      {checkout&&o.proxy_type==='ipv6'&&o.status==='prepared'&&<Button type="button" size="sm" disabled={busy===o.id} onClick={()=>void purchase(o.id)}>Купить IPv6 за {usd(o.amount_usd)}</Button>}
       <Button type="button" size="sm" disabled={busy===o.id} onClick={()=>void check(o.id)}>{busy===o.id?'Проверяем…':o.status==='fulfilled'?'Показать прокси':'Проверить статус'}</Button>
     </Card>)}
   </Shell>;
