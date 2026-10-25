@@ -16,6 +16,7 @@ class LedgerTests(unittest.TestCase):
         with cls.db.begin() as c:
             c.execute(text('CREATE TABLE IF NOT EXISTS users(telegram_id bigint PRIMARY KEY,first_name text)'))
             sql=(Path(__file__).parents[1]/'migrations/20261016_tools_marketplace.sql').read_text()
+            sql='\n'.join(line for line in sql.splitlines() if not line.lstrip().startswith('--'))
             for part in sql.split(';'):
                 if 'REVOKE ALL' not in part and part.strip():c.execute(text(part))
             c.execute(text('ALTER TABLE tool_wallets ADD COLUMN IF NOT EXISTS refund_debt numeric(14,2) NOT NULL DEFAULT 0'))
@@ -67,3 +68,13 @@ class LedgerTests(unittest.TestCase):
             except LedgerError:return False
         with ThreadPoolExecutor(max_workers=2) as p:results=list(p.map(reserve,range(2)))
         self.assertEqual(sum(results),1);self.assertEqual(self.balances(),(D('2.20'),D('7.80')))
+
+    def test_duplicate_supplier_receipt_rolls_back_second_settlement(self):
+        from sqlalchemy.exc import IntegrityError
+        first,_=self.reserve();second,_=self.reserve(request=uuid4())
+        self.ledger.claim(self.uid,first);self.ledger.claim(self.uid,second)
+        self.ledger.settle(self.uid,first,'shared-receipt-'+first)
+        before=self.balances()
+        with self.assertRaises(IntegrityError):self.ledger.settle(self.uid,second,'shared-receipt-'+first)
+        self.assertEqual(self.balances(),before)
+        self.assertEqual(self.ledger.owned(self.uid,second)['ledger_state'],'submitting')

@@ -57,6 +57,7 @@ class Catalog:
         self.cache = OrderedDict()
         self.calls = deque()
         self.cooldown = 0
+        self.cooldown_code = 'rate_limit'
         self.key_digest = None
 
     async def read(self, path, country=None):
@@ -77,7 +78,9 @@ class Catalog:
             while self.calls and self.calls[0] <= now-60:
                 self.calls.popleft()
             # Conservative per-process ceiling, plus shared cache/coalescing.
-            if now < self.cooldown or len(self.calls) >= 20:
+            if now < self.cooldown:
+                raise CatalogError(self.cooldown_code)
+            if len(self.calls) >= 20:
                 raise CatalogError('rate_limit')
             self.calls.append(now)
             try:
@@ -85,14 +88,17 @@ class Catalog:
                     r = await asyncio.wait_for(client.get(BASE+path, params={'country': country} if country else None,
                         headers={'Authorization': 'Bearer '+key, 'Accept':'application/json'}), timeout=12)
                 if r.status_code in (401,403):
+                    self.cooldown_code = 'auth'
                     self.cooldown = time.monotonic()+30
                     raise CatalogError('auth')
                 if r.status_code == 429:
                     try: delay = min(300, max(60, int(r.headers.get('Retry-After','60'))))
                     except ValueError: delay = 60
+                    self.cooldown_code = 'rate_limit'
                     self.cooldown = time.monotonic()+delay
                     raise CatalogError('rate_limit')
                 if r.status_code != 200:
+                    self.cooldown_code = 'unavailable'
                     self.cooldown = time.monotonic()+5
                     raise CatalogError('unavailable')
                 if len(r.content) > 2000000:
@@ -100,6 +106,7 @@ class Catalog:
                 data = json.loads(r.content, parse_float=Decimal)
                 result = normalize(path, data, country)
             except (httpx.RequestError, asyncio.TimeoutError):
+                self.cooldown_code = 'timeout'
                 self.cooldown = time.monotonic()+5
                 raise CatalogError('timeout') from None
             except (ValueError, TypeError, KeyError):
@@ -139,7 +146,7 @@ def normalize(path, data, country=None):
 catalog = Catalog()
 _users = OrderedDict()
 
-def owner(x_telegram_init_data: str | None = Header(default=None)):
+async def owner(x_telegram_init_data: str | None = Header(default=None)):
     uid = require_telegram_id(x_telegram_init_data)
     now=time.monotonic()
     times=_users.setdefault(uid,deque())
