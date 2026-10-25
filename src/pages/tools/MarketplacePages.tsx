@@ -186,20 +186,33 @@ export const ToolsPurchases:React.FC=()=>{
 };
 
 export const ToolsNumbers:React.FC=()=>{
-  const [country,setCountry]=useState('');
-  const [service,setService]=useState('');
-  const [error,setError]=useState('');
-  const countries:{code:string;name:string}[]=[];
-  const services:{code:string;name:string;price:string;count:number}[]=[];
+  const [country,setCountry]=useState(''),[service,setService]=useState(''),[error,setError]=useState('');
+  const [countries,setCountries]=useState<{code:string}[]>([]);
+  const [services,setServices]=useState<import('./marketApi').NoirService[]>([]);
+  const [price,setPrice]=useState<import('./marketApi').NoirQuote|null>(null);
+  const [loading,setLoading]=useState(true),[servicesLoading,setServicesLoading]=useState(false),[priceLoading,setPriceLoading]=useState(false);
+  const [revision,setRevision]=useState(0),[stale,setStale]=useState(false);
+  useEffect(()=>{let active=true;setLoading(true);setError('');marketApi.noirCountries().then(d=>{if(active)setCountries(d.countries);}).catch(e=>{if(active)setError(e.message);}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[revision]);
+  useEffect(()=>{let active=true;setServices([]);setPrice(null);setStale(false);setServicesLoading(false);
+    if(country){setServicesLoading(true);marketApi.noirServices(country).then(d=>{if(active)setServices(d.services);}).catch(e=>{if(active)setError(e.message);}).finally(()=>{if(active)setServicesLoading(false);});}
+    return()=>{active=false;};},[country,revision]);
+  useEffect(()=>{let active=true;setPrice(null);setStale(false);setPriceLoading(false);
+    if(country&&service){setPriceLoading(true);marketApi.noirPrice(country,service).then(d=>{if(active)setPrice(d);}).catch(e=>{if(active)setError(e.message);}).finally(()=>{if(active)setPriceLoading(false);});}
+    return()=>{active=false;};},[country,service,revision]);
+  useEffect(()=>{if(!price)return;const id=setTimeout(()=>setStale(true),Math.max(0,price.expires_at*1000-Date.now()));return()=>clearTimeout(id);},[price]);
+  const countryName=(code:string)=>{try{return new Intl.DisplayNames(['ru'],{type:'region'}).of(code.toUpperCase())||code.toUpperCase();}catch{return code.toUpperCase();}};
   return <Shell><NavHeader title="Виртуальные номера" subtitle="Приём SMS · Noir SMS"/>
     <Card className="flex flex-col gap-3">
       <div className="flex items-center gap-2"><Phone size={20} className="text-accentBrightGold"/><h2 className="text-base font-bold">Выбор номера</h2></div>
-      <Status>Готовим подключение Noir SMS. Каталог и цены пока не загружены с сервера. Покупки отключены, средства не списываются.</Status>
-      <label className="text-xs text-textSecondary">Страна<select className={inputClass} value={country} disabled={!countries.length} onChange={e=>{setCountry(e.target.value);setService('');setError('');}}><option value="">Страны появятся после подключения API</option>{countries.map(c=><option key={c.code} value={c.code}>{c.name}</option>)}</select></label>
-      <label className="text-xs text-textSecondary">Сервис для SMS<select className={inputClass} value={service} disabled={!services.length} onChange={e=>{setService(e.target.value);setError('');}}><option value="">Сервисы появятся после подключения API</option>{services.map(s=><option key={s.code} value={s.code}>{s.name} · {usd(s.price)} · {s.count} шт.</option>)}</select></label>
-      <div className="flex items-center justify-between text-sm"><span className="text-textSecondary">Стоимость номера</span><strong>—</strong></div>
+      <Status>{loading?'Загружаем страны…':'Каталог Noir SMS. Покупки пока отключены, средства не списываются.'}</Status>
+      <label className="text-xs text-textSecondary">Страна<select aria-label="Страна" className={inputClass} value={country} disabled={!countries.length} onChange={e=>{setCountry(e.target.value);setService('');setError('');}}><option value="">{loading?'Загрузка…':countries.length?'Выберите страну':'Нет доступных стран'}</option>{countries.map(c=><option key={c.code} value={c.code}>{countryName(c.code)}</option>)}</select></label>
+      <label className="text-xs text-textSecondary">Сервис для SMS<select aria-label="Сервис для SMS" className={inputClass} value={service} disabled={!services.length||servicesLoading} onChange={e=>{setService(e.target.value);setError('');}}><option value="">{servicesLoading?'Загружаем сервисы…':services.length?'Выберите сервис':country?'Нет доступных сервисов':'Сначала выберите страну'}</option>{services.map(s=><option key={s.code} value={s.code}>{s.name}</option>)}</select></label>
+      <div className="flex items-center justify-between text-sm"><span className="text-textSecondary">Стоимость номера</span><strong>{priceLoading?'Проверяем…':price?.price&&!stale?usd(price.price):'—'}</strong></div>
+      {price&&!stale&&<Status>{price.message||(price.available?`В наличии: ${price.stock} шт.`:'Нет в наличии')}</Status>}
+      {stale&&<Status>Цена устарела. Обновите данные перед проверкой.</Status>}
       <Button type="button" disabled>Купить номер · скоро</Button>
       {error&&<p role="alert" className="text-xs text-error">{error}</p>}
+      <Button type="button" variant="secondary" disabled={loading||servicesLoading||priceLoading} onClick={()=>setRevision(v=>v+1)}>Обновить каталог и цену</Button>
       <Link to="/tools/numbers/my" className="text-xs text-accentBrightGold">Мои номера →</Link>
     </Card>
     <Card className="flex flex-col gap-2"><b className="text-sm">Как будет работать</b><p className="text-xs leading-5 text-textSecondary">Выберите страну и сервис, проверьте цену, оплатите с баланса инструментов VVD CPA и получите номер. Код SMS и статус заказа будут доступны в разделе «Мои номера».</p></Card>
