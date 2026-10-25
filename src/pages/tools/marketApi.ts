@@ -28,6 +28,7 @@ const write = <T>(path:string, method:'POST'|'PUT', body:object) => apiRequest<T
   method, headers:authHeaders(), body:JSON.stringify(body)
 });
 export const marketApi = {
+  proxyIpv4CheckoutConfig:()=>get<{purchases_enabled:boolean;supported_purchase_types:string[]}>('/proxy-ipv4/checkout-config'),
   proxyIpv4Catalog:(kind:string)=>get<ProxyIpv4Catalog>('/proxy-ipv4/catalog?proxy_type='+encodeURIComponent(kind)),
   proxyIpv4Prepare:(body:{request_id:string;proxy_type:string;country:string;days:number;count:number;mobile_operator?:string;rotation_time?:number})=>write<{id:string;status:string;customer_total_usd:string;wallet_sufficient?:boolean;purchases_enabled:boolean}>('/proxy-ipv4/orders/prepare','POST',body),
   proxyIpv4OrderProxies:(id:string)=>get<{status:string;proxies:unknown[];delivery_pending:boolean}>('/proxy-ipv4/orders/'+encodeURIComponent(id)+'/proxies'),
