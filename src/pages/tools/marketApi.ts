@@ -1,7 +1,7 @@
 import { apiRequest } from '@/shared/lib/api';
 
-export type ProxyIpv4Catalog = {types:Record<string,{days:number[];countries:{code:string;name:string}[];tariffs?:{country:string;mobileOperator:{name:string;rotationTime:number[]}[]}[]}>;minimum_count:Record<string,number>;purchases_enabled:boolean};
-export type ProxyIpv4Quote = {supplier_total_usd:string;customer_total_usd:string;markup_percent:string;purchases_enabled:boolean};
+export type ProxyIpv4Catalog = {type:string;data:{days:number[];countries:{code:string;name:string}[];tariffs?:{country:string;mobileOperator:{name:string;rotationTime:number[]}[]}[]};minimum_count:number;purchases_enabled:boolean};
+export type ProxyIpv4Quote = {customer_total_usd:string;purchases_enabled:boolean};
 export type ServiceStatus = 'available' | 'connecting' | 'unavailable';
 export type ServiceInfo = { id: string; title: string; category: string; description: string; status: ServiceStatus; price: string | null };
 export type ToolWallet = { available: string; reserved: string; currency: 'USD'; payments_enabled: boolean; refund_debt?: string };
@@ -28,7 +28,7 @@ const write = <T>(path:string, method:'POST'|'PUT', body:object) => apiRequest<T
   method, headers:authHeaders(), body:JSON.stringify(body)
 });
 export const marketApi = {
-  proxyIpv4Catalog:()=>get<ProxyIpv4Catalog>('/proxy-ipv4/catalog'),
+  proxyIpv4Catalog:(kind:string)=>get<ProxyIpv4Catalog>('/proxy-ipv4/catalog?proxy_type='+encodeURIComponent(kind)),
   proxyIpv4Quote:(body:{proxy_type:string;country:string;days:number;count:number;mobile_operator?:string;rotation_time?:number})=>write<ProxyIpv4Quote>('/proxy-ipv4/quote','POST',body),
   adminSettings:()=>get<TopupConfig>('/admin/settings'),
   saveSettings:(body:{usd_per_star:string;enabled:boolean;version:number})=>write<TopupConfig>('/admin/settings','PUT',body),
