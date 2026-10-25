@@ -242,19 +242,33 @@ export const MyProxies:React.FC=()=>{
   const [orders,setOrders]=useState<Awaited<ReturnType<typeof marketApi.proxyIpv4Orders>>['orders']>([]);
   const [error,setError]=useState('');
   const [details,setDetails]=useState('');
-  const [loadingId,setLoadingId]=useState('');
-  useEffect(()=>{let active=true;marketApi.proxyIpv4Orders().then(x=>{if(active)setOrders(x.orders);}).catch(e=>{if(active)setError(toText(e));});return()=>{active=false;};},[]);
+  const [proxies,setProxies]=useState<unknown[]>([]);
+  const [busy,setBusy]=useState('');
+  const reload=async()=>{const data=await marketApi.proxyIpv4Orders();setOrders(data.orders);};
+  useEffect(()=>{let active=true;marketApi.proxyIpv4Orders().then(data=>{if(active)setOrders(data.orders);}).catch(e=>{if(active)setError(toText(e));});return()=>{active=false;};},[]);
   const check=async(id:string)=>{
-    setLoadingId(id);setError('');setDetails('');
+    setBusy(id);setError('');setDetails('');setProxies([]);
     try{
       const item=await marketApi.proxyIpv4OrderStatus(id);
       setDetails('Заявка '+item.id.slice(0,8)+': '+(item.status==='prepared'?'подготовлена, не оплачена':item.status)+(item.provider_order_id?' · заказ поставщика '+item.provider_order_id:''));
-    }catch(e){setError(toText(e));}finally{setLoadingId('');}
+      if(item.status==='fulfilled'&&item.proxy_type==='ipv6'){
+        const delivery=await marketApi.proxyIpv4OrderProxies(id);
+        setProxies(delivery.proxies);
+        if(delivery.delivery_pending)setDetails('Покупка подтверждена. Ожидается выдача прокси поставщиком.');
+      }
+      await reload();
+    }catch(e){setError(toText(e));}finally{setBusy('');}
   };
-  return <Shell><NavHeader title="Мои прокси" subtitle="Заявки и статусы заказов"/>
+  return <Shell><NavHeader title="Мои прокси" subtitle="Заявки, статусы и выданные прокси"/>
     {error&&<Status>{error}</Status>}
     {details&&<Status>{details}</Status>}
-    {orders.length===0&&<Empty title="Покупок пока нет" subtitle="Подготовленные заявки появятся здесь. Реальная выдача прокси пока отключена."/>}
-    {orders.map(o=><Card key={o.id} className="flex flex-col gap-2"><b className="text-sm">{o.proxy_type.toUpperCase()} · {o.selection.country}</b><p className="text-xs text-textSecondary">{o.selection.count} IP · {o.selection.days} дней · {usd(o.amount_usd)}</p><Status>Статус: {o.status==='prepared'?'Заявка подготовлена, не оплачена':o.status}</Status><Button type="button" size="sm" disabled={loadingId===o.id} onClick={()=>void check(o.id)}>{loadingId===o.id?'Проверяем…':'Проверить статус'}</Button></Card>)}
+    {proxies.length>0&&<Card className="flex flex-col gap-2"><h2 className="text-sm font-bold">Данные подключения</h2><pre className="overflow-auto whitespace-pre-wrap break-all text-xs">{JSON.stringify(proxies,null,2)}</pre></Card>}
+    {orders.length===0&&<Empty title="Покупок пока нет" subtitle="Подготовленные заявки появятся здесь."/>}
+    {orders.map(o=><Card key={o.id} className="flex flex-col gap-2">
+      <b className="text-sm">{o.proxy_type.toUpperCase()} · {o.selection.country}</b>
+      <p className="text-xs text-textSecondary">{o.selection.count} IP · {o.selection.days} дней · {usd(o.amount_usd)}</p>
+      <Status>Статус: {o.status==='prepared'?'Заявка подготовлена, не оплачена':o.status==='uncertain'?'Проверяется у поставщика':o.status}</Status>
+      <Button type="button" size="sm" disabled={busy===o.id} onClick={()=>void check(o.id)}>{busy===o.id?'Проверяем…':o.status==='fulfilled'?'Показать прокси':'Проверить статус'}</Button>
+    </Card>)}
   </Shell>;
 };
