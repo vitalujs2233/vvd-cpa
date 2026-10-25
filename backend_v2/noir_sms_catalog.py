@@ -172,7 +172,7 @@ async def load(path, country=None):
 @router.get('/status')
 async def status(response:Response, uid:int=Depends(owner)):
     response.headers['Cache-Control']='private, no-store'
-    return {'configured':bool(os.getenv('NOIR_SMS_API_KEY','').strip()),'purchases_enabled':False,'currency':'USD','markup_percent':'30'}
+    return {'configured':bool(os.getenv('NOIR_SMS_API_KEY','').strip()),'purchases_enabled':os.getenv('NOIR_SMS_PURCHASES_ENABLED')=='1' and bool(os.getenv('NOIR_SMS_API_KEY','').strip()),'currency':'USD','markup_percent':'30'}
 
 @router.get('/countries')
 async def countries(response:Response, uid:int=Depends(owner)):
@@ -190,11 +190,8 @@ async def prices(response:Response, country:str=Query(pattern='^[a-z]{2}$'), ser
     data=await load('services',country)
     item=next((r for r in data['services'] if r['code']==service),None)
     if item is None: raise HTTPException(404,MESSAGES['missing'])
-    return {**{k:v for k,v in item.items() if k!='cost'},'country':country,'currency':'USD','expires_at':data['expires_at'],'purchases_enabled':False}
+    return {**{k:v for k,v in item.items() if k!='cost'},'country':country,'currency':'USD','expires_at':data['expires_at'],'purchases_enabled':os.getenv('NOIR_SMS_PURCHASES_ENABLED')=='1' and bool(os.getenv('NOIR_SMS_API_KEY','').strip())}
 
-@router.post('/orders')
-async def disabled(uid:int=Depends(owner)):
-    raise HTTPException(503,'Покупки номеров пока отключены. Средства не списываются.')
 
 @router.on_event('startup')
 async def acceptance_probe():
