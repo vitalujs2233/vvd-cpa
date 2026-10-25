@@ -271,3 +271,25 @@ async def provider_checkout(selection: dict) -> dict:
         if not isinstance(order_number, str) or not order_number.strip():
             raise ValueError("Supplier accepted order without orderNumber")
     return response
+
+@router.get("/orders/{order_id}/status")
+def order_status(order_id: UUID, x_telegram_init_data: str | None = Header(default=None)):
+    """Read-only customer order status. Never return supplier credentials."""
+    uid = require_telegram_id(x_telegram_init_data)
+    with engine.connect() as conn:
+        row = conn.execute(text("""
+            SELECT id,proxy_type,selection,quoted_amount,status,
+                   provider_order_id,created_at,updated_at
+            FROM tool_proxy_order_intents
+            WHERE id=:id AND telegram_id=:uid
+        """), {"id":order_id,"uid":uid}).mappings().first()
+    if row is None:
+        raise HTTPException(404,"Заявка не найдена")
+    return {
+        "id":str(row["id"]), "proxy_type":row["proxy_type"],
+        "selection":row["selection"],"amount_usd":str(row["quoted_amount"]),
+        "status":row["status"],"provider_order_id":row["provider_order_id"],
+        "created_at":row["created_at"].isoformat(),
+        "updated_at":row["updated_at"].isoformat(),
+        "purchases_enabled":False,
+    }
