@@ -198,24 +198,34 @@ export const ToolsProxy:React.FC=()=>{
   const [quote,setQuote]=useState<import('./marketApi').ProxyIpv4Quote|null>(null);
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
-  const [prepared,setPrepared]=useState('');
+  const [purchased,setPurchased]=useState(false);
+  const [notice,setNotice]=useState('');
+  const [checkout,setCheckout]=useState(false);
+  useEffect(()=>{marketApi.proxyIpv4CheckoutConfig().then(x=>setCheckout(x.purchases_enabled)).catch(()=>setCheckout(false));},[]);
   const requestKey=useRef<{signature:string;id:string}|null>(null);
-  useEffect(()=>{let active=true;setCatalog(null);setError('');setQuote(null);marketApi.proxyIpv4Catalog(kind).then(data=>{if(active){setCatalog(data);setCountry(data.data.countries[0]?.code||'');setDays(data.data.days[0]||7);setQuantity(data.minimum_count);setOperator('');setRotation(0);}}).catch(e=>{if(active)setError(toText(e));});return()=>{active=false;};},[kind]);
+  useEffect(()=>{let active=true;setCatalog(null);setError('');setQuote(null);setPurchased(false);setNotice('');marketApi.proxyIpv4Catalog(kind).then(data=>{if(active){setCatalog(data);setCountry(data.data.countries[0]?.code||'');setDays(data.data.days[0]||7);setQuantity(data.minimum_count);setOperator('');setRotation(0);}}).catch(e=>{if(active)setError(toText(e));});return()=>{active=false;};},[kind]);
   const options=catalog?.data;
   const operators=options?.tariffs?.find(t=>t.country===country)?.mobileOperator||[];
   const selectedOperator=operators.find(x=>x.name===operator)||operators[0];
-  const choose=(next:string)=>{setKind(next);setQuote(null);};
-  const price=async()=>{setBusy(true);setError('');setQuote(null);try{setQuote(await marketApi.proxyIpv4Quote({proxy_type:kind,country,days,count:quantity,...(kind==='mobile'?{mobile_operator:selectedOperator?.name,rotation_time:selectedOperator?.rotationTime.includes(rotation)?rotation:selectedOperator?.rotationTime[0]}:{})}));}catch(e){setError(toText(e));}finally{setBusy(false);}};
-  const prepare=async()=>{
-    if(!quote||busy)return;
+  const resetQuote=()=>{setQuote(null);setPurchased(false);setNotice('');requestKey.current=null;};
+  const choose=(next:string)=>{setKind(next);resetQuote();};
+  const price=async()=>{setBusy(true);setError('');resetQuote();try{setQuote(await marketApi.proxyIpv4Quote({proxy_type:kind,country,days,count:quantity,...(kind==='mobile'?{mobile_operator:selectedOperator?.name,rotation_time:selectedOperator?.rotationTime.includes(rotation)?rotation:selectedOperator?.rotationTime[0]}:{})}));}catch(e){setError(toText(e));}finally{setBusy(false);}};
+  const purchase=async()=>{
+    if(!quote||busy||purchased)return;
+    if(!checkout){setError('Оплата временно недоступна. Деньги не списаны.');return;}
+    if(!window.confirm('Купить прокси за '+usd(quote.customer_total_usd)+'? Сумма будет списана с баланса инструментов.'))return;
     const selection={proxy_type:kind,country,days,count:quantity,...(kind==='mobile'?{mobile_operator:selectedOperator?.name,rotation_time:selectedOperator?.rotationTime.includes(rotation)?rotation:selectedOperator?.rotationTime[0]}:{})};
     const signature=JSON.stringify(selection);
     if(requestKey.current?.signature!==signature)requestKey.current={signature,id:crypto.randomUUID()};
-    setBusy(true);setError('');setPrepared('');
+    setBusy(true);setError('');setNotice('');
     try{
-      const result=await marketApi.proxyIpv4Prepare({...selection,request_id:requestKey.current.id});
-      setPrepared('Заявка №'+result.id.slice(0,8)+' подготовлена. Цена: $'+result.customer_total_usd+'. '+(result.wallet_sufficient===false?'Недостаточно средств на балансе инструментов. ':'')+'Откройте «Мои прокси», чтобы продолжить.');
-    }catch(e){setError(toText(e));}finally{setBusy(false);}
+      const order=await marketApi.proxyIpv4Prepare({...selection,request_id:requestKey.current.id});
+      await marketApi.proxyIpv4Purchase(order.id);
+      setPurchased(true);
+      setNotice('Покупка подтверждена. Прокси доступны в разделе «Мои прокси».');
+    }catch(e){
+      setError(toText(e)+' Если заказ обрабатывается, проверьте его в «Мои прокси». Не оформляйте повторную покупку.');
+    }finally{setBusy(false);}
   };
   const minimum=catalog?.minimum_count||(kind==='ipv6'?10:1);
   return <Shell><NavHeader title="Прокси"/>
@@ -223,15 +233,15 @@ export const ToolsProxy:React.FC=()=>{
       <h2 className="text-base font-bold">Выбор прокси</h2>
       {!catalog&&<p className="text-xs text-textSecondary">Каталог ещё не загружен.</p>}
       <label className="text-xs text-textSecondary">Тип прокси<select className={inputClass} value={kind} onChange={e=>choose(e.target.value)}><option value="ipv4">Прокси IPv4</option><option value="ipv6">Прокси IPv6</option><option value="isp">Прокси ISP</option><option value="mobile">Мобильные прокси</option></select></label>
-      <label className="text-xs text-textSecondary">Страна<select className={inputClass} value={country} onChange={e=>{setCountry(e.target.value);setOperator('');setRotation(0);setQuote(null);}}>{options?.countries.map(x=><option key={x.code} value={x.code}>{x.name} ({x.code})</option>)}</select></label>
-      <label className="text-xs text-textSecondary">Срок аренды<select className={inputClass} value={days} onChange={e=>{setDays(Number(e.target.value));setQuote(null);}}>{options?.days.map(x=><option key={x} value={x}>{x} дней</option>)}</select></label>
-      <label className="text-xs text-textSecondary">Количество IP (минимум {minimum})<input className={inputClass} type="number" min={minimum} max={1000} step={1} value={quantity} onChange={e=>{setQuantity(Number(e.target.value));setQuote(null);}}/></label>
+      <label className="text-xs text-textSecondary">Страна<select className={inputClass} value={country} onChange={e=>{setCountry(e.target.value);setOperator('');setRotation(0);resetQuote();}}>{options?.countries.map(x=><option key={x.code} value={x.code}>{x.name} ({x.code})</option>)}</select></label>
+      <label className="text-xs text-textSecondary">Срок аренды<select className={inputClass} value={days} onChange={e=>{setDays(Number(e.target.value));resetQuote();}}>{options?.days.map(x=><option key={x} value={x}>{x} дней</option>)}</select></label>
+      <label className="text-xs text-textSecondary">Количество IP (минимум {minimum})<input className={inputClass} type="number" min={minimum} max={1000} step={1} value={quantity} onChange={e=>{setQuantity(Number(e.target.value));resetQuote();}}/></label>
       {kind==='mobile'&&options?.mobile_tariff_error&&<p className="text-xs text-amber-400">{options.mobile_tariff_error}. Страны и сроки доступны, но выбор оператора и расчёт цены пока заблокированы.</p>}
-      {kind==='mobile'&&<><label className="text-xs text-textSecondary">Оператор<select className={inputClass} value={selectedOperator?.name||''} onChange={e=>{setOperator(e.target.value);setRotation(0);setQuote(null);}}>{operators.map(x=><option key={x.name} value={x.name}>{x.name}</option>)}</select></label><label className="text-xs text-textSecondary">Ротация IP<select className={inputClass} value={selectedOperator?.rotationTime.includes(rotation)?rotation:selectedOperator?.rotationTime[0]||0} onChange={e=>{setRotation(Number(e.target.value));setQuote(null);}}>{selectedOperator?.rotationTime.map(x=><option key={x} value={x}>{x===0?'По ссылке':x+' минут'}</option>)}</select></label></>}
+      {kind==='mobile'&&<><label className="text-xs text-textSecondary">Оператор<select className={inputClass} value={selectedOperator?.name||''} onChange={e=>{setOperator(e.target.value);setRotation(0);resetQuote();}}>{operators.map(x=><option key={x.name} value={x.name}>{x.name}</option>)}</select></label><label className="text-xs text-textSecondary">Ротация IP<select className={inputClass} value={selectedOperator?.rotationTime.includes(rotation)?rotation:selectedOperator?.rotationTime[0]||0} onChange={e=>{setRotation(Number(e.target.value));resetQuote();}}>{selectedOperator?.rotationTime.map(x=><option key={x} value={x}>{x===0?'По ссылке':x+' минут'}</option>)}</select></label></>}
       <Button type="button" disabled={!catalog||busy||!country||!options?.days.length||!Number.isInteger(quantity)||quantity<minimum||quantity>1000||(kind==='mobile'&&!selectedOperator)} onClick={price}>{busy?'Проверяем цену…':'Рассчитать цену'}</Button>
       {quote&&<Status>Стоимость: ${quote.customer_total_usd}</Status>}
-      {quote&&<Button type="button" disabled={busy} onClick={prepare}>{busy?'Подготавливаем…':'Продолжить'}</Button>}
-      {prepared&&<Status>{prepared}</Status>}
+      {quote&&!purchased&&<Button type="button" disabled={busy||!checkout} onClick={()=>void purchase()}>{busy?'Оформляем покупку…':'Купить за '+usd(quote.customer_total_usd)}</Button>}
+      {notice&&<Status>{notice}</Status>}
       {error&&<p className="text-xs text-red-400">{error}</p>}
       <Link to="/tools/proxy/my" className="text-xs text-accentBrightGold">Мои прокси →</Link>
     </Card>
