@@ -5,7 +5,7 @@ import os
 from decimal import Decimal, ROUND_HALF_UP
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 from stars_payments import require_telegram_id
 
@@ -45,25 +45,38 @@ def markup():
         return Decimal("30")
 
 @router.get("/catalog")
-async def catalog(x_telegram_init_data: str | None = Header(default=None)):
+async def catalog(proxy_type: str = Query("ipv4"), x_telegram_init_data: str | None = Header(default=None)):
     require_telegram_id(x_telegram_init_data)
-    types = {}
-    for kind in ("ipv4", "ipv6", "isp", "mobile"):
-        d, c = await asyncio.gather(provider("get/days", {"proxyType":kind}), provider("get/countries", {"proxyType":kind}))
-        types[kind] = {"days": d.get("days", []), "countries": [{"code":x["alpha3code"], "name":x["name"]} for x in c.get("countries", []) if isinstance(x,dict) and "alpha3code" in x and "name" in x]}
-    try:
+    if proxy_type not in ("ipv4", "ipv6", "isp", "mobile"):
+        raise HTTPException(422, "Неизвестный тип прокси")
+    d, c = await asyncio.gather(
+        provider("get/days", {"proxyType": proxy_type}),
+        provider("get/countries", {"proxyType": proxy_type}),
+    )
+    days = sorted({int(x) for x in d.get("days", []) if isinstance(x, int) and 1 <= x <= 365})
+    countries = [
+        {"code": x["alpha3code"], "name": x["name"]}
+        for x in c.get("countries", [])
+        if isinstance(x, dict) and isinstance(x.get("alpha3code"), str)
+        and isinstance(x.get("name"), str)
+    ]
+    data = {"days": days, "countries": countries}
+    if proxy_type == "mobile":
         tariffs = await provider("get/mobile/tariffs", {})
-        types["mobile"]["tariffs"] = tariffs.get("tariffs", [])
-    except HTTPException:
-        types["mobile"]["tariffs"] = []
-    return {"types":types, "purchases_enabled":False, "minimum_count":{"ipv4":5,"ipv6":10,"isp":1,"mobile":1}}
+        data["tariffs"] = tariffs.get("tariffs", [])
+        available = {t.get("country") for t in data["tariffs"] if isinstance(t, dict)}
+        data["countries"] = [x for x in countries if x["code"] in available]
+    return {
+        "type": proxy_type, "data": data, "purchases_enabled": False,
+        "minimum_count": 10 if proxy_type == "ipv6" else 1,
+    }
 
 @router.post("/quote")
 async def quote(body: Quote, x_telegram_init_data: str | None = Header(default=None)):
     require_telegram_id(x_telegram_init_data)
     if body.proxy_type not in ("ipv4", "ipv6", "isp", "mobile"):
         raise HTTPException(422,"Тип недоступен")
-    if body.count < {"ipv4":5,"ipv6":10,"isp":1,"mobile":1}[body.proxy_type]:
+    if body.count < {"ipv4":1,"ipv6":10,"isp":1,"mobile":1}[body.proxy_type]:
         raise HTTPException(422,"Минимальное количество для выбранного типа не соблюдено")
     d, c = await asyncio.gather(provider("get/days", {"proxyType":body.proxy_type}), provider("get/countries", {"proxyType":body.proxy_type}))
     if body.days not in d.get("days",[]) or body.country.upper() not in [x.get("alpha3code") for x in c.get("countries",[]) if isinstance(x,dict)]:
@@ -83,4 +96,4 @@ async def quote(body: Quote, x_telegram_init_data: str | None = Header(default=N
         sell = (cost * (Decimal(1) + markup()/100)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     except Exception:
         raise HTTPException(502,"Неверная цена поставщика")
-    return {"supplier_total_usd":str(cost), "customer_total_usd":str(sell), "markup_percent":str(markup()), "purchases_enabled":False}
+    return {"customer_total_usd":str(sell), "purchases_enabled":False}
