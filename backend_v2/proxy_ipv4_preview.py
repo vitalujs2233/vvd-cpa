@@ -341,3 +341,28 @@ async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Head
         mark_uncertain(uid,order_id)
         raise HTTPException(409,"Результат покупки неизвестен, резерв сохранён. Повтор запрещён")
     return confirm_fulfilled(uid,order_id,number)
+
+@router.get("/orders/{order_id}/proxies")
+async def order_proxies(order_id: UUID, x_telegram_init_data: str | None = Header(default=None)):
+    """Deliver only supplier records explicitly tagged with this owner's order ID."""
+    uid = require_telegram_id(x_telegram_init_data)
+    with engine.connect() as conn:
+        order = conn.execute(text("""
+            SELECT proxy_type,status,provider_order_id FROM tool_proxy_order_intents
+            WHERE id=:id AND telegram_id=:uid
+        """), {"id":order_id,"uid":uid}).mappings().first()
+    if not order:
+        raise HTTPException(404,"Заявка не найдена")
+    if order["status"] != "fulfilled" or not order["provider_order_id"]:
+        raise HTTPException(409,"Заказ ещё не подтверждён")
+    if order["proxy_type"] != "ipv6":
+        raise HTTPException(422,"Выдача этого типа пока недоступна")
+    response = await provider("get/proxies",{"proxyType":"ipv6"})
+    matches = []
+    for group in response.get("proxies",[]):
+        if not isinstance(group,dict):
+            continue
+        if str(group.get("orderId","")) == str(order["provider_order_id"]):
+            matches.append(group)
+    return {"status":"fulfilled","proxies":matches,
+            "delivery_pending":len(matches)==0}
