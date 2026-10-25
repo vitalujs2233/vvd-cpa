@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, Bot, Check, ChevronRight, Clock, Copy, CreditCar
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { triggerHaptic } from '@/shared/lib/telegram';
-import { marketApi, usd, modelPageUrl, type Character, type ToolWallet, type ToolTransaction, type ToolOrder, type ServiceInfo, type ToolInvoice, type TopupConfig, type ProxyConfig, type ProxySelection } from './marketApi';
+import { marketApi, usd, modelPageUrl, type Character, type ToolWallet, type ToolTransaction, type ToolOrder, type ServiceInfo, type ToolInvoice, type TopupConfig } from './marketApi';
 
 const emptyWallet:ToolWallet = { available:'0.00', reserved:'0.00', currency:'USD', payments_enabled:false };
 const inputClass='w-full rounded-app-xs border border-white/10 bg-bgCard px-3 py-3 text-sm text-textPrimary outline-none focus:border-accentGold/60';
