@@ -361,6 +361,18 @@ def checkout_config(x_telegram_init_data: str | None = Header(default=None)):
     return {"purchases_enabled": enabled, "supported_purchase_types": ["ipv4", "ipv6", "isp", "mobile"]}
 
 
+def match_order_proxies(items: list, kind: str, order_number: str) -> list:
+    """Only return records explicitly linked to this order by the supplier."""
+    if kind == "ipv6":
+        return [item for item in items if isinstance(item, dict)
+                and str(item.get("orderId", "")) == order_number]
+    # Some supplier responses may include an order reference for individual IPs.
+    # Without an explicit reference, the provider's global inventory is not
+    # attributable to a customer, and must never be disclosed.
+    return [item for item in items if isinstance(item, dict)
+            and str(item.get("orderId") or item.get("orderNumber") or "") == order_number]
+
+
 @router.get("/orders/{order_id}/proxies")
 async def order_proxies(order_id: UUID, x_telegram_init_data: str | None = Header(default=None)):
     """Deliver only supplier records explicitly tagged with this owner's order ID."""
@@ -374,15 +386,8 @@ async def order_proxies(order_id: UUID, x_telegram_init_data: str | None = Heade
         raise HTTPException(404,"Заявка не найдена")
     if order["status"] != "fulfilled" or not order["provider_order_id"]:
         raise HTTPException(409,"Заказ ещё не подтверждён")
-    if order["proxy_type"] != "ipv6":
-        return {"status":"fulfilled","proxies":[],"delivery_pending":True,
-                "message":"Заказ оплачен. Автоматическая привязка выданных IP для этого типа пока недоступна."}
-    response = await provider("get/proxies",{"proxyType":"ipv6"})
-    matches = []
-    for group in response.get("proxies",[]):
-        if not isinstance(group,dict):
-            continue
-        if str(group.get("orderId","")) == str(order["provider_order_id"]):
-            matches.append(group)
+    response = await provider("get/proxies",{"proxyType":order["proxy_type"]})
+    matches = match_order_proxies(response.get("proxies", []),
+                                  order["proxy_type"],str(order["provider_order_id"]))
     return {"status":"fulfilled","proxies":matches,
             "delivery_pending":len(matches)==0}
