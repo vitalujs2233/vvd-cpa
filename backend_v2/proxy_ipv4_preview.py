@@ -1,4 +1,4 @@
-"""Read-only Proxy-IPv4 API; no purchases or wallet changes."""
+"""Proxy-IPv4 integration: read-only routes; purchasing gated pending verification."""
 import asyncio
 import json
 import os
@@ -235,3 +235,30 @@ async def order_readiness(order_id: UUID, x_telegram_init_data: str | None = Hea
             "wallet_sufficient":available >= order["quoted_amount"],
             "provider_balance_checked":True,
             "reason":"Покупки не активированы; сумма будет перепроверена перед списанием"}
+
+async def provider_checkout(selection: dict) -> dict:
+    """Single POST only; caller MUST persist 'submitting' before invoking.
+
+    Never retry on transport failures: the supplier may have charged the account.
+    No route currently calls this function while checkout is disabled.
+    """
+    payload = provider_order_payload(selection)
+    key = os.getenv("PROXY_IPV4_API_KEY", "").strip()
+    if not key:
+        raise HTTPException(503, "API поставщика не настроен")
+    url = "https://proxy-ipv4.com/client-api/v1/" + key + "/order"
+    def send_once():
+        request = Request(url, data=json.dumps(payload).encode("utf-8"),
+                          headers={"Content-Type": "application/json", "Accept": "application/json"},
+                          method="POST")
+        with urlopen(request, timeout=15) as response:
+            return json.loads(response.read(100000))
+    # Transport failures are ambiguous, including HTTP 5xx. Never automatically retry.
+    response = await asyncio.to_thread(send_once)
+    if not isinstance(response, dict):
+        raise ValueError("Unexpected supplier response")
+    if response.get("success") is True:
+        order_number = response.get("orderNumber")
+        if not isinstance(order_number, str) or not order_number.strip():
+            raise ValueError("Supplier accepted order without orderNumber")
+    return response
