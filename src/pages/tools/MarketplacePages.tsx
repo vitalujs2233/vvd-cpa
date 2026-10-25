@@ -252,10 +252,10 @@ export const MyProxies:React.FC=()=>{
     try{
       const item=await marketApi.proxyIpv4OrderStatus(id);
       setDetails('Заявка '+item.id.slice(0,8)+': '+(item.status==='prepared'?'подготовлена, не оплачена':item.status)+(item.provider_order_id?' · заказ поставщика '+item.provider_order_id:''));
-      if(item.status==='fulfilled'&&item.proxy_type==='ipv6'){
+      if(item.status==='fulfilled'){
         const delivery=await marketApi.proxyIpv4OrderProxies(id);
         setProxies(delivery.proxies);
-        if(delivery.delivery_pending)setDetails('Покупка подтверждена. Ожидается выдача прокси поставщиком.');
+        if(delivery.delivery_pending)setDetails('Покупка подтверждена. Данные подключения ещё не привязаны к заказу поставщиком.');
       }
       await reload();
     }catch(e){setError(toText(e));}finally{setBusy('');}
