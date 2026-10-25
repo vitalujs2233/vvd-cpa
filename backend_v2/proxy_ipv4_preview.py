@@ -3,6 +3,9 @@ import asyncio
 import json
 import os
 from decimal import Decimal, ROUND_HALF_UP
+from uuid import UUID
+from sqlalchemy import text
+from database import engine
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
@@ -115,3 +118,65 @@ async def quote(body: Quote, x_telegram_init_data: str | None = Header(default=N
     except Exception:
         raise HTTPException(502,"Неверная цена поставщика")
     return {"customer_total_usd":str(sell), "purchases_enabled":False}
+
+# Safe staging only: no supplier order, no wallet reservation, no wallet debit.
+class PrepareOrder(Quote):
+    request_id: UUID
+
+@router.post("/orders/prepare")
+async def prepare_order(body: PrepareOrder, x_telegram_init_data: str | None = Header(default=None)):
+    uid = require_telegram_id(x_telegram_init_data)
+    # An existing key always resolves to its original selection and price.
+    selection = body.model_dump(exclude={"request_id"})
+    selection["country"] = selection["country"].upper()
+    import json as _json
+    with engine.connect() as conn:
+        existing = conn.execute(text("""
+            SELECT id,selection,quoted_amount,status FROM tool_proxy_order_intents
+            WHERE telegram_id=:uid AND request_id=:rid
+        """), {"uid":uid,"rid":body.request_id}).mappings().first()
+    if existing:
+        if existing["selection"] != selection:
+            raise HTTPException(409,"Этот идентификатор уже использован для другого заказа")
+        return {"id":str(existing["id"]),"status":existing["status"],
+                "customer_total_usd":str(existing["quoted_amount"]),
+                "purchases_enabled":False}
+    calculated = await quote(Quote(**selection), x_telegram_init_data)
+    amount = Decimal(calculated["customer_total_usd"])
+    with engine.begin() as conn:
+        conn.execute(text("SELECT pg_advisory_xact_lock(:uid)"),{"uid":uid})
+        wallet = conn.execute(text("SELECT available FROM tool_wallets WHERE telegram_id=:uid"),{"uid":uid}).first()
+        available = wallet.available if wallet else Decimal("0")
+        row = conn.execute(text("""
+            INSERT INTO tool_proxy_order_intents
+                (telegram_id,request_id,proxy_type,selection,quoted_amount)
+            VALUES (:uid,:rid,:kind,CAST(:selection AS jsonb),:amount)
+            ON CONFLICT (telegram_id,request_id) DO NOTHING
+            RETURNING id,selection,quoted_amount,status
+        """),{"uid":uid,"rid":body.request_id,"kind":body.proxy_type,
+             "selection":_json.dumps(selection),"amount":amount}).mappings().first()
+        if row is None:
+            row = conn.execute(text("""
+                SELECT id,selection,quoted_amount,status FROM tool_proxy_order_intents
+                WHERE telegram_id=:uid AND request_id=:rid
+            """),{"uid":uid,"rid":body.request_id}).mappings().one()
+            if row["selection"] != selection:
+                raise HTTPException(409,"Этот идентификатор уже использован для другого заказа")
+    return {"id":str(row["id"]),"status":row["status"],
+            "customer_total_usd":str(row["quoted_amount"]),
+            "wallet_sufficient":available >= row["quoted_amount"],
+            "purchases_enabled":False}
+
+@router.get("/orders")
+def proxy_orders(x_telegram_init_data: str | None = Header(default=None)):
+    uid = require_telegram_id(x_telegram_init_data)
+    with engine.connect() as conn:
+        rows = conn.execute(text("""
+            SELECT id,proxy_type,selection,quoted_amount,status,created_at
+            FROM tool_proxy_order_intents WHERE telegram_id=:uid
+            ORDER BY created_at DESC LIMIT 100
+        """),{"uid":uid}).mappings().all()
+    return {"orders":[{"id":str(r["id"]),"proxy_type":r["proxy_type"],
+             "selection":r["selection"],"amount_usd":str(r["quoted_amount"]),
+             "status":r["status"],"created_at":r["created_at"].isoformat()} for r in rows],
+            "purchases_enabled":False}
