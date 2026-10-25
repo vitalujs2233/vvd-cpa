@@ -76,3 +76,67 @@ def release_reservation(owner_id: int, order_id: UUID) -> dict:
             WHERE id=:id AND telegram_id=:owner
         """), {"id": order_id, "owner": owner_id})
         return {"status": "cancelled"}
+
+
+def mark_submitting(owner_id: int, order_id: UUID, provider_cost: Decimal) -> dict:
+    """Durably record submission intent before the ONE supplier request."""
+    if not provider_cost.is_finite() or provider_cost <= 0:
+        raise HTTPException(422, "Некорректная стоимость поставщика")
+    with engine.begin() as conn:
+        row = conn.execute(text("""
+            UPDATE tool_proxy_order_intents
+            SET status='submitting',provider_cost=:cost,updated_at=now()
+            WHERE id=:id AND telegram_id=:owner AND status='reserved'
+            RETURNING id
+        """), {"id":order_id,"owner":owner_id,"cost":provider_cost}).first()
+        if not row:
+            raise HTTPException(409,"Заявка не зарезервирована или уже отправлена")
+    return {"status":"submitting"}
+
+
+def mark_uncertain(owner_id: int, order_id: UUID) -> dict:
+    """Never release a reservation when the supplier outcome is ambiguous."""
+    with engine.begin() as conn:
+        row = conn.execute(text("""
+            UPDATE tool_proxy_order_intents
+            SET status='uncertain',updated_at=now()
+            WHERE id=:id AND telegram_id=:owner AND status='submitting'
+            RETURNING id
+        """), {"id":order_id,"owner":owner_id}).first()
+        if not row:
+            raise HTTPException(409,"Нельзя изменить статус заявки")
+    return {"status":"uncertain"}
+
+
+def confirm_fulfilled(owner_id: int, order_id: UUID, provider_order_id: str) -> dict:
+    """Finalize confirmed purchase exactly once, touching only tool_wallets."""
+    if not provider_order_id or not provider_order_id.strip():
+        raise HTTPException(422,"Не указан номер заказа поставщика")
+    with engine.begin() as conn:
+        order = conn.execute(text("""
+            SELECT quoted_amount,status,provider_order_id
+            FROM tool_proxy_order_intents
+            WHERE id=:id AND telegram_id=:owner FOR UPDATE
+        """), {"id":order_id,"owner":owner_id}).mappings().first()
+        if not order:
+            raise HTTPException(404,"Заявка не найдена")
+        if order["status"] == "fulfilled":
+            if order["provider_order_id"] != provider_order_id:
+                raise HTTPException(409,"Номер заказа не совпадает")
+            return {"status":"fulfilled","order_number":provider_order_id}
+        if order["status"] not in ("submitting","uncertain"):
+            raise HTTPException(409,"Покупка не подтверждена")
+        amount = Decimal(order["quoted_amount"])
+        wallet = conn.execute(text("""
+            UPDATE tool_wallets SET reserved=reserved-:amount,updated_at=now()
+            WHERE telegram_id=:owner AND reserved>=:amount
+            RETURNING telegram_id
+        """), {"owner":owner_id,"amount":amount}).first()
+        if not wallet:
+            raise RuntimeError("Wallet reconciliation required")
+        conn.execute(text("""
+            UPDATE tool_proxy_order_intents
+            SET status='fulfilled',provider_order_id=:number,updated_at=now()
+            WHERE id=:id AND telegram_id=:owner
+        """), {"id":order_id,"owner":owner_id,"number":provider_order_id})
+    return {"status":"fulfilled","order_number":provider_order_id}
