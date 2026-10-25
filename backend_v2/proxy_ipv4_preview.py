@@ -268,7 +268,7 @@ async def provider_checkout(selection: dict) -> dict:
         raise ValueError("Unexpected supplier response")
     if response.get("success") is True:
         order_number = response.get("orderNumber")
-        if not isinstance(order_number, str) or not order_number.strip():
+        if not isinstance(order_number, (str, int)) or not str(order_number).strip():
             raise ValueError("Supplier accepted order without orderNumber")
     return response
 
@@ -338,9 +338,20 @@ async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Head
             raise ValueError("Unconfirmed supplier response")
         number = response["orderNumber"]
     except Exception:
-        mark_uncertain(uid,order_id)
+        try:
+            mark_uncertain(uid,order_id)
+        except Exception:
+            pass
         raise HTTPException(409,"Результат покупки неизвестен, резерв сохранён. Повтор запрещён")
-    return confirm_fulfilled(uid,order_id,number)
+    try:
+        return confirm_fulfilled(uid,order_id,str(number))
+    except Exception:
+        # Supplier may have accepted the order; never re-submit or release the reservation.
+        try:
+            mark_uncertain(uid,order_id)
+        except Exception:
+            pass
+        raise HTTPException(503,"Покупка подтверждена поставщиком, но требуется сверка учёта. Повтор запрещён")
 
 @router.get("/orders/{order_id}/proxies")
 async def order_proxies(order_id: UUID, x_telegram_init_data: str | None = Header(default=None)):
