@@ -39,9 +39,14 @@ function noirGet<T>(path:string):Promise<T> {
   }).finally(()=>noirPending.delete(path));
   noirPending.set(path,request);return request;
 }
+const noirPurchaseRequest=async(body:{request_id:string;country:string;service:string;confirmed_price:string})=>{
+  const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),40000);
+  try{return await apiRequest<NoirOrder>('/tools-market/numbers/orders',{method:'POST',headers:authHeaders(),body:JSON.stringify(body),signal:controller.signal});}
+  finally{clearTimeout(timer);}
+};
 export const marketApi = {
   noirCheckoutConfig:()=>noirGet<{purchases_enabled:boolean}>('/checkout-config'),
-  noirPurchase:(body:{request_id:string;country:string;service:string;confirmed_price:string})=>write<NoirOrder>('/numbers/orders','POST',body),
+  noirPurchase:noirPurchaseRequest,
   noirOrders:()=>noirGet<{orders:NoirOrder[]}>('/orders'),
   noirOrder:(id:string)=>noirGet<NoirOrder>('/orders/'+encodeURIComponent(id)),
   noirCountries:()=>noirGet<{countries:{code:string}[]}>('/countries'),

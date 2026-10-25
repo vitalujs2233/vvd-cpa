@@ -193,6 +193,14 @@ async def order(order_id:UUID,response:Response,uid:int=Depends(owner)):
     response.headers['Cache-Control']='private, no-store'
     return await refresh(uid,order_id)
 
+def recover_unsubmitted():
+    # A durable claim is the boundary: only untouched reservations may be released.
+    with engine.begin() as c:
+        rows=list(c.execute(text("SELECT id,telegram_id FROM tool_orders WHERE provider_id=:p AND ledger_state='reserved' AND ledger_updated_at<now()-interval '2 minutes' FOR UPDATE SKIP LOCKED"),dict(p=PROVIDER)))
+        bound=Ledger(BoundEngine(c))
+        for oid,uid in rows:bound.reject_confirmed(uid,oid)
+        c.execute(text("UPDATE tool_orders SET ledger_state='unknown',ledger_updated_at=now() WHERE provider_id=:p AND ledger_state='submitting' AND ledger_updated_at<now()-interval '2 minutes'"),dict(p=PROVIDER))
+
 @router.on_event('startup')
 async def start_reconcile():
     old=getattr(router,'_noir_task',None)
@@ -201,6 +209,7 @@ async def start_reconcile():
         while True:
             await asyncio.sleep(30)
             try:
+                await run_in_threadpool(recover_unsubmitted)
                 def pending():
                     with engine.connect() as c:
                         return list(c.execute(text("SELECT telegram_id,id FROM tool_orders WHERE provider_id=:p AND ledger_state='settled' AND noir_delivery->>'status'='waiting' ORDER BY noir_checked_at NULLS FIRST LIMIT 20"),dict(p=PROVIDER)))

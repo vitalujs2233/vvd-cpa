@@ -69,6 +69,15 @@ class CheckoutTests(unittest.TestCase):
         with patch.dict(os.environ,NOIR_SMS_PURCHASES_ENABLED='0'):
             with self.assertRaises(HTTPException):self.buy()
         self.assertEqual(self.mock.await_count,0)
+    def test_restart_releases_only_unsubmitted(self):
+        selection={'country':'us','service':'example','confirmed_price':'1.30'}
+        first,_=n.reserve_purchase(self.uid,uuid4(),selection,D('1'),D('1.30'))
+        with self.db.begin() as c:c.execute(text("UPDATE tool_orders SET ledger_updated_at=now()-interval '3 minutes' WHERE id=:id"),dict(id=first))
+        n.recover_unsubmitted();self.assertEqual(self.balances(),(D('10'),D('0')))
+        second,_=n.reserve_purchase(self.uid,uuid4(),selection,D('1'),D('1.30'));n.ledger.claim(self.uid,second)
+        with self.db.begin() as c:c.execute(text("UPDATE tool_orders SET ledger_updated_at=now()-interval '3 minutes' WHERE id=:id"),dict(id=second))
+        n.recover_unsubmitted();self.assertEqual(n.read_order(self.uid,second)['ledger_state'],'unknown');self.assertEqual(self.balances(),(D('8.70'),D('1.30')))
+
     def test_concurrent_double_request(self):
         # A shared event loop mirrors the production async handler.
         async def race():return await asyncio.gather(n.purchase(self.body,Response(),self.uid),n.purchase(self.body,Response(),self.uid))
