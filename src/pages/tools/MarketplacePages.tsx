@@ -277,7 +277,7 @@ export const MyProxies:React.FC=()=>{
       <b className="text-sm">{o.proxy_type.toUpperCase()} · {o.selection.country}</b>
       <p className="text-xs text-textSecondary">{o.selection.count} IP · {o.selection.days} дней · {usd(o.amount_usd)}</p>
       <Status>Статус: {o.status==='prepared'?'Ожидает оплаты':o.status==='uncertain'?'Проверяем оплату':o.status}</Status>
-      {o.proxy_type==='ipv6'&&o.status==='prepared'&&<Button type="button" size="sm" disabled={busy===o.id} onClick={()=>{if(!checkout){setError('Кнопка доступна, но сервер пока не разрешает оплату. Средства не списаны.');return;}void purchase(o.id);}}>Купить за {usd(o.amount_usd)}</Button>}
+      {o.status==='prepared'&&<Button type="button" size="sm" disabled={busy===o.id} onClick={()=>{if(o.proxy_type!=='ipv6'){setError('Покупка '+o.proxy_type.toUpperCase()+' пока не поддерживается сервером. Деньги не списаны.');return;}if(!checkout){setError('Сервер пока не разрешает оплату. Средства не списаны.');return;}void purchase(o.id);}}>Купить за {usd(o.amount_usd)}</Button>}
       {o.status==='fulfilled'&&<Button type="button" size="sm" disabled={busy===o.id} onClick={()=>void check(o.id)}>{busy===o.id?'Загружаем…':'Показать прокси'}</Button>}
     </Card>)}
   </Shell>;
