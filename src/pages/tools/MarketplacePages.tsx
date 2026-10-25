@@ -244,7 +244,7 @@ export const MyProxies:React.FC=()=>{
   const [proxies,setProxies]=useState<unknown[]>([]);
   const [busy,setBusy]=useState('');
   const [checkout,setCheckout]=useState(false);
-  useEffect(()=>{marketApi.proxyIpv4CheckoutConfig().then(x=>setCheckout(x.purchases_enabled&&x.supported_purchase_types.includes('ipv6'))).catch(()=>setCheckout(false));},[]);
+  useEffect(()=>{marketApi.proxyIpv4CheckoutConfig().then(x=>setCheckout(x.purchases_enabled&&x.supported_purchase_types.length>0)).catch(()=>setCheckout(false));},[]);
   const reload=async()=>{const data=await marketApi.proxyIpv4Orders();setOrders(data.orders);};
   useEffect(()=>{let active=true;marketApi.proxyIpv4Orders().then(data=>{if(active)setOrders(data.orders);}).catch(e=>{if(active)setError(toText(e));});return()=>{active=false;};},[]);
   const check=async(id:string)=>{
@@ -262,7 +262,7 @@ export const MyProxies:React.FC=()=>{
   };
   const purchase=async(id:string)=>{
     if(!checkout)return;
-    if(!window.confirm('Подтвердить покупку IPv6? Средства будут списаны с баланса инструментов.'))return;
+    if(!window.confirm('Подтвердить покупку прокси? Средства будут списаны с баланса инструментов.'))return;
     setBusy(id);setError('');
     try{await marketApi.proxyIpv4Purchase(id);await reload();setDetails('Заказ подтверждён. Нажмите «Показать прокси».');}
     catch(e){setError(toText(e));await reload();}
@@ -277,7 +277,7 @@ export const MyProxies:React.FC=()=>{
       <b className="text-sm">{o.proxy_type.toUpperCase()} · {o.selection.country}</b>
       <p className="text-xs text-textSecondary">{o.selection.count} IP · {o.selection.days} дней · {usd(o.amount_usd)}</p>
       <Status>Статус: {o.status==='prepared'?'Ожидает оплаты':o.status==='uncertain'?'Проверяем оплату':o.status}</Status>
-      {o.status==='prepared'&&<Button type="button" size="sm" disabled={busy===o.id} onClick={()=>{if(o.proxy_type!=='ipv6'){setError('Покупка '+o.proxy_type.toUpperCase()+' пока не поддерживается сервером. Деньги не списаны.');return;}if(!checkout){setError('Сервер пока не разрешает оплату. Средства не списаны.');return;}void purchase(o.id);}}>Купить за {usd(o.amount_usd)}</Button>}
+      {o.status==='prepared'&&<Button type="button" size="sm" disabled={busy===o.id} onClick={()=>{if(!checkout){setError('Сервер пока не разрешает оплату. Средства не списаны.');return;}void purchase(o.id);}}>Купить за {usd(o.amount_usd)}</Button>}
       {o.status==='fulfilled'&&<Button type="button" size="sm" disabled={busy===o.id} onClick={()=>void check(o.id)}>{busy===o.id?'Загружаем…':'Показать прокси'}</Button>}
     </Card>)}
   </Shell>;
