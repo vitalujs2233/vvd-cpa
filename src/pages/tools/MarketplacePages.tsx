@@ -187,5 +187,25 @@ export const ToolsPurchases:React.FC=()=>{
 
 export const ToolsNumbers:React.FC=()=> <Shell><NavHeader title="Виртуальные номера" subtitle="Каталог поставщиков"/><Empty title="Подключаем нового поставщика" subtitle="Виртуальные номера временно недоступны. Покупки отключены."/></Shell>;
 export const MyNumbers:React.FC=()=> <Shell><NavHeader title="Мои номера"/><Empty title="Новые покупки недоступны" subtitle="История покупок сохранена в общем разделе «Мои покупки»."/></Shell>;
-export const ToolsProxy:React.FC=()=> <Shell><NavHeader title="Прокси" subtitle="Подготовка нового поставщика"/><Empty title="Прокси временно недоступны" subtitle="Предыдущая демоинтеграция отключена. Реальные покупки и списания не выполняются."/></Shell>;
+export const ToolsProxy:React.FC=()=>{
+  const [kind,setKind]=useState('ipv4');
+  const [country,setCountry]=useState('US');
+  const [days,setDays]=useState(7);
+  const [quantity,setQuantity]=useState(1);
+  const [preview,setPreview]=useState(false);
+  return <Shell><NavHeader title="Прокси" subtitle="Proxy-IPv4 · подготовка подключения"/>
+    <Status>Поставщик Proxy-IPv4. Это предварительный интерфейс: цены, наличие и сроки пока не проверены через API. Покупки и списания отключены.</Status>
+    <Card className="flex flex-col gap-3">
+      <h2 className="text-base font-bold">Выбор прокси</h2>
+      <label className="text-xs text-textSecondary">Тип прокси<select className={inputClass} value={kind} onChange={e=>{setKind(e.target.value);setPreview(false);}}><option value="ipv4">IPv4</option><option value="isp">ISP</option></select></label>
+      <label className="text-xs text-textSecondary">Страна (пример, не подтверждена)<select className={inputClass} value={country} onChange={e=>{setCountry(e.target.value);setPreview(false);}}><option value="US">США</option><option value="DE">Германия</option><option value="PL">Польша</option></select></label>
+      <label className="text-xs text-textSecondary">Срок (пример, не подтверждён)<select className={inputClass} value={days} onChange={e=>{setDays(Number(e.target.value));setPreview(false);}}><option value={7}>7 дней</option><option value={14}>14 дней</option><option value={30}>30 дней</option></select></label>
+      <label className="text-xs text-textSecondary">Количество IP<input className={inputClass} type="number" min={1} max={100} step={1} value={quantity} onChange={e=>{setQuantity(Number(e.target.value));setPreview(false);}}/></label>
+      <p className="text-xs text-textSecondary">Цена: ожидается подключение API. Доступность не подтверждена.</p>
+      <Button type="button" disabled={!Number.isInteger(quantity)||quantity<1||quantity>100} onClick={()=>setPreview(true)}>Предпросмотр выбора</Button>
+      {preview&&<Status>Выбрано: {kind.toUpperCase()}, {country}, {days} дней, {quantity} IP. Это только предварительный просмотр — заказ не создан и деньги не списаны.</Status>}
+      <Link to="/tools/proxy/my" className="text-xs text-accentBrightGold">Мои прокси →</Link>
+    </Card>
+  </Shell>;
+};
 export const MyProxies:React.FC=()=> <Shell><NavHeader title="Мои прокси"/><Empty title="Новые покупки недоступны" subtitle="История покупок сохранена в общем разделе «Мои покупки»."/></Shell>;
