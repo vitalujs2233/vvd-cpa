@@ -55,11 +55,16 @@ async def catalog(proxy_type: str = Query("ipv4"), x_telegram_init_data: str | N
     require_telegram_id(x_telegram_init_data)
     if proxy_type not in ("ipv4", "ipv6", "isp", "mobile"):
         raise HTTPException(422, "Неизвестный тип прокси")
+    tariffs = []
+    mobile_tariff_error = None
     if proxy_type == "mobile":
-        tariffs_response = await provider("get/mobile/tariffs", {})
-        tariffs = tariffs_response.get("tariffs", [])
-        if not isinstance(tariffs, list):
-            raise HTTPException(502, "Неверный формат мобильных тарифов")
+        try:
+            tariffs_response = await provider("get/mobile/tariffs", {})
+            tariffs = tariffs_response.get("tariffs", [])
+            if not isinstance(tariffs, list):
+                raise HTTPException(502, "Неверный формат мобильных тарифов")
+        except HTTPException as exc:
+            mobile_tariff_error = "Операторы и ротация временно недоступны через API поставщика"
     d, c = await asyncio.gather(
         provider("get/days", {"proxyType": proxy_type}),
         provider("get/countries", {"proxyType": proxy_type}),
@@ -75,7 +80,10 @@ async def catalog(proxy_type: str = Query("ipv4"), x_telegram_init_data: str | N
     if proxy_type == "mobile":
         data["tariffs"] = tariffs
         available = {t.get("country") for t in data["tariffs"] if isinstance(t, dict)}
-        data["countries"] = [x for x in countries if x["code"] in available]
+        if tariffs:
+            data["countries"] = [x for x in countries if x["code"] in available]
+        if mobile_tariff_error:
+            data["mobile_tariff_error"] = mobile_tariff_error
     return {
         "type": proxy_type, "data": data, "purchases_enabled": False,
         "minimum_count": 10 if proxy_type == "ipv6" else 1,
