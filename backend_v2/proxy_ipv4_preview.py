@@ -293,3 +293,51 @@ def order_status(order_id: UUID, x_telegram_init_data: str | None = Header(defau
         "updated_at":row["updated_at"].isoformat(),
         "purchases_enabled":False,
     }
+
+@router.post("/orders/{order_id}/purchase")
+async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Header(default=None)):
+    """One-shot checkout, disabled by default until supplier fulfilment is verified."""
+    uid = require_telegram_id(x_telegram_init_data)
+    if os.getenv("PROXY_IPV4_PURCHASES_ENABLED", "false").lower() != "true":
+        raise HTTPException(503, "Покупки пока отключены")
+    with engine.connect() as conn:
+        order = conn.execute(text("""
+            SELECT selection,quoted_amount,status,provider_order_id
+            FROM tool_proxy_order_intents
+            WHERE id=:id AND telegram_id=:uid
+        """), {"id":order_id,"uid":uid}).mappings().first()
+    if not order:
+        raise HTTPException(404,"Заявка не найдена")
+    if order["status"] == "fulfilled":
+        return {"status":"fulfilled","order_number":order["provider_order_id"]}
+    if order["status"] != "prepared":
+        raise HTTPException(409,"Заявка уже обрабатывается или закрыта")
+    selection = order["selection"]
+    if selection["proxy_type"] != "ipv6":
+        raise HTTPException(422,"Покупка этого типа пока недоступна")
+    fresh = await quote(Quote(**selection), x_telegram_init_data)
+    if Decimal(fresh["customer_total_usd"]) != order["quoted_amount"]:
+        raise HTTPException(409,"Цена изменилась, подготовьте новую заявку")
+    params = {"proxyType":selection["proxy_type"],"days":selection["days"],
+              "country":selection["country"],"count":selection["count"],"goal":"instagram"}
+    supplier = await provider("get/order/price",params)
+    cost = Decimal(str(supplier["amount"]))
+    balance = Decimal(str(supplier["balance"]))
+    if not cost.is_finite() or cost <= 0 or not balance.is_finite():
+        raise HTTPException(502,"Некорректный ответ поставщика")
+    if balance < cost:
+        raise HTTPException(409,"Недостаточно средств у поставщика")
+    if (cost*(Decimal(1)+markup()/100)).quantize(Decimal("0.01"),rounding=ROUND_HALF_UP) != order["quoted_amount"]:
+        raise HTTPException(409,"Цена поставщика изменилась")
+    from proxy_ipv4_wallet import reserve_order, mark_submitting, mark_uncertain, confirm_fulfilled
+    reserve_order(uid,order_id)
+    mark_submitting(uid,order_id,cost)
+    try:
+        response = await provider_checkout(selection)
+        if response.get("success") is not True:
+            raise ValueError("Unconfirmed supplier response")
+        number = response["orderNumber"]
+    except Exception:
+        mark_uncertain(uid,order_id)
+        raise HTTPException(409,"Результат покупки неизвестен, резерв сохранён. Повтор запрещён")
+    return confirm_fulfilled(uid,order_id,number)
