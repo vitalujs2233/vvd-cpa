@@ -278,7 +278,7 @@ export const MyProxies:React.FC=()=>{
       <b className="text-sm">{o.proxy_type.toUpperCase()} · {o.selection.country}</b>
       <p className="text-xs text-textSecondary">{o.selection.count} IP · {o.selection.days} дней · {usd(o.amount_usd)}</p>
       <Status>Статус: {o.status==='prepared'?'Заявка подготовлена, не оплачена':o.status==='uncertain'?'Проверяется у поставщика':o.status}</Status>
-      {checkout&&o.proxy_type==='ipv6'&&o.status==='prepared'&&<Button type="button" size="sm" disabled={busy===o.id} onClick={()=>void purchase(o.id)}>Купить IPv6 за {usd(o.amount_usd)}</Button>}
+      {o.proxy_type==='ipv6'&&o.status==='prepared'&&<Button type="button" size="sm" disabled={busy===o.id} onClick={()=>{if(!checkout){setError('Кнопка доступна, но сервер пока не разрешает оплату. Средства не списаны.');return;}void purchase(o.id);}}>Купить IPv6 за {usd(o.amount_usd)}</Button>}
       <Button type="button" size="sm" disabled={busy===o.id} onClick={()=>void check(o.id)}>{busy===o.id?'Проверяем…':o.status==='fulfilled'?'Показать прокси':'Проверить статус'}</Button>
     </Card>)}
   </Shell>;
