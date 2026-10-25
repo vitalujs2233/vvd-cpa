@@ -294,6 +294,40 @@ def order_status(order_id: UUID, x_telegram_init_data: str | None = Header(defau
         "purchases_enabled":False,
     }
 
+def proxy_items(response: dict) -> list[dict]:
+    items = response.get("proxies", [])
+    if not isinstance(items, list):
+        raise ValueError("Invalid supplier proxy inventory")
+    return [x for x in items if isinstance(x, dict)]
+
+def proxy_ids(items: list[dict]) -> set[str]:
+    ids = [str(x["id"]) for x in items if x.get("id") is not None]
+    if len(ids) != len(items) or len(set(ids)) != len(ids):
+        raise ValueError("Supplier proxy IDs are missing or duplicated")
+    return set(ids)
+
+def store_delivery(owner: int, order_id: UUID, ids: set[str]) -> None:
+    with engine.begin() as conn:
+        conn.execute(text("""
+            UPDATE tool_proxy_order_intents
+            SET delivered_proxy_ids=CAST(:ids AS jsonb),updated_at=now()
+            WHERE id=:id AND telegram_id=:owner AND delivered_proxy_ids IS NULL
+        """), {"ids":json.dumps(sorted(ids)),"id":order_id,"owner":owner})
+
+def detect_delivery(before: set[str], after: list[dict], selection: dict) -> set[str]:
+    fresh = [p for p in after if str(p.get("id")) not in before]
+    expected = selection["count"]
+    if len(fresh) != expected:
+        return set()
+    country = selection["country"].upper()
+    for item in fresh:
+        supplied_country = item.get("country") or item.get("countryCode")
+        if isinstance(supplied_country, dict):
+            supplied_country = supplied_country.get("alpha3code") or supplied_country.get("code")
+        if supplied_country and str(supplied_country).upper() != country:
+            return set()
+    return proxy_ids(fresh)
+
 @router.post("/orders/{order_id}/purchase")
 async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Header(default=None)):
     """One-shot checkout, disabled by default until supplier fulfilment is verified."""
@@ -330,29 +364,77 @@ async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Head
     if (cost*(Decimal(1)+markup()/100)).quantize(Decimal("0.01"),rounding=ROUND_HALF_UP) != order["quoted_amount"]:
         raise HTTPException(409,"Цена поставщика изменилась")
     from proxy_ipv4_wallet import reserve_order, mark_submitting, mark_uncertain, confirm_fulfilled
-    reserve_order(uid,order_id)
-    mark_submitting(uid,order_id,cost)
+    kind = selection["proxy_type"]
+    # PostgreSQL session advisory lock serializes supplier checkouts of each type
+    # across workers. The connection stays open through both inventory reads.
+    lock_conn = engine.connect()
+    lock_key = "vvd-proxy-checkout-" + kind
+    locked = False
     try:
-        response = await provider_checkout(selection)
-        if response.get("success") is not True:
-            raise ValueError("Unconfirmed supplier response")
-        number = response["orderNumber"]
-    except Exception:
+        locked = bool(lock_conn.execute(text("SELECT pg_try_advisory_lock(hashtext(:key))"),
+                                        {"key":lock_key}).scalar())
+        lock_conn.commit()
+        if not locked:
+            raise HTTPException(409,"Покупка этого типа уже выполняется. Повторите позже.")
+        before = set()
+        if kind != "ipv6":
+            snapshot = proxy_items(await provider("get/proxies",{"proxyType":kind}))
+            before = proxy_ids(snapshot)
+        reserve_order(uid,order_id)
+        if kind != "ipv6":
+            with engine.begin() as conn:
+                conn.execute(text("""
+                    UPDATE tool_proxy_order_intents
+                    SET proxy_ids_before=CAST(:ids AS jsonb),updated_at=now()
+                    WHERE id=:id AND telegram_id=:owner AND status='reserved'
+                """), {"ids":json.dumps(sorted(before)),"id":order_id,"owner":uid})
+        mark_submitting(uid,order_id,cost)
+        with engine.begin() as conn:
+            conn.execute(text("""
+                UPDATE tool_proxy_order_intents SET supplier_submitted_at=now()
+                WHERE id=:id AND telegram_id=:owner AND status='submitting'
+            """), {"id":order_id,"owner":uid})
         try:
-            mark_uncertain(uid,order_id)
+            response = await provider_checkout(selection)
+            if response.get("success") is not True:
+                raise ValueError("Unconfirmed supplier response")
+            number = str(response["orderNumber"])
         except Exception:
-            pass
-        raise HTTPException(409,"Результат покупки неизвестен, резерв сохранён. Повтор запрещён")
-    try:
-        return confirm_fulfilled(uid,order_id,str(number))
-    except Exception:
-        # Supplier may have accepted the order; never re-submit or release the reservation.
+            try:
+                mark_uncertain(uid,order_id)
+            except Exception:
+                pass
+            raise HTTPException(409,"Результат покупки неизвестен, резерв сохранён. Повтор запрещён")
         try:
-            from proxy_ipv4_wallet import record_confirmed_supplier_order
-            record_confirmed_supplier_order(uid,order_id,str(number))
+            settled = confirm_fulfilled(uid,order_id,number)
         except Exception:
-            pass
-        raise HTTPException(503,"Покупка подтверждена поставщиком, но требуется сверка учёта. Повтор запрещён")
+            try:
+                from proxy_ipv4_wallet import record_confirmed_supplier_order
+                record_confirmed_supplier_order(uid,order_id,number)
+            except Exception:
+                pass
+            raise HTTPException(503,"Заказ поставщика подтверждён, требуется сверка учёта. Повтор запрещён")
+        if kind != "ipv6":
+            try:
+                inventory = proxy_items(await provider("get/proxies",{"proxyType":kind}))
+                assigned = detect_delivery(before,inventory,selection)
+                if assigned:
+                    store_delivery(uid,order_id,assigned)
+                    settled["delivery_ready"] = True
+                else:
+                    settled["delivery_ready"] = False
+            except Exception:
+                settled["delivery_ready"] = False
+        return settled
+    finally:
+        if locked:
+            try:
+                lock_conn.execute(text("SELECT pg_advisory_unlock(hashtext(:key))"),
+                                  {"key":lock_key})
+                lock_conn.commit()
+            except Exception:
+                pass
+        lock_conn.close()
 
 @router.get("/checkout-config")
 def checkout_config(x_telegram_init_data: str | None = Header(default=None)):
@@ -386,6 +468,19 @@ async def order_proxies(order_id: UUID, x_telegram_init_data: str | None = Heade
         raise HTTPException(404,"Заявка не найдена")
     if order["status"] != "fulfilled" or not order["provider_order_id"]:
         raise HTTPException(409,"Заказ ещё не подтверждён")
+    if order["proxy_type"] != "ipv6":
+        with engine.connect() as conn:
+            saved = conn.execute(text("""
+                SELECT delivered_proxy_ids FROM tool_proxy_order_intents
+                WHERE id=:id AND telegram_id=:uid
+            """), {"id":order_id,"uid":uid}).scalar()
+        if not saved:
+            return {"status":"fulfilled","proxies":[],"delivery_pending":True}
+        response = await provider("get/proxies",{"proxyType":order["proxy_type"]})
+        ids = set(str(x) for x in saved)
+        matched = [p for p in proxy_items(response) if str(p.get("id")) in ids]
+        return {"status":"fulfilled","proxies":matched,
+                "delivery_pending":len(matched)!=len(ids)}
     response = await provider("get/proxies",{"proxyType":order["proxy_type"]})
     matches = match_order_proxies(response.get("proxies", []),
                                   order["proxy_type"],str(order["provider_order_id"]))
