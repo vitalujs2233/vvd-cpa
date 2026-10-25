@@ -123,6 +123,10 @@ def apply_delivery(uid,oid,data):
 def reserve_purchase(uid,request,selection,cost,retail):
     with engine.begin() as c:
         c.execute(text('SELECT pg_advisory_xact_lock(:u)'),dict(u=uid))
+        existing=c.execute(text('SELECT id,provider_id,ledger_selection FROM tool_orders WHERE telegram_id=:u AND ledger_request_id=:r'),dict(u=uid,r=request)).mappings().first()
+        if existing:
+            if existing['provider_id']!=PROVIDER or existing['ledger_selection']!=selection:raise LedgerError('idempotency_conflict')
+            return str(existing['id']),False
         pending=c.execute(text("SELECT id FROM tool_orders WHERE telegram_id=:u AND provider_id=:p AND ledger_state IN ('reserved','submitting','unknown') AND ledger_request_id<>:r LIMIT 1"),dict(u=uid,p=PROVIDER,r=request)).first()
         if pending:raise LedgerError('pending_order')
         return Ledger(BoundEngine(c)).reserve(uid,request,'numbers',PROVIDER,selection,cost,retail,Decimal('30'))

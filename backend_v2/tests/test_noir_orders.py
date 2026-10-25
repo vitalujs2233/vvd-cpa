@@ -57,6 +57,9 @@ class CheckoutTests(unittest.TestCase):
     def test_lower_actual_price_returns_difference(self):
         self.result['price']=D('.50')
         result=self.buy();self.assertEqual(result['amount'],'0.65');self.assertEqual(self.balances(),(D('9.35'),D('0')))
+        selection={'country':'us','service':'example','confirmed_price':'1.30'}
+        oid,created=n.reserve_purchase(self.uid,self.body.request_id,selection,D('1'),D('1.30'))
+        self.assertFalse(created);self.assertEqual(oid,result['id']);self.assertEqual(self.balances(),(D('9.35'),D('0')))
     def test_mismatch_keeps_reservation_and_no_foreign_delivery(self):
         self.result['country']='gb';result=self.buy()
         self.assertEqual(result['state'],'unknown');self.assertIsNone(result['phone']);self.assertEqual(self.balances(),(D('8.70'),D('1.30')))
