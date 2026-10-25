@@ -1,0 +1,49 @@
+name: Proxy delivery safety and UI
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend_v2/proxy_delivery.py'
+      - 'backend_v2/proxy_ipv4_preview.py'
+      - 'backend_v2/tests/test_proxy_delivery.py'
+      - 'src/pages/tools/ProxyOrders.tsx'
+      - 'src/pages/tools/marketApi.ts'
+      - 'src/pages/tools/MarketplacePages.tsx'
+      - 'tests/proxy-delivery-ui.cjs'
+      - '.github/workflows/validate-proxy-delivery.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: sqlite://
+      BOT_TOKEN: test-only
+      PYTHONPATH: backend_v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r backend_v2/requirements.txt
+      - run: python -m unittest backend_v2.tests.test_proxy_delivery backend_v2.tests.test_proxy_seller_demo -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-audit --no-fund
+      - run: npm install --no-save --package-lock=false react-test-renderer@18.3.1
+      - run: node --test tests/proxy-delivery-ui.cjs tests/my-numbers-ui.cjs tests/noir-ui.cjs
+      - run: npm run build
+      - run: npm install --no-save --package-lock=false playwright
+      - run: npx playwright install --with-deps chromium
+      - name: Mobile browser screenshots (mock data only)
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 3011 > /tmp/proxy-vite.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:3011/vvd-cpa/ > /dev/null && break; sleep 1; done
+          node tests/proxy-delivery-browser.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: proxy-mobile-screenshots
+          path: proxy-screenshots/*.png

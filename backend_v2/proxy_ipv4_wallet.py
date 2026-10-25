@@ -15,7 +15,8 @@ from database import engine
 def reserve_order(owner_id: int, order_id: UUID) -> dict:
     """Move funds from tool_wallets.available to reserved exactly once."""
     with engine.begin() as conn:
-        # Lock the order first; every wallet transition must use this order.
+        # Serialize new reservations per owner, including different proxy types.
+        conn.execute(text("SELECT pg_advisory_xact_lock(:owner)"), {"owner":owner_id})
         order = conn.execute(text("""
             SELECT id, quoted_amount, status
             FROM tool_proxy_order_intents
@@ -27,6 +28,13 @@ def reserve_order(owner_id: int, order_id: UUID) -> dict:
             return {"status": "reserved", "amount": str(order["quoted_amount"])}
         if order["status"] != "prepared":
             raise HTTPException(409, "Нельзя резервировать заявку в этом статусе")
+        pending = conn.execute(text("""
+            SELECT id FROM tool_proxy_order_intents
+            WHERE telegram_id=:owner AND id<>:id
+              AND status IN ('reserved','submitting','uncertain') LIMIT 1
+        """), {"owner":owner_id,"id":order_id}).first()
+        if pending:
+            raise HTTPException(409,"Есть заказ с неподтверждённым результатом. Проверьте его перед новой покупкой")
         amount = Decimal(order["quoted_amount"])
         if amount <= 0:
             raise HTTPException(422, "Недопустимая сумма")
@@ -138,7 +146,6 @@ def confirm_fulfilled(owner_id: int, order_id: UUID, provider_order_id: str) -> 
             INSERT INTO tool_transactions
                 (telegram_id,kind,amount,currency,status,external_payment_id)
             VALUES (:owner,'purchase',-:amount,'USD','success',:external_id)
-            ON CONFLICT (external_payment_id) DO NOTHING
         """), {"owner":owner_id,"amount":amount,
                "external_id":"proxy-ipv4:"+provider_order_id})
         conn.execute(text("""

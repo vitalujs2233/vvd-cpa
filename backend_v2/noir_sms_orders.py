@@ -207,6 +207,7 @@ def recover_unsubmitted():
 
 @router.on_event('startup')
 async def start_reconcile():
+    log.info("Noir purchases enabled=%s", enabled())
     old=getattr(router,'_noir_task',None)
     if old and not old.done():return
     async def loop():
