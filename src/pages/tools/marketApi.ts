@@ -1,6 +1,6 @@
 import { apiRequest } from '@/shared/lib/api';
 
-export type ProxyIpv4Catalog = {types:Record<string,{days:number[];countries:{code:string;name:string}[]}>;purchases_enabled:boolean};
+export type ProxyIpv4Catalog = {types:Record<string,{days:number[];countries:{code:string;name:string}[];tariffs?:{country:string;mobileOperator:{name:string;rotationTime:number[]}[]}[]}>;minimum_count:Record<string,number>;purchases_enabled:boolean};
 export type ProxyIpv4Quote = {supplier_total_usd:string;customer_total_usd:string;markup_percent:string;purchases_enabled:boolean};
 export type ServiceStatus = 'available' | 'connecting' | 'unavailable';
 export type ServiceInfo = { id: string; title: string; category: string; description: string; status: ServiceStatus; price: string | null };
@@ -29,7 +29,7 @@ const write = <T>(path:string, method:'POST'|'PUT', body:object) => apiRequest<T
 });
 export const marketApi = {
   proxyIpv4Catalog:()=>get<ProxyIpv4Catalog>('/proxy-ipv4/catalog'),
-  proxyIpv4Quote:(body:{proxy_type:string;country:string;days:number;count:number})=>write<ProxyIpv4Quote>('/proxy-ipv4/quote','POST',body),
+  proxyIpv4Quote:(body:{proxy_type:string;country:string;days:number;count:number;mobile_operator?:string;rotation_time?:number})=>write<ProxyIpv4Quote>('/proxy-ipv4/quote','POST',body),
   adminSettings:()=>get<TopupConfig>('/admin/settings'),
   saveSettings:(body:{usd_per_star:string;enabled:boolean;version:number})=>write<TopupConfig>('/admin/settings','PUT',body),
   adminUsers:(q:string)=>get<{users:ToolAdminUser[]}>('/admin/users?q='+encodeURIComponent(q)),
