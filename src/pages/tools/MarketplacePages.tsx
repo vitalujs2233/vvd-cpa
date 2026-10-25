@@ -188,22 +188,30 @@ export const ToolsPurchases:React.FC=()=>{
 export const ToolsNumbers:React.FC=()=> <Shell><NavHeader title="Виртуальные номера" subtitle="Каталог поставщиков"/><Empty title="Подключаем нового поставщика" subtitle="Виртуальные номера временно недоступны. Покупки отключены."/></Shell>;
 export const MyNumbers:React.FC=()=> <Shell><NavHeader title="Мои номера"/><Empty title="Новые покупки недоступны" subtitle="История покупок сохранена в общем разделе «Мои покупки»."/></Shell>;
 export const ToolsProxy:React.FC=()=>{
+  const [catalog,setCatalog]=useState<import('./marketApi').ProxyIpv4Catalog|null>(null);
   const [kind,setKind]=useState('ipv4');
-  const [country,setCountry]=useState('US');
+  const [country,setCountry]=useState('');
   const [days,setDays]=useState(7);
   const [quantity,setQuantity]=useState(1);
-  const [preview,setPreview]=useState(false);
-  return <Shell><NavHeader title="Прокси" subtitle="Proxy-IPv4 · подготовка подключения"/>
-    <Status>Поставщик Proxy-IPv4. Это предварительный интерфейс: цены, наличие и сроки пока не проверены через API. Покупки и списания отключены.</Status>
+  const [quote,setQuote]=useState<import('./marketApi').ProxyIpv4Quote|null>(null);
+  const [error,setError]=useState('');
+  const [busy,setBusy]=useState(false);
+  useEffect(()=>{let active=true;marketApi.proxyIpv4Catalog().then(data=>{if(active){setCatalog(data);const first=data.types.ipv4;setCountry(first?.countries[0]?.code||'');setDays(first?.days[0]||7);}}).catch(e=>{if(active)setError(toText(e));});return()=>{active=false;};},[]);
+  const options=catalog?.types[kind];
+  const selectType=(next:string)=>{setKind(next);setCountry(catalog?.types[next]?.countries[0]?.code||'');setDays(catalog?.types[next]?.days[0]||7);setQuote(null);};
+  const getQuote=async()=>{setBusy(true);setError('');setQuote(null);try{setQuote(await marketApi.proxyIpv4Quote({proxy_type:kind,country,days,count:quantity}));}catch(e){setError(toText(e));}finally{setBusy(false);}};
+  return <Shell><NavHeader title="Прокси" subtitle="Proxy-IPv4 · реальные цены без покупки"/>
+    <Status>Реальные страны и сроки загружаются от поставщика. Покупки и списания отключены.</Status>
     <Card className="flex flex-col gap-3">
       <h2 className="text-base font-bold">Выбор прокси</h2>
-      <label className="text-xs text-textSecondary">Тип прокси<select className={inputClass} value={kind} onChange={e=>{setKind(e.target.value);setPreview(false);}}><option value="ipv4">IPv4</option><option value="isp">ISP</option></select></label>
-      <label className="text-xs text-textSecondary">Страна (пример, не подтверждена)<select className={inputClass} value={country} onChange={e=>{setCountry(e.target.value);setPreview(false);}}><option value="US">США</option><option value="DE">Германия</option><option value="PL">Польша</option></select></label>
-      <label className="text-xs text-textSecondary">Срок (пример, не подтверждён)<select className={inputClass} value={days} onChange={e=>{setDays(Number(e.target.value));setPreview(false);}}><option value={7}>7 дней</option><option value={14}>14 дней</option><option value={30}>30 дней</option></select></label>
-      <label className="text-xs text-textSecondary">Количество IP<input className={inputClass} type="number" min={1} max={100} step={1} value={quantity} onChange={e=>{setQuantity(Number(e.target.value));setPreview(false);}}/></label>
-      <p className="text-xs text-textSecondary">Цена: ожидается подключение API. Доступность не подтверждена.</p>
-      <Button type="button" disabled={!Number.isInteger(quantity)||quantity<1||quantity>100} onClick={()=>setPreview(true)}>Предпросмотр выбора</Button>
-      {preview&&<Status>Выбрано: {kind.toUpperCase()}, {country}, {days} дней, {quantity} IP. Это только предварительный просмотр — заказ не создан и деньги не списаны.</Status>}
+      {!catalog&&<p className="text-xs text-textSecondary">Каталог не загружен. Проверьте API-ключ в Render.</p>}
+      <label className="text-xs text-textSecondary">Тип прокси<select className={inputClass} value={kind} onChange={e=>selectType(e.target.value)}><option value="ipv4">IPv4</option><option value="isp">ISP</option></select></label>
+      <label className="text-xs text-textSecondary">Страна<select className={inputClass} value={country} onChange={e=>{setCountry(e.target.value);setQuote(null);}}>{options?.countries.map(x=><option key={x.code} value={x.code}>{x.name} ({x.code})</option>)}</select></label>
+      <label className="text-xs text-textSecondary">Срок аренды<select className={inputClass} value={days} onChange={e=>{setDays(Number(e.target.value));setQuote(null);}}>{options?.days.map(x=><option key={x} value={x}>{x} дней</option>)}</select></label>
+      <label className="text-xs text-textSecondary">Количество IP<input className={inputClass} type="number" min={1} max={100} step={1} value={quantity} onChange={e=>{setQuantity(Number(e.target.value));setQuote(null);}}/></label>
+      <Button type="button" disabled={!catalog||busy||!country||!Number.isInteger(quantity)||quantity<1||quantity>100} onClick={getQuote}>{busy?'Проверяем цену…':'Узнать цену (без покупки)'}</Button>
+      {quote&&<Status>Цена поставщика: ${quote.supplier_total_usd} · Наценка: {quote.markup_percent}% · Цена для клиента: ${quote.customer_total_usd}. Заказ не создан, деньги не списаны.</Status>}
+      {error&&<p className="text-xs text-red-400">{error}</p>}
       <Link to="/tools/proxy/my" className="text-xs text-accentBrightGold">Мои прокси →</Link>
     </Card>
   </Shell>;
