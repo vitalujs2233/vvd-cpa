@@ -348,7 +348,8 @@ async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Head
     except Exception:
         # Supplier may have accepted the order; never re-submit or release the reservation.
         try:
-            mark_uncertain(uid,order_id)
+            from proxy_ipv4_wallet import record_confirmed_supplier_order
+            record_confirmed_supplier_order(uid,order_id,str(number))
         except Exception:
             pass
         raise HTTPException(503,"Покупка подтверждена поставщиком, но требуется сверка учёта. Повтор запрещён")
