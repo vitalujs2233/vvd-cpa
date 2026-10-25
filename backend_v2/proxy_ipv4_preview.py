@@ -423,13 +423,17 @@ async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Head
             raise HTTPException(503,"Заказ поставщика подтверждён, требуется сверка учёта. Повтор запрещён")
         if kind != "ipv6":
             try:
-                inventory = proxy_items(await provider("get/proxies",{"proxyType":kind}))
-                assigned = detect_delivery(before,inventory,selection)
+                assigned = set()
+                for attempt in range(4):
+                    if attempt:
+                        await asyncio.sleep(2)
+                    inventory = proxy_items(await provider("get/proxies",{"proxyType":kind}))
+                    assigned = detect_delivery(before,inventory,selection)
+                    if assigned:
+                        break
                 if assigned:
                     store_delivery(uid,order_id,assigned)
-                    settled["delivery_ready"] = True
-                else:
-                    settled["delivery_ready"] = False
+                settled["delivery_ready"] = bool(assigned)
             except Exception:
                 settled["delivery_ready"] = False
         return settled
