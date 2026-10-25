@@ -192,24 +192,30 @@ export const ToolsProxy:React.FC=()=>{
   const [kind,setKind]=useState('ipv4');
   const [country,setCountry]=useState('');
   const [days,setDays]=useState(7);
-  const [quantity,setQuantity]=useState(1);
+  const [quantity,setQuantity]=useState(5);
+  const [operator,setOperator]=useState('');
+  const [rotation,setRotation]=useState(0);
   const [quote,setQuote]=useState<import('./marketApi').ProxyIpv4Quote|null>(null);
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
-  useEffect(()=>{let active=true;marketApi.proxyIpv4Catalog().then(data=>{if(active){setCatalog(data);const first=data.types.ipv4;setCountry(first?.countries[0]?.code||'');setDays(first?.days[0]||7);}}).catch(e=>{if(active)setError(toText(e));});return()=>{active=false;};},[]);
+  useEffect(()=>{let active=true;marketApi.proxyIpv4Catalog().then(data=>{if(active){setCatalog(data);setCountry(data.types.ipv4?.countries[0]?.code||'');setDays(data.types.ipv4?.days[0]||7);setQuantity(data.minimum_count?.ipv4||5);}}).catch(e=>{if(active)setError(toText(e));});return()=>{active=false;};},[]);
   const options=catalog?.types[kind];
-  const selectType=(next:string)=>{setKind(next);setCountry(catalog?.types[next]?.countries[0]?.code||'');setDays(catalog?.types[next]?.days[0]||7);setQuote(null);};
-  const getQuote=async()=>{setBusy(true);setError('');setQuote(null);try{setQuote(await marketApi.proxyIpv4Quote({proxy_type:kind,country,days,count:quantity}));}catch(e){setError(toText(e));}finally{setBusy(false);}};
-  return <Shell><NavHeader title="Прокси" subtitle="Proxy-IPv4 · реальные цены без покупки"/>
-    <Status>Реальные страны и сроки загружаются от поставщика. Покупки и списания отключены.</Status>
+  const operators=options?.tariffs?.find(t=>t.country===country)?.mobileOperator||[];
+  const selectedOperator=operators.find(x=>x.name===operator)||operators[0];
+  const choose=(next:string)=>{setKind(next);setCountry(catalog?.types[next]?.countries[0]?.code||'');setDays(catalog?.types[next]?.days[0]||7);setQuantity(catalog?.minimum_count?.[next]||1);setOperator('');setRotation(0);setQuote(null);};
+  const price=async()=>{setBusy(true);setError('');setQuote(null);try{setQuote(await marketApi.proxyIpv4Quote({proxy_type:kind,country,days,count:quantity,...(kind==='mobile'?{mobile_operator:selectedOperator?.name,rotation_time:selectedOperator?.rotationTime.includes(rotation)?rotation:selectedOperator?.rotationTime[0]}:{})}));}catch(e){setError(toText(e));}finally{setBusy(false);}};
+  const minimum=catalog?.minimum_count?.[kind]||(kind==='ipv6'?10:1);
+  return <Shell><NavHeader title="Прокси" subtitle="Proxy-IPv4 · каталог и расчёт цены"/>
+    <Status>IPv4, IPv6, ISP и мобильные прокси. Доступные страны и сроки загружаются через API поставщика. Покупки отключены.</Status>
     <Card className="flex flex-col gap-3">
       <h2 className="text-base font-bold">Выбор прокси</h2>
-      {!catalog&&<p className="text-xs text-textSecondary">Каталог не загружен. Проверьте API-ключ в Render.</p>}
-      <label className="text-xs text-textSecondary">Тип прокси<select className={inputClass} value={kind} onChange={e=>selectType(e.target.value)}><option value="ipv4">IPv4</option><option value="isp">ISP</option></select></label>
-      <label className="text-xs text-textSecondary">Страна<select className={inputClass} value={country} onChange={e=>{setCountry(e.target.value);setQuote(null);}}>{options?.countries.map(x=><option key={x.code} value={x.code}>{x.name} ({x.code})</option>)}</select></label>
+      {!catalog&&<p className="text-xs text-textSecondary">Каталог ещё не загружен.</p>}
+      <label className="text-xs text-textSecondary">Тип прокси<select className={inputClass} value={kind} onChange={e=>choose(e.target.value)}><option value="ipv4">Прокси IPv4</option><option value="ipv6">Прокси IPv6</option><option value="isp">Прокси ISP</option><option value="mobile">Мобильные прокси</option></select></label>
+      <label className="text-xs text-textSecondary">Страна<select className={inputClass} value={country} onChange={e=>{setCountry(e.target.value);setOperator('');setRotation(0);setQuote(null);}}>{options?.countries.map(x=><option key={x.code} value={x.code}>{x.name} ({x.code})</option>)}</select></label>
       <label className="text-xs text-textSecondary">Срок аренды<select className={inputClass} value={days} onChange={e=>{setDays(Number(e.target.value));setQuote(null);}}>{options?.days.map(x=><option key={x} value={x}>{x} дней</option>)}</select></label>
-      <label className="text-xs text-textSecondary">Количество IP<input className={inputClass} type="number" min={1} max={100} step={1} value={quantity} onChange={e=>{setQuantity(Number(e.target.value));setQuote(null);}}/></label>
-      <Button type="button" disabled={!catalog||busy||!country||!Number.isInteger(quantity)||quantity<1||quantity>100} onClick={getQuote}>{busy?'Проверяем цену…':'Узнать цену (без покупки)'}</Button>
+      <label className="text-xs text-textSecondary">Количество IP (минимум {minimum})<input className={inputClass} type="number" min={minimum} max={1000} step={1} value={quantity} onChange={e=>{setQuantity(Number(e.target.value));setQuote(null);}}/></label>
+      {kind==='mobile'&&<><label className="text-xs text-textSecondary">Оператор<select className={inputClass} value={selectedOperator?.name||''} onChange={e=>{setOperator(e.target.value);setRotation(0);setQuote(null);}}>{operators.map(x=><option key={x.name} value={x.name}>{x.name}</option>)}</select></label><label className="text-xs text-textSecondary">Ротация IP<select className={inputClass} value={selectedOperator?.rotationTime.includes(rotation)?rotation:selectedOperator?.rotationTime[0]||0} onChange={e=>{setRotation(Number(e.target.value));setQuote(null);}}>{selectedOperator?.rotationTime.map(x=><option key={x} value={x}>{x===0?'По ссылке':x+' минут'}</option>)}</select></label></>}
+      <Button type="button" disabled={!catalog||busy||!country||!options?.days.length||!Number.isInteger(quantity)||quantity<minimum||quantity>1000||(kind==='mobile'&&!selectedOperator)} onClick={price}>{busy?'Проверяем цену…':'Узнать цену (без покупки)'}</Button>
       {quote&&<Status>Цена поставщика: ${quote.supplier_total_usd} · Наценка: {quote.markup_percent}% · Цена для клиента: ${quote.customer_total_usd}. Заказ не создан, деньги не списаны.</Status>}
       {error&&<p className="text-xs text-red-400">{error}</p>}
       <Link to="/tools/proxy/my" className="text-xs text-accentBrightGold">Мои прокси →</Link>
