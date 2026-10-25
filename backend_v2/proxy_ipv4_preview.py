@@ -353,6 +353,13 @@ async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Head
             pass
         raise HTTPException(503,"Покупка подтверждена поставщиком, но требуется сверка учёта. Повтор запрещён")
 
+@router.get("/checkout-config")
+def checkout_config(x_telegram_init_data: str | None = Header(default=None)):
+    require_telegram_id(x_telegram_init_data)
+    enabled = os.getenv("PROXY_IPV4_PURCHASES_ENABLED", "false").lower() == "true"
+    return {"purchases_enabled": enabled, "supported_purchase_types": ["ipv6"]}
+
+
 @router.get("/orders/{order_id}/proxies")
 async def order_proxies(order_id: UUID, x_telegram_init_data: str | None = Header(default=None)):
     """Deliver only supplier records explicitly tagged with this owner's order ID."""
