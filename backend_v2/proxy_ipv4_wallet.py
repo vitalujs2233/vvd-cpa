@@ -135,8 +135,33 @@ def confirm_fulfilled(owner_id: int, order_id: UUID, provider_order_id: str) -> 
         if not wallet:
             raise RuntimeError("Wallet reconciliation required")
         conn.execute(text("""
+            INSERT INTO tool_transactions
+                (telegram_id,kind,amount,currency,status,external_payment_id)
+            VALUES (:owner,'purchase',-:amount,'USD','success',:external_id)
+            ON CONFLICT (external_payment_id) DO NOTHING
+        """), {"owner":owner_id,"amount":amount,
+               "external_id":"proxy-ipv4:"+provider_order_id})
+        conn.execute(text("""
             UPDATE tool_proxy_order_intents
             SET status='fulfilled',provider_order_id=:number,updated_at=now()
             WHERE id=:id AND telegram_id=:owner
         """), {"id":order_id,"owner":owner_id,"number":provider_order_id})
     return {"status":"fulfilled","order_number":provider_order_id}
+
+
+def record_confirmed_supplier_order(owner_id: int, order_id: UUID, provider_order_id: str) -> dict:
+    """Keep the supplier receipt for manual reconciliation if wallet settlement fails."""
+    number = str(provider_order_id).strip()
+    if not number:
+        raise ValueError("Missing supplier receipt")
+    with engine.begin() as conn:
+        row = conn.execute(text("""
+            UPDATE tool_proxy_order_intents
+            SET status='uncertain',provider_order_id=:number,updated_at=now()
+            WHERE id=:id AND telegram_id=:owner AND status IN ('submitting','uncertain')
+              AND (provider_order_id IS NULL OR provider_order_id=:number)
+            RETURNING id
+        """), {"id":order_id,"owner":owner_id,"number":number}).first()
+        if not row:
+            raise RuntimeError("Supplier receipt requires manual reconciliation")
+    return {"status":"uncertain","order_number":number}
