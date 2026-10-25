@@ -372,6 +372,10 @@ export const ToolsProxy:React.FC=()=>{
     setBusy(true);setError('');setNotice('');
     try{
       const order=await marketApi.proxyIpv4Prepare({...selection,request_id:requestKey.current.id});
+      if(Number(order.customer_total_usd)!==Number(quote.customer_total_usd)){
+        setQuote(null);requestKey.current=null;
+        setError('Цена изменилась. Рассчитайте и подтвердите новую стоимость. Средства не списаны.');return;
+      }
       await marketApi.proxyIpv4Purchase(order.id);
       setPurchased(true);
       setNotice('Заказ подтверждён. Статус выдачи и данные подключения — в разделе «Мои прокси».');
