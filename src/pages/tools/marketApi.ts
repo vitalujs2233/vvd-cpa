@@ -30,6 +30,7 @@ const write = <T>(path:string, method:'POST'|'PUT', body:object) => apiRequest<T
 export const marketApi = {
   proxyIpv4Catalog:(kind:string)=>get<ProxyIpv4Catalog>('/proxy-ipv4/catalog?proxy_type='+encodeURIComponent(kind)),
   proxyIpv4Prepare:(body:{request_id:string;proxy_type:string;country:string;days:number;count:number;mobile_operator?:string;rotation_time?:number})=>write<{id:string;status:string;customer_total_usd:string;wallet_sufficient?:boolean;purchases_enabled:boolean}>('/proxy-ipv4/orders/prepare','POST',body),
+  proxyIpv4OrderStatus:(id:string)=>get<{id:string;proxy_type:string;selection:{country:string;days:number;count:number};amount_usd:string;status:string;provider_order_id:string|null;created_at:string;updated_at:string;purchases_enabled:boolean}>('/proxy-ipv4/orders/'+encodeURIComponent(id)+'/status'),
   proxyIpv4Orders:()=>get<{orders:{id:string;proxy_type:string;selection:{country:string;days:number;count:number};amount_usd:string;status:string;created_at:string}[];purchases_enabled:boolean}>('/proxy-ipv4/orders'),
   proxyIpv4Quote:(body:{proxy_type:string;country:string;days:number;count:number;mobile_operator?:string;rotation_time?:number})=>write<ProxyIpv4Quote>('/proxy-ipv4/quote','POST',body),
   adminSettings:()=>get<TopupConfig>('/admin/settings'),
