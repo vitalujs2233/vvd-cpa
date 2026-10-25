@@ -3,6 +3,17 @@ name: Deploy Static Content to Pages
 on:
   push:
     branches: ["main"]
+    paths:
+      - "src/**"
+      - "public/**"
+      - "index.html"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.*"
+      - "tsconfig*.json"
+      - "postcss.config.*"
+      - "tailwind.config.*"
+      - ".github/workflows/deploy.yml"
 
   workflow_dispatch:
 
