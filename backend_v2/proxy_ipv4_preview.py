@@ -376,6 +376,13 @@ async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Head
         lock_conn.commit()
         if not locked:
             raise HTTPException(409,"Покупка этого типа уже выполняется. Повторите позже.")
+        with engine.connect() as conn:
+            current_status = conn.execute(text("""
+                SELECT status FROM tool_proxy_order_intents
+                WHERE id=:id AND telegram_id=:owner
+            """), {"id":order_id,"owner":uid}).scalar()
+        if current_status != "prepared":
+            raise HTTPException(409,"Заказ уже оформляется или завершён")
         before = set()
         if kind != "ipv6":
             snapshot = proxy_items(await provider("get/proxies",{"proxyType":kind}))
