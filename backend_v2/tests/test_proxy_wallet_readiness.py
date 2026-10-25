@@ -5,18 +5,26 @@ from uuid import uuid4
 from decimal import Decimal as D
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch, AsyncMock
-from sqlalchemy import text
+from sqlalchemy import create_engine, text
 from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException
 import proxy_ipv4_wallet as w
 import proxy_ipv4_preview as routes
-from backend_v2.tests.test_tools_order_ledger import LedgerTests
+from pathlib import Path
+from backend_v2.tests import test_tools_order_ledger as ledger_fixture
 
 class ProxyWalletTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         if os.getenv('TOOLS_LEDGER_TEST_DB')!='1':raise unittest.SkipTest('Disposable PostgreSQL required')
-        LedgerTests.setUpClass();cls.db=LedgerTests.db
+        cls.db=create_engine(os.environ['DATABASE_URL'])
+        with cls.db.begin() as c:
+            c.execute(text('CREATE TABLE IF NOT EXISTS users(telegram_id bigint PRIMARY KEY,first_name text)'))
+            sql=(Path(__file__).parents[1]/'migrations/20261016_tools_marketplace.sql').read_text()
+            sql='\n'.join(line for line in sql.splitlines() if not line.lstrip().startswith('--'))
+            for part in sql.split(';'):
+                if 'REVOKE ALL' not in part and part.strip():c.execute(text(part))
+            c.execute(text('ALTER TABLE tool_wallets ADD COLUMN IF NOT EXISTS refund_debt numeric(14,2) NOT NULL DEFAULT 0'))
         with cls.db.begin() as c:
             c.execute(text('''CREATE TABLE IF NOT EXISTS tool_proxy_order_intents (
                 id uuid PRIMARY KEY, telegram_id bigint NOT NULL, request_id uuid NOT NULL,
@@ -25,10 +33,10 @@ class ProxyWalletTests(unittest.TestCase):
                 created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now(),
                 UNIQUE(telegram_id,request_id))'''))
     def setUp(self):
-        LedgerTests.setUp(self)
+        ledger_fixture.LedgerTests.setUp(self)
         self.patch=patch.object(w,'engine',self.db);self.patch.start();self.addCleanup(self.patch.stop)
         self.oid=self.order()
-    balances=LedgerTests.balances
+    balances=ledger_fixture.LedgerTests.balances
     def order(self,amount='1.30'):
         oid=uuid4()
         with self.db.begin() as c:c.execute(text("INSERT INTO tool_proxy_order_intents(id,telegram_id,request_id,proxy_type,selection,quoted_amount) VALUES(:id,:u,:r,'ipv6','{}',:a)"),dict(id=oid,u=self.uid,r=uuid4(),a=D(amount)))
