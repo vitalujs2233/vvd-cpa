@@ -67,7 +67,11 @@ async def catalog(proxy_type: str = Query("ipv4"), x_telegram_init_data: str | N
             if not isinstance(tariffs, list):
                 raise HTTPException(502, "Неверный формат мобильных тарифов")
         except HTTPException as exc:
-            mobile_tariff_error = "Операторы и ротация временно недоступны через API поставщика"
+            mobile_tariff_error = "Не удалось получить тарифы мобильных прокси: " + str(exc.detail)
+        except (TypeError, ValueError):
+            mobile_tariff_error = "Поставщик вернул некорректные данные мобильных тарифов"
+        if not mobile_tariff_error and not tariffs:
+            mobile_tariff_error = "Поставщик не вернул ни одного мобильного тарифа"
     d, c = await asyncio.gather(
         provider("get/days", {"proxyType": proxy_type}),
         provider("get/countries", {"proxyType": proxy_type}),
