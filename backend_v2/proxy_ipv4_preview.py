@@ -375,7 +375,8 @@ async def order_proxies(order_id: UUID, x_telegram_init_data: str | None = Heade
     if order["status"] != "fulfilled" or not order["provider_order_id"]:
         raise HTTPException(409,"Заказ ещё не подтверждён")
     if order["proxy_type"] != "ipv6":
-        raise HTTPException(422,"Выдача этого типа пока недоступна")
+        return {"status":"fulfilled","proxies":[],"delivery_pending":True,
+                "message":"Заказ оплачен. Автоматическая привязка выданных IP для этого типа пока недоступна."}
     response = await provider("get/proxies",{"proxyType":"ipv6"})
     matches = []
     for group in response.get("proxies",[]):
