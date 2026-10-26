@@ -49,7 +49,7 @@ export function ProxyOrders() {
   const [opened,setOpened]=useState<Record<string,boolean>>({}),[error,setError]=useState(''),[errors,setErrors]=useState<Record<string,string>>({});
   const [busy,setBusy]=useState(false),[loaded,setLoaded]=useState(false),[paused,setPaused]=useState(false),[checkout,setCheckout]=useState<string[]>([]);
   const [checkoutReason,setCheckoutReason]=useState('Проверяем доступность покупки…');
-  const refresh=useRef<()=>void>(()=>{}),purchaseRef=useRef<(id:string)=>Promise<void>>(async()=>{});
+  const refresh=useRef<()=>void>(()=>{}),purchaseRef=useRef<(id:string,controlId?:string)=>Promise<void>>(async()=>{});
   useEffect(()=>{
     let active=true,running=false,queued=false,cycles=0,failures=0;
     let timer:ReturnType<typeof setTimeout>|undefined;
@@ -90,17 +90,17 @@ export function ProxyOrders() {
       }
     };
     refresh.current=()=>void run(true);
-    purchaseRef.current=async(id)=>{
+    purchaseRef.current=async(id,controlId)=>{
       if(running||!active)return;
       running=true;clearTimeout(timer);setBusy(true);
-      try{await marketApi.proxyIpv4Purchase(id);}catch{if(active)setError('Не удалось подтвердить покупку. Обновляем статус заказа.');}
+      try{await marketApi.proxyIpv4Purchase(id,controlId);}catch{if(active)setError('Не удалось подтвердить покупку. Обновляем статус заказа.');}
       finally{running=false;if(active)void run(true);}
     };
     marketApi.proxyIpv4CheckoutConfig().then(c=>{if(active){setCheckout(c.purchases_enabled?c.supported_purchase_types:[]);setCheckoutReason((c.purchases_enabled?c.unsupported_reason:c.reason)||'Покупки временно недоступны. Проводится проверка системы выдачи.');}}).catch(()=>{if(active)setCheckoutReason('Не удалось проверить доступность покупки. Откройте страницу повторно.');});
     void run(true);
     return()=>{active=false;clearTimeout(timer);};
   },[]);
-  const purchase=(o:Order)=>{if(checkout.includes(o.proxy_type)&&window.confirm('Подтвердить покупку прокси? Средства будут списаны с баланса инструментов.'))void purchaseRef.current(o.id);};
+  const purchase=(o:Order)=>{if((o.control_id||checkout.includes(o.proxy_type))&&window.confirm('Подтвердить '+(o.control_id?'однократную контрольную покупку':'покупку прокси')+' за '+usd(o.amount_usd)+'? Средства будут списаны с баланса инструментов.'))void purchaseRef.current(o.id,o.control_id||undefined);};
   return <>
     {error&&<p role="alert" className={box}>{error}</p>}
     {!loaded&&busy&&<p className="text-sm text-textSecondary">Загружаем заказы…</p>}
@@ -108,20 +108,20 @@ export function ProxyOrders() {
     {orders.map(o=>{
       const d=deliveries[o.id],count=d?.proxies.length||0,expected=o.selection.count;
       const complete=count===expected&&expected>0&&d?.delivery_pending===false;
-      const delivery=o.status!=='fulfilled'?'Выдача после подтверждения заказа':complete?'Прокси выданы':count?`Получено ${count} из ${expected} прокси. Ожидаем остальные`:'Заказ подтверждён. Ожидаем данные подключения от поставщика';
+      const delivery=o.status==='cancelled'?'Заказ закрыт, выдача остановлена':o.status!=='fulfilled'?'Выдача после подтверждения заказа':complete?'Прокси выданы':count?`Получено ${count} из ${expected} прокси. Ожидаем остальные`:'Заказ подтверждён. Ожидаем данные подключения от поставщика';
       return <Card key={o.id} className="flex min-w-0 flex-col gap-3">
         <h2 className="text-sm font-bold">{({ipv4:'IPv4',ipv6:'IPv6',isp:'ISP',mobile:'Mobile'} as Record<string,string>)[o.proxy_type]||o.proxy_type} · {o.selection.country}</h2>
         <p className="text-xs text-textSecondary">Количество: {expected} IP · Срок аренды: {o.selection.days} дней</p>
-        <p className="text-sm">Стоимость: {usd(o.amount_usd)}</p><p className="text-xs text-textSecondary">{date(o.created_at)}</p>
-        <p className={box}>Оплата: {payment[o.status]||'Требуется проверка результата'}</p>
+        <p className="text-xs break-all text-textSecondary">ID заказа: {o.id}</p><p className="text-sm">Стоимость: {usd(o.amount_usd)}</p><p className="text-xs text-textSecondary">{date(o.created_at)}</p>
+        <p className={box}>Оплата: {o.financial_outcome==='refunded'?'Возврат подтверждён':o.financial_outcome==='rejected'?'Отказ подтверждён, резерв возвращён':payment[o.status]||'Требуется проверка результата'}</p>
         <p className={box}>Выдача: {delivery}</p>
         {d?.inventory_review&&<p className="text-xs text-textSecondary">{d.inventory_review.state==='waiting'?'Поставщик пока не показал новые прокси.':d.inventory_review.state==='partial'?'В инвентаре появились не все прокси. Принадлежность заказу ещё проверяется.':'Нужна ручная проверка принадлежности прокси заказу.'}</p>}
         {d?.verification_required&&<p className="text-xs text-textSecondary">Ожидаем подтверждение привязки прокси к заказу.</p>}
         {errors[o.id]&&<p role="alert" className="text-xs text-textSecondary">{errors[o.id]}</p>}
-        {o.status==='prepared'&&!checkout.includes(o.proxy_type)&&<p className="text-xs text-textSecondary">{checkoutReason}</p>}
-        {o.status==='prepared'&&<Button type="button" size="sm" disabled={busy||!checkout.includes(o.proxy_type)} onClick={()=>purchase(o)}>Купить за {usd(o.amount_usd)}</Button>}
+        {o.status==='prepared'&&!o.control_id&&!checkout.includes(o.proxy_type)&&<p className="text-xs text-textSecondary">{checkoutReason}</p>}
+        {o.status==='prepared'&&<Button type="button" size="sm" disabled={busy||(!o.control_id&&!checkout.includes(o.proxy_type))} onClick={()=>purchase(o)}>{o.control_id?'Контрольная покупка за ':'Купить за '}{usd(o.amount_usd)}</Button>}
         {o.status==='fulfilled'&&<Button type="button" size="sm" aria-expanded={!!opened[o.id]} onClick={()=>setOpened(v=>({...v,[o.id]:!v[o.id]}))}>{opened[o.id]?'Скрыть прокси':'Посмотреть мои прокси'}</Button>}
-        {opened[o.id]&&d?.proxies.map((p,i)=><ProxyCard key={p.id} proxy={p} index={i}/>)}
+        {o.status==='fulfilled'&&opened[o.id]&&d?.proxies.map((p,i)=><ProxyCard key={p.id} proxy={p} index={i}/>)}
       </Card>;
     })}
     {paused&&<p className="text-xs text-textSecondary">Автообновление приостановлено. Нажмите «Обновить» для повторной проверки.</p>}

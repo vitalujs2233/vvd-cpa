@@ -5,7 +5,11 @@ on:
     branches: [main]
     paths:
       - 'backend_v2/proxy*.py'
-      - 'backend_v2/tests/test_proxy_inventory_probe.py'
+      - 'backend_v2/tests/test_proxy*.py'
+      - 'supabase/migrations/*proxy_controlled_checkout.sql'
+      - 'src/pages/tools/ProxyOrders.tsx'
+      - 'src/pages/tools/marketApi.ts'
+      - 'src/pages/tools/MarketplacePages.tsx'
       - 'scripts/proxy_verification_process.py'
       - 'tests/proxy-process*'
       - '.github/workflows/proxy-verification-process.yml'
@@ -36,6 +40,7 @@ jobs:
       - run: pip install -r backend_v2/requirements.txt
       - run: python -m unittest backend_v2.tests.test_proxy_inventory_probe -v
       - run: python scripts/proxy_verification_process.py
+      - run: PROXY_CONTROL_EXPORT=1 python -m unittest backend_v2.tests.test_proxy_control -v
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -48,10 +53,13 @@ jobs:
           npm run dev -- --host 127.0.0.1 --port 3011 > /tmp/proxy-process-vite.log 2>&1 &
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:3011/vvd-cpa/ > /dev/null && break; sleep 1; done
           node tests/proxy-process-browser.cjs
+          cp tests/proxy-controlled-results.json tests/proxy-process-results.json
+          PROXY_EXPECT_SCENARIOS=3 node tests/proxy-process-browser.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: proxy-controlled-process
           path: |
             tests/proxy-process-results.json
+            tests/proxy-controlled-results.json
             proxy-process-screenshots/*.png

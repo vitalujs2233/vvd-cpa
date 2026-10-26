@@ -384,6 +384,17 @@ export const ToolsProxy:React.FC=()=>{
       setError(toText(e)+' Если заказ обрабатывается, проверьте его в «Мои прокси». Не оформляйте повторную покупку.');
     }finally{setBusy(false);}
   };
+  const prepareControl=async()=>{
+    if(!quote||busy)return;
+    const selection={proxy_type:kind,country,days,count:quantity,...(kind==='mobile'?{mobile_operator:selectedOperator?.name,rotation_time:selectedOperator?.rotationTime.includes(rotation)?rotation:selectedOperator?.rotationTime[0]}:{})};
+    const signature=JSON.stringify(selection);
+    if(requestKey.current?.signature!==signature)requestKey.current={signature,id:crypto.randomUUID()};
+    setBusy(true);setError('');
+    try{
+      const order=await marketApi.proxyIpv4Prepare({...selection,request_id:requestKey.current.id});
+      setNotice('Контрольный заказ подготовлен: '+order.id+'. Стоимость '+usd(order.customer_total_usd)+'. Средства не списаны. После отдельного разрешения администратора покупка доступна в «Мои прокси».');
+    }catch(e){setError(toText(e));}finally{setBusy(false);}
+  };
   const minimum=catalog?.minimum_count||(kind==='ipv6'?10:1);
   return <Shell><NavHeader title="Прокси"/>
     <Card className="flex flex-col gap-3">
@@ -399,6 +410,7 @@ export const ToolsProxy:React.FC=()=>{
       <Button type="button" disabled={!catalog||busy||!country||!options?.days.length||!Number.isInteger(quantity)||quantity<minimum||quantity>1000||(kind==='mobile'&&!selectedOperator)} onClick={price}>{busy?'Проверяем цену…':'Рассчитать цену'}</Button>
       {quote&&<Status>Стоимость: ${quote.customer_total_usd}</Status>}
       {quote&&!purchased&&<Button type="button" disabled={busy||!checkout} aria-describedby={!checkout?"proxy-purchase-reason":undefined} onClick={()=>void purchase()}>{busy?'Оформляем покупку…':'Купить за '+usd(quote.customer_total_usd)}</Button>}
+      {quote&&!checkout&&kind!=='ipv6'&&<Button type="button" variant="secondary" disabled={busy} onClick={()=>void prepareControl()}>Подготовить контрольный заказ без оплаты</Button>}
       {notice&&<Status>{notice}</Status>}
       {error&&<p className="text-xs text-red-400">{error}</p>}
       <Link to="/tools/proxy/my" className="text-xs text-accentBrightGold">Мои прокси →</Link>

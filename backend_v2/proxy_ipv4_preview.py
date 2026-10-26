@@ -191,13 +191,19 @@ def proxy_orders(x_telegram_init_data: str | None = Header(default=None)):
     uid = require_telegram_id(x_telegram_init_data)
     with engine.connect() as conn:
         rows = conn.execute(text("""
-            SELECT id,proxy_type,selection,quoted_amount,status,created_at
+            SELECT id,proxy_type,selection,quoted_amount,status,created_at,
+              (SELECT p.permit_id FROM tool_proxy_control_permits p WHERE p.order_id=tool_proxy_order_intents.id
+               AND p.consumed_at IS NULL AND p.revoked_at IS NULL AND p.expires_at>now()
+               AND p.max_amount_usd>=quoted_amount AND status='prepared') AS control_id,
+              (SELECT f.outcome FROM tool_proxy_financial_resolutions f WHERE f.order_id=tool_proxy_order_intents.id
+               ORDER BY f.created_at DESC LIMIT 1) AS financial_outcome
             FROM tool_proxy_order_intents WHERE telegram_id=:uid
             ORDER BY created_at DESC LIMIT 100
         """),{"uid":uid}).mappings().all()
     return {"orders":[{"id":str(r["id"]),"proxy_type":r["proxy_type"],
              "selection":r["selection"],"amount_usd":str(r["quoted_amount"]),
-             "status":r["status"],"created_at":r["created_at"].isoformat()} for r in rows],
+             "status":r["status"],"control_id":str(r["control_id"]) if r["control_id"] else None,
+             "financial_outcome":r["financial_outcome"],"created_at":r["created_at"].isoformat()} for r in rows],
             "purchases_enabled":purchases_enabled()}
 
 # Provider checkout contract, staged without any payment or purchase side effects.
@@ -347,10 +353,10 @@ def detect_delivery(before: set[str], after: list[dict], selection: dict) -> set
     return set()
 
 @router.post("/orders/{order_id}/purchase")
-async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Header(default=None)):
+async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Header(default=None), control_id: UUID | None = None):
     """One-shot checkout, disabled by default until supplier fulfilment is verified."""
     uid = require_telegram_id(x_telegram_init_data)
-    if not purchases_enabled():
+    if control_id is None and not purchases_enabled():
         raise HTTPException(503, CHECKOUT_DISABLED)
     with engine.connect() as conn:
         order = conn.execute(text("""
@@ -366,7 +372,12 @@ async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Head
         raise HTTPException(409,"Заявка уже обрабатывается или закрыта")
     selection = order["selection"]
     reason = purchase_reason(selection["proxy_type"])
-    if reason:
+    if control_id is not None:
+        from proxy_control import eligible_permit
+        if selection['proxy_type'] not in ('ipv4','isp','mobile'):
+            raise HTTPException(409,'Контрольное разрешение только для IPv4, ISP и Mobile')
+        with engine.connect() as conn:eligible_permit(conn,order_id,control_id,order['quoted_amount'])
+    elif reason:
         raise HTTPException(503, reason)
     fresh = await quote(Quote(**selection), x_telegram_init_data)
     if Decimal(fresh["customer_total_usd"]) != order["quoted_amount"]:
@@ -421,20 +432,24 @@ async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Head
         if kind != "ipv6":
             snapshot = proxy_items(await provider("get/proxies",{"proxyType":kind}))
             before = proxy_ids(snapshot)
-        reserve_order(uid,order_id)
-        if kind != "ipv6":
+        if control_id is not None:
+            from proxy_control import begin_controlled
+            with engine.begin() as conn:begin_controlled(conn,uid,order_id,control_id,before,cost)
+        else:
+            reserve_order(uid,order_id)
+            if kind != "ipv6":
+                with engine.begin() as conn:
+                    conn.execute(text("""
+                        UPDATE tool_proxy_order_intents
+                        SET proxy_ids_before=CAST(:ids AS jsonb),updated_at=now()
+                        WHERE id=:id AND telegram_id=:owner AND status='reserved'
+                    """), {"ids":json.dumps(sorted(before)),"id":order_id,"owner":uid})
+            mark_submitting(uid,order_id,cost)
             with engine.begin() as conn:
                 conn.execute(text("""
-                    UPDATE tool_proxy_order_intents
-                    SET proxy_ids_before=CAST(:ids AS jsonb),updated_at=now()
-                    WHERE id=:id AND telegram_id=:owner AND status='reserved'
-                """), {"ids":json.dumps(sorted(before)),"id":order_id,"owner":uid})
-        mark_submitting(uid,order_id,cost)
-        with engine.begin() as conn:
-            conn.execute(text("""
-                UPDATE tool_proxy_order_intents SET supplier_submitted_at=now()
-                WHERE id=:id AND telegram_id=:owner AND status='submitting'
-            """), {"id":order_id,"owner":uid})
+                    UPDATE tool_proxy_order_intents SET supplier_submitted_at=now()
+                    WHERE id=:id AND telegram_id=:owner AND status='submitting'
+                """), {"id":order_id,"owner":uid})
         try:
             response = await provider_checkout(selection)
             if response.get("success") is not True:
@@ -464,7 +479,7 @@ async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Head
                                   {"key":lock_key})
                 lock_conn.commit()
             except Exception:
-                pass
+                lock_conn.invalidate()
         lock_conn.close()
 
 @router.get("/checkout-config")
@@ -493,6 +508,9 @@ async def order_proxies(order_id: UUID, x_telegram_init_data: str | None = Heade
         raise HTTPException(404,"Заявка не найдена")
     if order["status"] != "fulfilled" or not order["provider_order_id"]:
         raise HTTPException(409,"Заказ ещё не подтверждён")
+    if order['proxy_type'] != 'ipv6' and order.get('proxy_ids_before') is not None:
+        from proxy_fulfillment import refresh_delivery
+        return await refresh_delivery(order_id,uid)
     # Historical delivered_proxy_ids were inferred from a global inventory delta.
     # They are not ownership proof and must not authorize disclosure.
     try:
@@ -567,6 +585,7 @@ async def verify_mobile_catalogue():
 
 # Reuses this module's provider and existing Telegram administrator authorization.
 from proxy_review_admin import router as review_admin_router
+import proxy_control  # Registers permit and financial-resolution endpoints.
 router.include_router(review_admin_router)
 
 
@@ -579,3 +598,20 @@ async def verify_inventory_schema():
     import logging
     for report in await probe_inventory(provider):
         logging.getLogger(__name__).info("Proxy inventory schema: %s", json.dumps(report, sort_keys=True))
+
+
+@router.on_event("startup")
+async def start_proxy_fulfillment():
+    if getattr(router, '_fulfillment_task', None) is None:
+        from proxy_fulfillment import fulfillment_loop
+        router._fulfillment_task = asyncio.create_task(fulfillment_loop())
+
+
+@router.on_event("shutdown")
+async def stop_proxy_fulfillment():
+    task=getattr(router, '_fulfillment_task', None)
+    if task is not None:
+        task.cancel()
+        try:await task
+        except asyncio.CancelledError:pass
+        router._fulfillment_task=None

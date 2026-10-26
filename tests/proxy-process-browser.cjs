@@ -2,7 +2,7 @@ const {chromium}=require('playwright');
 const fs=require('node:fs'),assert=require('node:assert/strict');
 (async()=>{
  const data=JSON.parse(fs.readFileSync('tests/proxy-process-results.json'));
- assert.equal(data.mock_only,true);assert.equal(data.scenarios.length,18);
+ assert.equal(data.mock_only,true);assert.equal(data.scenarios.length,Number(process.env.PROXY_EXPECT_SCENARIOS||18));
  fs.mkdirSync('proxy-process-screenshots',{recursive:true});
  const browser=await chromium.launch();
  try{
