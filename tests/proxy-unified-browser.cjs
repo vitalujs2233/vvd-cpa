@@ -50,6 +50,6 @@ async function api(path,post=false){const r=await fetch(host+path,{method:post?'
    await page.getByText('ID заказа: '+id,{exact:true}).waitFor();
    report=await api('/test/report');assert.equal(report.supplier_calls,1);assert.equal(report.purchase_transactions,1);assert.equal(report.orders.length,1);assert.equal(report.balances[0],'66.20');assert.equal(report.balances[1],'0.00');assert.deepEqual(errors,[]);
    evidence.push({kind,order_id:id,...report});console.log(`PASS ${kind}: Buy → real prepare/permit/payment handlers → delayed/partial supplier mock → auto cards → reload; one test debit`);
-  }finally{if(page)await page.close();server.kill('SIGTERM');await new Promise(r=>server.once('exit',r));fs.closeSync(log);}
+  }finally{if(page)await page.close();server.kill('SIGTERM');if(server.exitCode===null)await new Promise(r=>server.once('exit',r));fs.closeSync(log);}
  }}finally{await browser.close();fs.writeFileSync('proxy-process-screenshots/unified-results.json',JSON.stringify({mock_only:true,scenarios:evidence},null,2));}
 })().catch(e=>{console.error(e);process.exit(1)});

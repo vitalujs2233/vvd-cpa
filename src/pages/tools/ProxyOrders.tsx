@@ -56,6 +56,7 @@ export function ProxyOrders() {
     let timer:ReturnType<typeof setTimeout>|undefined;
     let current:Order[]=[],cache:Record<string,ProxyDelivery>={};
     const retryOrder=new Map<string,number>();
+    const revealAfterPurchase=new Set<string>();
     const pending=(o:Order)=>['prepared','reserved','submitting','uncertain'].includes(o.status)||(o.status==='fulfilled'&&(!cache[o.id]||cache[o.id].delivery_pending));
     const run=async(manual=false)=>{
       if(!active)return;
@@ -74,7 +75,7 @@ export function ProxyOrders() {
             }
             if(o.status==='fulfilled'){
               const delivery=await marketApi.proxyIpv4OrderProxies(o.id);if(!active)return;
-              if(cache[o.id]?.delivery_pending&&!delivery.delivery_pending&&delivery.proxies.length===o.selection.count)setOpened(v=>({...v,[o.id]:true}));
+              if((revealAfterPurchase.has(o.id)||cache[o.id]?.delivery_pending)&&!delivery.delivery_pending&&delivery.proxies.length===o.selection.count){setOpened(v=>({...v,[o.id]:true}));revealAfterPurchase.delete(o.id);}
               cache={...cache,[o.id]:delivery};setDeliveries(cache);
             }
             retryOrder.delete(o.id);setErrors(v=>({...v,[o.id]:''}));
@@ -94,7 +95,7 @@ export function ProxyOrders() {
     refresh.current=()=>void run(true);
     purchaseRef.current=async(id,controlId)=>{
       if(running||!active)return;
-      running=true;clearTimeout(timer);setBusy(true);setPaying(id);
+      running=true;clearTimeout(timer);setBusy(true);setPaying(id);revealAfterPurchase.add(id);
       try{await marketApi.proxyIpv4Purchase(id,controlId);}catch{if(active)setError('Не удалось подтвердить покупку. Обновляем статус заказа.');}
       finally{running=false;if(active){setPaying(null);void run(true);}}
     };
