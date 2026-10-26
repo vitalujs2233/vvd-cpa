@@ -1,10 +1,7 @@
-"""Inventory-difference triage, never proof of customer ownership.
+"""ID-based inventory checks. Exclusivity must be attested; never inferred."""
+from datetime import datetime, timezone, timedelta
 
-Support recommends before/after snapshots. External purchases cannot be excluded by
-this API, even for an exact count/country/time match. Candidate IDs stay internal;
-this function must never be used to authorize disclosure of connection credentials.
-"""
-from datetime import datetime, timezone
+REVIEW_WAIT_SECONDS = 15 * 60  # Operational review deadline, not a supplier SLA.
 
 
 def timestamp(value):
@@ -15,8 +12,12 @@ def timestamp(value):
     return value.astimezone(timezone.utc)
 
 
-def assess_inventory(before, after, *, count, country, submitted_at, observed_at, assigned_ids=(), lane_busy=False):
-    result = {'state': 'manual_review', 'reason': '', 'candidate_ids': [], 'can_deliver': False}
+def assess_inventory(before, after, *, count, country, submitted_at, observed_at,
+                     assigned_ids=(), lane_busy=False, days=None, proxy_type=None,
+                     mobile_operator=None, rotation_time=None, exclusive_account=False,
+                     manual_review=False):
+    result = {'state': 'manual_review', 'reason': '', 'candidate_ids': [],
+              'can_deliver': False, 'checks': {}}
     def stop(reason):
         result['reason'] = reason
         return result
@@ -28,6 +29,7 @@ def assess_inventory(before, after, *, count, country, submitted_at, observed_at
     if any(not isinstance(x, (str, int)) or isinstance(x, bool) or not str(x) for x in before):
         return stop('invalid_snapshot')
     previous = {str(x) for x in before}
+    if len(previous) != len(before): return stop('invalid_snapshot')
     current = {}
     for item in after:
         if not isinstance(item, dict): return stop('invalid_inventory')
@@ -35,9 +37,16 @@ def assess_inventory(before, after, *, count, country, submitted_at, observed_at
         if not isinstance(ident, (str, int)) or isinstance(ident, bool) or not str(ident) or str(ident) in current:
             return stop('invalid_inventory')
         current[str(ident)] = item
-    if not previous.issubset(current): return stop('inventory_changed_externally')
     new = set(current) - previous
+    result['candidate_ids'] = sorted(new)
+    if not previous.issubset(current): return stop('inventory_changed_externally')
+    result['checks']['baseline_present'] = True
     if new & {str(x) for x in assigned_ids}: return stop('already_assigned')
+    result['checks']['unassigned'] = True
+    # A timeout never authorizes release or a new paid order. Manual review can
+    # explicitly recheck a later complete delivery; the lane stays held meanwhile.
+    if (end-start).total_seconds() >= REVIEW_WAIT_SECONDS and not manual_review:
+        return stop('delivery_timeout')
     if not new:
         result['state'] = 'waiting'
         return stop('delivery_delayed')
@@ -47,8 +56,22 @@ def assess_inventory(before, after, *, count, country, submitted_at, observed_at
         if item.get('country') != country: return stop('country_mismatch')
         created = timestamp(item.get('dateStart'))
         if created is None or not start <= created <= end: return stop('start_time_mismatch')
-    result['candidate_ids'] = sorted(new)
+        if days is not None:
+            expires = timestamp(item.get('dateEnd'))
+            if type(days) is not int or days < 1 or expires is None or expires-created != timedelta(days=days):
+                return stop('rental_duration_mismatch')
+        if proxy_type == 'mobile':
+            if not mobile_operator or item.get('mobileOperator') != mobile_operator:
+                return stop('mobile_operator_mismatch')
+            if type(rotation_time) is not int or type(item.get('rotationTime')) is not int or item['rotationTime'] != rotation_time:
+                return stop('rotation_time_mismatch')
+    result['checks'].update(country=True, start_time=True, rental_duration=days is not None,
+                            mobile_parameters=proxy_type != 'mobile' or bool(mobile_operator))
     if len(new) < count:
         result['state'] = 'partial'
         return stop('partial_candidates_unverified')
-    return stop('external_purchase_cannot_be_excluded')
+    result['checks']['exact_count'] = True
+    if not exclusive_account: return stop('external_purchase_cannot_be_excluded')
+    if days is None or proxy_type not in ('ipv4','isp','mobile'): return stop('missing_order_parameters')
+    result.update(state='verified', reason='exclusive_inventory_match', can_deliver=True)
+    return result

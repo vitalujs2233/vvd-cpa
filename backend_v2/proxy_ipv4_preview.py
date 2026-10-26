@@ -405,7 +405,8 @@ async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Head
                 SELECT id FROM tool_proxy_order_intents
                 WHERE proxy_type=:kind AND id<>:id AND
                   (status IN ('reserved','submitting','uncertain') OR
-                   (proxy_type<>'ipv6' AND status='fulfilled')) LIMIT 1
+                   (proxy_type<>'ipv6' AND status='fulfilled' AND NOT EXISTS
+                     (SELECT 1 FROM tool_proxy_reviews r WHERE r.order_id=tool_proxy_order_intents.id AND r.state='approved'))) LIMIT 1
             """), {"kind":kind,"id":order_id}).first()
             if unresolved:
                 raise HTTPException(409,"Есть незавершённый заказ этого типа у поставщика. Требуется проверка результата")
@@ -484,7 +485,7 @@ async def order_proxies(order_id: UUID, x_telegram_init_data: str | None = Heade
     uid = require_telegram_id(x_telegram_init_data)
     with engine.connect() as conn:
         order = conn.execute(text("""
-            SELECT proxy_type,status,provider_order_id,selection,proxy_ids_before,supplier_submitted_at FROM tool_proxy_order_intents
+            SELECT id,proxy_type,status,provider_order_id,selection,proxy_ids_before,supplier_submitted_at FROM tool_proxy_order_intents
             WHERE id=:id AND telegram_id=:uid
         """), {"id":order_id,"uid":uid}).mappings().first()
     if not order:
@@ -493,26 +494,39 @@ async def order_proxies(order_id: UUID, x_telegram_init_data: str | None = Heade
         raise HTTPException(409,"Заказ ещё не подтверждён")
     # Historical delivered_proxy_ids were inferred from a global inventory delta.
     # They are not ownership proof and must not authorize disclosure.
-    response = await provider("get/proxies", {"proxyType":order["proxy_type"]})
-    matches = match_order_proxies(proxy_items(response), order["proxy_type"], str(order["provider_order_id"]))
+    try:
+        response = await provider("get/proxies", {"proxyType":order["proxy_type"]})
+    except HTTPException:
+        if order['proxy_type'] != 'ipv6' and order.get('proxy_ids_before') is not None:
+            from datetime import datetime, timezone
+            from proxy_inventory_review import timestamp, REVIEW_WAIT_SECONDS
+            from proxy_review_store import save_review
+            start=timestamp(order.get('supplier_submitted_at'))
+            expired=start is None or (datetime.now(timezone.utc)-start).total_seconds() >= REVIEW_WAIT_SECONDS
+            with engine.begin() as conn:
+                conn.execute(text('SELECT id FROM tool_proxy_order_intents WHERE id=:id FOR UPDATE'), {'id':order_id})
+                save_review(conn,order,{'state':'manual_review' if expired else 'waiting',
+                    'reason':'delivery_timeout' if expired else 'supplier_unavailable',
+                    'candidate_ids':[], 'checks':{}, 'can_deliver':False})
+        raise
+    matches = match_order_proxies(proxy_items(response), order["proxy_type"], str(order["provider_order_id"])) if order["proxy_type"] == "ipv6" else []
     proxies = connection_data(matches)
     review = None
     if not matches and order['proxy_type'] != 'ipv6' and order.get('proxy_ids_before') is not None:
-        from datetime import datetime, timezone
-        from proxy_inventory_review import assess_inventory
-        with engine.connect() as conn:
-            others = conn.execute(text("""
-                SELECT status,delivered_proxy_ids FROM tool_proxy_order_intents
-                WHERE proxy_type=:kind AND id<>:id
-            """), {'kind':order['proxy_type'],'id':order_id}).mappings().all()
-        assigned = {str(i) for row in others for i in (row['delivered_proxy_ids'] or [])}
-        assessment = assess_inventory(order['proxy_ids_before'], proxy_items(response),
-            count=order['selection']['count'], country=order['selection'].get('country'),
-            submitted_at=order.get('supplier_submitted_at'), observed_at=datetime.now(timezone.utc),
-            assigned_ids=assigned, lane_busy=any(row['status'] in ('reserved','submitting','uncertain') for row in others))
-        # Candidates are NOT persisted as owned/delivered IDs and never disclose credentials.
-        # Original snapshot, supplier reference and submission time remain durable for review.
-        review = {k:assessment[k] for k in ('state','reason')}
+        from proxy_review_store import review as assess, save_review, approved_ids
+        with engine.begin() as conn:
+            # Serialize persistence with administrative confirmation of this order.
+            conn.execute(text('SELECT id FROM tool_proxy_order_intents WHERE id=:id FOR UPDATE'), {'id':order_id})
+            ids = approved_ids(conn, order_id)
+            if ids:
+                matches = [p for p in proxy_items(response) if str(p.get('id')) in ids]
+                # A duplicate supplier ID or unexpected cardinality is not safe delivery.
+                if len(matches) != len({str(p.get('id')) for p in matches}): matches = []
+                proxies = connection_data(matches)
+            else:
+                assessment = assess(conn, order, proxy_items(response))
+                assessment = save_review(conn, order, assessment)
+                review = {k:assessment[k] for k in ('state','reason')}
     expected = order["selection"]["count"]
     if len(proxies) > expected:
         proxies = []  # Conflicting supplier attribution requires verification.
@@ -548,3 +562,7 @@ async def verify_mobile_catalogue():
         log.warning("Mobile tariff probe unavailable: status=%s reason=%s", exc.status_code, exc.detail)
     except Exception:
         log.warning("Mobile tariff probe unavailable: unexpected response")
+
+# Reuses this module's provider and existing Telegram administrator authorization.
+from proxy_review_admin import router as review_admin_router
+router.include_router(review_admin_router)

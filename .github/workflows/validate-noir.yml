@@ -2,7 +2,7 @@ name: Noir catalogue and tools ledger
 on:
   pull_request:
     branches: [main]
-    paths: ['backend_v2/proxy_ipv4_wallet.py', 'backend_v2/proxy_ipv4_preview.py', 'backend_v2/tests/test_proxy_wallet_readiness.py', 'backend_v2/noir_sms_catalog.py', 'backend_v2/noir_sms_orders.py', 'backend_v2/tests/test_noir_orders.py', 'backend_v2/migrations/*noir_orders.sql', 'backend_v2/tools_order_ledger.py', 'backend_v2/tests/test_noir_catalog.py', 'backend_v2/tests/test_tools_order_ledger.py', 'backend_v2/migrations/*tools_order_ledger.sql', 'tests/my-numbers-ui.cjs', 'src/pages/tools/MarketplacePages.tsx', 'src/pages/tools/marketApi.ts', '.github/workflows/validate-noir.yml']
+    paths: ['backend_v2/proxy_review_store.py', 'backend_v2/proxy_review_admin.py', 'backend_v2/proxy_inventory_review.py', 'supabase/migrations/*proxy_inventory_review.sql', 'backend_v2/proxy_ipv4_wallet.py', 'backend_v2/proxy_ipv4_preview.py', 'backend_v2/tests/test_proxy_wallet_readiness.py', 'backend_v2/noir_sms_catalog.py', 'backend_v2/noir_sms_orders.py', 'backend_v2/tests/test_noir_orders.py', 'backend_v2/migrations/*noir_orders.sql', 'backend_v2/tools_order_ledger.py', 'backend_v2/tests/test_noir_catalog.py', 'backend_v2/tests/test_tools_order_ledger.py', 'backend_v2/migrations/*tools_order_ledger.sql', 'tests/my-numbers-ui.cjs', 'src/pages/tools/MarketplacePages.tsx', 'src/pages/tools/marketApi.ts', '.github/workflows/validate-noir.yml']
   workflow_dispatch:
 permissions:
   contents: read
