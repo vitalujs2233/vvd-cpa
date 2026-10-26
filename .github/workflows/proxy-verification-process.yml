@@ -1,0 +1,57 @@
+name: Proxy controlled verification process
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend_v2/proxy*.py'
+      - 'backend_v2/tests/test_proxy_inventory_probe.py'
+      - 'scripts/proxy_verification_process.py'
+      - 'tests/proxy-process*'
+      - '.github/workflows/proxy-verification-process.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: proxy_verification_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg2://postgres:test-only@localhost:5432/proxy_verification_test
+      BOT_TOKEN: test-only
+      TOOLS_LEDGER_TEST_DB: '1'
+      PYTHONPATH: backend_v2:.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r backend_v2/requirements.txt
+      - run: python -m unittest backend_v2.tests.test_proxy_inventory_probe -v
+      - run: python scripts/proxy_verification_process.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - run: npm install --no-save --package-lock=false playwright
+      - run: npx playwright install --with-deps chromium
+      - name: Render backend-derived orders in My proxies
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 3011 > /tmp/proxy-process-vite.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:3011/vvd-cpa/ > /dev/null && break; sleep 1; done
+          node tests/proxy-process-browser.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: proxy-controlled-process
+          path: |
+            tests/proxy-process-results.json
+            proxy-process-screenshots/*.png
