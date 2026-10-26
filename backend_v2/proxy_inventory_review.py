@@ -3,6 +3,36 @@ from datetime import datetime, timezone, timedelta
 
 REVIEW_WAIT_SECONDS = 15 * 60  # Operational review deadline, not a supplier SLA.
 
+# A later clean snapshot cannot disprove an already observed conflicting inventory.
+CONFLICT_REASONS = frozenset({
+    'inventory_changed_externally', 'already_assigned', 'unexpected_extra_proxies',
+    'country_mismatch', 'start_time_mismatch', 'rental_duration_mismatch',
+    'mobile_operator_mismatch', 'rotation_time_mismatch', 'invalid_inventory',
+    'candidate_disappeared',
+})
+
+
+def retain_evidence(report, previous=None):
+    """Merge credential-free observations; never clear a historical conflict."""
+    previous = previous or {}
+    result = dict(report)
+    seen = set(previous.get('observed_candidate_ids', previous.get('candidate_ids', [])))
+    current = set(report.get('candidate_ids', []))
+    conflicts = set(previous.get('conflict_reasons', []))
+    for reason in (previous.get('reason'), report.get('reason')):
+        if reason in CONFLICT_REASONS:
+            conflicts.add(reason)
+    # Unavailable/invalid snapshots contain no reliable absence evidence.
+    if report.get('checks', {}).get('baseline_present') and seen - current:
+        conflicts.add('candidate_disappeared')
+    result['observed_candidate_ids'] = sorted(seen | current)
+    result['conflict_reasons'] = sorted(conflicts)
+    if conflicts:
+        result.update(state='manual_review', can_deliver=False)
+        if report.get('reason') not in CONFLICT_REASONS:
+            result['reason'] = 'historical_inventory_conflict'
+    return result
+
 
 def timestamp(value):
     if isinstance(value, str):

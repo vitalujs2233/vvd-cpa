@@ -3,7 +3,7 @@ import json
 from datetime import datetime, timezone
 from sqlalchemy import text
 from fastapi import HTTPException
-from proxy_inventory_review import assess_inventory
+from proxy_inventory_review import assess_inventory, retain_evidence
 from proxy_delivery import connection_data
 
 
@@ -15,13 +15,15 @@ def review(conn, order, items, *, now=None, exclusive=False, manual=False):
     claims=conn.execute(text('''SELECT proxy_id FROM tool_proxy_assignments
         WHERE proxy_type=:kind AND order_id<>:id'''),dict(kind=order['proxy_type'],id=order['id'])).scalars().all()
     assigned=set(claims) | {str(i) for row in others for i in (row['delivered_proxy_ids'] or [])}
-    return assess_inventory(order['proxy_ids_before'], items,
+    report = assess_inventory(order['proxy_ids_before'], items,
         count=selection['count'], country=selection['country'], days=selection['days'],
         proxy_type=order['proxy_type'], mobile_operator=selection.get('mobile_operator'),
         rotation_time=selection.get('rotation_time'), submitted_at=order['supplier_submitted_at'],
         observed_at=now or datetime.now(timezone.utc), assigned_ids=assigned,
         lane_busy=any(row['status'] in ('reserved','submitting','uncertain') or (row['status']=='fulfilled' and not row['delivery_approved']) for row in others),
         exclusive_account=exclusive, manual_review=manual)
+    previous=conn.execute(text('SELECT report FROM tool_proxy_reviews WHERE order_id=:id'),dict(id=order['id'])).scalar()
+    return retain_evidence(report, previous)
 
 
 def audit(conn, order_id, actor, action, report):
@@ -32,15 +34,17 @@ def audit(conn, order_id, actor, action, report):
 
 
 def save_review(conn, order, report):
-    previous=conn.execute(text('SELECT state FROM tool_proxy_reviews WHERE order_id=:id FOR UPDATE'),dict(id=order['id'])).scalar()
-    if previous=='approved':return report
+    previous=conn.execute(text('SELECT state,report FROM tool_proxy_reviews WHERE order_id=:id FOR UPDATE'),dict(id=order['id'])).mappings().first()
+    if previous and previous['state']=='approved':return previous['report']
+    report=retain_evidence(report, previous['report'] if previous else None)
     # Once escalated, ordinary polling cannot silently restore automatic eligibility.
-    if previous=='manual_review':
+    if previous and previous['state']=='manual_review':
         report=dict(report,state='manual_review',can_deliver=False)
     conn.execute(text('''INSERT INTO tool_proxy_reviews(order_id,state,report) VALUES(:id,:state,CAST(:report AS jsonb))
         ON CONFLICT(order_id) DO UPDATE SET state=EXCLUDED.state,report=EXCLUDED.report,updated_at=now()'''),
         dict(id=order['id'],state=report['state'],report=json.dumps(report)))
-    if previous!=report['state']:audit(conn,order['id'],None,'state_changed',report)
+    if not previous or previous['report']!=report:
+        audit(conn,order['id'],None,'review_observed',report)
     return report
 
 

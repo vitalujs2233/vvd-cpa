@@ -91,3 +91,45 @@ class StrictInventoryTests(unittest.TestCase):
         with patch.object(admin,'require_telegram_id',return_value=42),patch.object(admin,'authorized_admin',return_value=False),patch.object(routes,'provider',new_callable=AsyncMock) as supplier:
             with self.assertRaises(HTTPException) as error:asyncio.run(admin.inspect_order(uuid4(),'test'))
             self.assertEqual(error.exception.status_code,403);supplier.assert_not_called()
+
+class InventoryEvidenceTests(unittest.TestCase):
+    def test_malformed_inventory_is_not_silently_filtered(self):
+        for raw in ({}, {'proxies': {}}, {'proxies': [None]}, {'proxies': [{'id': 'a'}, 'broken']}):
+            with self.subTest(raw=raw), self.assertRaises(HTTPException):
+                routes.proxy_items(raw)
+        self.assertEqual(routes.proxy_items({'proxies': []}), [])
+
+    def test_invalid_baseline_ids_are_rejected(self):
+        for ids in ([True], [''], ['  '], [None], [1, '1'], [{}]):
+            with self.subTest(ids=ids), self.assertRaises(HTTPException):
+                routes.proxy_ids([{'id': ident} for ident in ids])
+
+    def test_conflict_survives_clean_snapshot_and_outage(self):
+        from proxy_inventory_review import retain_evidence
+        conflict = dict(state='manual_review', reason='unexpected_extra_proxies',
+                        candidate_ids=['a', 'foreign'], checks={'baseline_present': True}, can_deliver=False)
+        outage = dict(state='waiting', reason='supplier_unavailable', candidate_ids=[], checks={}, can_deliver=False)
+        clean = dict(state='verified', reason='exclusive_inventory_match', candidate_ids=['a'],
+                     checks={'baseline_present': True}, can_deliver=True)
+        history = retain_evidence(outage, conflict)
+        result = retain_evidence(clean, history)
+        self.assertFalse(result['can_deliver'])
+        self.assertEqual(result['observed_candidate_ids'], ['a', 'foreign'])
+        self.assertIn('unexpected_extra_proxies', result['conflict_reasons'])
+        self.assertIn('candidate_disappeared', result['conflict_reasons'])
+
+    def test_partial_replaced_by_different_id_is_not_clean_delivery(self):
+        from proxy_inventory_review import retain_evidence
+        previous = dict(candidate_ids=['a'], reason='partial_candidates_unverified')
+        result = retain_evidence(dict(state='verified', candidate_ids=['b', 'c'],
+            reason='exclusive_inventory_match', checks={'baseline_present': True}, can_deliver=True), previous)
+        self.assertFalse(result['can_deliver'])
+        self.assertEqual(result['reason'], 'historical_inventory_conflict')
+
+    def test_partial_growth_and_timeout_can_be_manually_verified(self):
+        from proxy_inventory_review import retain_evidence
+        for reason in ('partial_candidates_unverified', 'delivery_timeout'):
+            previous = dict(candidate_ids=['a'], reason=reason)
+            result = retain_evidence(dict(state='verified', candidate_ids=['a', 'b'],
+                reason='exclusive_inventory_match', checks={'baseline_present': True}, can_deliver=True), previous)
+            self.assertTrue(result['can_deliver'])

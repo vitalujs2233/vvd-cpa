@@ -207,6 +207,58 @@ class ProxyWalletTests(unittest.TestCase):
                 with self.db.connect() as c:self.assertEqual(c.execute(text("SELECT count(*) FROM tool_proxy_review_audit WHERE order_id=:id AND action='approval_denied'"),dict(id=oid)).scalar(),1)
         asyncio.run(scenario())
 
+    def test_mobile_historical_conflict_blocks_approval_after_restart(self):
+        import proxy_review_admin as admin
+        async def scenario():
+            with self.mobile_fixture() as (state,body),patch.object(admin,'authorized_admin',return_value=True),patch.object(admin,'require_telegram_id',return_value=999):
+                oid=UUID((await routes.prepare_order(body,'test'))['id'])
+                await routes.purchase_order(oid,'test')
+                state['visible']=2
+                first=await admin.inspect_order(oid,'test')
+                self.assertEqual(first['review']['reason'],'unexpected_extra_proxies')
+                state['read_failure']=True
+                await admin.inspect_order(oid,'test')
+                state['read_failure']=False;state['visible']=1
+                # Discard pooled connections as a new backend would; evidence is in PostgreSQL.
+                self.db.dispose()
+                approval=admin.Approval(evidence_ref='ticket:test',exclusive_account_confirmed=True,
+                                       candidate_ids=[body.proxy_type+'-0'])
+                with self.assertRaises(HTTPException) as error:
+                    await admin.approve_order(oid,approval,'test')
+                self.assertEqual(error.exception.status_code,409)
+                result=await routes.order_proxies(oid,'test')
+                self.assertEqual(result['proxies'],[])
+                report=await admin.inspect_order(oid,'test')
+                self.assertIn('unexpected_extra_proxies',report['review']['conflict_reasons'])
+                self.assertEqual(len(report['review']['observed_candidate_ids']),2)
+                self.assertEqual(state['calls'],1)
+                self.assertEqual(self.balances(),(D('66.20'),D('0')))
+        asyncio.run(scenario())
+
+    def test_mobile_other_process_lock_blocks_purchase(self):
+        import subprocess, sys
+        async def scenario():
+            with self.mobile_fixture() as (state,body):
+                oid=UUID((await routes.prepare_order(body,'test'))['id'])
+                script="""import os,sys
+from sqlalchemy import create_engine,text
+with create_engine(os.environ['DATABASE_URL']).connect() as c:
+    c.execute(text('SELECT pg_advisory_lock(hashtext(:key))'), {'key':sys.argv[1]})
+    print('locked',flush=True)
+    sys.stdin.readline()
+"""
+                child=subprocess.Popen([sys.executable,'-c',script,'vvd-proxy-checkout-'+body.proxy_type],
+                                       stdin=subprocess.PIPE,stdout=subprocess.PIPE,text=True)
+                try:
+                    self.assertEqual(await asyncio.to_thread(child.stdout.readline),'locked\n')
+                    with self.assertRaises(HTTPException) as error:await routes.purchase_order(oid,'test')
+                    self.assertEqual(error.exception.status_code,409)
+                    self.assertEqual(state['calls'],0)
+                    self.assertEqual(self.balances(),(D('100'),D('0')))
+                finally:
+                    child.communicate('done\n',timeout=10)
+        asyncio.run(scenario())
+
     def test_checkout_delivery_replay_and_foreign_owner(self):
         async def scenario():
             receipt='fixture-'+str(uuid4())
@@ -336,6 +388,8 @@ def _inventory_checkout_case(kind, scenario):
 # Exercise the same production checkout path for all types without opening its live gate.
 for _kind in ('ipv4','isp'):
     for _scenario in (
+        'historical_conflict_blocks_approval_after_restart',
+        'other_process_lock_blocks_purchase',
         'manual_approval_persists_and_replay_is_readonly',
         'timeout_review_survives_network_error_and_restart',
         'persisted_lane_blocks_other_owner_after_restart',

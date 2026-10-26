@@ -321,15 +321,16 @@ def order_status(order_id: UUID, x_telegram_init_data: str | None = Header(defau
     }
 
 def proxy_items(response: dict) -> list[dict]:
-    items = response.get("proxies", [])
-    if not isinstance(items, list):
-        raise ValueError("Invalid supplier proxy inventory")
-    return [x for x in items if isinstance(x, dict)]
+    items = response.get("proxies") if isinstance(response, dict) else None
+    if not isinstance(items, list) or any(not isinstance(x, dict) for x in items):
+        raise HTTPException(502, "Invalid supplier proxy inventory")
+    return items
 
 def proxy_ids(items: list[dict]) -> set[str]:
-    ids = [str(x["id"]) for x in items if x.get("id") is not None]
+    ids = [str(x["id"]) for x in items if isinstance(x.get("id"), (str, int))
+           and not isinstance(x["id"], bool) and str(x["id"]).strip()]
     if len(ids) != len(items) or len(set(ids)) != len(ids):
-        raise ValueError("Supplier proxy IDs are missing or duplicated")
+        raise HTTPException(502, "Supplier proxy IDs are missing or duplicated")
     return set(ids)
 
 def store_delivery(owner: int, order_id: UUID, ids: set[str]) -> None:
@@ -496,6 +497,7 @@ async def order_proxies(order_id: UUID, x_telegram_init_data: str | None = Heade
     # They are not ownership proof and must not authorize disclosure.
     try:
         response = await provider("get/proxies", {"proxyType":order["proxy_type"]})
+        items = proxy_items(response)
     except HTTPException:
         if order['proxy_type'] != 'ipv6' and order.get('proxy_ids_before') is not None:
             from datetime import datetime, timezone
@@ -509,7 +511,7 @@ async def order_proxies(order_id: UUID, x_telegram_init_data: str | None = Heade
                     'reason':'delivery_timeout' if expired else 'supplier_unavailable',
                     'candidate_ids':[], 'checks':{}, 'can_deliver':False})
         raise
-    matches = match_order_proxies(proxy_items(response), order["proxy_type"], str(order["provider_order_id"])) if order["proxy_type"] == "ipv6" else []
+    matches = match_order_proxies(items, order["proxy_type"], str(order["provider_order_id"])) if order["proxy_type"] == "ipv6" else []
     proxies = connection_data(matches)
     review = None
     if not matches and order['proxy_type'] != 'ipv6' and order.get('proxy_ids_before') is not None:
@@ -519,12 +521,12 @@ async def order_proxies(order_id: UUID, x_telegram_init_data: str | None = Heade
             conn.execute(text('SELECT id FROM tool_proxy_order_intents WHERE id=:id FOR UPDATE'), {'id':order_id})
             ids = approved_ids(conn, order_id)
             if ids:
-                matches = [p for p in proxy_items(response) if str(p.get('id')) in ids]
+                matches = [p for p in items if str(p.get('id')) in ids]
                 # A duplicate supplier ID or unexpected cardinality is not safe delivery.
                 if len(matches) != len({str(p.get('id')) for p in matches}): matches = []
                 proxies = connection_data(matches)
             else:
-                assessment = assess(conn, order, proxy_items(response))
+                assessment = assess(conn, order, items)
                 assessment = save_review(conn, order, assessment)
                 review = {k:assessment[k] for k in ('state','reason')}
     expected = order["selection"]["count"]
