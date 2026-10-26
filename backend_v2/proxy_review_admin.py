@@ -43,7 +43,7 @@ async def inspect_order(order_id: UUID,x_telegram_init_data: str | None=Header(d
             report=review(conn,order,items)
         except HTTPException:
             report={'state':'manual_review','reason':'supplier_unavailable','candidate_ids':[], 'can_deliver':False,'checks':{}}
-        save_review(conn,order,report)
+        report=save_review(conn,order,report)
         audit(conn,order_id,actor,'inspect',report)
         return {'order_id':str(order_id),'orderNumber':order['provider_order_id'],
                 'proxy_type':order['proxy_type'],'selection':order['selection'],
@@ -70,6 +70,9 @@ async def approve_order(order_id:UUID,body:Approval,x_telegram_init_data:str | N
             else:
                 items=routes.proxy_items(await routes.provider('get/proxies',{'proxyType':order['proxy_type']}))
                 report=review(conn,order,items,exclusive=True,manual=True)
+                # Persist failed observations even when approval is denied below.
+                if not report['can_deliver']:
+                    save_review(conn,order,report)
                 if set(report['candidate_ids'])!=set(body.candidate_ids):raise HTTPException(409,'Инвентарь изменился. Повторите сверку')
                 assign(conn,order,items,report,actor,body.evidence_ref)
                 result={'state':'approved','proxy_ids':report['candidate_ids']}

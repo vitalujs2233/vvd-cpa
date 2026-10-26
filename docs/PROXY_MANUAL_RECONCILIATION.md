@@ -38,3 +38,60 @@ Administrative approval is a trusted human action, not cryptographic supplier pr
 Apply `supabase/migrations/20261026103820_proxy_inventory_review.sql` before deploying backend. It adds only three delivery metadata tables, RLS and revokes client roles. Existing orders/wallets are unchanged; old inferred IDs are not migrated into trusted claims.
 
 Rollback backend to the prior commit first. Retain these tables and audit history; dropping ownership records is not a safe rollback or queue reset. No frontend changes are needed.
+
+## Follow-up audit: historical evidence (2026-10-26)
+
+Audited baseline: main c00ed685 (PR #86), also the live Render commit at audit start.
+Confirmed Supabase has the review/assignment/audit tables with RLS enabled and the
+unique (proxy_type, proxy_id), supplier receipt and owner/request indexes. At the
+read-only inspection, the order table contained seven prepared IPv4 intents and
+no submitted/fulfilled orders. This is not evidence of a successful paid delivery.
+Render has one instance, auto-deploy off, and no HTTP health-check path configured.
+Runtime logs confirm presence of the existing key, markup and purchase flag and a
+successful Mobile tariff probe. No secret values were retrieved or changed.
+The global purchase flag is true; the code allowlist still permits only IPv6.
+
+Fixed in this follow-up:
+- Malformed inventory entries are rejected instead of silently filtered. Missing
+  inventory is not interpreted as an empty account. Invalid baseline IDs fail closed.
+- All observed candidate IDs and conflicting checks survive subsequent snapshots,
+  supplier outages and backend restarts. Disappearing candidates are a conflict.
+- A later apparently matching inventory plus an exclusivity checkbox cannot erase
+  a previously observed mismatch or extra proxy. Approval remains blocked.
+- The review endpoint returns the persisted sticky state. Changed observations,
+  including changes within manual_review, are audited without credentials.
+- Denied approval persists its conflicting observation before returning an error.
+
+Ordinary growth from partial delivery to the exact set, including after 90 seconds
+or a timeout, remains eligible for explicit administrative review. Historical
+conflicts require independent supplier investigation; this API deliberately has
+no override or queue-release action for them. Retain the provider's evidence and
+commission a separately reviewed resolution if a conflicting order must be closed.
+Previously overwritten observations cannot be reconstructed by this patch.
+
+### Scope of readiness for each product
+
+| Product | Existing functionality and ownership checks | Follow-up corrections | Remaining launch conditions |
+| --- | --- | --- | --- |
+| IPv4 | Catalogue/quote, reserved wallet, one-shot checkout, durable lane, exact ID count/country/duration and audited manual assignment | Strict inventory parsing, durable conflict history and approval guard | Dedicated unchanged provider account; independently verified no external operations; verified live date formats; approved uncertain-payment/refund procedure |
+| ISP | Same pipeline and per-type lane; unique assignments and owner-only credential route | Same fixes and separately parametrized lifecycle tests | Same conditions as IPv4 |
+| Mobile | Same pipeline plus operator and integer rotation checks; ID identity permits a shared IP with different ports | Same fixes and separately parametrized lifecycle tests | Same conditions plus verified operator/rotation formats and real-account issuance evidence |
+
+All three remain disabled. They are candidates for independent review of this
+restricted manual-assignment design, not approved for automatic paid launch.
+The durable lane is an admission gate (409 for a competing request), not a FIFO
+worker queue. It survives restart through unresolved database rows. A delayed or
+partially delivered order never starts another supplier submission. Timeout state
+is materialized on customer/admin polling, not by a background scheduler; even
+without polling the durable order blocks further same-type purchases. Unknown
+payment outcomes preserve reserves and are not resolvable through the delivery
+approval endpoint. A complete operational process for those cases remains a launch
+prerequisite. No new financial settlement/refund authority is introduced here.
+
+### Verification
+
+Local: 37 backend unit tests, 36 frontend tests, TypeScript/Vite production build.
+The PR runs disposable PostgreSQL lifecycle tests, including distinct OS-process
+advisory locks, restart, historical conflict, replay, wallet and foreign-owner
+checks for all three products; mobile browser tests run at 320 and 390 pixels.
+All supplier calls in these tests are mocks. No paid purchase was attempted.
