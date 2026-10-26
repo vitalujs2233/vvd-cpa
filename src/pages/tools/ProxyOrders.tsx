@@ -114,6 +114,7 @@ export function ProxyOrders() {
         <p className="text-sm">Стоимость: {usd(o.amount_usd)}</p><p className="text-xs text-textSecondary">{date(o.created_at)}</p>
         <p className={box}>Оплата: {payment[o.status]||'Требуется проверка результата'}</p>
         <p className={box}>Выдача: {delivery}</p>
+        {d?.inventory_review&&<p className="text-xs text-textSecondary">{d.inventory_review.state==='waiting'?'Поставщик пока не показал новые прокси.':d.inventory_review.state==='partial'?'В инвентаре появились не все прокси. Принадлежность заказу ещё проверяется.':'Нужна ручная проверка принадлежности прокси заказу.'}</p>}
         {d?.verification_required&&<p className="text-xs text-textSecondary">Ожидаем подтверждение привязки прокси к заказу.</p>}
         {errors[o.id]&&<p role="alert" className="text-xs text-textSecondary">{errors[o.id]}</p>}
         {o.status==='prepared'&&!checkout.includes(o.proxy_type)&&<p className="text-xs text-textSecondary">Покупки временно недоступны. Проводится проверка системы выдачи.</p>}
