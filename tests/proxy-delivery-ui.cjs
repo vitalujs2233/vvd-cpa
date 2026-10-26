@@ -57,3 +57,15 @@ test('confirmed refund hides cached connection cards and shows financial result'
  assert.ok(f.text().includes('Возврат подтверждён'));assert.ok(f.text().includes('Заказ закрыт, выдача остановлена'));
  assert.equal(f.view.root.findAllByProps({'aria-label':'Скопировать IP-адрес'}).length,0);f.close();
 });
+test('prepared order automatically receives permit without sending payment',async()=>{
+ let calls=0,paid=0;const row={...order,status:'prepared'};
+ const f=await mount({proxyIpv4Orders:async()=>({orders:[++calls===1?row:{...row,control_id:'test-permit'}]}),proxyIpv4Purchase:async()=>{paid++;}},[row]);
+ assert.ok(f.text().includes('Статус заказа:'));assert.ok(f.text().includes('Ожидает оплаты'));
+ await f.tick(10000);assert.ok(f.text().includes('Контрольная покупка за'));assert.equal(paid,0);f.close();
+});
+test('waiting and partial remain awaiting delivery; confirmed data opens automatically',async()=>{
+ let calls=0;const f=await mount({proxyIpv4OrderProxies:async()=>++calls<3?{...delivery,proxies:[],delivery_pending:true,verification_required:true,inventory_review:{state:calls===1?'waiting':'partial',reason:'mock'}}:delivery});
+ assert.ok(f.text().includes('Ожидает выдачи'));assert.ok(!f.text().includes('Статус заказа: Требуется проверка'));
+ await f.tick(10000);assert.ok(f.text().includes('Ожидает выдачи'));assert.equal(f.view.root.findAllByProps({'aria-label':'Скопировать IP-адрес'}).length,0);
+ await f.tick(10000);assert.ok(f.text().includes('192.0.2.10'));assert.equal(f.view.root.findAllByProps({'aria-label':'Скопировать IP-адрес'}).length,1);f.close();
+});

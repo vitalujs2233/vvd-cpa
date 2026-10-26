@@ -337,6 +337,8 @@ export const MyNumbers:React.FC=()=>{
   </Shell>;
 };
 export const ToolsProxy:React.FC=()=>{
+  const navigate=useNavigate();
+  const submitting=useRef(false);
   const [catalog,setCatalog]=useState<import('./marketApi').ProxyIpv4Catalog|null>(null);
   const [kind,setKind]=useState('ipv4');
   const [country,setCountry]=useState('');
@@ -347,9 +349,6 @@ export const ToolsProxy:React.FC=()=>{
   const [quote,setQuote]=useState<import('./marketApi').ProxyIpv4Quote|null>(null);
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
-  const [purchased,setPurchased]=useState(false);
-  const [preparedControl,setPreparedControl]=useState(false);
-  const [notice,setNotice]=useState('');
   const [checkoutConfig,setCheckoutConfig]=useState<Awaited<ReturnType<typeof marketApi.proxyIpv4CheckoutConfig>>|null>(null);
   const [checkoutError,setCheckoutError]=useState('');
   useEffect(()=>{let active=true;marketApi.proxyIpv4CheckoutConfig().then(x=>{if(active)setCheckoutConfig(x);}).catch(()=>{if(active)setCheckoutError('Не удалось проверить доступность покупки. Откройте страницу повторно.');});return()=>{active=false;};},[]);
@@ -357,52 +356,35 @@ export const ToolsProxy:React.FC=()=>{
   const checkoutReason=checkoutError||(!checkoutConfig?'Проверяем доступность покупки…':!checkoutConfig.purchases_enabled?checkoutConfig.reason||'Покупки временно недоступны. Проводится проверка системы выдачи.':checkoutConfig.unsupported_reason||'Покупка этого типа временно недоступна: проверяется привязка прокси к заказу.');
   const requestKey=useRef<{signature:string;id:string}|null>(null);
   const quoteVersion=useRef(0);
-  useEffect(()=>{let active=true;setCatalog(null);setError('');setQuote(null);setPurchased(false);setNotice('');marketApi.proxyIpv4Catalog(kind).then(data=>{if(active){setCatalog(data);setCountry(data.data.countries[0]?.code||'');setDays(data.data.days[0]||7);setQuantity(data.minimum_count);setOperator('');setRotation(0);}}).catch(e=>{if(active)setError(toText(e));});return()=>{active=false;};},[kind]);
+  useEffect(()=>{let active=true;setCatalog(null);setError('');setQuote(null);marketApi.proxyIpv4Catalog(kind).then(data=>{if(active){setCatalog(data);setCountry(data.data.countries[0]?.code||'');setDays(data.data.days[0]||7);setQuantity(data.minimum_count);setOperator('');setRotation(0);}}).catch(e=>{if(active)setError(toText(e));});return()=>{active=false;};},[kind]);
   const options=catalog?.data;
   const operators=options?.tariffs?.find(t=>t.country===country)?.mobileOperator||[];
   const selectedOperator=operators.find(x=>x.name===operator)||operators[0];
-  const resetQuote=()=>{quoteVersion.current++;setQuote(null);setPurchased(false);setPreparedControl(false);setNotice('');requestKey.current=null;};
+  const resetQuote=()=>{quoteVersion.current++;setQuote(null);requestKey.current=null;};
   const choose=(next:string)=>{setKind(next);resetQuote();};
   const price=async()=>{setBusy(true);setError('');resetQuote();const version=quoteVersion.current;try{const result=await marketApi.proxyIpv4Quote({proxy_type:kind,country,days,count:quantity,...(kind==='mobile'?{mobile_operator:selectedOperator?.name,rotation_time:selectedOperator?.rotationTime.includes(rotation)?rotation:selectedOperator?.rotationTime[0]}:{})});if(version===quoteVersion.current)setQuote(result);}catch(e){if(version===quoteVersion.current)setError(toText(e));}finally{setBusy(false);}};
   const purchase=async()=>{
-    if(!quote||busy||purchased)return;
-    if(!checkout){setError(checkoutReason);return;}
-    if(!window.confirm('Купить прокси за '+usd(quote.customer_total_usd)+'? Сумма будет списана с баланса инструментов.'))return;
+    if(!quote||submitting.current||busy||!checkoutConfig)return;
     const selection={proxy_type:kind,country,days,count:quantity,...(kind==='mobile'?{mobile_operator:selectedOperator?.name,rotation_time:selectedOperator?.rotationTime.includes(rotation)?rotation:selectedOperator?.rotationTime[0]}:{})};
     const signature=JSON.stringify(selection);
     if(requestKey.current?.signature!==signature)requestKey.current={signature,id:crypto.randomUUID()};
-    setBusy(true);setError('');setNotice('');
+    submitting.current=true;setBusy(true);setError('');
     try{
+      // The catalogue only prepares. All paid confirmations use the existing order card.
       const order=await marketApi.proxyIpv4Prepare({...selection,request_id:requestKey.current.id});
       if(Number(order.customer_total_usd)!==Number(quote.customer_total_usd)){
         setQuote(null);requestKey.current=null;
-        setError('Цена изменилась. Рассчитайте и подтвердите новую стоимость. Средства не списаны.');return;
+        setError('Цена изменилась. Рассчитайте и подтвердите новую стоимость. Средства не списаны. Подготовленный заказ сохранён в «Мои прокси».');return;
       }
-      await marketApi.proxyIpv4Purchase(order.id);
-      setPurchased(true);
-      setNotice('Заказ подтверждён. Статус выдачи и данные подключения — в разделе «Мои прокси».');
-    }catch(e){
-      setError(toText(e)+' Если заказ обрабатывается, проверьте его в «Мои прокси». Не оформляйте повторную покупку.');
-    }finally{setBusy(false);}
-  };
-  const prepareControl=async()=>{
-    if(!quote||busy||preparedControl)return;
-    const selection={proxy_type:kind,country,days,count:quantity,...(kind==='mobile'?{mobile_operator:selectedOperator?.name,rotation_time:selectedOperator?.rotationTime.includes(rotation)?rotation:selectedOperator?.rotationTime[0]}:{})};
-    const signature=JSON.stringify(selection);
-    if(requestKey.current?.signature!==signature)requestKey.current={signature,id:crypto.randomUUID()};
-    setBusy(true);setError('');
-    try{
-      const order=await marketApi.proxyIpv4Prepare({...selection,request_id:requestKey.current.id});
-      setPreparedControl(true);
-      setNotice('Контрольный заказ подготовлен: '+order.id+'. Стоимость '+usd(order.customer_total_usd)+'. Средства не списаны. После отдельного разрешения администратора покупка доступна в «Мои прокси».');
-    }catch(e){setError(toText(e));}finally{setBusy(false);}
+      navigate('/tools/proxy/my');
+    }catch(e){setError(toText(e)+' Проверьте «Мои прокси»: заказ мог сохраниться. При повторе используется тот же запрос. Средства не списывались.');}
+    finally{submitting.current=false;setBusy(false);}
   };
   const minimum=catalog?.minimum_count||(kind==='ipv6'?10:1);
   return <Shell><NavHeader title="Прокси"/>
     <Card className="flex flex-col gap-3">
       <h2 className="text-base font-bold">Выбор прокси</h2>
-      {!checkout&&<div id="proxy-purchase-reason"><Status>Обычная покупка заблокирована. {checkoutReason}</Status></div>}
-      {kind!=='ipv6'&&!checkout&&<p className="text-sm leading-6 text-accentBrightGold">Контрольный заказ можно подготовить без оплаты: выберите параметры ниже, нажмите «Рассчитать цену», затем «Подготовить контрольный заказ без оплаты».</p>}
+      <div id="proxy-purchase-reason"><Status>{!checkoutConfig?checkoutReason:checkout?'Оформление заказа: «Купить» сохранит заказ и откроет «Мои прокси». Списание — только после отдельного подтверждения суммы в карточке.':'Контрольный режим: «Купить» подготовит заказ без оплаты и откроет «Мои прокси». Деньги не резервируются и не списываются. Покупка у поставщика требует отдельного серверного разрешения для заказа и суммы.'}</Status></div>
       {!catalog&&<p className="text-xs text-textSecondary">Каталог ещё не загружен.</p>}
       <label className="text-xs text-textSecondary">Тип прокси<select className={inputClass} value={kind} onChange={e=>choose(e.target.value)}><option value="ipv4">Прокси IPv4</option><option value="ipv6">Прокси IPv6</option><option value="isp">Прокси ISP</option><option value="mobile">Мобильные прокси</option></select></label>
       <label className="text-xs text-textSecondary">Страна<select className={inputClass} value={country} onChange={e=>{setCountry(e.target.value);setOperator('');setRotation(0);resetQuote();}}>{options?.countries.map(x=><option key={x.code} value={x.code}>{x.name} ({x.code})</option>)}</select></label>
@@ -412,15 +394,7 @@ export const ToolsProxy:React.FC=()=>{
       {kind==='mobile'&&<><label className="text-xs text-textSecondary">Оператор<select className={inputClass} value={selectedOperator?.name||''} onChange={e=>{setOperator(e.target.value);setRotation(0);resetQuote();}}>{operators.map(x=><option key={x.name} value={x.name}>{x.name}</option>)}</select></label><label className="text-xs text-textSecondary">Ротация IP<select className={inputClass} value={selectedOperator?.rotationTime.includes(rotation)?rotation:selectedOperator?.rotationTime[0]||0} onChange={e=>{setRotation(Number(e.target.value));resetQuote();}}>{selectedOperator?.rotationTime.map(x=><option key={x} value={x}>{x===0?'По ссылке':x+' минут'}</option>)}</select></label></>}
       <Button type="button" disabled={!catalog||busy||!country||!options?.days.length||!Number.isInteger(quantity)||quantity<minimum||quantity>1000||(kind==='mobile'&&!selectedOperator)} onClick={price}>{busy?'Проверяем цену…':'Рассчитать цену'}</Button>
       {quote&&<Status>Стоимость: ${quote.customer_total_usd}</Status>}
-      {quote&&!purchased&&<Button type="button" disabled={busy||!checkout} aria-describedby={!checkout?"proxy-purchase-reason":undefined} onClick={()=>void purchase()}>{busy?'Оформляем покупку…':'Купить за '+usd(quote.customer_total_usd)}</Button>}
-      {!checkout&&kind!=='ipv6'&&<section aria-label="Подготовка контрольного заказа" className="flex min-w-0 flex-col gap-3 rounded-xl border border-accentGold/30 p-3">
-        <h3 className="text-sm font-bold">Контрольный заказ — без оплаты</h3>
-        <p className="text-xs leading-5 text-textSecondary">Подготовка сохраняет только заказ и его UUID. Деньги не резервируются и не списываются, запрос на покупку поставщику не отправляется.</p>
-        {!quote&&<p className="text-xs text-textSecondary">Сначала нажмите «Рассчитать цену» выше — после расчёта подготовка станет доступна.</p>}
-        <Button type="button" variant="secondary" disabled={!quote||busy||preparedControl} onClick={()=>void prepareControl()}>{preparedControl?'Контрольный заказ подготовлен':'Подготовить контрольный заказ без оплаты'}</Button>
-        <p className="text-xs leading-5 text-textSecondary">Следующий шаг — «Мои прокси»: статус и UUID заказа. Платная контрольная покупка появится только после отдельного разрешения администратора для этого заказа и суммы.</p>
-      </section>}
-      {notice&&<div role="status" aria-live="polite" className="break-words"><Status>{notice}</Status></div>}
+      {quote&&<Button type="button" disabled={busy||!checkoutConfig} aria-describedby="proxy-purchase-reason" onClick={()=>void purchase()}>{busy?'Оформляем заказ…':'Купить за '+usd(quote.customer_total_usd)}</Button>}
       {error&&<p className="text-xs text-red-400">{error}</p>}
       <Link to="/tools/proxy/my" className="text-xs text-accentBrightGold">Мои прокси →</Link>
     </Card>
