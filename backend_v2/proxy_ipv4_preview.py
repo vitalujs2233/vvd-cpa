@@ -19,7 +19,7 @@ router = APIRouter(prefix="/tools-market/proxy-ipv4", tags=["Proxy-IPv4 preview"
 # Only IPv6 has a documented, reliable supplier order-to-proxy reference.
 SUPPORTED_PURCHASE_TYPES = ('ipv6',)
 CHECKOUT_DISABLED = 'Покупки временно недоступны. Проводится проверка системы выдачи.'
-UNVERIFIED_DELIVERY = 'Покупка этого типа временно недоступна: проверяется привязка прокси к заказу.'
+UNVERIFIED_DELIVERY = 'Покупка временно недоступна: поставщик не связывает выданные прокси с заказом. Безопасная автоматическая выдача ещё не подтверждена.'
 
 def purchases_enabled():
     return os.getenv("PROXY_IPV4_PURCHASES_ENABLED", "false").lower() == "true"
