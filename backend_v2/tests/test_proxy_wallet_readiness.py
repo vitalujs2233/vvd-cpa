@@ -2,7 +2,7 @@
 import os
 import asyncio
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import unittest
 from uuid import UUID, uuid4
 from decimal import Decimal as D
@@ -35,12 +35,21 @@ class ProxyWalletTests(unittest.TestCase):
                 proxy_ids_before jsonb, delivered_proxy_ids jsonb, provider_cost numeric, supplier_submitted_at timestamptz, provider_order_id text UNIQUE, status text NOT NULL DEFAULT 'prepared',
                 created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now(),
                 UNIQUE(telegram_id,request_id))'''))
+        with cls.db.begin() as c:
+            sql=(Path(__file__).parents[2]/'supabase/migrations/20261026103820_proxy_inventory_review.sql').read_text()
+            sql='\n'.join(line for line in sql.splitlines() if not line.lstrip().startswith('--'))
+            sql=sql.replace('CREATE TABLE ', 'CREATE TABLE IF NOT EXISTS ').replace('CREATE INDEX ', 'CREATE INDEX IF NOT EXISTS ')
+            for part in sql.split(';'):
+                if part.strip() and 'REVOKE ALL' not in part:c.execute(text(part))
     def setUp(self):
         ledger_fixture.LedgerTests.setUp(self)
         self.patch=patch.object(w,'engine',self.db);self.patch.start();self.addCleanup(self.patch.stop)
         self.oid=self.order()
     def tearDown(self):
-        with self.db.begin() as c:c.execute(text('DELETE FROM tool_proxy_order_intents WHERE telegram_id=:u'),dict(u=self.uid))
+        with self.db.begin() as c:
+            for table in ('tool_proxy_review_audit','tool_proxy_assignments','tool_proxy_reviews'):
+                c.execute(text(f'DELETE FROM {table} WHERE order_id IN (SELECT id FROM tool_proxy_order_intents WHERE telegram_id=:u)'),dict(u=self.uid))
+            c.execute(text('DELETE FROM tool_proxy_order_intents WHERE telegram_id=:u'),dict(u=self.uid))
     balances=ledger_fixture.LedgerTests.balances
     def order(self,amount='1.30'):
         oid=uuid4()
@@ -50,7 +59,7 @@ class ProxyWalletTests(unittest.TestCase):
     def mobile_fixture(self, count=1):
         # TEST ONLY: no live key, no network; eligibility override is scoped to mocks.
         kind=getattr(self,'fixture_proxy_type','mobile')
-        state={'paid':False,'calls':0,'cost':'26','balance':'100','visible':count,'failure':None}
+        state={'paid':False,'calls':0,'cost':'26','balance':'100','visible':count,'failure':None,'read_failure':False}
         receipt='mock-'+kind+'-'+str(uuid4())
         async def supplier(path,params):
             if path=='get/days':return {'days':[3]}
@@ -58,9 +67,11 @@ class ProxyWalletTests(unittest.TestCase):
             if path=='get/tariffs':return {'tariffs':[{'country':'GBR','mobileOperator':[{'name':'three_unitedkingdom','rotationTime':[0,5]}]}]}
             if path=='get/order/price':return {'amount':state['cost'],'currency':'USD','balance':state['balance']}
             if path=='get/proxies':
+                if state['read_failure']:raise HTTPException(502,'Temporary supplier failure')
+                now=datetime.now(timezone.utc)
                 items=[{'id':'old'}]
                 if state['paid']:
-                    items += [{'id':f'{kind}-{i}','country':'GBR','dateStart':datetime.now(timezone.utc).isoformat(),'ip':f'192.0.2.{i+1}','httpsPort':'8080','authInfo':{'login':'test-only','password':'test-only'}} for i in range(state['visible'])]
+                    items += [{'id':f'{kind}-{i}','country':'GBR','dateStart':now.isoformat(),'dateEnd':(now+timedelta(days=3)).isoformat(),'mobileOperator':'three_unitedkingdom','rotationTime':0,'ip':f'192.0.2.{i+1}','httpsPort':'8080','authInfo':{'login':'test-only','password':'test-only'}} for i in range(state['visible'])]
                 return {'proxies':items}
             raise AssertionError('Unexpected provider method')
         async def checkout(selection):
@@ -148,6 +159,52 @@ class ProxyWalletTests(unittest.TestCase):
                     self.assertEqual(self.balances(),(D('100'),D('0')))
                 finally:
                     with self.db.begin() as c:c.execute(text('DELETE FROM tool_proxy_order_intents WHERE id=:id'),dict(id=blocker))
+        asyncio.run(scenario())
+
+    def test_mobile_manual_approval_persists_and_replay_is_readonly(self):
+        import proxy_review_admin as admin
+        async def scenario():
+            with self.mobile_fixture() as (state,body),patch.object(admin,'authorized_admin',return_value=True),patch.object(admin,'require_telegram_id',return_value=999):
+                oid=UUID((await routes.prepare_order(body,'test'))['id'])
+                await routes.purchase_order(oid,'test')
+                report=await admin.inspect_order(oid,'test')
+                self.assertEqual(report['review']['reason'],'external_purchase_cannot_be_excluded')
+                ids=report['review']['candidate_ids']
+                approval=admin.Approval(evidence_ref='support-ticket:test',exclusive_account_confirmed=True,candidate_ids=ids)
+                await admin.approve_order(oid,approval,'test')
+                # Simulate a new handler/process: no in-memory assignment is consulted.
+                await admin.approve_order(oid,approval,'test')
+                result=await routes.order_proxies(oid,'test')
+                self.assertEqual(len(result['proxies']),1);self.assertFalse(result['delivery_pending'])
+                self.assertEqual(state['calls'],1);self.assertEqual(self.balances(),(D('66.20'),D('0')))
+                with self.db.connect() as c:
+                    self.assertEqual(c.execute(text('SELECT count(*) FROM tool_proxy_assignments WHERE order_id=:id'),dict(id=oid)).scalar(),1)
+                    self.assertEqual(c.execute(text("SELECT count(*) FROM tool_proxy_review_audit WHERE order_id=:id AND action='approved'"),dict(id=oid)).scalar(),1)
+                # Database uniqueness prevents assigning the same supplier ID twice.
+                with self.assertRaises(IntegrityError),self.db.begin() as c:
+                    c.execute(text('INSERT INTO tool_proxy_assignments(proxy_type,proxy_id,order_id) VALUES(:kind,:proxy,:id)'),dict(kind=body.proxy_type,proxy=ids[0],id=self.oid))
+        asyncio.run(scenario())
+
+    def test_mobile_timeout_review_survives_network_error_and_restart(self):
+        import proxy_review_admin as admin
+        async def scenario():
+            with self.mobile_fixture() as (state,body),patch.object(admin,'authorized_admin',return_value=True),patch.object(admin,'require_telegram_id',return_value=999):
+                oid=UUID((await routes.prepare_order(body,'test'))['id']);await routes.purchase_order(oid,'test')
+                state['visible']=0
+                with self.db.begin() as c:c.execute(text("UPDATE tool_proxy_order_intents SET supplier_submitted_at=now()-interval '16 minutes' WHERE id=:id"),dict(id=oid))
+                result=await routes.order_proxies(oid,'test');self.assertEqual(result['inventory_review']['reason'],'delivery_timeout')
+                state['read_failure']=True
+                with self.assertRaises(HTTPException):await routes.order_proxies(oid,'test')
+                with self.db.connect() as c:self.assertEqual(c.execute(text('SELECT state FROM tool_proxy_reviews WHERE order_id=:id'),dict(id=oid)).scalar(),'manual_review')
+                state['read_failure']=False;state['visible']=1
+                result=await routes.order_proxies(oid,'test');self.assertEqual(result['proxies'],[])
+                self.assertEqual(result['inventory_review']['state'],'manual_review')
+                self.assertEqual(state['calls'],1)
+                before=self.balances()
+                wrong=admin.Approval(evidence_ref='ticket:test',exclusive_account_confirmed=False,candidate_ids=['wrong'])
+                with self.assertRaises(HTTPException):await admin.approve_order(oid,wrong,'test')
+                self.assertEqual(before,self.balances())
+                with self.db.connect() as c:self.assertEqual(c.execute(text("SELECT count(*) FROM tool_proxy_review_audit WHERE order_id=:id AND action='approval_denied'"),dict(id=oid)).scalar(),1)
         asyncio.run(scenario())
 
     def test_checkout_delivery_replay_and_foreign_owner(self):
@@ -279,6 +336,8 @@ def _inventory_checkout_case(kind, scenario):
 # Exercise the same production checkout path for all types without opening its live gate.
 for _kind in ('ipv4','isp'):
     for _scenario in (
+        'manual_approval_persists_and_replay_is_readonly',
+        'timeout_review_survives_network_error_and_restart',
         'persisted_lane_blocks_other_owner_after_restart',
         'success_replay_and_unverified_inventory_never_delivered',
         'delayed_partial_and_external_inventory',
