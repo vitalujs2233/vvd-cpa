@@ -49,8 +49,9 @@ class ProxyWalletTests(unittest.TestCase):
     @contextmanager
     def mobile_fixture(self, count=1):
         # TEST ONLY: no live key, no network; eligibility override is scoped to mocks.
+        kind=getattr(self,'fixture_proxy_type','mobile')
         state={'paid':False,'calls':0,'cost':'26','balance':'100','visible':count,'failure':None}
-        receipt='mock-mobile-'+str(uuid4())
+        receipt='mock-'+kind+'-'+str(uuid4())
         async def supplier(path,params):
             if path=='get/days':return {'days':[3]}
             if path=='get/countries':return {'countries':[{'alpha3code':'GBR','name':'England'}]}
@@ -59,18 +60,22 @@ class ProxyWalletTests(unittest.TestCase):
             if path=='get/proxies':
                 items=[{'id':'old'}]
                 if state['paid']:
-                    items += [{'id':f'mobile-{i}','country':'GBR','dateStart':datetime.now(timezone.utc).isoformat(),'ip':f'192.0.2.{i+1}','httpsPort':'8080','authInfo':{'login':'test-only','password':'test-only'}} for i in range(state['visible'])]
+                    items += [{'id':f'{kind}-{i}','country':'GBR','dateStart':datetime.now(timezone.utc).isoformat(),'ip':f'192.0.2.{i+1}','httpsPort':'8080','authInfo':{'login':'test-only','password':'test-only'}} for i in range(state['visible'])]
                 return {'proxies':items}
             raise AssertionError('Unexpected provider method')
         async def checkout(selection):
             payload=routes.provider_order_payload(selection)
-            self.assertEqual(payload['mobileOperator'],'three_unitedkingdom');self.assertEqual(payload['rotationTime'],0)
+            self.assertEqual(payload['proxyType'],kind)
+            if kind=='mobile':
+                self.assertEqual(payload['mobileOperator'],'three_unitedkingdom');self.assertEqual(payload['rotationTime'],0)
+            else:
+                self.assertNotIn('mobileOperator',payload);self.assertNotIn('rotationTime',payload)
             state['calls']+=1;state['paid']=True
             if state['failure']:raise state['failure']
-            return {'success':True,'orderNumber':receipt,'currency':'USD','proxyType':'mobile'}
+            return {'success':True,'orderNumber':receipt,'currency':'USD','proxyType':kind}
         with self.db.begin() as c:c.execute(text('UPDATE tool_wallets SET available=100 WHERE telegram_id=:u'),dict(u=self.uid))
-        with patch.object(routes,'engine',self.db),patch.object(routes,'require_telegram_id',return_value=self.uid),patch.object(routes,'SUPPORTED_PURCHASE_TYPES',('ipv6','mobile')),patch.dict(os.environ,PROXY_IPV4_PURCHASES_ENABLED='true',PROXY_IPV4_MARKUP_PERCENT='30'),patch.object(routes,'provider',side_effect=supplier),patch.object(routes,'provider_checkout',side_effect=checkout):
-            body=routes.PrepareOrder(proxy_type='mobile',country='GBR',days=3,count=count,mobile_operator='three_unitedkingdom',rotation_time=0,request_id=uuid4())
+        with patch.object(routes,'engine',self.db),patch.object(routes,'require_telegram_id',return_value=self.uid),patch.object(routes,'SUPPORTED_PURCHASE_TYPES',('ipv6',kind)),patch.dict(os.environ,PROXY_IPV4_PURCHASES_ENABLED='true',PROXY_IPV4_MARKUP_PERCENT='30'),patch.object(routes,'provider',side_effect=supplier),patch.object(routes,'provider_checkout',side_effect=checkout):
+            body=routes.PrepareOrder(proxy_type=kind,country='GBR',days=3,count=count,mobile_operator='three_unitedkingdom' if kind=='mobile' else None,rotation_time=0 if kind=='mobile' else None,request_id=uuid4())
             yield state,body
 
     def test_mobile_success_replay_and_unverified_inventory_never_delivered(self):
@@ -126,6 +131,23 @@ class ProxyWalletTests(unittest.TestCase):
                     with self.assertRaises(HTTPException):await routes.purchase_order(oid,'test')
                 self.assertEqual(state['calls'],1);self.assertEqual(self.balances(),(D('66.20'),D('33.80')))
                 with self.assertRaises(HTTPException):w.release_reservation(self.uid,oid)
+        asyncio.run(scenario())
+
+    def test_mobile_persisted_lane_blocks_other_owner_after_restart(self):
+        async def scenario():
+            with self.mobile_fixture() as (state,body):
+                blocker=uuid4()
+                # No process lock is held: only the durable record from an earlier process remains.
+                with self.db.begin() as c:
+                    c.execute(text("INSERT INTO tool_proxy_order_intents(id,telegram_id,request_id,proxy_type,selection,quoted_amount,status) VALUES(:id,:u,:r,:kind,'{}',33.80,'uncertain')"),
+                              dict(id=blocker,u=self.uid+1000000000001,r=uuid4(),kind=body.proxy_type))
+                try:
+                    oid=UUID((await routes.prepare_order(body,'test'))['id'])
+                    with self.assertRaises(HTTPException):await routes.purchase_order(oid,'test')
+                    self.assertEqual(state['calls'],0)
+                    self.assertEqual(self.balances(),(D('100'),D('0')))
+                finally:
+                    with self.db.begin() as c:c.execute(text('DELETE FROM tool_proxy_order_intents WHERE id=:id'),dict(id=blocker))
         asyncio.run(scenario())
 
     def test_checkout_delivery_replay_and_foreign_owner(self):
@@ -245,3 +267,23 @@ class ProxyPurchaseGateTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(routes,'require_telegram_id',return_value=42),patch.object(routes,'provider',side_effect=supplier),patch.dict(os.environ,PROXY_IPV4_MARKUP_PERCENT='30'):
             for kind in ['ipv4','ipv6','isp']:
                 self.assertEqual((await routes.quote(routes.Quote(proxy_type=kind,country='GBR',days=30,count=10),'test'))['customer_total_usd'],'13.00')
+
+
+def _inventory_checkout_case(kind, scenario):
+    """Give each type/scenario an independent unittest setup and disposable wallet."""
+    def run(self):
+        self.fixture_proxy_type=kind
+        scenario(self)
+    return run
+
+# Exercise the same production checkout path for all types without opening its live gate.
+for _kind in ('ipv4','isp'):
+    for _scenario in (
+        'persisted_lane_blocks_other_owner_after_restart',
+        'success_replay_and_unverified_inventory_never_delivered',
+        'delayed_partial_and_external_inventory',
+        'price_change_and_insufficient_balances_no_paid_call',
+        'provider_timeout_retains_reserve_and_blocks_replay',
+    ):
+        setattr(ProxyWalletTests, f'test_{_kind}_{_scenario}',
+                _inventory_checkout_case(_kind, getattr(ProxyWalletTests, f'test_mobile_{_scenario}')))
