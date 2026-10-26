@@ -2,7 +2,7 @@
 import React from 'react';
 import {createRoot} from 'react-dom/client';
 import '../src/index.css';
-import {MemoryRouter} from 'react-router-dom';
+import {MemoryRouter,Routes,Route} from 'react-router-dom';
 import {ToolsProxy} from '../src/pages/tools/MarketplacePages';
 import {ProxyOrders} from '../src/pages/tools/ProxyOrders';
 import {marketApi} from '../src/pages/tools/marketApi';
@@ -17,6 +17,10 @@ if(mobile){
   marketApi.proxyIpv4CheckoutConfig=async()=>({purchases_enabled:true,supported_purchase_types:['ipv6'],unsupported_reason:'Покупка временно недоступна: поставщик не связывает выданные прокси с заказом. Безопасная автоматическая выдача ещё не подтверждена.'});
   marketApi.proxyIpv4Catalog=async type=>({type,minimum_count:1,purchases_enabled:false,data:{countries:[{code:'GBR',name:'England'}],days:[3],tariffs:[{country:'GBR',mobileOperator:[{name:'three_unitedkingdom',rotationTime:[0]}]}]}});
   marketApi.proxyIpv4Quote=async()=>({customer_total_usd:'33.80',purchases_enabled:false});
-  marketApi.proxyIpv4Prepare=async()=>{throw new Error('Orders forbidden in fixture');};
+  marketApi.proxyIpv4Prepare=async selection=>{
+    const prepared={...order,id:'11111111-1111-4111-8111-111111111111',proxy_type:selection.proxy_type,selection:{country:selection.country,days:selection.days,count:selection.count},amount_usd:'33.80',status:'prepared'};
+    marketApi.proxyIpv4Orders=async()=>({orders:[prepared],purchases_enabled:false});
+    return {id:prepared.id,status:'prepared',customer_total_usd:'33.80'};
+  };
 }
-createRoot(document.getElementById('root')!).render(mobile?<MemoryRouter><ToolsProxy/></MemoryRouter>:<main className="flex flex-col gap-4 p-4 pb-12"><p className="text-xs text-textSecondary">Тестовые данные · без покупки</p><h1 className="text-xl font-bold">Мои прокси</h1><ProxyOrders/></main>);
+createRoot(document.getElementById('root')!).render(mobile?<MemoryRouter><Routes><Route path="/" element={<ToolsProxy/>}/><Route path="/tools/proxy/my" element={<main className="p-4"><h1>Мои прокси</h1><ProxyOrders/></main>}/></Routes></MemoryRouter>:<main className="flex flex-col gap-4 p-4 pb-12"><p className="text-xs text-textSecondary">Тестовые данные · без покупки</p><h1 className="text-xl font-bold">Мои прокси</h1><ProxyOrders/></main>);

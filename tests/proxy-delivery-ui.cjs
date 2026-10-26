@@ -36,6 +36,9 @@ test('in-flight proxy reads deduplicate and reject data from an old Telegram ses
 });
 
 test('enabled global gate cannot enable unsupported order types',async()=>{const f=await mount({proxyIpv4CheckoutConfig:async()=>({purchases_enabled:true,supported_purchase_types:['ipv6']})},[{...order,status:'prepared'}]);const buy=f.view.root.findAllByType('button').find(b=>JSON.stringify(b.props.children).includes('Купить за'));assert.ok(buy.props.disabled);assert.ok(f.text().includes('Проводится проверка системы выдачи'));f.close();});
+test('prepared control order explains unpaid status and next authorization step',async()=>{
+ const f=await mount({},[{...order,status:'prepared'}]);assert.ok(f.text().includes('Заказ подготовлен без оплаты'));assert.ok(f.text().includes('Средства не зарезервированы и не списаны'));assert.ok(f.text().includes('Ожидает отдельного разрешения администратора'));assert.ok(f.text().includes(order.id));f.close();
+});
 
 
 test('one-order permit enables only its control purchase and forwards UUID',async()=>{

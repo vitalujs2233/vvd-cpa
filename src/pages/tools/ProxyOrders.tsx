@@ -118,7 +118,7 @@ export function ProxyOrders() {
         {d?.inventory_review&&<p className="text-xs text-textSecondary">{d.inventory_review.state==='waiting'?'Поставщик пока не показал новые прокси.':d.inventory_review.state==='partial'?'В инвентаре появились не все прокси. Принадлежность заказу ещё проверяется.':'Нужна ручная проверка принадлежности прокси заказу.'}</p>}
         {d?.verification_required&&<p className="text-xs text-textSecondary">Ожидаем подтверждение привязки прокси к заказу.</p>}
         {errors[o.id]&&<p role="alert" className="text-xs text-textSecondary">{errors[o.id]}</p>}
-        {o.status==='prepared'&&!o.control_id&&!checkout.includes(o.proxy_type)&&<p className="text-xs text-textSecondary">{checkoutReason}</p>}
+        {o.status==='prepared'&&!o.control_id&&!checkout.includes(o.proxy_type)&&<div role="status" className="text-xs leading-5 text-textSecondary"><p>Заказ подготовлен без оплаты. Средства не зарезервированы и не списаны.</p><p>Ожидает отдельного разрешения администратора для UUID и суммы этого заказа. После разрешения нажмите «Обновить» — появится кнопка контрольной покупки.</p><p>Обычная покупка заблокирована. {checkoutReason}</p></div>}
         {o.status==='prepared'&&<Button type="button" size="sm" disabled={busy||(!o.control_id&&!checkout.includes(o.proxy_type))} onClick={()=>purchase(o)}>{o.control_id?'Контрольная покупка за ':'Купить за '}{usd(o.amount_usd)}</Button>}
         {o.status==='fulfilled'&&<Button type="button" size="sm" aria-expanded={!!opened[o.id]} onClick={()=>setOpened(v=>({...v,[o.id]:!v[o.id]}))}>{opened[o.id]?'Скрыть прокси':'Посмотреть мои прокси'}</Button>}
         {o.status==='fulfilled'&&opened[o.id]&&d?.proxies.map((p,i)=><ProxyCard key={p.id} proxy={p} index={i}/>)}
