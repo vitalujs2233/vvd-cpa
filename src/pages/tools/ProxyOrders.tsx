@@ -103,7 +103,6 @@ export function ProxyOrders() {
     void run(true);
     return()=>{active=false;clearTimeout(timer);};
   },[]);
-  const purchase=(o:Order)=>{if((o.control_id||checkout.includes(o.proxy_type))&&window.confirm('Подтвердить '+(o.control_id?'однократную контрольную покупку':'покупку прокси')+' за '+usd(o.amount_usd)+'? Средства будут списаны с баланса инструментов.'))void purchaseRef.current(o.id,o.control_id||undefined);};
   return <>
     {error&&<p role="alert" className={box}>{error}</p>}
     {!loaded&&busy&&<p className="text-sm text-textSecondary">Загружаем заказы…</p>}
@@ -125,7 +124,7 @@ export function ProxyOrders() {
         {errors[o.id]&&<p role="alert" className="text-xs text-textSecondary">{errors[o.id]}</p>}
         {o.status==='prepared'&&!o.control_id&&!checkout.includes(o.proxy_type)&&<div className="text-xs leading-5 text-textSecondary"><p>Заказ подготовлен без оплаты. Средства не зарезервированы и не списаны.</p><p>Ожидает отдельного разрешения администратора для UUID и суммы этого заказа. Статус обновляется автоматически; при паузе нажмите «Обновить».</p><p>Платная покупка заблокирована. {checkoutReason}</p></div>}
         {o.status==='prepared'&&o.control_id&&<p className="text-xs leading-5 text-textSecondary">Одноразовая контрольная операция разрешена сервером. Следующее подтверждение спишет указанную сумму с баланса инструментов.</p>}
-        {o.status==='prepared'&&<Button type="button" size="sm" disabled={busy||(!o.control_id&&!checkout.includes(o.proxy_type))} onClick={()=>purchase(o)}>{o.control_id?'Контрольная покупка за ':'Купить за '}{usd(o.amount_usd)}</Button>}
+        {o.status==='prepared'&&<p className="text-xs text-textSecondary">Заявка не оплачена. Для новой покупки вернитесь в раздел «Прокси» и нажмите «Купить» один раз.</p>}
         {o.status==='fulfilled'&&<Button type="button" size="sm" aria-expanded={!!opened[o.id]} onClick={()=>setOpened(v=>({...v,[o.id]:!v[o.id]}))}>{opened[o.id]?'Скрыть прокси':'Посмотреть мои прокси'}</Button>}
         {o.status==='fulfilled'&&opened[o.id]&&d?.proxies.map((p,i)=><ProxyCard key={p.id} proxy={p} index={i}/>)}
       </Card>;
