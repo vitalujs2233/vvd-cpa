@@ -47,6 +47,9 @@ class ProxyWalletTests(unittest.TestCase):
             sql=sql.replace('CREATE TABLE ', 'CREATE TABLE IF NOT EXISTS ')
             for part in sql.split(';'):
                 if part.strip() and 'REVOKE ALL' not in part:c.execute(text(part))
+        with cls.db.begin() as c:
+            if not c.execute(text("SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='tool_proxy_order_intents' AND column_name='fulfillment_authority'")).first():
+                c.exec_driver_sql((Path(__file__).parents[2]/'supabase/migrations/20261026141734_proxy_production_authority.sql').read_text())
     def setUp(self):
         ledger_fixture.LedgerTests.setUp(self)
         self.patch=patch.object(w,'engine',self.db);self.patch.start();self.addCleanup(self.patch.stop)

@@ -77,13 +77,29 @@ def revoke_permit(order_id: UUID,x_telegram_init_data: str | None=Header(default
 
 
 def begin_controlled(conn, owner, oid, permit_id, before, cost):
+    return begin_submission(conn,owner,oid,before,cost,permit_id=permit_id)
+
+
+def begin_production(conn, owner, oid, before, cost):
+    return begin_submission(conn,owner,oid,before,cost)
+
+
+def begin_submission(conn, owner, oid, before, cost, permit_id=None):
     # Caller holds the per-type session lock. Permit, reservation and submission
     # marker commit together BEFORE the only outbound paid call.
     conn.execute(text('SELECT pg_advisory_xact_lock(:owner)'),dict(owner=owner))
     order=conn.execute(text('SELECT * FROM tool_proxy_order_intents WHERE id=:id AND telegram_id=:owner FOR UPDATE'),dict(id=oid,owner=owner)).mappings().first()
     if not order or order['status']!='prepared':raise HTTPException(409,'Заказ уже отправлен или закрыт')
-    permit=eligible_permit(conn,oid,permit_id,order['quoted_amount'],lock=True)
-    if not cost.is_finite() or cost<=0 or cost>permit['max_amount_usd']:
+    authorization=None
+    if permit_id is not None:
+        permit=eligible_permit(conn,oid,permit_id,order['quoted_amount'],lock=True)
+        cap=permit['max_amount_usd']
+    else:
+        from proxy_production import authority
+        authorization=authority(order['proxy_type'])
+        if authorization is None:raise HTTPException(503,'Производственные покупки не допущены после финансовой приёмки')
+        cap=order['quoted_amount']
+    if not cost.is_finite() or cost<=0 or cost>cap:
         raise HTTPException(409,'Стоимость поставщика превышает разрешение')
     pending=conn.execute(text("SELECT 1 FROM tool_proxy_order_intents WHERE telegram_id=:owner AND id<>:id AND status IN ('reserved','submitting','uncertain') LIMIT 1"),dict(owner=owner,id=oid)).first()
     if pending:raise HTTPException(409,'Есть незавершённая оплата')
@@ -91,10 +107,14 @@ def begin_controlled(conn, owner, oid, permit_id, before, cost):
         WHERE telegram_id=:owner AND available>=:amount AND refund_debt=0 RETURNING telegram_id'''),dict(owner=owner,amount=order['quoted_amount'])).first()
     if not wallet:raise HTTPException(409,'Недостаточно доступных средств')
     conn.execute(text('''UPDATE tool_proxy_order_intents SET status='submitting',provider_cost=:cost,
-        proxy_ids_before=CAST(:before AS jsonb),supplier_submitted_at=now(),updated_at=now() WHERE id=:id'''),
-        dict(id=oid,cost=cost,before=json.dumps(sorted(before))))
-    conn.execute(text('UPDATE tool_proxy_control_permits SET consumed_at=now() WHERE order_id=:id'),dict(id=oid))
-    audit(conn,oid,owner,'control_submission_started',{'permit_id':str(permit_id),'amount':str(order['quoted_amount'])})
+        proxy_ids_before=CAST(:before AS jsonb),fulfillment_authority=CAST(:authority AS jsonb),
+        supplier_submitted_at=now(),updated_at=now() WHERE id=:id'''),
+        dict(id=oid,cost=cost,before=json.dumps(sorted(before)),authority=json.dumps(authorization) if authorization else None))
+    if permit_id is not None:
+        conn.execute(text('UPDATE tool_proxy_control_permits SET consumed_at=now() WHERE order_id=:id'),dict(id=oid))
+        audit(conn,oid,owner,'control_submission_started',{'permit_id':str(permit_id),'amount':str(order['quoted_amount'])})
+    else:
+        audit(conn,oid,owner,'production_submission_started',dict(authorization,amount=str(order['quoted_amount'])))
 
 
 def resolve(conn, order, body, actor):
