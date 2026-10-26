@@ -30,7 +30,7 @@ class ProxyWalletTests(unittest.TestCase):
             c.execute(text('''CREATE TABLE IF NOT EXISTS tool_proxy_order_intents (
                 id uuid PRIMARY KEY DEFAULT gen_random_uuid(), telegram_id bigint NOT NULL, request_id uuid NOT NULL,
                 proxy_type text NOT NULL, selection jsonb NOT NULL, quoted_amount numeric NOT NULL,
-                provider_cost numeric, supplier_submitted_at timestamptz, provider_order_id text UNIQUE, status text NOT NULL DEFAULT 'prepared',
+                proxy_ids_before jsonb, delivered_proxy_ids jsonb, provider_cost numeric, supplier_submitted_at timestamptz, provider_order_id text UNIQUE, status text NOT NULL DEFAULT 'prepared',
                 created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now(),
                 UNIQUE(telegram_id,request_id))'''))
     def setUp(self):
