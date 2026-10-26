@@ -25,24 +25,15 @@ const fs=require('node:fs');
       for(const kind of ['ipv4','isp','mobile']){
       await page.goto('http://127.0.0.1:3011/vvd-cpa/tests/proxy-delivery-preview.html?mobile');
       await page.getByLabel('Тип прокси').selectOption(kind);
-      const prepare=page.getByRole('button',{name:'Подготовить контрольный заказ без оплаты',exact:true});
-      await prepare.waitFor();assert.equal(await prepare.isDisabled(),true);
+      await page.getByText(/Контрольный режим/).waitFor();
       await page.getByRole('button',{name:'Рассчитать цену'}).click();
-      const buy=page.getByRole('button',{name:'Купить за $33.80'});
-      await buy.waitFor();assert.equal(await buy.isDisabled(),true);
-      await page.getByText(/Обычная покупка заблокирована/).waitFor();
-      assert.equal(await prepare.isDisabled(),false);
-      await prepare.click();
-      await page.getByRole('status').filter({hasText:'Контрольный заказ подготовлен:'}).waitFor();
-      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'mobile checkout overflow');
-      await page.screenshot({path:`proxy-screenshots/${kind}-checkout-${width}.png`,fullPage:true});
-      assert.deepEqual(errors,[]);
-      await page.getByRole('link',{name:'Мои прокси →'}).click();
+      await page.getByRole('button',{name:'Купить за $33.80'}).click();
       await page.getByText('Заказ подготовлен без оплаты. Средства не зарезервированы и не списаны.').waitFor();
       assert.equal(await page.getByRole('button',{name:'Купить за $33.80'}).isDisabled(),true);
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
       await page.screenshot({path:`proxy-screenshots/${kind}-prepared-${width}.png`,fullPage:true});
-      console.log(`PASS ${width}px ${kind}: visible preparation, unpaid order status, purchase disabled`);
+      assert.deepEqual(errors,[]);
+      console.log(`PASS ${width}px ${kind}: Buy opens the unpaid order, paid action disabled`);
       }
       await page.close();
     }

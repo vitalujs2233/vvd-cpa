@@ -11,6 +11,8 @@ on:
       - 'src/pages/tools/marketApi.ts'
       - 'src/pages/tools/MarketplacePages.tsx'
       - 'scripts/proxy_verification_process.py'
+      - 'scripts/proxy_ui_test_server.py'
+      - 'tests/proxy-unified*'
       - 'tests/proxy-process*'
       - '.github/workflows/proxy-verification-process.yml'
 permissions:
@@ -55,6 +57,7 @@ jobs:
           node tests/proxy-process-browser.cjs
           cp tests/proxy-controlled-results.json tests/proxy-process-results.json
           PROXY_EXPECT_SCENARIOS=3 node tests/proxy-process-browser.cjs
+          node tests/proxy-unified-browser.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -63,3 +66,5 @@ jobs:
             tests/proxy-process-results.json
             tests/proxy-controlled-results.json
             proxy-process-screenshots/*.png
+            proxy-process-screenshots/*.json
+            proxy-process-screenshots/*.log
