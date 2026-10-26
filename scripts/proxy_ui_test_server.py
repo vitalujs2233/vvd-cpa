@@ -36,7 +36,12 @@ stack = ExitStack()
 state, _ = stack.enter_context(fixture.mobile_fixture(count=2))
 state['visible'] = 0
 stack.enter_context(patch.object(routes, 'SUPPORTED_PURCHASE_TYPES', ('ipv6',)))
-stack.enter_context(patch.dict(os.environ, PROXY_IPV4_PURCHASES_ENABLED='false'))
+if os.getenv('PROXY_TEST_MODE')=='production':
+    stack.enter_context(patch.dict(os.environ, PROXY_IPV4_PURCHASES_ENABLED='true',
+        PROXY_IPV4_PRODUCTION_TYPES=kind, PROXY_IPV4_EXCLUSIVE_ACCOUNT_CONFIRMED='true',
+        PROXY_IPV4_FINANCIAL_ACCEPTANCE_REF='ci:production-acceptance'))
+else:
+    stack.enter_context(patch.dict(os.environ, PROXY_IPV4_PURCHASES_ENABLED='false'))
 stack.enter_context(patch.object(routes, 'urlopen', side_effect=AssertionError('Live network forbidden')))
 stack.enter_context(patch.object(control, 'admin', return_value=999))
 with fixture.db.begin() as conn:
@@ -72,8 +77,9 @@ async def inventory(count: int):
 def report():
     with fixture.db.connect() as conn:
         transactions=conn.execute(text("SELECT count(*) FROM tool_transactions WHERE telegram_id=:u AND kind='purchase'"), {'u':fixture.uid}).scalar()
+        permits=conn.execute(text('SELECT count(*) FROM tool_proxy_control_permits p JOIN tool_proxy_order_intents o ON o.id=p.order_id WHERE o.telegram_id=:u'), {'u':fixture.uid}).scalar()
     return {'mock_only':True, 'supplier_calls':state['calls'], 'balances':[str(x) for x in fixture.balances()],
-            'purchase_transactions':transactions, 'orders':routes.proxy_orders('test')['orders']}
+            'purchase_transactions':transactions, 'permits':permits, 'orders':routes.proxy_orders('test')['orders']}
 
 @app.post('/test/reconnect')
 def reconnect():

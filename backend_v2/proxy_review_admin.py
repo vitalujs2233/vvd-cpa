@@ -40,7 +40,8 @@ async def inspect_order(order_id: UUID,x_telegram_init_data: str | None=Header(d
         order=locked_order(conn,order_id)
         try:
             items=routes.proxy_items(await routes.provider('get/proxies',{'proxyType':order['proxy_type']}))
-            report=review(conn,order,items)
+            from proxy_production import saved_authority
+            report=review(conn,order,items,exclusive=bool(saved_authority(order)))
         except HTTPException:
             report={'state':'manual_review','reason':'supplier_unavailable','candidate_ids':[], 'can_deliver':False,'checks':{}}
         report=save_review(conn,order,report)

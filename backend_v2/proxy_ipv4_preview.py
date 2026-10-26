@@ -1,4 +1,4 @@
-"""Proxy-IPv4 integration: read-only routes; purchasing gated pending verification."""
+"""Proxy-IPv4 catalogue, authorized checkout and durable supplier fulfilment."""
 import asyncio
 import json
 import os
@@ -19,15 +19,19 @@ router = APIRouter(prefix="/tools-market/proxy-ipv4", tags=["Proxy-IPv4 preview"
 # Only IPv6 has a documented, reliable supplier order-to-proxy reference.
 SUPPORTED_PURCHASE_TYPES = ('ipv6',)
 CHECKOUT_DISABLED = 'Покупки временно недоступны. Проводится проверка системы выдачи.'
-UNVERIFIED_DELIVERY = 'Покупка временно недоступна: поставщик не связывает выданные прокси с заказом. Безопасная автоматическая выдача ещё не подтверждена.'
+UNVERIFIED_DELIVERY = 'Покупка этого типа не активирована: требуется финансовая приёмка и разрешение производственных операций.'
 
 def purchases_enabled():
     return os.getenv("PROXY_IPV4_PURCHASES_ENABLED", "false").lower() == "true"
 
 def purchase_reason(kind):
     if not purchases_enabled(): return CHECKOUT_DISABLED
-    if kind not in SUPPORTED_PURCHASE_TYPES: return UNVERIFIED_DELIVERY
+    if kind not in supported_purchase_types(): return UNVERIFIED_DELIVERY
     return None
+
+def supported_purchase_types():
+    from proxy_production import enabled_types
+    return tuple(dict.fromkeys((*SUPPORTED_PURCHASE_TYPES,*enabled_types())))
 
 class Quote(BaseModel):
     proxy_type: str
@@ -354,7 +358,7 @@ def detect_delivery(before: set[str], after: list[dict], selection: dict) -> set
 
 @router.post("/orders/{order_id}/purchase")
 async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Header(default=None), control_id: UUID | None = None):
-    """One-shot checkout, disabled by default until supplier fulfilment is verified."""
+    """One-shot real checkout, requiring server admission or a scoped permit."""
     uid = require_telegram_id(x_telegram_init_data)
     if control_id is None and not purchases_enabled():
         raise HTTPException(503, CHECKOUT_DISABLED)
@@ -435,6 +439,9 @@ async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Head
         if control_id is not None:
             from proxy_control import begin_controlled
             with engine.begin() as conn:begin_controlled(conn,uid,order_id,control_id,before,cost)
+        elif kind not in SUPPORTED_PURCHASE_TYPES:
+            from proxy_control import begin_production
+            with engine.begin() as conn:begin_production(conn,uid,order_id,before,cost)
         else:
             reserve_order(uid,order_id)
             if kind != "ipv6":
@@ -454,7 +461,14 @@ async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Head
             response = await provider_checkout(selection)
             if response.get("success") is not True:
                 raise ValueError("Unconfirmed supplier response")
-            number = str(response["orderNumber"])
+            raw_number=response.get('orderNumber')
+            if isinstance(raw_number,bool) or not isinstance(raw_number,(str,int)):
+                raise ValueError('Missing supplier receipt')
+            number=str(raw_number).strip()
+            if not number or len(number)>200 or (isinstance(raw_number,int) and raw_number<=0):
+                raise ValueError('Invalid supplier receipt')
+            if response.get('currency','USD')!='USD' or response.get('proxyType',kind)!=kind:
+                raise ValueError('Supplier receipt parameters do not match')
         except Exception:
             try:
                 mark_uncertain(uid,order_id)
@@ -462,6 +476,10 @@ async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Head
                 pass
             raise HTTPException(409,"Результат покупки неизвестен, резерв сохранён. Повтор запрещён")
         try:
+            from proxy_ipv4_wallet import record_confirmed_supplier_order
+            # Persist the verified receipt before settlement, so a restart can
+            # finish accounting without another supplier POST.
+            record_confirmed_supplier_order(uid,order_id,number)
             settled = confirm_fulfilled(uid,order_id,number)
         except Exception:
             try:
@@ -486,7 +504,7 @@ async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Head
 def checkout_config(x_telegram_init_data: str | None = Header(default=None)):
     require_telegram_id(x_telegram_init_data)
     enabled = purchases_enabled()
-    return {"purchases_enabled": enabled, "supported_purchase_types": list(SUPPORTED_PURCHASE_TYPES),
+    return {"purchases_enabled": enabled, "supported_purchase_types": list(supported_purchase_types()),
             "reason": None if enabled else CHECKOUT_DISABLED, "unsupported_reason": UNVERIFIED_DELIVERY}
 
 
@@ -559,7 +577,9 @@ async def order_proxies(order_id: UUID, x_telegram_init_data: str | None = Heade
 @router.on_event("startup")
 async def log_purchase_gate():
     import logging
+    from proxy_production import enabled_types
     logging.getLogger(__name__).info("Proxy purchases enabled=%s", os.getenv("PROXY_IPV4_PURCHASES_ENABLED", "false").lower() == "true")
+    logging.getLogger(__name__).info("Proxy production purchase types=%s", list(enabled_types()))
 
 
 @router.on_event("startup")

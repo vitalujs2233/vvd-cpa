@@ -2,6 +2,8 @@ const {chromium}=require('playwright');
 const {spawn}=require('node:child_process');
 const fs=require('node:fs'),assert=require('node:assert/strict');
 const host='http://127.0.0.1:3012';
+const production=process.env.PROXY_TEST_MODE==='production';
+const mode=production?'production':'control';
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 async function api(path,post=false){const r=await fetch(host+path,{method:post?'POST':'GET'});assert.equal(r.status,200,await r.clone().text());return r.json();}
 (async()=>{
@@ -25,10 +27,9 @@ async function api(path,post=false){const r=await fetch(host+path,{method:post?'
    await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent==='Обновить'&&!b.disabled));
    let report=await api('/test/report');assert.equal(report.orders.length,1);assert.equal(report.supplier_calls,0);assert.equal(report.balances[0],'100.00');
    const id=report.orders[0].id;
-   // Test-only operator grants a real permit in the disposable DB; production stays closed.
-   await api('/test/permit/'+id,true);
-   await page.clock.fastForward(10000);
-   const pay=page.getByRole('button',{name:'Контрольная покупка за $33.80'});await pay.waitFor();
+   // Ordinary production path must work with no control permit or control_id.
+   if(!production){await api('/test/permit/'+id,true);await page.clock.fastForward(10000);}
+   const pay=page.getByRole('button',{name:production?'Купить за $33.80':'Контрольная покупка за $33.80'});await pay.waitFor();
    page.once('dialog',d=>d.accept());await pay.click();
    await page.getByText('Статус заказа: Ожидает выдачи',{exact:true}).waitFor();
    await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent==='Обновить'&&!b.disabled));
@@ -44,12 +45,13 @@ async function api(path,post=false){const r=await fetch(host+path,{method:post?'
    assert.equal(await page.getByRole('region').count(),2);
    await page.getByText('192.0.2.1',{exact:true}).waitFor();
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
-   await page.screenshot({path:`proxy-process-screenshots/${kind}-unified.png`,fullPage:true});
+   await page.screenshot({path:`proxy-process-screenshots/${kind}-${mode}.png`,fullPage:true});
    await page.reload();await page.getByRole('link',{name:'Мои прокси →'}).click();
    await page.getByText('Статус заказа: Выдан',{exact:true}).waitFor();
    await page.getByText('ID заказа: '+id,{exact:true}).waitFor();
    report=await api('/test/report');assert.equal(report.supplier_calls,1);assert.equal(report.purchase_transactions,1);assert.equal(report.orders.length,1);assert.equal(report.balances[0],'66.20');assert.equal(report.balances[1],'0.00');assert.deepEqual(errors,[]);
-   evidence.push({kind,order_id:id,...report});console.log(`PASS ${kind}: Buy → real prepare/permit/payment handlers → delayed/partial supplier mock → auto cards → reload; one test debit`);
+   assert.equal(report.permits,production?0:1);
+   evidence.push({kind,mode,order_id:id,...report});console.log(`PASS ${kind} ${mode}: Buy → real prepare/payment handlers → delayed/partial supplier mock → auto cards → reload; one test debit, permits=${report.permits}`);
   }finally{if(page)await page.close();server.kill('SIGTERM');if(server.exitCode===null)await new Promise(r=>server.once('exit',r));fs.closeSync(log);}
- }}finally{await browser.close();fs.writeFileSync('proxy-process-screenshots/unified-results.json',JSON.stringify({mock_only:true,scenarios:evidence},null,2));}
+ }}finally{await browser.close();fs.writeFileSync(`proxy-process-screenshots/${mode}-results.json`,JSON.stringify({mock_only:true,scenarios:evidence},null,2));}
 })().catch(e=>{console.error(e);process.exit(1)});

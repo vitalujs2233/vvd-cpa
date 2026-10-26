@@ -4,9 +4,10 @@ import logging
 from datetime import datetime, timezone
 from sqlalchemy import text
 from fastapi import HTTPException
-from proxy_review_store import review, save_review, approved_ids, assign
+from proxy_review_store import review, save_review, approved_ids, assign, audit
 from proxy_delivery import connection_data
 from proxy_inventory_review import REVIEW_WAIT_SECONDS, timestamp
+from proxy_production import saved_authority
 
 
 async def refresh_delivery(order_id, owner=None):
@@ -19,6 +20,7 @@ async def refresh_delivery(order_id, owner=None):
         if order['status']!='fulfilled' or not order['provider_order_id']:
             raise HTTPException(409,'Заказ ещё не подтверждён')
         permit=conn.execute(text('SELECT permit_id,evidence_ref FROM tool_proxy_control_permits WHERE order_id=:id AND consumed_at IS NOT NULL'),dict(id=order_id)).mappings().first()
+        production=saved_authority(order)
         expected=order['selection']['count'];matches=[];proxies=[];report=None;error=None
         try:
             items=routes.proxy_items(await routes.provider('get/proxies',{'proxyType':order['proxy_type']}))
@@ -28,11 +30,12 @@ async def refresh_delivery(order_id, owner=None):
                 if len(matches)!=len({str(p.get('id')) for p in matches}):matches=[]
                 proxies=connection_data(matches)
             else:
-                report=review(conn,order,items,exclusive=bool(permit))
+                report=review(conn,order,items,exclusive=bool(permit or production))
                 previous=conn.execute(text('SELECT state FROM tool_proxy_reviews WHERE order_id=:id'),dict(id=order_id)).scalar()
                 if report['can_deliver'] and previous!='manual_review':
                     if len(connection_data([p for p in items if str(p.get('id')) in report['candidate_ids']]))==expected:
-                        assign(conn,order,items,report,None,'control:'+str(permit['permit_id']))
+                        evidence='production:'+production['financial_acceptance_ref'] if production else 'control:'+str(permit['permit_id'])
+                        assign(conn,order,items,report,None,evidence)
                         matches=[p for p in items if str(p.get('id')) in report['candidate_ids']]
                         proxies=connection_data(matches)
                         report=dict(report,state='approved')
@@ -60,9 +63,10 @@ async def sweep_once():
     # Durable source of work. Never sends POST /order, releases a reserve, or retries payment.
     with routes.engine.connect() as conn:
         ids=conn.execute(text('''SELECT o.id FROM tool_proxy_order_intents o
-            JOIN tool_proxy_control_permits p ON p.order_id=o.id AND p.consumed_at IS NOT NULL
+            LEFT JOIN tool_proxy_control_permits p ON p.order_id=o.id AND p.consumed_at IS NOT NULL
             LEFT JOIN tool_proxy_reviews r ON r.order_id=o.id
             WHERE o.status IN ('fulfilled','submitting','uncertain')
+              AND (p.permit_id IS NOT NULL OR o.fulfillment_authority->>'mode'='production')
               AND coalesce(r.state,'') NOT IN ('approved','manual_review')
             ORDER BY o.supplier_submitted_at LIMIT 50''')).scalars().all()
     for oid in ids:
@@ -71,15 +75,23 @@ async def sweep_once():
                 from proxy_review_admin import locked_order
                 order=locked_order(conn,oid)
                 if order['status'] in ('submitting','uncertain'):
-                    start=timestamp(order['supplier_submitted_at'])
-                    if start is None or (datetime.now(timezone.utc)-start).total_seconds()>=REVIEW_WAIT_SECONDS:
-                        conn.execute(text("UPDATE tool_proxy_order_intents SET status='uncertain',updated_at=now() WHERE id=:id"),dict(id=oid))
-                        save_review(conn,order,dict(state='manual_review',reason='payment_outcome_unknown',candidate_ids=[],checks={},can_deliver=False))
-                    continue
+                    if order['provider_order_id']:
+                        from proxy_ipv4_wallet import settle_in_transaction
+                        settle_in_transaction(conn,order['telegram_id'],oid,order['provider_order_id'])
+                        audit(conn,oid,None,'payment_recovered',{'orderNumber':order['provider_order_id']})
+                        order=dict(order,status='fulfilled')
+                    else:
+                        start=timestamp(order['supplier_submitted_at'])
+                        if start is None or (datetime.now(timezone.utc)-start).total_seconds()>=REVIEW_WAIT_SECONDS:
+                            conn.execute(text("UPDATE tool_proxy_order_intents SET status='uncertain',updated_at=now() WHERE id=:id"),dict(id=oid))
+                            save_review(conn,order,dict(state='manual_review',reason='payment_outcome_unknown',candidate_ids=[],checks={},can_deliver=False))
+                        continue
                 if order['status']!='fulfilled':continue
             await refresh_delivery(oid)
         except HTTPException:
             pass  # Busy lane/outage persists safely and is retried on the next read cycle.
+        except Exception:
+            logging.getLogger(__name__).error('Proxy order recovery failed; reserve and durable state retained')
 
 
 async def fulfillment_loop():
