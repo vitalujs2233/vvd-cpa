@@ -568,3 +568,14 @@ async def verify_mobile_catalogue():
 # Reuses this module's provider and existing Telegram administrator authorization.
 from proxy_review_admin import router as review_admin_router
 router.include_router(review_admin_router)
+
+
+@router.on_event("startup")
+async def verify_inventory_schema():
+    """Read-only live schema probe; no snapshots, assignments or wallet writes."""
+    if getattr(router, '_inventory_probe_done', False): return
+    router._inventory_probe_done = True
+    from proxy_inventory_probe import probe_inventory
+    import logging
+    for report in await probe_inventory(provider):
+        logging.getLogger(__name__).info("Proxy inventory schema: %s", json.dumps(report, sort_keys=True))
