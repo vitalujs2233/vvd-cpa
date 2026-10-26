@@ -37,6 +37,8 @@ class ProxyWalletTests(unittest.TestCase):
         ledger_fixture.LedgerTests.setUp(self)
         self.patch=patch.object(w,'engine',self.db);self.patch.start();self.addCleanup(self.patch.stop)
         self.oid=self.order()
+    def tearDown(self):
+        with self.db.begin() as c:c.execute(text('DELETE FROM tool_proxy_order_intents WHERE telegram_id=:u'),dict(u=self.uid))
     balances=ledger_fixture.LedgerTests.balances
     def order(self,amount='1.30'):
         oid=uuid4()
@@ -77,6 +79,19 @@ class ProxyWalletTests(unittest.TestCase):
                 for _ in range(2):
                     with self.assertRaises(HTTPException):await routes.purchase_order(oid,'test')
                 self.assertEqual(checkout.await_count,1);self.assertEqual(self.balances(),(D('8.70'),D('1.30')))
+        asyncio.run(scenario())
+
+    def test_restart_pending_supplier_lane_blocks_other_owner(self):
+        async def scenario():
+            # An unresolved different owner's order survives process/advisory-lock loss.
+            other_uid=self.uid+1000000000001
+            with self.db.begin() as c:
+                c.execute(text("INSERT INTO tool_proxy_order_intents(id,telegram_id,request_id,proxy_type,selection,quoted_amount,status) VALUES(:id,:u,:r,'ipv6','{}',1.30,'uncertain')"),dict(id=uuid4(),u=other_uid,r=uuid4()))
+            with patch.object(routes,'engine',self.db),patch.object(routes,'require_telegram_id',return_value=self.uid),patch.dict(os.environ,PROXY_IPV4_PURCHASES_ENABLED='true',PROXY_IPV4_MARKUP_PERCENT='30'),patch.object(routes,'quote',new_callable=AsyncMock,return_value={'customer_total_usd':'1.30'}),patch.object(routes,'provider',new_callable=AsyncMock,return_value={'amount':'1','balance':'100','currency':'USD'}),patch.object(routes,'provider_checkout',new_callable=AsyncMock) as checkout:
+                order=await routes.prepare_order(routes.PrepareOrder(proxy_type='ipv6',country='GBR',days=30,count=10,request_id=uuid4()),'test')
+                with self.assertRaises(HTTPException):await routes.purchase_order(UUID(order['id']),'test')
+                checkout.assert_not_called();self.assertEqual(self.balances(),(D('10'),D('0')))
+            with self.db.begin() as c:c.execute(text('DELETE FROM tool_proxy_order_intents WHERE telegram_id=:u'),dict(u=other_uid))
         asyncio.run(scenario())
 
     def test_concurrent_reservation_and_confirmation_once(self):
@@ -126,7 +141,7 @@ class ProxyPurchaseGateTests(unittest.IsolatedAsyncioTestCase):
     async def test_quote_currency_price_and_official_mobile_tariffs(self):
         async def supplier(path,params):
             return {'get/days':{'days':[30]},'get/countries':{'countries':[{'alpha3code':'GBR'}]},
-                    'get/mobile/tariffs':{'tariffs':[{'country':'GBR','mobileOperator':[{'name':'test','rotationTime':[5]}]}]},
+                    'get/tariffs':{'tariffs':[{'country':'GBR','mobileOperator':[{'name':'test','rotationTime':[5]}]}]},
                     'get/order/price':{'amount':'10.00','currency':'USD'}}[path]
         body=routes.Quote(proxy_type='mobile',country='GBR',days=30,count=1,mobile_operator='test',rotation_time=5)
         with patch.object(routes,'require_telegram_id',return_value=42),patch.object(routes,'provider',side_effect=supplier),patch.dict(os.environ,PROXY_IPV4_MARKUP_PERCENT='30'):

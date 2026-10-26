@@ -12,6 +12,7 @@ from urllib.error import HTTPError, URLError
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 from stars_payments import require_telegram_id
+from proxy_tariffs import normalize_tariffs
 
 router = APIRouter(prefix="/tools-market/proxy-ipv4", tags=["Proxy-IPv4 preview"])
 
@@ -47,13 +48,15 @@ async def provider(path, params):
     try:
         result = await asyncio.to_thread(fetch)
     except HTTPError as exc:
-        raise HTTPException(502, "HTTP ошибка поставщика: " + str(exc.code))
+        if path == "get/tariffs" and exc.code == 404:
+            raise HTTPException(502, "Мобильные тарифы недоступны: поставщик не нашёл маршрут get/tariffs. Требуется уточнение поддержки") from None
+        raise HTTPException(502, "HTTP ошибка поставщика: " + str(exc.code)) from None
     except (URLError, TimeoutError):
         raise HTTPException(502, "Нет соединения с поставщиком")
     except Exception:
         raise HTTPException(502, "Ошибка обработки ответа поставщика")
     if not isinstance(result, dict) or result.get("success") is not True:
-        error_code = result.get("error_id")
+        error_code = result.get("error_id") if isinstance(result, dict) else None
         raise HTTPException(502, "Поставщик отклонил запрос" + (" (код " + str(error_code) + ")" if isinstance(error_code, int) else ""))
     return result
 
@@ -75,10 +78,7 @@ async def catalog(proxy_type: str = Query("ipv4"), x_telegram_init_data: str | N
     mobile_tariff_error = None
     if proxy_type == "mobile":
         try:
-            tariffs_response = await provider("get/mobile/tariffs", {})
-            tariffs = tariffs_response.get("tariffs", [])
-            if not isinstance(tariffs, list):
-                raise HTTPException(502, "Неверный формат мобильных тарифов")
+            tariffs = normalize_tariffs(await provider("get/tariffs", {}))
         except HTTPException as exc:
             mobile_tariff_error = "Не удалось получить тарифы мобильных прокси: " + str(exc.detail)
         except (TypeError, ValueError):
@@ -121,8 +121,8 @@ async def quote(body: Quote, x_telegram_init_data: str | None = Header(default=N
         raise HTTPException(422,"Страна или срок недоступны")
     params = {"proxyType":body.proxy_type,"days":body.days,"country":body.country.upper(),"count":body.count,"goal":"instagram"}
     if body.proxy_type == "mobile":
-        tariffs = await provider("get/mobile/tariffs", {})
-        valid = any(t.get("country") == body.country.upper() and any(op.get("name") == body.mobile_operator and body.rotation_time in op.get("rotationTime",[]) for op in t.get("mobileOperator",[])) for t in tariffs.get("tariffs",[]))
+        tariffs = normalize_tariffs(await provider("get/tariffs", {}))
+        valid = any(t.get("country") == body.country.upper() and any(op.get("name") == body.mobile_operator and body.rotation_time in op.get("rotationTime",[]) for op in t.get("mobileOperator",[])) for t in tariffs)
         if not valid:
             raise HTTPException(422,"Выберите действительного оператора и ротацию")
         params.update({"mobileOperator":body.mobile_operator,"rotationTime":body.rotation_time})
@@ -399,6 +399,16 @@ async def purchase_order(order_id: UUID, x_telegram_init_data: str | None = Head
         if not locked:
             raise HTTPException(409,"Покупка этого типа уже выполняется. Повторите позже.")
         with engine.connect() as conn:
+            # A process crash releases the advisory lock, not the durable order.
+            # Do not let a new snapshot absorb an unresolved predecessor's delivery.
+            unresolved = conn.execute(text("""
+                SELECT id FROM tool_proxy_order_intents
+                WHERE proxy_type=:kind AND id<>:id AND
+                  (status IN ('reserved','submitting','uncertain') OR
+                   (proxy_type<>'ipv6' AND status='fulfilled')) LIMIT 1
+            """), {"kind":kind,"id":order_id}).first()
+            if unresolved:
+                raise HTTPException(409,"Есть незавершённый заказ этого типа у поставщика. Требуется проверка результата")
             current_status = conn.execute(text("""
                 SELECT status FROM tool_proxy_order_intents
                 WHERE id=:id AND telegram_id=:owner
@@ -474,7 +484,7 @@ async def order_proxies(order_id: UUID, x_telegram_init_data: str | None = Heade
     uid = require_telegram_id(x_telegram_init_data)
     with engine.connect() as conn:
         order = conn.execute(text("""
-            SELECT proxy_type,status,provider_order_id,selection FROM tool_proxy_order_intents
+            SELECT proxy_type,status,provider_order_id,selection,proxy_ids_before,supplier_submitted_at FROM tool_proxy_order_intents
             WHERE id=:id AND telegram_id=:uid
         """), {"id":order_id,"uid":uid}).mappings().first()
     if not order:
@@ -486,16 +496,55 @@ async def order_proxies(order_id: UUID, x_telegram_init_data: str | None = Heade
     response = await provider("get/proxies", {"proxyType":order["proxy_type"]})
     matches = match_order_proxies(proxy_items(response), order["proxy_type"], str(order["provider_order_id"]))
     proxies = connection_data(matches)
+    review = None
+    if not matches and order['proxy_type'] != 'ipv6' and order.get('proxy_ids_before') is not None:
+        from datetime import datetime, timezone
+        from proxy_inventory_review import assess_inventory
+        with engine.connect() as conn:
+            others = conn.execute(text("""
+                SELECT status,delivered_proxy_ids FROM tool_proxy_order_intents
+                WHERE proxy_type=:kind AND id<>:id
+            """), {'kind':order['proxy_type'],'id':order_id}).mappings().all()
+        assigned = {str(i) for row in others for i in (row['delivered_proxy_ids'] or [])}
+        assessment = assess_inventory(order['proxy_ids_before'], proxy_items(response),
+            count=order['selection']['count'], country=order['selection'].get('country'),
+            submitted_at=order.get('supplier_submitted_at'), observed_at=datetime.now(timezone.utc),
+            assigned_ids=assigned, lane_busy=any(row['status'] in ('reserved','submitting','uncertain') for row in others))
+        # Candidates are NOT persisted as owned/delivered IDs and never disclose credentials.
+        # Original snapshot, supplier reference and submission time remain durable for review.
+        review = {k:assessment[k] for k in ('state','reason')}
     expected = order["selection"]["count"]
     if len(proxies) > expected:
         proxies = []  # Conflicting supplier attribution requires verification.
     return {"status":"fulfilled", "proxies":proxies,
             "delivery_pending":len(proxies) != expected,
             "expected_count":expected,
-            "verification_required":not bool(matches)}
+            "verification_required":not bool(matches), "inventory_review":review}
 
 
 @router.on_event("startup")
 async def log_purchase_gate():
     import logging
     logging.getLogger(__name__).info("Proxy purchases enabled=%s", os.getenv("PROXY_IPV4_PURCHASES_ENABLED", "false").lower() == "true")
+
+
+@router.on_event("startup")
+async def verify_mobile_catalogue():
+    import logging
+    log = logging.getLogger(__name__)
+    log.info("Proxy config present: key=%s markup=%s purchases=%s", bool(os.getenv("PROXY_IPV4_API_KEY", "").strip()), "PROXY_IPV4_MARKUP_PERCENT" in os.environ, "PROXY_IPV4_PURCHASES_ENABLED" in os.environ)
+    # Router startup may be registered more than once; probe once per process.
+    if getattr(router, '_tariff_probe_done', False): return
+    router._tariff_probe_done = True
+    try:
+        raw = await provider("get/tariffs", {})
+        root_keys = sorted(str(k) for k in raw)
+        entries = raw.get('tariffs')
+        item_keys = sorted({str(k) for x in entries[:3] if isinstance(x, dict) for k in x}) if isinstance(entries, list) else []
+        log.info("Mobile tariff schema: root_keys=%s item_keys=%s", root_keys, item_keys)
+        tariffs = normalize_tariffs(raw)
+        log.info("Mobile tariff probe OK: countries=%s operators=%s rotations=%s", sorted({t['country'] for t in tariffs}), sum(len(t['mobileOperator']) for t in tariffs), sorted({r for t in tariffs for o in t['mobileOperator'] for r in o['rotationTime']}))
+    except HTTPException as exc:
+        log.warning("Mobile tariff probe unavailable: status=%s reason=%s", exc.status_code, exc.detail)
+    except Exception:
+        log.warning("Mobile tariff probe unavailable: unexpected response")

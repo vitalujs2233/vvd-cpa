@@ -4,6 +4,9 @@ on:
     branches: [main]
     paths:
       - 'backend_v2/proxy_delivery.py'
+      - 'backend_v2/proxy_tariffs.py'
+      - 'backend_v2/proxy_inventory_review.py'
+      - 'backend_v2/tests/test_proxy_support.py'
       - 'backend_v2/proxy_ipv4_preview.py'
       - 'backend_v2/tests/test_proxy_delivery.py'
       - 'src/pages/tools/ProxyOrders.tsx'
@@ -27,7 +30,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r backend_v2/requirements.txt
-      - run: python -m unittest backend_v2.tests.test_proxy_delivery backend_v2.tests.test_proxy_seller_demo -v
+      - run: python -m unittest backend_v2.tests.test_proxy_delivery backend_v2.tests.test_proxy_seller_demo backend_v2.tests.test_proxy_support -v
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
