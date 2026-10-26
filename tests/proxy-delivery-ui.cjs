@@ -5,15 +5,15 @@ const code=ts.transpileModule(fs.readFileSync('src/pages/tools/ProxyOrders.tsx',
 const order={id:'test-order',proxy_type:'ipv4',selection:{country:'GBR',days:30,count:1},amount_usd:'1.30',status:'fulfilled',created_at:'2026-10-25T10:00:00Z'};
 const proxy={id:'test-ip',host:'192.0.2.10',endpoints:[{protocol:'HTTPS',port:'8080'}],login:'demo',password:'test-only',expires_at:'2026-11-25T00:00:00Z'};
 const delivery={status:'fulfilled',proxies:[proxy],expected_count:1,delivery_pending:false};
-async function mount(api={},orders=[order],clipboardFail=false){
+async function mount(api={},orders=[order],clipboardFail=false,confirm=false){
  let now=0,next=0;const timers=new Map(),writes=[];const exports={};
  const set=(fn,ms)=>{timers.set(++next,{fn,at:now+ms});return next;};
  const wrap=tag=>p=>React.createElement(tag,p,p.children);
  const marketApi={proxyIpv4Orders:async()=>({orders}),proxyIpv4OrderStatus:async()=>order,proxyIpv4OrderProxies:async()=>delivery,proxyIpv4CheckoutConfig:async()=>({purchases_enabled:false,supported_purchase_types:[]}),proxyIpv4Purchase:()=>{throw Error('paid call forbidden');},...api};
- vm.runInNewContext(code,{exports,require:n=>n==='react'?React:n==='lucide-react'?Object.fromEntries(['Check','Copy','Eye','EyeOff'].map(k=>[k,()=>React.createElement('i',{'data-icon':k})])):n.includes('marketApi')?{marketApi,usd:v=>'$'+v}:n.includes('Card')?{Card:wrap('article')}:{Button:wrap('button')},navigator:{clipboard:{writeText:async value=>{if(clipboardFail)throw Error('denied');writes.push(value);}}},setTimeout:set,clearTimeout:id=>timers.delete(id),window:{confirm:()=>false}});
+ vm.runInNewContext(code,{exports,require:n=>n==='react'?React:n==='lucide-react'?Object.fromEntries(['Check','Copy','Eye','EyeOff'].map(k=>[k,()=>React.createElement('i',{'data-icon':k})])):n.includes('marketApi')?{marketApi,usd:v=>'$'+v}:n.includes('Card')?{Card:wrap('article')}:{Button:wrap('button')},navigator:{clipboard:{writeText:async value=>{if(clipboardFail)throw Error('denied');writes.push(value);}}},setTimeout:set,clearTimeout:id=>timers.delete(id),window:{confirm:()=>confirm}});
  let view;await act(async()=>{view=create(React.createElement(exports.ProxyOrders));});
  const tick=async(ms)=>{const end=now+ms;let n=0;while(true){const entry=[...timers].filter(([,t])=>t.at<=end).sort((a,b)=>a[1].at-b[1].at)[0];if(!entry)break;if(++n>1000)throw Error('loop');const [id,t]=entry;timers.delete(id);now=t.at;await act(async()=>t.fn());}now=end;};
- return {view,writes,exports,tick,text:()=>JSON.stringify(view.toJSON()),click:async label=>act(async()=>{const b=view.root.findAllByType('button').find(b=>b.props['aria-label']===label||b.props.children===label);assert.ok(b,label);b.props.onClick();}),close:()=>act(()=>view.unmount())};
+ return {view,writes,exports,tick,text:()=>JSON.stringify(view.toJSON()),click:async label=>act(async()=>{const b=view.root.findAllByType('button').find(b=>b.props['aria-label']===label||b.props.children===label||(Array.isArray(b.props.children)&&b.props.children.join('')===label));assert.ok(b,label);b.props.onClick();}),close:()=>act(()=>view.unmount())};
 }
 test('separate confirmed and full delivery; reveal and hide password, field copies',async()=>{const f=await mount();assert.ok(f.text().includes('Заказ подтверждён'));assert.ok(f.text().includes('Прокси выданы'));await f.click('Посмотреть мои прокси');assert.ok(!f.text().includes('test-only'));for(const label of ['IP-адрес','Порт HTTPS','Логин','Пароль'])await f.click('Скопировать '+label);assert.deepEqual(f.writes,['192.0.2.10','8080','demo','test-only']);assert.ok(f.text().includes('Скопировано'));await f.click('Показать пароль');assert.ok(f.text().includes('test-only'));await f.click('Скрыть пароль');assert.ok(!f.text().includes('test-only'));await f.click('Скопировать адрес HTTPS');assert.equal(f.writes.at(-1),'http://demo:test-only@192.0.2.10:8080');await f.tick(2000);assert.ok(!f.text().includes('Скопировано'));f.close();});
 test('partial then full; polling stops',async()=>{let calls=0;const f=await mount({proxyIpv4OrderProxies:async()=>++calls===1?{...delivery,proxies:[],delivery_pending:true}:delivery});assert.ok(f.text().includes('Ожидаем данные подключения'));await f.tick(10000);assert.ok(f.text().includes('Прокси выданы'));await f.tick(120000);assert.equal(calls,2);f.close();});
@@ -36,3 +36,21 @@ test('in-flight proxy reads deduplicate and reject data from an old Telegram ses
 });
 
 test('enabled global gate cannot enable unsupported order types',async()=>{const f=await mount({proxyIpv4CheckoutConfig:async()=>({purchases_enabled:true,supported_purchase_types:['ipv6']})},[{...order,status:'prepared'}]);const buy=f.view.root.findAllByType('button').find(b=>JSON.stringify(b.props.children).includes('Купить за'));assert.ok(buy.props.disabled);assert.ok(f.text().includes('Проводится проверка системы выдачи'));f.close();});
+
+
+test('one-order permit enables only its control purchase and forwards UUID',async()=>{
+ let called=[];const prepared={...order,status:'prepared',control_id:'permit-uuid'};
+ const f=await mount({proxyIpv4Orders:async()=>({orders:called.length?[order]:[prepared]}),
+  proxyIpv4Purchase:async(...args)=>{called.push(args);return {status:'fulfilled'};}},[prepared],false,true);
+ const buy=f.view.root.findAllByType('button').find(b=>JSON.stringify(b.props.children).includes('Контрольная покупка'));
+ assert.ok(buy);assert.equal(buy.props.disabled,false);
+ await act(async()=>buy.props.onClick());
+ assert.deepEqual(called,[['test-order','permit-uuid']]);
+ assert.ok(f.text().includes('Прокси выданы'));f.close();
+});
+test('confirmed refund hides cached connection cards and shows financial result',async()=>{
+ const cancelled={...order,status:'cancelled',financial_outcome:'refunded'};
+ const f=await mount({},[cancelled]);
+ assert.ok(f.text().includes('Возврат подтверждён'));assert.ok(f.text().includes('Заказ закрыт, выдача остановлена'));
+ assert.equal(f.view.root.findAllByProps({'aria-label':'Скопировать IP-адрес'}).length,0);f.close();
+});

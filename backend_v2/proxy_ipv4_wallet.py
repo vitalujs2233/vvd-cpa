@@ -121,40 +121,48 @@ def confirm_fulfilled(owner_id: int, order_id: UUID, provider_order_id: str) -> 
     if not provider_order_id or not provider_order_id.strip():
         raise HTTPException(422,"Не указан номер заказа поставщика")
     with engine.begin() as conn:
-        order = conn.execute(text("""
-            SELECT quoted_amount,status,provider_order_id
-            FROM tool_proxy_order_intents
-            WHERE id=:id AND telegram_id=:owner FOR UPDATE
-        """), {"id":order_id,"owner":owner_id}).mappings().first()
-        if not order:
-            raise HTTPException(404,"Заявка не найдена")
-        if order["status"] == "fulfilled":
-            if order["provider_order_id"] != provider_order_id:
-                raise HTTPException(409,"Номер заказа не совпадает")
-            return {"status":"fulfilled","order_number":provider_order_id}
-        if order["status"] not in ("submitting","uncertain"):
-            raise HTTPException(409,"Покупка не подтверждена")
-        amount = Decimal(order["quoted_amount"])
-        wallet = conn.execute(text("""
-            UPDATE tool_wallets SET reserved=reserved-:amount,updated_at=now()
-            WHERE telegram_id=:owner AND reserved>=:amount
-            RETURNING telegram_id
-        """), {"owner":owner_id,"amount":amount}).first()
-        if not wallet:
-            raise RuntimeError("Wallet reconciliation required")
-        conn.execute(text("""
-            INSERT INTO tool_transactions
-                (telegram_id,kind,amount,currency,status,external_payment_id)
-            VALUES (:owner,'purchase',-:amount,'USD','success',:external_id)
-        """), {"owner":owner_id,"amount":amount,
-               "external_id":"proxy-ipv4:"+provider_order_id})
-        conn.execute(text("""
-            UPDATE tool_proxy_order_intents
-            SET status='fulfilled',provider_order_id=:number,updated_at=now()
-            WHERE id=:id AND telegram_id=:owner
-        """), {"id":order_id,"owner":owner_id,"number":provider_order_id})
-    return {"status":"fulfilled","order_number":provider_order_id}
+        return settle_in_transaction(conn, owner_id, order_id, provider_order_id)
 
+
+def settle_in_transaction(conn, owner_id, order_id, provider_order_id):
+    """Shared settlement primitive; caller owns transaction and audit."""
+    if not provider_order_id or not provider_order_id.strip():
+        raise HTTPException(422, "Не указан номер заказа поставщика")
+    order = conn.execute(text("""
+        SELECT quoted_amount,status,provider_order_id
+        FROM tool_proxy_order_intents
+        WHERE id=:id AND telegram_id=:owner FOR UPDATE
+    """), {"id":order_id,"owner":owner_id}).mappings().first()
+    if not order:
+        raise HTTPException(404,"Заявка не найдена")
+    if order["provider_order_id"] and order["provider_order_id"] != provider_order_id:
+        raise HTTPException(409,"Номер заказа не совпадает")
+    if order["status"] == "fulfilled":
+        if order["provider_order_id"] != provider_order_id:
+            raise HTTPException(409,"Номер заказа не совпадает")
+        return {"status":"fulfilled","order_number":provider_order_id}
+    if order["status"] not in ("submitting","uncertain"):
+        raise HTTPException(409,"Покупка не подтверждена")
+    amount = Decimal(order["quoted_amount"])
+    wallet = conn.execute(text("""
+        UPDATE tool_wallets SET reserved=reserved-:amount,updated_at=now()
+        WHERE telegram_id=:owner AND reserved>=:amount
+        RETURNING telegram_id
+    """), {"owner":owner_id,"amount":amount}).first()
+    if not wallet:
+        raise RuntimeError("Wallet reconciliation required")
+    conn.execute(text("""
+        INSERT INTO tool_transactions
+            (telegram_id,kind,amount,currency,status,external_payment_id)
+        VALUES (:owner,'purchase',-:amount,'USD','success',:external_id)
+    """), {"owner":owner_id,"amount":amount,
+           "external_id":"proxy-ipv4:"+provider_order_id})
+    conn.execute(text("""
+        UPDATE tool_proxy_order_intents
+        SET status='fulfilled',provider_order_id=:number,updated_at=now()
+        WHERE id=:id AND telegram_id=:owner
+    """), {"id":order_id,"owner":owner_id,"number":provider_order_id})
+    return {"status":"fulfilled","order_number":provider_order_id}
 
 def record_confirmed_supplier_order(owner_id: int, order_id: UUID, provider_order_id: str) -> dict:
     """Keep the supplier receipt for manual reconciliation if wallet settlement fails."""

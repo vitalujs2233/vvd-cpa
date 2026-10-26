@@ -41,13 +41,19 @@ class ProxyWalletTests(unittest.TestCase):
             sql=sql.replace('CREATE TABLE ', 'CREATE TABLE IF NOT EXISTS ').replace('CREATE INDEX ', 'CREATE INDEX IF NOT EXISTS ')
             for part in sql.split(';'):
                 if part.strip() and 'REVOKE ALL' not in part:c.execute(text(part))
+        with cls.db.begin() as c:
+            sql=(Path(__file__).parents[2]/'supabase/migrations/20261026125133_proxy_controlled_checkout.sql').read_text()
+            sql='\n'.join(line for line in sql.splitlines() if not line.lstrip().startswith('--'))
+            sql=sql.replace('CREATE TABLE ', 'CREATE TABLE IF NOT EXISTS ')
+            for part in sql.split(';'):
+                if part.strip() and 'REVOKE ALL' not in part:c.execute(text(part))
     def setUp(self):
         ledger_fixture.LedgerTests.setUp(self)
         self.patch=patch.object(w,'engine',self.db);self.patch.start();self.addCleanup(self.patch.stop)
         self.oid=self.order()
     def tearDown(self):
         with self.db.begin() as c:
-            for table in ('tool_proxy_review_audit','tool_proxy_assignments','tool_proxy_reviews'):
+            for table in ('tool_proxy_financial_resolutions','tool_proxy_control_permits','tool_proxy_review_audit','tool_proxy_assignments','tool_proxy_reviews'):
                 c.execute(text(f'DELETE FROM {table} WHERE order_id IN (SELECT id FROM tool_proxy_order_intents WHERE telegram_id=:u)'),dict(u=self.uid))
             c.execute(text('DELETE FROM tool_proxy_order_intents WHERE telegram_id=:u'),dict(u=self.uid))
     balances=ledger_fixture.LedgerTests.balances
