@@ -48,6 +48,7 @@ export function ProxyOrders() {
   const [orders,setOrders]=useState<Order[]>([]),[deliveries,setDeliveries]=useState<Record<string,ProxyDelivery>>({});
   const [opened,setOpened]=useState<Record<string,boolean>>({}),[error,setError]=useState(''),[errors,setErrors]=useState<Record<string,string>>({});
   const [busy,setBusy]=useState(false),[loaded,setLoaded]=useState(false),[paused,setPaused]=useState(false),[checkout,setCheckout]=useState<string[]>([]);
+  const [checkoutReason,setCheckoutReason]=useState('Проверяем доступность покупки…');
   const refresh=useRef<()=>void>(()=>{}),purchaseRef=useRef<(id:string)=>Promise<void>>(async()=>{});
   useEffect(()=>{
     let active=true,running=false,queued=false,cycles=0,failures=0;
@@ -95,7 +96,7 @@ export function ProxyOrders() {
       try{await marketApi.proxyIpv4Purchase(id);}catch{if(active)setError('Не удалось подтвердить покупку. Обновляем статус заказа.');}
       finally{running=false;if(active)void run(true);}
     };
-    marketApi.proxyIpv4CheckoutConfig().then(c=>{if(active)setCheckout(c.purchases_enabled?c.supported_purchase_types:[]);}).catch(()=>{});
+    marketApi.proxyIpv4CheckoutConfig().then(c=>{if(active){setCheckout(c.purchases_enabled?c.supported_purchase_types:[]);setCheckoutReason((c.purchases_enabled?c.unsupported_reason:c.reason)||'Покупки временно недоступны. Проводится проверка системы выдачи.');}}).catch(()=>{if(active)setCheckoutReason('Не удалось проверить доступность покупки. Откройте страницу повторно.');});
     void run(true);
     return()=>{active=false;clearTimeout(timer);};
   },[]);
@@ -117,7 +118,7 @@ export function ProxyOrders() {
         {d?.inventory_review&&<p className="text-xs text-textSecondary">{d.inventory_review.state==='waiting'?'Поставщик пока не показал новые прокси.':d.inventory_review.state==='partial'?'В инвентаре появились не все прокси. Принадлежность заказу ещё проверяется.':'Нужна ручная проверка принадлежности прокси заказу.'}</p>}
         {d?.verification_required&&<p className="text-xs text-textSecondary">Ожидаем подтверждение привязки прокси к заказу.</p>}
         {errors[o.id]&&<p role="alert" className="text-xs text-textSecondary">{errors[o.id]}</p>}
-        {o.status==='prepared'&&!checkout.includes(o.proxy_type)&&<p className="text-xs text-textSecondary">Покупки временно недоступны. Проводится проверка системы выдачи.</p>}
+        {o.status==='prepared'&&!checkout.includes(o.proxy_type)&&<p className="text-xs text-textSecondary">{checkoutReason}</p>}
         {o.status==='prepared'&&<Button type="button" size="sm" disabled={busy||!checkout.includes(o.proxy_type)} onClick={()=>purchase(o)}>Купить за {usd(o.amount_usd)}</Button>}
         {o.status==='fulfilled'&&<Button type="button" size="sm" aria-expanded={!!opened[o.id]} onClick={()=>setOpened(v=>({...v,[o.id]:!v[o.id]}))}>{opened[o.id]?'Скрыть прокси':'Посмотреть мои прокси'}</Button>}
         {opened[o.id]&&d?.proxies.map((p,i)=><ProxyCard key={p.id} proxy={p} index={i}/>)}

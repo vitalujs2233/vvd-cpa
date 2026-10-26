@@ -355,13 +355,14 @@ export const ToolsProxy:React.FC=()=>{
   const checkout=!!checkoutConfig?.purchases_enabled&&checkoutConfig.supported_purchase_types.includes(kind);
   const checkoutReason=checkoutError||(!checkoutConfig?'Проверяем доступность покупки…':!checkoutConfig.purchases_enabled?checkoutConfig.reason||'Покупки временно недоступны. Проводится проверка системы выдачи.':checkoutConfig.unsupported_reason||'Покупка этого типа временно недоступна: проверяется привязка прокси к заказу.');
   const requestKey=useRef<{signature:string;id:string}|null>(null);
+  const quoteVersion=useRef(0);
   useEffect(()=>{let active=true;setCatalog(null);setError('');setQuote(null);setPurchased(false);setNotice('');marketApi.proxyIpv4Catalog(kind).then(data=>{if(active){setCatalog(data);setCountry(data.data.countries[0]?.code||'');setDays(data.data.days[0]||7);setQuantity(data.minimum_count);setOperator('');setRotation(0);}}).catch(e=>{if(active)setError(toText(e));});return()=>{active=false;};},[kind]);
   const options=catalog?.data;
   const operators=options?.tariffs?.find(t=>t.country===country)?.mobileOperator||[];
   const selectedOperator=operators.find(x=>x.name===operator)||operators[0];
-  const resetQuote=()=>{setQuote(null);setPurchased(false);setNotice('');requestKey.current=null;};
+  const resetQuote=()=>{quoteVersion.current++;setQuote(null);setPurchased(false);setNotice('');requestKey.current=null;};
   const choose=(next:string)=>{setKind(next);resetQuote();};
-  const price=async()=>{setBusy(true);setError('');resetQuote();try{setQuote(await marketApi.proxyIpv4Quote({proxy_type:kind,country,days,count:quantity,...(kind==='mobile'?{mobile_operator:selectedOperator?.name,rotation_time:selectedOperator?.rotationTime.includes(rotation)?rotation:selectedOperator?.rotationTime[0]}:{})}));}catch(e){setError(toText(e));}finally{setBusy(false);}};
+  const price=async()=>{setBusy(true);setError('');resetQuote();const version=quoteVersion.current;try{const result=await marketApi.proxyIpv4Quote({proxy_type:kind,country,days,count:quantity,...(kind==='mobile'?{mobile_operator:selectedOperator?.name,rotation_time:selectedOperator?.rotationTime.includes(rotation)?rotation:selectedOperator?.rotationTime[0]}:{})});if(version===quoteVersion.current)setQuote(result);}catch(e){if(version===quoteVersion.current)setError(toText(e));}finally{setBusy(false);}};
   const purchase=async()=>{
     if(!quote||busy||purchased)return;
     if(!checkout){setError(checkoutReason);return;}
@@ -387,7 +388,7 @@ export const ToolsProxy:React.FC=()=>{
   return <Shell><NavHeader title="Прокси"/>
     <Card className="flex flex-col gap-3">
       <h2 className="text-base font-bold">Выбор прокси</h2>
-      {!checkout&&<Status>{checkoutReason}</Status>}
+      {!checkout&&<div id="proxy-purchase-reason"><Status>{checkoutReason}</Status></div>}
       {!catalog&&<p className="text-xs text-textSecondary">Каталог ещё не загружен.</p>}
       <label className="text-xs text-textSecondary">Тип прокси<select className={inputClass} value={kind} onChange={e=>choose(e.target.value)}><option value="ipv4">Прокси IPv4</option><option value="ipv6">Прокси IPv6</option><option value="isp">Прокси ISP</option><option value="mobile">Мобильные прокси</option></select></label>
       <label className="text-xs text-textSecondary">Страна<select className={inputClass} value={country} onChange={e=>{setCountry(e.target.value);setOperator('');setRotation(0);resetQuote();}}>{options?.countries.map(x=><option key={x.code} value={x.code}>{x.name} ({x.code})</option>)}</select></label>
@@ -397,7 +398,7 @@ export const ToolsProxy:React.FC=()=>{
       {kind==='mobile'&&<><label className="text-xs text-textSecondary">Оператор<select className={inputClass} value={selectedOperator?.name||''} onChange={e=>{setOperator(e.target.value);setRotation(0);resetQuote();}}>{operators.map(x=><option key={x.name} value={x.name}>{x.name}</option>)}</select></label><label className="text-xs text-textSecondary">Ротация IP<select className={inputClass} value={selectedOperator?.rotationTime.includes(rotation)?rotation:selectedOperator?.rotationTime[0]||0} onChange={e=>{setRotation(Number(e.target.value));resetQuote();}}>{selectedOperator?.rotationTime.map(x=><option key={x} value={x}>{x===0?'По ссылке':x+' минут'}</option>)}</select></label></>}
       <Button type="button" disabled={!catalog||busy||!country||!options?.days.length||!Number.isInteger(quantity)||quantity<minimum||quantity>1000||(kind==='mobile'&&!selectedOperator)} onClick={price}>{busy?'Проверяем цену…':'Рассчитать цену'}</Button>
       {quote&&<Status>Стоимость: ${quote.customer_total_usd}</Status>}
-      {quote&&!purchased&&<Button type="button" disabled={busy||!checkout} onClick={()=>void purchase()}>{busy?'Оформляем покупку…':'Купить за '+usd(quote.customer_total_usd)}</Button>}
+      {quote&&!purchased&&<Button type="button" disabled={busy||!checkout} aria-describedby={!checkout?"proxy-purchase-reason":undefined} onClick={()=>void purchase()}>{busy?'Оформляем покупку…':'Купить за '+usd(quote.customer_total_usd)}</Button>}
       {notice&&<Status>{notice}</Status>}
       {error&&<p className="text-xs text-red-400">{error}</p>}
       <Link to="/tools/proxy/my" className="text-xs text-accentBrightGold">Мои прокси →</Link>

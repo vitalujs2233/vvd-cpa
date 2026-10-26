@@ -22,6 +22,16 @@ const fs=require('node:fs');
       assert.equal(await page.getByText('example-only',{exact:true}).count(),0);
       assert.deepEqual(errors,[]);
       console.log(`PASS ${width}px: no overflow, password reveal/hide, no browser errors`);
+      await page.goto('http://127.0.0.1:3011/vvd-cpa/tests/proxy-delivery-preview.html?mobile');
+      await page.getByLabel('Тип прокси').selectOption('mobile');
+      await page.getByRole('button',{name:'Рассчитать цену'}).click();
+      const buy=page.getByRole('button',{name:'Купить за $33.80'});
+      await buy.waitFor();assert.equal(await buy.isDisabled(),true);
+      await page.getByText('Покупка временно недоступна: поставщик не связывает выданные прокси с заказом. Безопасная автоматическая выдача ещё не подтверждена.',{exact:true}).waitFor();
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'mobile checkout overflow');
+      await page.screenshot({path:`proxy-screenshots/mobile-checkout-${width}.png`,fullPage:true});
+      assert.deepEqual(errors,[]);
+      console.log(`PASS ${width}px: Mobile checkout has price, remains disabled and explains why`);
       await page.close();
     }
   }finally{await browser.close();}
