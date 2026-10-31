@@ -32,10 +32,11 @@ export const WorldMapArt:React.FC=()=> <svg viewBox="0 0 620 320" role="img" ari
  </g>
  </svg>;
 
+let cachedInfo:HomeInfoBlock[]|undefined;
 export const HomeInfoBlocks:React.FC=()=>{
- const [items,setItems]=useState<HomeInfoBlock[]>([]);
+ const [items,setItems]=useState<HomeInfoBlock[]>(()=>cachedInfo||[]);
  const navigate=useNavigate();
- useEffect(()=>{let live=true;const load=()=>apiRequest<Feed>('/home-info/published').then(data=>{if(live)setItems(data.items)}).catch(()=>{});void load();const refresh=()=>{if(!document.hidden)void load()};document.addEventListener('visibilitychange',refresh);return()=>{live=false;document.removeEventListener('visibilitychange',refresh)}},[]);
+ useEffect(()=>{let live=true;const load=()=>apiRequest<Feed>('/home-info/published').then(data=>{if(live){cachedInfo=data.items;setItems(data.items)}}).catch(()=>{});void load();const refresh=()=>{if(!document.hidden)void load()};document.addEventListener('visibilitychange',refresh);return()=>{live=false;document.removeEventListener('visibilitychange',refresh)}},[]);
  if(!items.length)return null;
  return <div className="flex flex-col gap-3 min-w-0">{items.map(item=><article key={item.id} className={`min-w-0 overflow-hidden rounded-card border border-[#b18a38]/45 bg-[#0c0b09] shadow-[0_0_22px_rgba(203,155,51,0.11)] ${item.image_url&&!item.title&&!item.subtitle&&!item.description&&!item.target_url ? "p-0" : "px-4 py-5"}`}>
   <div className="text-center">
@@ -43,7 +44,7 @@ export const HomeInfoBlocks:React.FC=()=>{
    {item.title&&<h2 className="mt-2 text-lg sm:text-xl font-extrabold tracking-wide text-[#f1d18a] break-words">{item.title}</h2>}
   </div>
   {(item.image_url||item.title==='РАБОТАЕМ ПО ВСЕМУ МИРУ')&&<div className={item.image_url ? "w-full overflow-hidden" : "my-3 flex w-full items-center justify-center overflow-hidden"}>
-   {item.image_url?<img src={API_BASE_URL+item.image_url+'?v='+encodeURIComponent(item.updated_at)} alt={item.title||'Информационное изображение'} className="block w-full h-auto max-w-full" loading="lazy"/>:<WorldMapArt/>}
+   {item.image_url?<img src={API_BASE_URL+item.image_url+'?v='+encodeURIComponent(item.updated_at)} alt={item.title||'Информационное изображение'} className="block w-full h-auto max-w-full" loading="eager" decoding="async"/>:<WorldMapArt/>}
   </div>}
   {item.description&&<p className="text-center text-xs leading-relaxed text-[#d6c7a8] whitespace-pre-wrap break-words">{item.description}</p>}
   {item.target_url&&<button type="button" onClick={()=>navigateTicker(item.target_url,navigate)} className="mt-3 w-full rounded-lg border border-[#d1a44d]/50 px-3 py-2 text-sm font-semibold text-[#f0ca77]">Подробнее →</button>}
