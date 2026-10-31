@@ -411,6 +411,20 @@ def model_stats(model_id:UUID,x_telegram_init_data:str|None=Header(None)):
                             {"mid":model_id,"uid":uid}).first()
         if not exists:raise HTTPException(404,"Персонаж не найден")
         rows=conn.execute(text("SELECT kind,count(*) AS n FROM tool_ai_events WHERE model_id=:id GROUP BY kind"),{"id":model_id}).all()
+        usage=conn.execute(text("""SELECT provider,COALESCE(SUM(input_tokens),0) AS input_tokens,
+            COALESCE(SUM(output_tokens),0) AS output_tokens
+            FROM tool_ai_usage WHERE model_id=:id GROUP BY provider"""),{"id":model_id}).all()
     data={r.kind:int(r.n) for r in rows}
+    # Estimated public token rates for gpt-4o-mini (USD per million tokens).
+    # Unknown model rates must remain unavailable rather than show a false $0.
+    rates={"gpt-4o-mini":(0.15,0.60),"gpt-4o-mini-2024-07-18":(0.15,0.60)}
+    estimated_cost=0.0
+    for item in usage:
+        rate=rates.get(item.provider)
+        if rate is None:
+            estimated_cost=None
+            break
+        estimated_cost+=(int(item.input_tokens)*rate[0]+int(item.output_tokens)*rate[1])/1_000_000
     return {"visits":data.get("visit",0),"conversations":data.get("conversation",0),
-        "messages":data.get("message",0),"clicks":data.get("offer_click",0),"cost_usd":None}
+        "messages":data.get("message",0),"clicks":data.get("offer_click",0),
+        "cost_usd":round(estimated_cost,6) if estimated_cost is not None else None}
