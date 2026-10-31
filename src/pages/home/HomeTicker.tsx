@@ -24,15 +24,16 @@ export const navigateTicker=(url:string,navigate:(path:string)=>void)=>{
  }catch{/* Ignore malformed links */}
 };
 
+let cachedTicker:TickerFeed|undefined;
 export const HomeTicker:React.FC=()=>{
- const [feed,setFeed]=useState<TickerFeed>({enabled:false,items:[]});
+ const [feed,setFeed]=useState<TickerFeed>(()=>cachedTicker||{enabled:false,items:[]});
  const [duration,setDuration]=useState(20);
  const [reduced,setReduced]=useState(false);
  const group=useRef<HTMLDivElement>(null);
  const navigate=useNavigate();
  useEffect(()=>{
   let live=true;
-  const load=()=>apiRequest<TickerFeed>('/home-ticker/published').then(result=>{if(live)setFeed(result)}).catch(()=>{});
+  const load=()=>apiRequest<TickerFeed>('/home-ticker/published').then(result=>{if(live){cachedTicker=result;setFeed(result)}}).catch(()=>{});
   void load();
   const onFocus=()=>{void load()};
   document.addEventListener('visibilitychange',onFocus);
