@@ -1,10 +1,8 @@
 -- AI Studio external-link metered replies, $0.008 USD per successful reply.
--- Three decimal places are essential: NUMERIC(14,2) would round $0.008 to $0.01.
-ALTER TABLE public.tool_wallets ALTER COLUMN available TYPE NUMERIC(14,3), ALTER COLUMN reserved TYPE NUMERIC(14,3);
-ALTER TABLE public.tool_transactions ALTER COLUMN amount TYPE NUMERIC(14,3);
+-- Existing production wallet and transaction amounts already support six decimal places.
 CREATE TABLE IF NOT EXISTS public.tool_ai_charges (
  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
- usage_id BIGINT NOT NULL UNIQUE,
+ usage_id UUID NOT NULL UNIQUE,
  model_id UUID NOT NULL REFERENCES public.tool_ai_models(id) ON DELETE CASCADE,
  telegram_id BIGINT NOT NULL REFERENCES public.users(telegram_id) ON DELETE CASCADE,
  amount NUMERIC(14,3) NOT NULL DEFAULT 0.008 CHECK(amount=0.008),
