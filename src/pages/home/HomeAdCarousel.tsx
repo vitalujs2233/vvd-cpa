@@ -1,6 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {apiRequest,API_BASE_URL} from '@/shared/lib/api';
+import {cachedHomeFeed} from '@/shared/lib/homeWarmup';
 
 export type HomeAd={id:string;title:string;image_url:string;target_url:string;position:number;is_active:boolean;updated_at:string};
 type Feed={items:HomeAd[];autoplay:boolean};
@@ -27,7 +28,7 @@ const openTarget=(url:string,navigate:(path:string)=>void)=>{
 let cachedAds:Feed|undefined;
 export const HomeAdCarousel:React.FC=()=>{
  const navigate=useNavigate();
- const [feed,setFeed]=useState<Feed>(()=>cachedAds||{items:[],autoplay:false});
+ const [feed,setFeed]=useState<Feed>(()=>cachedHomeFeed<Feed>('home:ads')||cachedAds||{items:[],autoplay:false});
  const [active,setActive]=useState(0);
  const [failed,setFailed]=useState<string[]>([]);
  const rail=useRef<HTMLDivElement>(null);

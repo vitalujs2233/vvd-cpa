@@ -1,6 +1,7 @@
 import React,{useEffect,useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {apiRequest,API_BASE_URL} from '@/shared/lib/api';
+import {cachedHomeFeed} from '@/shared/lib/homeWarmup';
 import {navigateTicker} from './HomeTicker';
 
 export type HomeInfoBlock={id:string;title:string;subtitle:string;description:string;image_url:string|null;target_url:string;is_active:boolean;position:number;updated_at:string};
@@ -34,7 +35,7 @@ export const WorldMapArt:React.FC=()=> <svg viewBox="0 0 620 320" role="img" ari
 
 let cachedInfo:HomeInfoBlock[]|undefined;
 export const HomeInfoBlocks:React.FC=()=>{
- const [items,setItems]=useState<HomeInfoBlock[]>(()=>cachedInfo||[]);
+ const [items,setItems]=useState<HomeInfoBlock[]>(()=>cachedHomeFeed<Feed>('home:info')?.items||cachedInfo||[]);
  const navigate=useNavigate();
  useEffect(()=>{let live=true;const load=()=>apiRequest<Feed>('/home-info/published').then(data=>{if(live){cachedInfo=data.items;setItems(data.items)}}).catch(()=>{});void load();const refresh=()=>{if(!document.hidden)void load()};document.addEventListener('visibilitychange',refresh);return()=>{live=false;document.removeEventListener('visibilitychange',refresh)}},[]);
  if(!items.length)return null;

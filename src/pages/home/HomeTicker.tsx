@@ -2,6 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {Megaphone} from 'lucide-react';
 import {apiRequest} from '@/shared/lib/api';
+import {cachedHomeFeed} from '@/shared/lib/homeWarmup';
 import './HomeTicker.css';
 
 export type TickerItem={id:string;text:string;color:'gold'|'green'|'red';target_url:string;is_active:boolean;position:number};
@@ -26,7 +27,7 @@ export const navigateTicker=(url:string,navigate:(path:string)=>void)=>{
 
 let cachedTicker:TickerFeed|undefined;
 export const HomeTicker:React.FC=()=>{
- const [feed,setFeed]=useState<TickerFeed>(()=>cachedTicker||{enabled:false,items:[]});
+ const [feed,setFeed]=useState<TickerFeed>(()=>cachedHomeFeed<TickerFeed>('home:ticker')||cachedTicker||{enabled:false,items:[]});
  const [duration,setDuration]=useState(20);
  const [reduced,setReduced]=useState(false);
  const group=useRef<HTMLDivElement>(null);
