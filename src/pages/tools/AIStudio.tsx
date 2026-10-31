@@ -153,7 +153,7 @@ export const AIEditor:React.FC=()=>{
         <option value="">Выберите ссылку</option>{links.map(l=><option key={l.id} value={l.id}>{l.title} — {l.url}</option>)}
       </select><p className="mt-2">В рамках установленных лимитов бесплатно. При отсутствии смартлинков создайте его в разделе «Офферы».</p></label>:
         <><Field label="Сторонняя HTTPS-ссылка" value={model.affiliate_url||''} set={v=>update('affiliate_url',v||null)} placeholder="https://example.com"/>
-          <p className="text-xs text-textSecondary">Платный тариф. До подключения расчёта стоимости и списания USD генерация ответов для сторонних ссылок не активируется.</p></>}
+          <p className="text-xs text-textSecondary">Тариф сторонней ссылки: $0,008 за успешный ответ AI ($0,80 за 100 ответов). Оплата будет списываться с баланса «Инструменты». До подключения безопасного списания ответы для сторонних ссылок не активируются; деньги сейчас не списываются.</p></>}
       <Field label="Текст кнопки в чате" value={model.button_label} set={v=>update('button_label',v)}/>
       <Button isLoading={saving} disabled={!id||saving||(linkKind==='smartlink'?!chosen:!model.affiliate_url?.startsWith('https://'))} onClick={()=>void saveLink()}>Сохранить ссылку</Button>
     </Card>}
