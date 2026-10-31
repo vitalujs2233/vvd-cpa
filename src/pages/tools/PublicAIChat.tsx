@@ -66,9 +66,11 @@ export const PublicAIPage:React.FC<{slug:string}>=({slug})=>{
       try{
         const p=await marketApi.publicModel(slug);
         const key='vvd_ai_session_'+slug;
-        const s=await aiApi.begin(slug,sessionStorage.getItem(key));
+        const previousToken=(()=>{try{return localStorage.getItem(key)||sessionStorage.getItem(key);}catch{return sessionStorage.getItem(key);}})();
+        const s=await aiApi.begin(slug,previousToken);
         if(!active)return;
-        sessionStorage.setItem(key,s.token);
+        try{localStorage.setItem(key,s.token);}catch{/* Private browsing may block persistent storage. */}
+        try{sessionStorage.setItem(key,s.token);}catch{/* Session storage may be unavailable. */}
         state.token=s.token;
         try{
           const saved=JSON.parse(sessionStorage.getItem('vvd_ai_outbox_'+slug)||'null');
