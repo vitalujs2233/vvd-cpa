@@ -35,7 +35,7 @@ export const AIModelsPage:React.FC=()=>{
           <div className="flex-1"><h3 className="text-sm font-bold">{m.name}</h3><p className="text-xs text-textSecondary">{stateName(m.status)} · {m.slug}</p></div>
         </div>
         <div className="grid grid-cols-4 gap-1 text-center text-[11px] text-textSecondary">{[['Визиты',stats[m.id||'']?.visits],['Чаты',stats[m.id||'']?.conversations],['Ответы AI',stats[m.id||'']?.messages],['Клики',stats[m.id||'']?.clicks]].map(([label,val])=><div key={String(label)} className="rounded-app-xs bg-white/[0.03] p-2"><b className="block text-sm text-textPrimary">{val??'—'}</b>{label}</div>)}</div>
-        <p className="text-[11px] text-textSecondary">Тариф: {m.affiliate_url?'Ссылка настроена':'Не выбран'} · Расходы AI (оценка): {stats[m.id||'']?.cost_usd==null?'—':('</p>
+        <p className="text-[11px] text-textSecondary">Тариф: {m.affiliate_url?'Ссылка настроена':'Не выбран'} · Расходы AI (оценка): {stats[m.id||'']?.cost_usd == null ? '—' : Number(stats[m.id||'']?.cost_usd).toFixed(6)+' USD'}</p>
         <div className="flex gap-2"><Link className="flex-1 rounded-app-xs border border-accentGold/30 p-3 text-center text-xs text-accentBrightGold" to={'/tools/ai/'+m.id}>Редактировать</Link>
           {m.status==='published'&&<a className="flex-1 rounded-app-xs border border-white/10 p-3 text-center text-xs" href={modelPageUrl(m.slug)} target="_blank" rel="noopener noreferrer">Открыть чат</a>}
           <CopyButton type="button" aria-label="Скопировать ссылку" text={modelPageUrl(m.slug)} className="rounded-app-xs border border-white/10 p-3"><Copy size={15}/></CopyButton>
