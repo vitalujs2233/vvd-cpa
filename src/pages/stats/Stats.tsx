@@ -39,7 +39,12 @@ export const Stats:React.FC=()=>{
   const [summary,setSummary]=useState<Summary|null>(()=>initial(0)?.summary||null);
   const [daily,setDaily]=useState<Day[]>(()=>initial(0)?.statistics||[]);
   const [countries,setCountries]=useState<Country[]>(()=>initial(1)?.countries||[]);
-  const [sort,setSort]=useState<'clicks'|'conversions'|'income'>('clicks');
+  const [sort,setSort]=useState<'clicks'|'conversions'|'income'>('income');
+  const [sortDescending,setSortDescending]=useState(true);
+  const chooseSort=(field:'clicks'|'conversions'|'income')=>{
+    if(sort===field)setSortDescending(previous=>!previous);
+    else {setSort(field);setSortDescending(true);}
+  };
   const [countrySearch,setCountrySearch]=useState('');
   const [clicks,setClicks]=useState<Click[]>(()=>initial(3)?.clicks||[]);
   const [offset,setOffset]=useState<number>(()=>initial(3)?.clicks?.length||0);
@@ -125,7 +130,7 @@ export const Stats:React.FC=()=>{
   const visibleDays=useMemo(()=>series.filter(d=>d.clicks>0),[series]);
   const maxVisible=Math.max(1,...visibleDays.map(d=>d.clicks));
   const totalVisible=series.reduce((sum,d)=>sum+d.clicks,0);
-  const orderedCountries=useMemo(()=>countries.filter(c=>(c.country_name+' '+(c.country_code||'')).toLowerCase().includes(countrySearch.trim().toLowerCase())).sort((a,b)=>b[sort]-a[sort]||a.country_name.localeCompare(b.country_name,'ru')),[countries,sort,countrySearch]);
+  const orderedCountries=useMemo(()=>countries.filter(c=>(c.country_name+' '+(c.country_code||'')).toLowerCase().includes(countrySearch.trim().toLowerCase())).sort((a,b)=>(sortDescending?b[sort]-a[sort]:a[sort]-b[sort])||a.country_name.localeCompare(b.country_name,'ru')),[countries,sort,sortDescending,countrySearch]);
 
   return <div className="flex flex-col gap-3 px-3 pt-3 pb-28 select-none animate-fade-in" data-testid="compact-analysis">
     <div className="flex items-center justify-between">
@@ -179,13 +184,20 @@ export const Stats:React.FC=()=>{
     <Card padding="sm" className="!p-3">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-bold text-white">География трафика</h2>
-        <select aria-label="Сортировка стран" value={sort} onChange={e=>setSort(e.target.value as 'clicks'|'conversions'|'income')}
+        <select aria-label="Сортировка стран" value={sort} onChange={e=>{setSort(e.target.value as 'clicks'|'conversions'|'income');setSortDescending(true)}}
           className="min-w-0 max-w-[48%] bg-bgCard/60 text-textSecondary text-[11px] border border-white/10 rounded-app-xs p-1.5">
           <option value="clicks">По кликам</option><option value="conversions">По конверсиям</option><option value="income">По заработку</option>
         </select>
       </div>
       <input aria-label="Поиск страны" placeholder="Страна или код, например LV" value={countrySearch} onChange={e=>setCountrySearch(e.target.value)} className="w-full mt-2 p-2 text-xs bg-bgCard/40 border border-white/10 rounded-app-xs"/>
-      <div className="grid grid-cols-[minmax(0,1.4fr)_0.7fr_0.8fr_1fr] gap-1 mt-3 text-[10px] text-textSecondary text-right"><span className="text-left">Страна</span><span>Клики</span><span>Конв.</span><span>Заработок</span></div>
+      <div className="grid grid-cols-[minmax(0,1.4fr)_0.7fr_0.8fr_1fr] gap-1 mt-3 text-[10px] text-textSecondary text-right"><span className="text-left">Страна</span>{(['clicks','conversions','income'] as const).map((field)=>(
+        <button key={field} type="button" onClick={()=>chooseSort(field)}
+          aria-label={`Сортировать страны по ${field==='clicks'?'кликам':field==='conversions'?'конверсиям':'заработку'}`}
+          aria-pressed={sort===field}
+          className={`text-right min-w-0 cursor-pointer ${sort===field?'text-accentGoldBright font-bold':'text-textSecondary'}`}>
+          {field==='clicks'?'Клики':field==='conversions'?'Конв.':'Заработок'}{sort===field?(sortDescending?' ↓':' ↑'):''}
+        </button>
+      ))}</div>
       <div data-testid="geo-scroll-list" className="mt-1 max-h-[360px] overflow-y-auto overscroll-y-auto min-w-0" style={{WebkitOverflowScrolling:'touch'}}>
         {orderedCountries.length?orderedCountries.map(c=><details key={c.country_code||'unknown'} className="border-b border-white/5 last:border-0">
           <summary className="grid grid-cols-[minmax(0,1.4fr)_0.7fr_0.8fr_1fr] gap-1 py-3 text-[11px] text-right cursor-pointer list-none items-center">
