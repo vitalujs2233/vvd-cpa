@@ -6,11 +6,21 @@ import {Card} from '@/shared/ui/Card';
 import {Input} from '@/shared/ui/Input';
 import {triggerHaptic} from '@/shared/lib/telegram';
 import {cpaApi,type Vertical} from './cpaApi';
+import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
 const icons={layers:Layers,heart:Heart,sparkles:Sparkles,video:Video,gamepad:Gamepad2,smartphone:Smartphone,globe:Globe};
 export const Offers:React.FC=()=>{
  const nav=useNavigate();const [items,setItems]=useState<Vertical[]>(()=>readSnapshot<Vertical[]>('catalog')||[]),[search,setSearch]=useState('');
  const [loading,setLoading]=useState(true),[error,setError]=useState('');
  useEffect(()=>{let live=true;cpaApi.catalog().then(r=>{if(live){saveSnapshot('catalog',r.verticals);setItems(r.verticals)}}).catch(e=>{if(live)setError(e instanceof Error?e.message:'Ошибка загрузки')}).finally(()=>{if(live)setLoading(false)});return()=>{live=false}},[]);
+ useEffect(()=>{
+   if(!items.length)return;
+   // Warm offer lists before the user opens their cards, without blocking the catalog.
+   let cancelled=false;
+   const queue=items.filter(v=>!readApiSnapshot('/cpa/catalog/'+encodeURIComponent(v.slug))).slice(0,12);
+   const warm=async()=>{for(const v of queue){if(cancelled)break;try{await cpaApi.vertical(v.slug)}catch{/* Keep navigation available offline. */}}};
+   void warm();
+   return()=>{cancelled=true};
+ },[items]);
  const filtered=useMemo(()=>items.filter(v=>v.title.toLowerCase().includes(search.trim().toLowerCase())),[items,search]);
  return <div className="flex flex-col gap-4 p-4 select-none pb-32 animate-fade-in w-full">
    <div className="flex flex-col text-left"><span className="text-[10px] text-textSecondary font-bold uppercase tracking-wider">CPA Каталог</span><h1 className="text-2xl font-bold text-white mt-1">Офферы</h1></div>
