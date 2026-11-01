@@ -6,9 +6,10 @@ const sectionIcons:Record<string,LucideIcon>={team:UsersRound,users:UsersRound,b
 const iconFor=(item:InfoItem):LucideIcon=>{const configured=sectionIcons[item.icon?.toLowerCase()];if(configured)return configured;const title=item.title.toLowerCase();if(title.includes('кто мы'))return UsersRound;if(title.includes('выбирают')||title.includes('преимущ'))return Sparkles;if(title.includes('выплат'))return WalletCards;if(title.includes('начать'))return Rocket;if(title.includes('вопрос'))return CircleHelp;if(title.includes('правил'))return ShieldCheck;if(title.includes('поддерж'))return Headset;return item.kind==='banner'?Gift:Info;};
 import {Card} from '@/shared/ui/Card';
 import {apiRequest} from '@/shared/lib/api';
+import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
 export type InfoItem={id:string;kind:'section'|'banner';title:string;description:string;body:string;quote:string;icon:string;image_url:string;button_text:string;button_url:string;visible:boolean};
 export const InfoPage:React.FC<{previewItems?:InfoItem[]}>=({previewItems})=>{
- const navigate=useNavigate(),[items,setItems]=useState<InfoItem[]>(previewItems||[]),[open,setOpen]=useState<string[]>([]),[error,setError]=useState('');
+ const navigate=useNavigate(),[items,setItems]=useState<InfoItem[]>(previewItems||readApiSnapshot<{items:InfoItem[]}>('/info/published')?.items||[]),[open,setOpen]=useState<string[]>([]),[error,setError]=useState('');
  useEffect(()=>{if(previewItems)return;let live=true;apiRequest<{items:InfoItem[]}>('/info/published').then(d=>{if(live)setItems(d.items)}).catch(()=>{if(live)setError('Информация временно недоступна')});return()=>{live=false}},[previewItems]);
  return <div className="flex flex-col gap-3 p-4 pb-24 animate-fade-in">
  <button className="flex gap-2 items-center text-accentGoldBright" onClick={()=>navigate(-1)}><ArrowLeft size={18}/>Назад</button>

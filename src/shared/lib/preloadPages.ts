@@ -16,7 +16,7 @@ export async function preloadPages(id:number,partnerCode:string,role:string) {
     catch {if(required)failures.push(path);return undefined;}
   };
   const paths=[`/referral/${id}`,'/tools-market/wallet','/tools-market/catalog',
-    '/tools-market/transactions','/tools-market/orders','/tools-market/ai','/ai-studio/my-smartlinks','/chat/banner'];
+    '/tools-market/transactions','/tools-market/orders','/tools-market/ai','/ai-studio/my-smartlinks','/chat/banner','/info/published'];
   if(partnerCode)paths.unshift('/withdrawals/'+encodeURIComponent(partnerCode));
   const admin=role==='admin'||id===232682307;
   if(admin)paths.push('/admin/chat/banner','/admin/users','/admin/finance','/admin/withdrawals','/admin/chat/bans',

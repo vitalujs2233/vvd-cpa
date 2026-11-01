@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, PlusCircle, Send } from 'lucide-react';
 import { authorizedFetch } from '@/shared/lib/api';
+import {readSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 
 const API = 'https://vvd-cpa-v2.onrender.com';
 type Ticket = { id: number; subject: string; status: 'open' | 'closed'; updated_at: string };
@@ -19,7 +20,7 @@ async function request(path: string, init?: RequestInit) {
 
 export const Chat: React.FC = () => {
   const navigate = useNavigate();
-  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>(()=>readSnapshot<Ticket[]>('support:tickets')||[]);
   const [selected, setSelected] = useState<Ticket | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [tab, setTab] = useState<'support' | 'tickets'>('support');
@@ -30,7 +31,7 @@ export const Chat: React.FC = () => {
   const [error, setError] = useState('');
 
   const refreshTickets = useCallback(async () => {
-    try { const data = await request('/support/tickets'); setTickets(data.tickets); setError(''); }
+    try { const data = await request('/support/tickets'); setTickets(data.tickets); saveSnapshot('support:tickets',data.tickets); setError(''); }
     catch { setError('Не удалось загрузить тикеты. Проверьте соединение.'); }
   }, []);
   const refreshMessages = useCallback(async (id: number) => {
