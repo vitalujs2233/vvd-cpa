@@ -1,7 +1,7 @@
 import {saveSnapshot} from '@/shared/lib/viewSnapshot';
 import {preloadStartupData, StartupDataError} from '@/shared/lib/startupData';
 import React, { useState, useEffect } from 'react';
-import { MemoryRouter, Routes, Route, NavLink, Outlet } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Home as HomeIcon, Grid, BarChart3, Wrench, User } from 'lucide-react';
 import { triggerHaptic } from '@/shared/lib/telegram';
 import { Home } from '@/pages/home/Home';
@@ -27,6 +27,18 @@ import { loginViaTelegramApi, ApiError, isTemporarySignInError } from '@/shared/
 
 // Главный Лейаут приложения, фиксирующий Bottom Menu
 const AppLayout = () => {
+  const location = useLocation();
+  const tabPaths = ['/', '/offers', '/stats', '/tools', '/profile'] as const;
+  const activeTab = tabPaths.includes(location.pathname as typeof tabPaths[number]) ? location.pathname : null;
+  // Keep visited tab screens mounted: switching tabs no longer destroys their data or UI.
+  const [visitedTabs,setVisitedTabs] = useState<string[]>(()=>activeTab?[activeTab]:[]);
+  useEffect(()=>{
+    if(activeTab)setVisitedTabs(current=>current.includes(activeTab)?current:[...current,activeTab]);
+  },[activeTab]);
+  const tabScreens:Record<string,React.ReactNode> = {
+    '/': <Home />, '/offers': <Offers />, '/stats': <Stats />,
+    '/tools': <Tools />, '/profile': <Profile />
+  };
   const handleTabClick = () => {
     // Вызов легкого тактильного отклика на смартфоне при переключении табов
     triggerHaptic.lightImpact();
@@ -43,7 +55,12 @@ const AppLayout = () => {
       
       {/* Контейнер контента со скроллом */}
       <div className="flex-1 overflow-y-auto scrollable-container relative z-10 w-full max-w-[1200px] mx-auto pb-[80px]">
-        <Outlet />
+        {tabPaths.map(path=>(visitedTabs.includes(path)||activeTab===path)&&(
+          <div key={path} style={{display:activeTab===path?'block':'none'}} aria-hidden={activeTab!==path}>
+            {tabScreens[path]}
+          </div>
+        ))}
+        {!activeTab&&<Outlet />}
       </div>
 
       {/* Нижняя навигация: «Инструменты» вместо «Движ» */}
@@ -208,14 +225,14 @@ const MiniApp = () => {
         <Routes>
           {/* Обертка Лейаута */}
           <Route path="/" element={<AppLayout />}>
-            <Route index element={<Home />} />
+            <Route index element={null} />
             <Route path="why-vvd" element={<InfoPage />} />
-            <Route path="offers" element={<Offers />} />
-            <Route path="stats" element={<Stats />} />
+            <Route path="offers" element={null} />
+            <Route path="stats" element={null} />
             {/* Существующий экран «Движ» сохранён */}
             <Route path="dvizh" element={<Dvizh />} />
             <Route path="tools" element={<Outlet />}>
-              <Route index element={<Tools />} />
+              <Route index element={null} />
               <Route path="topup" element={<ToolsTopupPage />} />
               <Route path="history" element={<ToolsHistory />} />
               <Route path="purchases" element={<ToolsPurchases />} />
@@ -227,7 +244,7 @@ const MiniApp = () => {
               <Route path="ai/new" element={<AIEditor />} />
               <Route path="ai/:id" element={<AIEditor />} />
             </Route>
-            <Route path="profile" element={<Profile />} />
+            <Route path="profile" element={null} />
             <Route path="referral" element={<Referral />} />
           </Route>
 
