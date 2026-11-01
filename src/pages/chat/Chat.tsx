@@ -22,7 +22,7 @@ export const Chat: React.FC = () => {
   const navigate = useNavigate();
   const [tickets, setTickets] = useState<Ticket[]>(()=>readSnapshot<Ticket[]>('support:tickets')||[]);
   const [selected, setSelected] = useState<Ticket | null>(null);
-  const [messages, setMessages] = useState<Message[]>(()=>readSnapshot<Message[]>('support:messages')||[]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [tab, setTab] = useState<'support' | 'tickets'>('support');
   const [creating, setCreating] = useState(false);
   const [subject, setSubject] = useState('');
@@ -38,7 +38,7 @@ export const Chat: React.FC = () => {
     try {
       const data = await request('/support/tickets/' + id);
       setSelected(data.ticket);
-      setMessages(data.messages); saveSnapshot('support:messages',data.messages);
+      setMessages(data.messages);
       setError('');
     } catch { setError('Не удалось загрузить переписку.'); }
   }, []);
