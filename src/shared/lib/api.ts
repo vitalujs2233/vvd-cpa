@@ -34,7 +34,23 @@ export class ApiError extends Error {
   }
 }
 
-export const apiRequest = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
+// Share simultaneous identical page reads across warmup and mounted screens.
+const pendingReads = new Map<string,Promise<unknown>>();
+export const apiRequest = <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
+  const read=(options.method||'GET').toUpperCase()==='GET';
+  // Only share ordinary GETs; custom headers, signals and writes keep independent semantics.
+  const share=read&&!options.signal&&!options.body&&!options.headers&&endpoint!=='/auth';
+  const key=share?JSON.stringify([window.Telegram?.WebApp?.initData||'',endpoint]):'';
+  if(share&&pendingReads.has(key))return pendingReads.get(key)! as Promise<T>;
+  const task=performApiRequest<T>(endpoint,options);
+  if(share){
+    pendingReads.set(key,task);
+    void task.then(()=>{if(pendingReads.get(key)===task)pendingReads.delete(key);},
+      ()=>{if(pendingReads.get(key)===task)pendingReads.delete(key);});
+  }
+  return task;
+};
+const performApiRequest = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
   const headers = new Headers(options.headers);
   if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
     headers.set('Content-Type','application/json');
