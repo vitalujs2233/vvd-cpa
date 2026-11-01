@@ -21,17 +21,19 @@ export async function preloadPages(id:number,partnerCode:string,role:string) {
   const admin=role==='admin'||id===232682307;
   if(admin)paths.push('/admin/chat/banner','/admin/users','/admin/finance','/admin/withdrawals','/admin/chat/bans',
     '/cpa/admin/networks','/cpa/admin/verticals','/cpa/admin/offers');
-  await parallel(paths,async p=>{await read(p,p.startsWith('/withdrawals/'));});
+  const primaryWarmup=parallel(paths,async p=>{await read(p,p.startsWith('/withdrawals/'));});
   const catalog=readSnapshot<any[]>('catalog')||[];
   const linkPaths:string[]=[];
-  await parallel(catalog,async v=>{
+  const catalogWarmup=parallel(catalog,async v=>{
     const path='/cpa/catalog/'+encodeURIComponent(v.slug);
     const data=await read(path,true);
     if(!data)return;
     for(const offer of data.offers||[])saveSnapshot('api:'+path+'/'+encodeURIComponent(offer.id),{vertical:data.vertical,offer});
     if(data.vertical?.cpa_link_allowed)linkPaths.push(...(data.offers||[]).map((o:any)=>'/cpa/links/'+encodeURIComponent(o.id)));
   });
-  await parallel(linkPaths,async p=>{await read(p);});
+  await catalogWarmup;
+  const linksWarmup=parallel(linkPaths,async p=>{await read(p);});
+  await primaryWarmup;
   const models=readSnapshot<any>('api:/tools-market/ai')?.models||[];
   const modelPaths=models.flatMap((m:any)=>['/tools-market/ai/'+m.id,...['settings','photos','stats'].map(s=>'/ai-studio/models/'+m.id+'/'+s)]);
   await parallel(modelPaths,async(p:string)=>{await read(p);});
@@ -45,5 +47,6 @@ export async function preloadPages(id:number,partnerCode:string,role:string) {
     details.push(...networks.map((n:any)=>'/cpa/admin/networks/'+n.id+'/postback'));
     await parallel(details,async(p:string)=>{await read(p);});
   }
+  await linksWarmup;
   if(failures.length)throw new Error('Не удалось подготовить историю выплат или каталог офферов. Повторите загрузку.');
 }
