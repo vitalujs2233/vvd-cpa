@@ -132,7 +132,7 @@ export const Stats:React.FC=()=>{
   const totalVisible=series.reduce((sum,d)=>sum+d.clicks,0);
   const orderedCountries=useMemo(()=>countries.filter(c=>(c.country_name+' '+(c.country_code||'')).toLowerCase().includes(countrySearch.trim().toLowerCase())).sort((a,b)=>(sortDescending?b[sort]-a[sort]:a[sort]-b[sort])||a.country_name.localeCompare(b.country_name,'ru')),[countries,sort,sortDescending,countrySearch]);
 
-  return <div className="flex flex-col gap-3 px-3 pt-3 pb-28 select-none animate-fade-in" data-testid="compact-analysis">
+  return <div className="flex flex-col gap-3 px-3 pt-3 pb-28 select-none animate-fade-in w-full min-w-0 max-w-full overflow-x-hidden" data-testid="compact-analysis">
     <div className="flex items-center justify-between">
       <h1 className="text-xl font-bold text-white">Анализ</h1>
       <button aria-label="Обновить статистику" onClick={()=>{setSubsRefresh(x=>x+1);void load(true);}} disabled={refreshing||loading} className="w-9 h-9 rounded-full border border-white/10 bg-bgCard/40 flex items-center justify-center text-textSecondary">
@@ -176,7 +176,7 @@ export const Stats:React.FC=()=>{
         <span className="text-[10px] text-textSecondary">За период: {totalVisible.toLocaleString('ru-RU')} кликов</span>
         <span className="text-[10px] text-textSecondary">Макс. в день: {maxVisible.toLocaleString('ru-RU')}</span>
       </div>
-      <div className="h-24 w-full min-w-0 flex items-end gap-[2px] overflow-x-auto" aria-label="График кликов">
+      <div className="h-24 w-full min-w-0 flex items-end gap-[2px] overflow-hidden" aria-label="График кликов">
         {visibleDays.length?visibleDays.map((d,i)=><div key={d.date+i} title={`${d.date}: ${d.clicks} кликов`} aria-label={`${d.date}: ${d.clicks} кликов`} className="shrink-0 w-[7px] rounded-t-sm bg-accentGold border-t border-white/25" style={{height:`${Math.max(8,100*d.clicks/maxVisible)}%`}}/>)
           :<p className="self-center text-xs text-textSecondary">Нет переходов за период</p>}
       </div>
