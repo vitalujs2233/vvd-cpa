@@ -55,7 +55,7 @@ const AppLayout = () => {
       
       {/* Контейнер контента со скроллом */}
       <div className="flex-1 overflow-y-auto scrollable-container relative z-10 w-full max-w-[1200px] mx-auto pb-[80px]">
-        {tabPaths.map(path=>visitedTabs.includes(path)&&(
+        {tabPaths.map(path=>(visitedTabs.includes(path)||activeTab===path)&&(
           <div key={path} style={{display:activeTab===path?'block':'none'}} aria-hidden={activeTab!==path}>
             {tabScreens[path]}
           </div>
