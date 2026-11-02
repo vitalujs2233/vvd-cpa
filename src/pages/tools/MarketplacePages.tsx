@@ -75,6 +75,7 @@ export const ToolsTopupPage:React.FC=()=>{
   const [amount,setAmount]=useState('5'),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const [notice,setNotice]=useState('');
   const [accepted,setAccepted]=useState(false);
+  const [paymentMethod,setPaymentMethod]=useState<'stars'|'crypto'>('stars');
   const [config,setConfig]=useState<TopupConfig|null>(null);
   const [invoices,setInvoices]=useState<ToolInvoice[]>([]);
   const sending=useRef(false), mounted=useRef(true), request=useRef({amount:'',key:''});
@@ -125,11 +126,19 @@ export const ToolsTopupPage:React.FC=()=>{
     finally{sending.current=false;if(mounted.current)setBusy(false);}
   };
   const labels:Record<string,string>={draft:'Создаётся',pending:'Ожидает оплаты',paid:'Оплачено · баланс зачислен',expired:'Срок истёк',failed:'Ошибка',cancelled:'Отменён',refunded:'Возврат выполнен'};
-  return <Shell><NavHeader title="Пополнение баланса" subtitle="Оплата Telegram Stars · баланс в USD"/>
+  return <Shell><NavHeader title="Пополнение баланса" subtitle="Telegram Stars и криптовалюта · баланс в USD"/>
     <Card className="flex flex-col gap-2"><p className="text-xs text-textSecondary">Баланс инструментов</p><strong className="text-2xl text-accentBrightGold">{usd(w.value.available)}</strong>
       {Number(w.value.refund_debt)>0&&<Status>Задолженность после возврата: {usd(w.value.refund_debt)}. Следующее пополнение сначала погасит её.</Status>}
     </Card>
-    <Card className="flex flex-col gap-4">
+    <Card className="flex flex-col gap-3">
+      <h2 className="text-sm font-bold">Способ пополнения</h2>
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" aria-pressed={paymentMethod==='stars'} onClick={()=>setPaymentMethod('stars')} className={'rounded-app-xs border p-3 text-sm font-semibold '+(paymentMethod==='stars'?'border-accentGold bg-accentGold/10 text-accentBrightGold':'border-white/10 text-textSecondary')}>Telegram Stars ⭐</button>
+        <button type="button" aria-pressed={paymentMethod==='crypto'} onClick={()=>setPaymentMethod('crypto')} className={'rounded-app-xs border p-3 text-sm font-semibold '+(paymentMethod==='crypto'?'border-accentGold bg-accentGold/10 text-accentBrightGold':'border-white/10 text-textSecondary')}>Криптовалюта</button>
+      </div>
+      {paymentMethod==='crypto'&&<Status>Crypto Pay пока не подключён к серверу. Криптоплатежи недоступны: счета не создаются и средства не списываются.</Status>}
+    </Card>
+    {paymentMethod==='stars'&&<Card className="flex flex-col gap-4">
       <label className="text-xs font-semibold text-textSecondary">Сумма пополнения в USD
         <input className={inputClass+' mt-2'} type="text" inputMode="decimal" value={amount} disabled={busy} onChange={e=>setAmount(e.target.value.replace(',','.'))} placeholder="5.00"/>
       </label>
@@ -146,7 +155,7 @@ export const ToolsTopupPage:React.FC=()=>{
       {error&&<p role="alert" className="text-xs text-error">{error}</p>}
       {notice&&<Status>{notice}</Status>}
       <Link to="/tools/history" className="text-xs text-accentBrightGold">История операций →</Link>
-    </Card>
+    </Card>}
     <Card className="flex flex-col gap-3"><h2 className="text-sm font-bold">Счета пополнения</h2>
       {!invoices.length&&<p className="text-xs text-textSecondary">Счетов пока нет</p>}
       {invoices.map(i=><div key={i.id} className="border-t border-white/10 pt-3 text-xs">
