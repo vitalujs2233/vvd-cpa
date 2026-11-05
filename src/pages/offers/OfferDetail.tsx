@@ -5,6 +5,7 @@ import React,{useEffect,useState} from 'react';
 import {useParams,useNavigate,Link} from 'react-router-dom';
 import {ArrowLeft,Globe,Calendar,ChevronRight} from 'lucide-react';
 import {Card} from '@/shared/ui/Card';
+import {getCpaIcon} from './cpaIcons';
 import {cpaApi,type PublicOffer,type Vertical} from './cpaApi';
 export const OfferDetail:React.FC=()=>{
  const {id,offerId}=useParams();const nav=useNavigate();
@@ -59,7 +60,7 @@ export const OfferDetail:React.FC=()=>{
    {loading&&!vertical&&<Card padding="lg" className="min-h-40 flex items-center justify-center text-sm text-textSecondary">Загружаем данные карточки…</Card>}
    {error&&<p role="alert" className="text-sm text-textSecondary">{error}</p>}
    {vertical&&!offerId&&!offer&&<><p className="text-xs text-textSecondary">{vertical?.description||''}</p>
-     {offers.length?offers.map(o=><Link key={o.id} to={'/offers/'+encodeURIComponent(id||'')+'/'+encodeURIComponent(o.id)}><Card padding="sm" className="flex items-center justify-between"><div className="flex-1 min-w-0"><h2 className="text-sm font-bold text-white">{o.title}</h2><p className="mt-1 text-xs text-textSecondary line-clamp-2">{o.description||o.payout_terms||'Условия уточняются'}</p></div><ChevronRight size={18}/></Card></Link>):<Card padding="lg" className="py-16 text-center text-xs text-textSecondary">В этой вертикали пока нет опубликованных офферов</Card>}
+     {offers.length?offers.map(o=>{const Icon=getCpaIcon(o.icon_name);return <Link key={o.id} to={'/offers/'+encodeURIComponent(id||'')+'/'+encodeURIComponent(o.id)}><Card padding="sm" className="flex items-center justify-between gap-3"><div className="w-11 h-11 shrink-0 rounded-app-xs border border-accentPurple/20 bg-accentPurple/10 flex items-center justify-center text-accentPurple"><Icon size={20}/></div><div className="flex-1 min-w-0"><h2 className="text-sm font-bold text-white">{o.title}</h2><p className="mt-1 text-xs text-textSecondary line-clamp-2">{o.description||o.payout_terms||'Условия уточняются'}</p></div><ChevronRight size={18}/></Card></Link>}):<Card padding="lg" className="py-16 text-center text-xs text-textSecondary">В этой вертикали пока нет опубликованных офферов</Card>}
    </>}
    {offer&&<><Card padding="lg" className="space-y-3"><h2 className="text-base font-bold">{offer.title}</h2><p className="text-sm text-textSecondary whitespace-pre-wrap">{offer.description||'Описание пока не добавлено'}</p></Card>
      <div className="grid grid-cols-2 gap-3"><Card padding="sm" className="flex items-center gap-2"><Globe className="text-accentPurple" size={17}/><div><p className="text-[10px] text-textSecondary">ГЕО</p><p className="text-xs font-bold">{offer.geo||'Нет данных'}</p></div></Card><Card padding="sm" className="flex items-center gap-2"><Calendar className="text-accentPurple" size={17}/><div><p className="text-[10px] text-textSecondary">Холд</p><p className="text-xs font-bold">{offer.hold_override_days} дней</p></div></Card></div>
