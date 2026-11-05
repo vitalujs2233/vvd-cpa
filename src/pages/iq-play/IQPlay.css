@@ -15,3 +15,20 @@
 .iq-root .iq-muted:last-child{padding-bottom:24px}
 
 .iq-sound-check{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0;padding:10px 12px;border:1px solid #7b602e;border-radius:12px;background:#18140d;color:#f1d9a0;font-size:12px}.iq-sound-check button{flex-shrink:0;border:1px solid #c99b42;border-radius:8px;padding:9px;color:#ffdb87;background:#33260d;font-weight:700}
+
+/* Brief television-quiz answer reveal; no gameplay or scoring changes. */
+.iq-answer-effect{position:fixed;inset:0;z-index:1100;display:grid;place-items:center;padding:24px;background:rgba(0,0,0,.76);backdrop-filter:blur(5px);animation:iq-reveal-in .2s ease-out}
+.iq-effect-card{width:min(100%,340px);min-height:205px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;border:2px solid #29bf70;border-radius:22px;background:radial-gradient(circle at 50% 25%,#164d33,#08160f 72%);box-shadow:0 0 65px #25d17a50,inset 0 0 30px #29bf7020;animation:iq-card-pop .48s cubic-bezier(.2,1.4,.4,1)}
+.iq-effect-symbol{width:66px;height:66px;border:3px solid currentColor;border-radius:50%;display:grid;place-items:center;color:#61f5a2;font-size:38px;font-weight:900;text-shadow:0 0 18px currentColor}
+.iq-effect-card strong{font-size:25px;letter-spacing:1.5px;color:#b5ffd3;text-shadow:0 0 20px #2af27b60}
+.iq-effect-xp{font-size:30px;font-weight:900;color:#6dffac;animation:iq-xp-rise .65s ease-out}
+.iq-effect-card small{color:#ffb9b5;font-size:14px}
+.iq-effect-wrong .iq-effect-card,.iq-effect-lose .iq-effect-card{border-color:#db534f;background:radial-gradient(circle at 50% 25%,#4b1818,#170909 72%);box-shadow:0 0 60px #d33b3b50}
+.iq-effect-wrong .iq-effect-symbol,.iq-effect-lose .iq-effect-symbol{color:#ff8b83}
+.iq-effect-wrong .iq-effect-card strong,.iq-effect-lose .iq-effect-card strong{color:#ffb1a9}
+.iq-effect-win .iq-effect-card{border-color:#ffda70;background:radial-gradient(circle at 50% 25%,#5a4113,#181006 72%);box-shadow:0 0 85px #ffc84d80}
+.iq-effect-win .iq-effect-symbol,.iq-effect-win .iq-effect-card strong,.iq-effect-win .iq-effect-xp{color:#ffe18a}
+@keyframes iq-reveal-in{from{opacity:0}to{opacity:1}}
+@keyframes iq-card-pop{from{opacity:.5;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
+@keyframes iq-xp-rise{from{opacity:0;transform:translateY(16px) scale(.85)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(prefers-reduced-motion:reduce){.iq-answer-effect,.iq-effect-card,.iq-effect-xp{animation:none}}
