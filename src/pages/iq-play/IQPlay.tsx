@@ -137,6 +137,14 @@ export const IQPlay:React.FC=()=>{
   const [clock,setClock]=useState(0);
   const [offset,setOffset]=useState(0);
   const [feedback,setFeedback]=useState('');
+  const [answerEffect,setAnswerEffect]=useState<{kind:'correct'|'wrong'|'win'|'lose';xp:number}|null>(null);
+  const effectTimer=useRef<number|null>(null);
+  const showAnswerEffect=(kind:'correct'|'wrong'|'win'|'lose',xp:number)=>{
+    if(effectTimer.current!==null)window.clearTimeout(effectTimer.current);
+    setAnswerEffect({kind,xp});
+    effectTimer.current=window.setTimeout(()=>{setAnswerEffect(null);effectTimer.current=null;},1050);
+  };
+  useEffect(()=>()=>{if(effectTimer.current!==null)window.clearTimeout(effectTimer.current);},[]);
   const sync=(r:Round)=>{setRound(r);setOffset(Date.now()-new Date(r.server_now).getTime());};
   const refresh=useCallback(async()=>{
     setError('');
@@ -148,11 +156,14 @@ export const IQPlay:React.FC=()=>{
   },[]);
   useEffect(()=>{void refresh();},[refresh]);
   useEffect(()=>{const id=window.setInterval(()=>setClock(x=>x+1),250);return()=>window.clearInterval(id);},[]);
-  const start=async()=>{if(!muted)playSound('intro');setBusy(true);setError('');setFeedback('');try{sync(await apiRequest<Round>('/iq-play/rounds',{method:'POST'}));}catch(e){setError(e instanceof Error?e.message:'Не удалось начать игру');}finally{setBusy(false);}};
-  const answer=async(choice:number)=>{if(!round||busy||round.status!=='active'||choice===round.blocked_index)return;
+  const start=async()=>{if(!muted)playSound('intro');setBusy(true);setError('');setFeedback('');setAnswerEffect(null);try{sync(await apiRequest<Round>('/iq-play/rounds',{method:'POST'}));}catch(e){setError(e instanceof Error?e.message:'Не удалось начать игру');}finally{setBusy(false);}};
+  const answer=async(choice:number)=>{if(!round||busy||answerEffect||round.status!=='active'||choice===round.blocked_index)return;
     setBusy(true);setError('');
     try{const response=await apiRequest<Response>(`/iq-play/rounds/${round.round_id}/answers`,{method:'POST',body:JSON.stringify({position:round.position,choice,event_id:crypto.randomUUID()})});
-      if(!muted)playSound(response.round.status==='won'?'win':response.round.status==='lost'?'lose':response.outcome==='wrong'?'wrong':'correct');
+      const effectKind=response.round.status==='won'?'win':response.round.status==='lost'?'lose':response.outcome==='correct'?'correct':'wrong';
+      const gained=Math.max(0,response.round.round_xp-round.round_xp);
+      showAnswerEffect(effectKind,gained);
+      if(!muted)playSound(effectKind);
       setFeedback(response.outcome==='wrong'?'Неверно! Используй второй шанс.':'');
       sync(response.round);
       if(response.round.status!=='active')setProfile(await apiRequest<Profile>('/iq-play/profile'));
@@ -177,6 +188,12 @@ export const IQPlay:React.FC=()=>{
     return()=>{live=false;};
   },[round?.round_id,round?.deadline,round?.status,seconds]);
   return <main className={'iq-root'+(round?.status==='active'?' iq-playing':'')}>
+    {answerEffect&&<div className={'iq-answer-effect iq-effect-'+answerEffect.kind} role="status" aria-live="polite">
+      <div className="iq-effect-card"><div className="iq-effect-symbol">{answerEffect.kind==='correct'?'✓':answerEffect.kind==='win'?'★':'✕'}</div>
+      <strong>{answerEffect.kind==='correct'?'ПРАВИЛЬНО!':answerEffect.kind==='win'?'ПОБЕДА!':answerEffect.kind==='lose'?'ИГРА ОКОНЧЕНА':'НЕВЕРНО!'}</strong>
+      {answerEffect.xp>0&&<span className="iq-effect-xp">+{answerEffect.xp} XP</span>}
+      {answerEffect.kind==='wrong'&&<small>Используй второй шанс</small>}</div>
+    </div>}
     <header className="iq-header"><button onClick={()=>navigate('/')} aria-label="Назад"><ArrowLeft size={20}/></button><span>VVD <strong>IQ PLAY</strong></span><button onClick={toggleSound} aria-label={muted?'Включить звук':'Выключить звук'}>{muted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button></header>
     <section className="iq-hero"><div className="iq-emblem"><Brain size={42}/><Crown size={20}/></div><h1>IQ PLAY</h1><p>Прокачай себя в арбитраже</p></section>
     {error&&<div className="iq-error" role="alert">{error}<button onClick={()=>void refresh()}>Повторить загрузку</button></div>}
@@ -185,7 +202,7 @@ export const IQPlay:React.FC=()=>{
       <div className="iq-progress"><div style={{width:`${(round.position-1)/15*100}%`}}/></div>
       <div className={`iq-timer ${seconds<=5?'urgent':''}`} role="timer" aria-label="Осталось секунд">{seconds}</div>
       <div className="iq-question">{round.prompt}</div>
-      <div className="iq-choices">{round.options?.map((option,i)=><button key={i} disabled={busy||i===round.blocked_index||seconds===0} onClick={()=>void answer(i)}><b>{'ABCD'[i]}</b>{option}</button>)}</div>
+      <div className="iq-choices">{round.options?.map((option,i)=><button key={i} disabled={busy||!!answerEffect||i===round.blocked_index||seconds===0} onClick={()=>void answer(i)}><b>{'ABCD'[i]}</b>{option}</button>)}</div>
       {round.retry&&<p className="iq-warning" role="status">Неверный ответ или истекло время. Остался один шанс — 10 секунд.</p>}
       {feedback&&<p className="iq-muted">{feedback}</p>}
       {seconds===0&&<p className="iq-muted">Проверяем таймер на сервере…</p>}
