@@ -19,6 +19,20 @@ export const IQPlay:React.FC=()=>{
   const [error,setError]=useState('');
   const [muted,setMuted]=useState(true);
   const mutedRef=useRef(true);
+  const applauseRef=useRef<HTMLAudioElement|null>(null);
+  const applauseStopRef=useRef<number|null>(null);
+  const applauseUrl='/audio/iq-crowd-cheer-and-applause.mp3';
+  const playRealApplause=(full:boolean)=>{
+    if(mutedRef.current)return;
+    if(applauseStopRef.current!==null)window.clearTimeout(applauseStopRef.current);
+    if(applauseRef.current){applauseRef.current.pause();applauseRef.current.currentTime=0;}
+    const audio=new Audio(applauseUrl);audio.volume=full?.78:.58;
+    applauseRef.current=audio;
+    void audio.play().catch(()=>{/* Audio file unavailable or playback blocked */});
+    if(!full)applauseStopRef.current=window.setTimeout(()=>{
+      audio.volume=.2;window.setTimeout(()=>{audio.pause();},200);
+    },1700);
+  };
 
   type Sound='intro'|'correct'|'wrong'|'win'|'lose'|'tick';
   const contextRef=useRef<AudioContext|null>(null);
@@ -133,7 +147,7 @@ export const IQPlay:React.FC=()=>{
       audience(ctx,t+.18,'applause');hit(ctx,t,.17);chord([196,293.66,392],t,.85,.032,'strings');
       chord([261.63,392,523.25],t+.55,1.15,.042,'brass');
     }else if(kind==='correct'){
-      audience(ctx,t+.13,'applause');hit(ctx,t,.11);
+      playRealApplause(false);hit(ctx,t,.11);
       chord([392,493.88,587.33],t,.5,.038,'brass');
       tone(ctx,t+.22,783.99,.65,.11,'bell');
     }else if(kind==='wrong'){
@@ -141,7 +155,7 @@ export const IQPlay:React.FC=()=>{
       chord([220,261.63,311.13],t,.85,.045,'brass');
       tone(ctx,t+.26,155.56,.85,.095,'bass');
     }else if(kind==='win'){
-      audience(ctx,t+.2,'ovation');[0,.26,.52,.78].forEach((d,i)=>{hit(ctx,t+d,.14);tone(ctx,t+d,[392,493.88,587.33,783.99][i],.9,.09,'bell');});
+      playRealApplause(true);[0,.26,.52,.78].forEach((d,i)=>{hit(ctx,t+d,.14);tone(ctx,t+d,[392,493.88,587.33,783.99][i],.9,.09,'bell');});
       chord([261.63,329.63,392,523.25],t+.8,2.1,.05,'brass');
       chord([523.25,659.25,783.99],t+1.12,1.9,.035,'strings');
     }else if(kind==='lose'){
@@ -154,6 +168,8 @@ export const IQPlay:React.FC=()=>{
   },[]);
   const stopMusic=()=>{
     stopAudienceBed();
+    if(applauseStopRef.current!==null)window.clearTimeout(applauseStopRef.current);
+    applauseRef.current?.pause();
     if(musicTimerRef.current!==null){window.clearInterval(musicTimerRef.current);musicTimerRef.current=null;}
     // Stop only future scheduled notes when muting; allow brief effects to decay.
     soundNodesRef.current.forEach(o=>{try{o.stop();}catch{/* already stopped */}});
