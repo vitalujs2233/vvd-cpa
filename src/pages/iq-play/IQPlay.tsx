@@ -65,28 +65,87 @@ export const IQPlay:React.FC=()=>{
     osc.connect(filter);filter.connect(gain);gain.connect(ctx.destination);
     osc.start(at);osc.stop(at+.25);
   };
+  // Procedural studio audience: filtered crowd wash, staggered claps and room reflections.
+  // Uses no external recordings and remains silent until sound is enabled.
+  const crowdBufferRef=useRef<AudioBuffer|null>(null);
+  const crowdBedRef=useRef<{source:AudioBufferSourceNode;gain:GainNode}|null>(null);
+  const noiseBuffer=(ctx:AudioContext)=>{
+    if(crowdBufferRef.current)return crowdBufferRef.current;
+    const buffer=ctx.createBuffer(1,ctx.sampleRate*3,ctx.sampleRate),data=buffer.getChannelData(0);
+    let prev=0;
+    for(let i=0;i<data.length;i++){
+      prev=prev*.93+(Math.random()*2-1)*.07;
+      data[i]=prev;
+    }
+    crowdBufferRef.current=buffer;
+    return buffer;
+  };
+  const studioClap=(ctx:AudioContext,at:number,level:number)=>{
+    const source=ctx.createBufferSource(),filter=ctx.createBiquadFilter(),gain=ctx.createGain();
+    source.buffer=noiseBuffer(ctx);filter.type='bandpass';filter.frequency.value=850+Math.random()*1800;
+    filter.Q.value=.55;gain.gain.setValueAtTime(.0001,at);
+    gain.gain.exponentialRampToValueAtTime(level,at+.008);
+    gain.gain.exponentialRampToValueAtTime(.0001,at+.075+Math.random()*.065);
+    source.connect(filter);filter.connect(gain);gain.connect(ctx.destination);
+    source.start(at,Math.random()*2);source.stop(at+.17);
+  };
+  const audience=(ctx:AudioContext,at:number,kind:'applause'|'ovation'|'gasp')=>{
+    const duration=kind==='ovation'?3.2:kind==='applause'?1.4:.7;
+    if(kind==='gasp'){
+      const src=ctx.createBufferSource(),filter=ctx.createBiquadFilter(),gain=ctx.createGain();
+      src.buffer=noiseBuffer(ctx);filter.type='bandpass';filter.frequency.value=520;filter.Q.value=.42;
+      gain.gain.setValueAtTime(.0001,at);gain.gain.linearRampToValueAtTime(.16,at+.16);
+      gain.gain.exponentialRampToValueAtTime(.0001,at+duration);
+      src.connect(filter);filter.connect(gain);gain.connect(ctx.destination);
+      src.start(at,.2);src.stop(at+duration);
+      return;
+    }
+    const count=kind==='ovation'?95:36;
+    for(let i=0;i<count;i++){
+      const time=at+.07+Math.random()*duration*.86;
+      const swell=Math.min(1,(time-at)/.35,(at+duration-time)/.32);
+      studioClap(ctx,time,(kind==='ovation'?.16:.115)*Math.max(.15,swell));
+    }
+  };
+  const startAudienceBed=()=>{
+    if(crowdBedRef.current)return;
+    const ctx=audioContext(),source=ctx.createBufferSource(),filter=ctx.createBiquadFilter(),gain=ctx.createGain();
+    source.buffer=noiseBuffer(ctx);source.loop=true;
+    filter.type='lowpass';filter.frequency.value=440;
+    gain.gain.value=.0001;
+    source.connect(filter);filter.connect(gain);gain.connect(ctx.destination);
+    source.start();gain.gain.setTargetAtTime(.055,ctx.currentTime,.6);
+    crowdBedRef.current={source,gain};
+  };
+  const stopAudienceBed=()=>{
+    const bed=crowdBedRef.current;if(!bed)return;
+    const ctx=contextRef.current;
+    if(ctx){bed.gain.gain.setTargetAtTime(.0001,ctx.currentTime,.12);
+      try{bed.source.stop(ctx.currentTime+.5);}catch{/* already stopped */}}
+    crowdBedRef.current=null;
+  };
   const playSound=useCallback((kind:Sound)=>{
     if(mutedRef.current)return;
     const ctx=audioContext(),t=ctx.currentTime+.015;
     const chord=(notes:number[],at:number,duration:number,volume:number,timbre:'strings'|'brass')=>
       notes.forEach(n=>tone(ctx,at,n,duration,volume,timbre));
     if(kind==='intro'){
-      hit(ctx,t,.17);chord([196,293.66,392],t,.85,.032,'strings');
+      audience(ctx,t+.18,'applause');hit(ctx,t,.17);chord([196,293.66,392],t,.85,.032,'strings');
       chord([261.63,392,523.25],t+.55,1.15,.042,'brass');
     }else if(kind==='correct'){
-      hit(ctx,t,.11);
+      audience(ctx,t+.13,'applause');hit(ctx,t,.11);
       chord([392,493.88,587.33],t,.5,.038,'brass');
       tone(ctx,t+.22,783.99,.65,.11,'bell');
     }else if(kind==='wrong'){
-      hit(ctx,t,.21);
+      audience(ctx,t+.1,'gasp');hit(ctx,t,.21);
       chord([220,261.63,311.13],t,.85,.045,'brass');
       tone(ctx,t+.26,155.56,.85,.095,'bass');
     }else if(kind==='win'){
-      [0,.26,.52,.78].forEach((d,i)=>{hit(ctx,t+d,.14);tone(ctx,t+d,[392,493.88,587.33,783.99][i],.9,.09,'bell');});
+      audience(ctx,t+.2,'ovation');[0,.26,.52,.78].forEach((d,i)=>{hit(ctx,t+d,.14);tone(ctx,t+d,[392,493.88,587.33,783.99][i],.9,.09,'bell');});
       chord([261.63,329.63,392,523.25],t+.8,2.1,.05,'brass');
       chord([523.25,659.25,783.99],t+1.12,1.9,.035,'strings');
     }else if(kind==='lose'){
-      hit(ctx,t,.22);chord([233.08,293.66,349.23],t,1.2,.042,'brass');
+      audience(ctx,t+.1,'gasp');hit(ctx,t,.22);chord([233.08,293.66,349.23],t,1.2,.042,'brass');
       chord([196,233.08,293.66],t+.55,1.65,.035,'strings');
       tone(ctx,t+.65,98,1.3,.1,'bass');
     }else{
@@ -94,6 +153,7 @@ export const IQPlay:React.FC=()=>{
     }
   },[]);
   const stopMusic=()=>{
+    stopAudienceBed();
     if(musicTimerRef.current!==null){window.clearInterval(musicTimerRef.current);musicTimerRef.current=null;}
     // Stop only future scheduled notes when muting; allow brief effects to decay.
     soundNodesRef.current.forEach(o=>{try{o.stop();}catch{/* already stopped */}});
@@ -102,6 +162,7 @@ export const IQPlay:React.FC=()=>{
   const startMusic=()=>{
     if(musicTimerRef.current!==null)return;
     const ctx=audioContext(),beat=.53;
+    startAudienceBed();
     musicStepRef.current=0;nextBeatRef.current=ctx.currentTime+.09;
     // Original 16-bar TV-quiz-inspired score: alternating motifs, harmonic turns,
     // string ostinato, brass swells, timpani and an accelerated suspense layer.
@@ -213,7 +274,7 @@ export const IQPlay:React.FC=()=>{
     return()=>{live=false;};
   },[round?.round_id,round?.deadline,round?.status,seconds]);
   return <main className={'iq-root'+(round?.status==='active'?' iq-playing':'')}>
-    <div className="iq-stage" aria-hidden="true"><div className="iq-stage-beam iq-beam-left"/><div className="iq-stage-beam iq-beam-right"/><div className="iq-stage-halo"/><div className="iq-stage-dots"/></div>
+    <div className="iq-stage" aria-hidden="true"><div className="iq-stage-beam iq-beam-left"/><div className="iq-stage-beam iq-beam-right"/><div className="iq-stage-halo"/><div className="iq-stage-dots"/><div className="iq-audience"><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/></div></div>
     {answerEffect&&<div className={'iq-answer-effect iq-effect-'+answerEffect.kind} role="status" aria-live="polite">
       <div className="iq-effect-card"><div className="iq-effect-symbol">{answerEffect.kind==='correct'?'✓':answerEffect.kind==='win'?'★':'✕'}</div>
       <strong>{answerEffect.kind==='correct'?'ПРАВИЛЬНО!':answerEffect.kind==='win'?'ПОБЕДА!':answerEffect.kind==='lose'?'ИГРА ОКОНЧЕНА':'НЕВЕРНО!'}</strong>
