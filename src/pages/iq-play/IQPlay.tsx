@@ -21,7 +21,7 @@ export const IQPlay:React.FC=()=>{
   const mutedRef=useRef(true);
   const applauseRef=useRef<HTMLAudioElement|null>(null);
   const applauseStopRef=useRef<number|null>(null);
-  const applauseUrl='/audio/iq-crowd-cheer-and-applause.mp3';
+  const applauseUrl=`${import.meta.env.BASE_URL}audio/iq-crowd-cheer-and-applause.mp3`;
   const playRealApplause=(full:boolean)=>{
     if(mutedRef.current)return;
     if(applauseStopRef.current!==null)window.clearTimeout(applauseStopRef.current);
@@ -261,7 +261,7 @@ export const IQPlay:React.FC=()=>{
   const answer=async(choice:number)=>{if(!round||busy||answerEffect||round.status!=='active'||choice===round.blocked_index)return;
     setBusy(true);setError('');
     try{const response=await apiRequest<Response>(`/iq-play/rounds/${round.round_id}/answers`,{method:'POST',body:JSON.stringify({position:round.position,choice,event_id:crypto.randomUUID()})});
-      const effectKind=response.round.status==='won'?'win':response.round.status==='lost'?'lose':response.outcome==='correct'?'correct':'wrong';
+      const effectKind=response.outcome==='correct'?(response.round.status==='won'?'win':'correct'):(response.round.status==='lost'?'lose':'wrong');
       const gained=Math.max(0,response.round.round_xp-round.round_xp);
       showAnswerEffect(effectKind,gained);
       if(!muted)playSound(effectKind);
