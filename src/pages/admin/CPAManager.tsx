@@ -4,6 +4,7 @@ import {ArrowLeft,Plus,Save} from 'lucide-react';
 import {Card} from '@/shared/ui/Card';
 import {cpaApi,type Network,type Vertical,type Offer} from '@/pages/offers/cpaApi';
 import {NetworkPostback} from './NetworkPostback';
+import {CpaIconPicker} from '@/pages/offers/cpaIcons';
 type Section='networks'|'verticals'|'offers';
 const input='w-full rounded-app-xs border border-white/10 bg-bgCard px-3 py-2.5 text-sm text-textPrimary outline-none focus:border-accentPurple/50';
 const sampleNetwork:Network={id:0,name:'',website:'',description:'',is_active:true,connection_notes:'',click_param:null,partner_param:null,offers_count:0};
@@ -54,7 +55,7 @@ export const CPAManager:React.FC<{onBack:()=>void}>=({onBack})=>{
       {row('Slug (латиница)',vertical.slug,s=>v('slug',s.toLowerCase().replace(/[^a-z0-9-]/g,'')),false,exists)}
       {row('Название',vertical.title,s=>v('title',s))}
       {row('Описание',vertical.description,s=>v('description',s),true)}
-      {option('Иконка',vertical.icon_name,[['layers','Каталог'],['heart','Сердце'],['sparkles','Искры'],['video','Видео'],['gamepad','Игры'],['smartphone','Телефон'],['globe','Мир']],s=>v('icon_name',s))}
+      <CpaIconPicker value={vertical.icon_name} onChange={s=>v('icon_name',s)}/>
       {row('Порядок',vertical.display_order,s=>v('display_order',Number(s)||0))}
       {check('Опубликована',vertical.is_active,s=>v('is_active',s))}
       {check('Разрешить CPA-ссылки (только при подтверждённой допустимости и условиях доступа)',vertical.cpa_link_allowed,s=>v('cpa_link_allowed',s))}
@@ -72,7 +73,7 @@ export const CPAManager:React.FC<{onBack:()=>void}>=({onBack})=>{
       {row('Параметр click_id для оффера (переопределяет сеть)',offer.click_param_override||'',s=>o('click_param_override',s||null))}
       <p className="text-[11px] text-textSecondary">Если параметр не подтверждён, персональная ссылка недоступна. Текущие параметры исходного URL сохраняются.</p>
       {row('Изображение HTTPS (необязательно)',offer.image_url||'',s=>o('image_url',s||null))}
-      {row('Иконка',offer.icon_name,s=>o('icon_name',s))}
+      <CpaIconPicker value={offer.icon_name} onChange={s=>o('icon_name',s)}/>
       {row('Разрешённые GEO',offer.geo,s=>o('geo',s))}
       {row('Ограничения трафика',offer.traffic_restrictions,s=>o('traffic_restrictions',s),true)}
       {option('Модель оплаты',offer.payment_model,[['CPA','CPA'],['CPL','CPL'],['RevShare','RevShare'],['CPI','CPI'],['Other','Другая']],s=>o('payment_model',s))}
