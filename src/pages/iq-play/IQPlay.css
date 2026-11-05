@@ -66,3 +66,17 @@
 @keyframes iq-timer-urgent{50%{box-shadow:0 0 40px #fa504fb0;transform:scale(1.055)}}
 @keyframes iq-question-shimmer{0%,55%,100%{transform:translateX(-110%)}75%{transform:translateX(110%)}}
 @media(prefers-reduced-motion:reduce){.iq-stage-beam,.iq-stage-halo,.iq-hero .iq-emblem,.iq-timer,.iq-question::before{animation:none}}
+
+/* Subtle auditorium silhouettes: the player is looking out at a live studio audience. */
+.iq-audience{position:absolute;top:310px;left:0;right:0;height:170px;display:flex;align-items:flex-end;justify-content:space-around;gap:3px;opacity:.29;filter:blur(2px);mask-image:linear-gradient(180deg,transparent,#000 45%,transparent 100%)}
+.iq-audience span{display:block;position:relative;flex:1;max-width:40px;height:55px;border-radius:48% 48% 0 0;background:radial-gradient(ellipse at 50% 12%,#426e94,#152538 65%,#080c15);animation:iq-crowd-shift 5s ease-in-out infinite alternate}
+.iq-audience span::before{content:'';position:absolute;width:20px;height:20px;left:50%;top:-15px;transform:translateX(-50%);border-radius:50%;background:#26455f;box-shadow:0 0 10px #5384a744}
+.iq-audience span:nth-child(3n){height:68px;animation-delay:-1.6s}
+.iq-audience span:nth-child(4n){height:46px;animation-delay:-3.2s}
+.iq-audience span:nth-child(5n){height:76px;animation-delay:-2.4s}
+.iq-effect-correct .iq-effect-card{animation:iq-card-pop .48s cubic-bezier(.2,1.4,.4,1),iq-studio-success 1s ease-out}
+.iq-effect-win .iq-effect-card{animation:iq-card-pop .48s cubic-bezier(.2,1.4,.4,1),iq-studio-win 1s ease-out}
+@keyframes iq-crowd-shift{from{transform:translateY(0) rotate(-2deg)}to{transform:translateY(-5px) rotate(2deg)}}
+@keyframes iq-studio-success{50%{box-shadow:0 0 100px #4eff9a9c,0 0 25px #fff6}}
+@keyframes iq-studio-win{50%{box-shadow:0 0 140px #ffd35fbc,0 0 30px #fff9}}
+@media(prefers-reduced-motion:reduce){.iq-audience span,.iq-effect-correct .iq-effect-card,.iq-effect-win .iq-effect-card{animation:none}}
