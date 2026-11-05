@@ -19,19 +19,34 @@ export const IQPlay:React.FC=()=>{
   const [error,setError]=useState('');
   const [muted,setMuted]=useState(true);
   const mutedRef=useRef(true);
-  const applauseRef=useRef<HTMLAudioElement|null>(null);
-  const applauseStopRef=useRef<number|null>(null);
+  const applauseBufferRef=useRef<AudioBuffer|null>(null);
+  const applauseLoadingRef=useRef<Promise<AudioBuffer|null>|null>(null);
+  const applauseSourceRef=useRef<AudioBufferSourceNode|null>(null);
   const applauseUrl=`${import.meta.env.BASE_URL}audio/iq-crowd-cheer-and-applause.mp3`;
+  const loadApplause=()=>{
+    if(applauseBufferRef.current)return Promise.resolve(applauseBufferRef.current);
+    if(!applauseLoadingRef.current){
+      applauseLoadingRef.current=fetch(applauseUrl)
+        .then(r=>{if(!r.ok)throw new Error('Applause MP3 not found');return r.arrayBuffer();})
+        .then(bytes=>audioContext().decodeAudioData(bytes))
+        .then(buffer=>{applauseBufferRef.current=buffer;return buffer;})
+        .catch(()=>null);
+    }
+    return applauseLoadingRef.current;
+  };
   const playRealApplause=(full:boolean)=>{
     if(mutedRef.current)return;
-    if(applauseStopRef.current!==null)window.clearTimeout(applauseStopRef.current);
-    if(applauseRef.current){applauseRef.current.pause();applauseRef.current.currentTime=0;}
-    const audio=new Audio(applauseUrl);audio.volume=full?.78:.58;
-    applauseRef.current=audio;
-    void audio.play().catch(()=>{/* Audio file unavailable or playback blocked */});
-    if(!full)applauseStopRef.current=window.setTimeout(()=>{
-      audio.volume=.2;window.setTimeout(()=>{audio.pause();},200);
-    },1700);
+    void loadApplause().then(buffer=>{
+      if(!buffer||mutedRef.current)return;
+      const ctx=audioContext();
+      try{applauseSourceRef.current?.stop();}catch{/* previous playback finished */}
+      const source=ctx.createBufferSource(),gain=ctx.createGain();
+      source.buffer=buffer;gain.gain.value=full?.85:.72;
+      source.connect(gain);gain.connect(ctx.destination);
+      source.start();if(!full)source.stop(ctx.currentTime+Math.min(2.3,buffer.duration));
+      applauseSourceRef.current=source;
+      source.onended=()=>{if(applauseSourceRef.current===source)applauseSourceRef.current=null;gain.disconnect();};
+    });
   };
 
   type Sound='intro'|'correct'|'wrong'|'win'|'lose'|'tick';
@@ -144,7 +159,7 @@ export const IQPlay:React.FC=()=>{
     const chord=(notes:number[],at:number,duration:number,volume:number,timbre:'strings'|'brass')=>
       notes.forEach(n=>tone(ctx,at,n,duration,volume,timbre));
     if(kind==='intro'){
-      audience(ctx,t+.18,'applause');hit(ctx,t,.17);chord([196,293.66,392],t,.85,.032,'strings');
+      hit(ctx,t,.11);chord([196,293.66,392],t,.85,.025,'strings');
       chord([261.63,392,523.25],t+.55,1.15,.042,'brass');
     }else if(kind==='correct'){
       playRealApplause(false);hit(ctx,t,.11);
@@ -168,8 +183,8 @@ export const IQPlay:React.FC=()=>{
   },[]);
   const stopMusic=()=>{
     stopAudienceBed();
-    if(applauseStopRef.current!==null)window.clearTimeout(applauseStopRef.current);
-    applauseRef.current?.pause();
+    try{applauseSourceRef.current?.stop();}catch{/* already finished */}
+    applauseSourceRef.current=null;
     if(musicTimerRef.current!==null){window.clearInterval(musicTimerRef.current);musicTimerRef.current=null;}
     // Stop only future scheduled notes when muting; allow brief effects to decay.
     soundNodesRef.current.forEach(o=>{try{o.stop();}catch{/* already stopped */}});
@@ -231,7 +246,7 @@ export const IQPlay:React.FC=()=>{
     musicTimerRef.current=window.setInterval(schedule,90);
   };
   const toggleSound=()=>{
-    if(muted){mutedRef.current=false;setMuted(false);startMusic();playSound('intro');}
+    if(muted){mutedRef.current=false;setMuted(false);void loadApplause();startMusic();}
     else{mutedRef.current=true;setMuted(true);stopMusic();}
   };
   useEffect(()=>()=>{stopMusic();if(contextRef.current)void contextRef.current.close();},[]);
@@ -257,7 +272,7 @@ export const IQPlay:React.FC=()=>{
   },[]);
   useEffect(()=>{void refresh();},[refresh]);
   useEffect(()=>{const id=window.setInterval(()=>setClock(x=>x+1),250);return()=>window.clearInterval(id);},[]);
-  const start=async()=>{if(!muted)playSound('intro');setBusy(true);setError('');setFeedback('');setAnswerEffect(null);try{sync(await apiRequest<Round>('/iq-play/rounds',{method:'POST'}));}catch(e){setError(e instanceof Error?e.message:'Не удалось начать игру');}finally{setBusy(false);}};
+  const start=async()=>{setBusy(true);setError('');setFeedback('');setAnswerEffect(null);try{sync(await apiRequest<Round>('/iq-play/rounds',{method:'POST'}));}catch(e){setError(e instanceof Error?e.message:'Не удалось начать игру');}finally{setBusy(false);}};
   const answer=async(choice:number)=>{if(!round||busy||answerEffect||round.status!=='active'||choice===round.blocked_index)return;
     setBusy(true);setError('');
     try{const response=await apiRequest<Response>(`/iq-play/rounds/${round.round_id}/answers`,{method:'POST',body:JSON.stringify({position:round.position,choice,event_id:crypto.randomUUID()})});
