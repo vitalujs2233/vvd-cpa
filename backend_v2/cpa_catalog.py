@@ -68,7 +68,7 @@ class VerticalIn(BaseModel):
     slug:str=Field(pattern=r"^[a-z0-9][a-z0-9-]{1,78}$")
     title:str=Field(min_length=2,max_length=120)
     description:str=Field("",max_length=2000)
-    icon_name:str=Field("layers",pattern=r"^(layers|heart|sparkles|video|gamepad|smartphone|globe)$")
+    icon_name:str=Field("layers",pattern=r"^(layers|heart|sparkles|video|gamepad|smartphone|globe|star|flame|zap|gift|trophy|target|rocket|crown|gem|shield|check-circle|users|user-round|message-circle|mail|phone|camera|image|music|headphones|monitor|laptop|shopping-bag|credit-card|wallet|coins|trending-up|bar-chart-3|calendar|clock|map-pin|compass|sun|moon|cloud|leaf|flower-2|paw-print|coffee|utensils|book-open|graduation-cap|briefcase|building-2|car|plane|train|bike|dumbbell|activity|puzzle|dice-5|bot|code-2|settings|lock|key-round|bell|flag)$")
     display_order:int=Field(0,ge=-9999,le=9999)
     is_active:bool=False
     cpa_link_allowed:bool=False
