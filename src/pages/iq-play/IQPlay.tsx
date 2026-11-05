@@ -18,9 +18,6 @@ export const IQPlay:React.FC=()=>{
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [muted,setMuted]=useState(true);
-  const audioRef=useRef<HTMLAudioElement|null>(null);
-  const musicRef=useRef<HTMLAudioElement|null>(null);
-  const musicUrlRef=useRef<string|null>(null);
   const mutedRef=useRef(true);
 
   type Sound='intro'|'correct'|'wrong'|'win'|'lose'|'tick';
@@ -28,6 +25,7 @@ export const IQPlay:React.FC=()=>{
   const musicTimerRef=useRef<number|null>(null);
   const musicStepRef=useRef(0);
   const nextBeatRef=useRef(0);
+  const suspenseRef=useRef(false);
   const soundNodesRef=useRef<Set<OscillatorNode>>(new Set());
   const audioContext=()=>{
     if(!contextRef.current)contextRef.current=new AudioContext();
@@ -103,31 +101,57 @@ export const IQPlay:React.FC=()=>{
   };
   const startMusic=()=>{
     if(musicTimerRef.current!==null)return;
-    const ctx=audioContext(),beat=.68;
-    musicStepRef.current=0;nextBeatRef.current=ctx.currentTime+.08;
-    const roots=[146.83,130.81,164.81,123.47,146.83,174.61,130.81,146.83];
-    const harmonies=[[293.66,349.23,440],[261.63,329.63,392],[329.63,392,493.88],
-      [246.94,311.13,369.99],[293.66,349.23,440],[349.23,440,523.25],
-      [261.63,329.63,392],[293.66,349.23,440]];
-    const motif=[587.33,0,698.46,0,659.25,587.33,0,523.25,
-      659.25,0,783.99,698.46,0,659.25,587.33,0];
+    const ctx=audioContext(),beat=.53;
+    musicStepRef.current=0;nextBeatRef.current=ctx.currentTime+.09;
+    // Original 16-bar TV-quiz-inspired score: alternating motifs, harmonic turns,
+    // string ostinato, brass swells, timpani and an accelerated suspense layer.
+    const chords=[
+      [146.83,293.66,349.23,440],[130.81,261.63,329.63,392],
+      [164.81,329.63,392,493.88],[123.47,246.94,311.13,369.99],
+      [174.61,349.23,440,523.25],[146.83,293.66,369.99,440],
+      [130.81,261.63,329.63,440],[164.81,329.63,415.3,493.88],
+      [146.83,293.66,349.23,440],[196,392,493.88,587.33],
+      [174.61,349.23,440,523.25],[164.81,329.63,392,493.88],
+      [130.81,261.63,329.63,392],[123.47,246.94,311.13,415.3],
+      [146.83,293.66,369.99,440],[146.83,293.66,349.23,440]
+    ];
+    const lead=[
+      587.33,0,698.46,783.99,880,0,783.99,698.46,
+      659.25,0,587.33,523.25,493.88,0,587.33,659.25,
+      698.46,783.99,880,0,1046.5,880,783.99,698.46,
+      659.25,0,783.99,659.25,587.33,523.25,493.88,0,
+      698.46,0,880,1046.5,1174.66,0,1046.5,880,
+      783.99,698.46,659.25,0,880,783.99,698.46,0,
+      659.25,0,783.99,880,987.77,880,783.99,659.25,
+      587.33,698.46,783.99,0,659.25,587.33,523.25,0
+    ];
     const schedule=()=>{
-      while(nextBeatRef.current<ctx.currentTime+.28){
-        const step=musicStepRef.current,bar=Math.floor(step/4)%8,pos=step%4,at=nextBeatRef.current;
+      while(nextBeatRef.current<ctx.currentTime+.3){
+        const step=musicStepRef.current,bar=Math.floor(step/4)%16,pos=step%4,at=nextBeatRef.current;
+        const harmony=chords[bar],intense=suspenseRef.current;
         if(pos===0){
-          harmonies[bar].forEach(f=>tone(ctx,at,f,beat*3.98,.014,'strings'));
-          hit(ctx,at,.075);
+          harmony.slice(1).forEach(f=>tone(ctx,at,f,beat*3.85,intense?.024:.016,'strings'));
+          if(bar%2===0)tone(ctx,at+.07,harmony[2]/2,beat*3.5,.026,'brass');
+          hit(ctx,at,intense?.13:.07);
         }
-        tone(ctx,at,roots[bar]/2,beat*.7,.046,'bass');
-        if(pos===2)hit(ctx,at,.055);
-        const note=motif[step%16];
-        if(note)tone(ctx,at+.12,note,beat*.7,.035,'bell');
+        // Pulsing low strings and syncopated rhythmic movement.
+        tone(ctx,at,harmony[0]/2,beat*.72,intense?.07:.048,'bass');
+        tone(ctx,at+.25*beat,harmony[1],beat*.38,.014,'strings');
+        if(pos===2)hit(ctx,at,intense?.09:.048);
+        if(pos===1||pos===3)tone(ctx,at+.16*beat,harmony[2],beat*.32,.013,'strings');
+        const melody=lead[step%lead.length];
+        if(melody)tone(ctx,at+.08,melody,beat*(pos===3?1.35:.86),intense?.06:.046,
+          bar%4===3?'brass':'bell');
+        if(intense){
+          tone(ctx,at+.5*beat,harmony[0]*2,beat*.27,.028,'pulse');
+          if(pos===3)hit(ctx,at+.55*beat,.075);
+        }
         musicStepRef.current++;
         nextBeatRef.current+=beat;
       }
     };
     schedule();
-    musicTimerRef.current=window.setInterval(schedule,100);
+    musicTimerRef.current=window.setInterval(schedule,90);
   };
   const toggleSound=()=>{
     if(muted){mutedRef.current=false;setMuted(false);startMusic();playSound('intro');}
@@ -171,6 +195,7 @@ export const IQPlay:React.FC=()=>{
     finally{setBusy(false);}
   };
   const seconds=remaining(round?.deadline,offset);
+  suspenseRef.current=round?.status==='active'&&seconds<=7&&seconds>0;
   const lastTickRef=useRef('');
   useEffect(()=>{
     if(muted||round?.status!=='active'||seconds<1||seconds>5)return;
@@ -188,6 +213,7 @@ export const IQPlay:React.FC=()=>{
     return()=>{live=false;};
   },[round?.round_id,round?.deadline,round?.status,seconds]);
   return <main className={'iq-root'+(round?.status==='active'?' iq-playing':'')}>
+    <div className="iq-stage" aria-hidden="true"><div className="iq-stage-beam iq-beam-left"/><div className="iq-stage-beam iq-beam-right"/><div className="iq-stage-halo"/><div className="iq-stage-dots"/></div>
     {answerEffect&&<div className={'iq-answer-effect iq-effect-'+answerEffect.kind} role="status" aria-live="polite">
       <div className="iq-effect-card"><div className="iq-effect-symbol">{answerEffect.kind==='correct'?'✓':answerEffect.kind==='win'?'★':'✕'}</div>
       <strong>{answerEffect.kind==='correct'?'ПРАВИЛЬНО!':answerEffect.kind==='win'?'ПОБЕДА!':answerEffect.kind==='lose'?'ИГРА ОКОНЧЕНА':'НЕВЕРНО!'}</strong>
@@ -198,10 +224,11 @@ export const IQPlay:React.FC=()=>{
     <section className="iq-hero"><div className="iq-emblem"><Brain size={42}/><Crown size={20}/></div><h1>IQ PLAY</h1><p>Прокачай себя в арбитраже</p></section>
     {error&&<div className="iq-error" role="alert">{error}<button onClick={()=>void refresh()}>Повторить загрузку</button></div>}
     {loading?<p className="iq-muted">Загрузка…</p>:round?.status==='active'?<>
+      <div className="iq-show-label">VVD · ИНТЕЛЛЕКТУАЛЬНОЕ ШОУ</div>
       <div className="iq-stats"><span>Вопрос {round.position} из 15</span><span>{round.retry?'Последний шанс':'❤️ 2 шанса'}</span></div>
       <div className="iq-progress"><div style={{width:`${(round.position-1)/15*100}%`}}/></div>
-      <div className={`iq-timer ${seconds<=5?'urgent':''}`} role="timer" aria-label="Осталось секунд">{seconds}</div>
-      <div className="iq-question">{round.prompt}</div>
+      <div className={`iq-timer ${seconds<=5?'urgent':''}`} role="timer" aria-label="Осталось секунд" style={{'--iq-time':`${Math.max(0,Math.min(100,seconds/(round.retry?10:round.seconds||30)*100))}%`} as React.CSSProperties}>{seconds}</div>
+      <div className="iq-question"><span className="iq-question-label">ВОПРОС НА ЭКРАНЕ</span><span>{round.prompt}</span></div>
       <div className="iq-choices">{round.options?.map((option,i)=><button key={i} disabled={busy||!!answerEffect||i===round.blocked_index||seconds===0} onClick={()=>void answer(i)}><b>{'ABCD'[i]}</b>{option}</button>)}</div>
       {round.retry&&<p className="iq-warning" role="status">Неверный ответ или истекло время. Остался один шанс — 10 секунд.</p>}
       {feedback&&<p className="iq-muted">{feedback}</p>}
