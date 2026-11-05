@@ -22,16 +22,32 @@ export const IQPlay:React.FC=()=>{
   const applauseBufferRef=useRef<AudioBuffer|null>(null);
   const applauseLoadingRef=useRef<Promise<AudioBuffer|null>|null>(null);
   const applauseSourceRef=useRef<AudioBufferSourceNode|null>(null);
-  const applauseUrl=`${import.meta.env.BASE_URL}audio/iq-crowd-cheer-and-applause.mp3`;
+  const [applauseError,setApplauseError]=useState('');
+  const applauseFile='iq-crowd-cheer-and-applause.mp3';
+  const applauseUrls=[
+    `${import.meta.env.BASE_URL}audio/${applauseFile}`,
+    `/audio/${applauseFile}`,
+    `/vvd-cpa/audio/${applauseFile}`
+  ];
   const loadApplause=()=>{
     if(applauseBufferRef.current)return Promise.resolve(applauseBufferRef.current);
-    if(!applauseLoadingRef.current){
-      applauseLoadingRef.current=fetch(applauseUrl)
-        .then(r=>{if(!r.ok)throw new Error('Applause MP3 not found');return r.arrayBuffer();})
-        .then(bytes=>audioContext().decodeAudioData(bytes))
-        .then(buffer=>{applauseBufferRef.current=buffer;return buffer;})
-        .catch(()=>null);
-    }
+    if(applauseLoadingRef.current)return applauseLoadingRef.current;
+    applauseLoadingRef.current=(async()=>{
+      for(const url of [...new Set(applauseUrls)]){
+        try{
+          const response=await fetch(url,{cache:'no-store'});
+          if(!response.ok)continue;
+          const bytes=await response.arrayBuffer();
+          if(bytes.byteLength<2000)continue;
+          const decoded=await audioContext().decodeAudioData(bytes);
+          applauseBufferRef.current=decoded;
+          setApplauseError('');
+          return decoded;
+        }catch{/* Try the next deployment path */}
+      }
+      setApplauseError('Аплодисменты не загрузились. Проверьте публикацию аудиофайла.');
+      return null;
+    })().finally(()=>{applauseLoadingRef.current=null;});
     return applauseLoadingRef.current;
   };
   const playRealApplause=(full:boolean)=>{
@@ -41,9 +57,9 @@ export const IQPlay:React.FC=()=>{
       const ctx=audioContext();
       try{applauseSourceRef.current?.stop();}catch{/* previous playback finished */}
       const source=ctx.createBufferSource(),gain=ctx.createGain();
-      source.buffer=buffer;gain.gain.value=full?.85:.72;
+      source.buffer=buffer;gain.gain.value=full?1:.95;
       source.connect(gain);gain.connect(ctx.destination);
-      source.start();if(!full)source.stop(ctx.currentTime+Math.min(2.3,buffer.duration));
+      source.start();if(!full)source.stop(ctx.currentTime+Math.min(2.8,buffer.duration));
       applauseSourceRef.current=source;
       source.onended=()=>{if(applauseSourceRef.current===source)applauseSourceRef.current=null;gain.disconnect();};
     });
@@ -314,6 +330,7 @@ export const IQPlay:React.FC=()=>{
     </div>}
     <header className="iq-header"><button onClick={()=>navigate('/')} aria-label="Назад"><ArrowLeft size={20}/></button><span>VVD <strong>IQ PLAY</strong></span><button onClick={toggleSound} aria-label={muted?'Включить звук':'Выключить звук'}>{muted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button></header>
     <section className="iq-hero"><div className="iq-emblem"><Brain size={42}/><Crown size={20}/></div><h1>IQ PLAY</h1><p>Прокачай себя в арбитраже</p></section>
+    {applauseError&&!muted&&<p className="iq-warning" role="alert">{applauseError}</p>}
     {error&&<div className="iq-error" role="alert">{error}<button onClick={()=>void refresh()}>Повторить загрузку</button></div>}
     {loading?<p className="iq-muted">Загрузка…</p>:round?.status==='active'?<>
       <div className="iq-show-label">VVD · ИНТЕЛЛЕКТУАЛЬНОЕ ШОУ</div>
