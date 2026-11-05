@@ -32,3 +32,37 @@
 @keyframes iq-card-pop{from{opacity:.5;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
 @keyframes iq-xp-rise{from{opacity:0;transform:translateY(16px) scale(.85)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media(prefers-reduced-motion:reduce){.iq-answer-effect,.iq-effect-card,.iq-effect-xp{animation:none}}
+
+/* VVD IQ Play — animated television studio, preserving the black-and-gold identity. */
+.iq-root{position:relative;isolation:isolate;background:radial-gradient(ellipse at 50% 18%,#172b43 0%,#101421 31%,#08090e 64%,#050505 100%)}
+.iq-root>.iq-stage{position:absolute;z-index:-1;inset:0 0 auto;height:100%;min-height:850px;overflow:hidden;pointer-events:none}
+.iq-stage-beam{position:absolute;top:-180px;width:52%;height:720px;opacity:.32;filter:blur(14px);transform-origin:top center;background:linear-gradient(180deg,#edc46a77 0%,#346bb144 38%,transparent 85%);clip-path:polygon(47% 0,53% 0,100% 100%,0 100%);animation:iq-spotlight 11s ease-in-out infinite alternate}
+.iq-beam-left{left:-12%;transform:rotate(-19deg)}
+.iq-beam-right{right:-12%;transform:rotate(19deg);animation-delay:-6s;animation-direction:alternate-reverse}
+.iq-stage-halo{position:absolute;top:150px;left:50%;width:480px;height:340px;transform:translateX(-50%);border-radius:50%;background:radial-gradient(ellipse,#b6872530 0%,#3678ae20 30%,transparent 70%);animation:iq-halo 7s ease-in-out infinite alternate}
+.iq-stage-dots{position:absolute;inset:0;opacity:.16;background-image:radial-gradient(circle,#d9b76a 1px,transparent 1.5px);background-size:24px 24px;mask-image:linear-gradient(180deg,transparent 4%,#000 32%,transparent 85%)}
+.iq-root>.iq-header,.iq-root>.iq-hero,.iq-root>.iq-profile,.iq-root>.iq-grid,.iq-root>.iq-primary,.iq-root>.iq-stats,.iq-root>.iq-progress,.iq-root>.iq-timer,.iq-root>.iq-question,.iq-root>.iq-choices,.iq-root>.iq-result,.iq-root>.iq-show-label,.iq-root>.iq-muted,.iq-root>.iq-warning,.iq-root>.iq-error{position:relative}
+.iq-hero .iq-emblem{background:radial-gradient(circle,#61431d55,#131b2a);box-shadow:0 0 24px #f6c76645,0 0 75px #3e7ec744;animation:iq-emblem-breathe 4s ease-in-out infinite}
+.iq-hero h1{text-shadow:0 0 15px #f5c34e70,0 0 45px #b78d3770}
+.iq-show-label{text-align:center;margin:2px 0 13px;font-size:10px;letter-spacing:2.4px;font-weight:900;color:#9dc5e8;text-shadow:0 0 12px #5684c8}
+.iq-progress{height:9px;border:1px solid #b68c4166;box-shadow:0 0 12px #f4b83c22}
+.iq-progress>div{box-shadow:0 0 15px #ffd06e99;transition:width .45s ease}
+.iq-timer{background:radial-gradient(circle,#17263c 0%,#090b12 74%);border-color:#dcb45f;box-shadow:0 0 0 5px #e7c46c13,0 0 32px #e5b44955,inset 0 0 20px #e2ae3930;animation:iq-timer-breathe 2s ease-in-out infinite}
+.iq-timer::after{content:'';position:absolute;inset:-9px;border-radius:50%;border:2px solid #e4b85d66;opacity:.65}
+.iq-timer.urgent{animation:iq-timer-urgent .6s ease-in-out infinite;border-color:#ff6b60;box-shadow:0 0 30px #fa504f70}
+.iq-question{position:relative;display:flex;flex-direction:column;justify-content:center;gap:12px;text-align:center;border:1px solid #c49a54;background:linear-gradient(135deg,#18263a 0%,#11141d 48%,#1b1720 100%);box-shadow:inset 0 0 28px #3d6ba41c,0 0 28px #bb8d3430,0 10px 35px #0008;overflow:hidden}
+.iq-question::before{content:'';position:absolute;inset:0;background:linear-gradient(110deg,transparent 20%,#f9d98b10 48%,transparent 75%);transform:translateX(-100%);animation:iq-question-shimmer 7s ease-in-out infinite}
+.iq-question-label{align-self:center;color:#e4ba6c;font-size:10px;font-weight:900;letter-spacing:2px}
+.iq-question>span:last-child{position:relative}
+.iq-choices button{position:relative;overflow:hidden;background:linear-gradient(110deg,#121d2d,#151516 65%,#231c13);border-color:#8b754b;box-shadow:inset 0 0 15px #5e8cbb0c,0 3px 12px #0005;transition:transform .16s,border-color .16s,background .16s,box-shadow .16s}
+.iq-choices button:not(:disabled):active{transform:scale(.985);border-color:#ffdb86;background:linear-gradient(110deg,#203b57,#382a17);box-shadow:0 0 18px #e7b85c55}
+.iq-choices button b{background:linear-gradient(145deg,#7b5624,#292b35);box-shadow:0 0 12px #d5a3492a}
+.iq-choices button:disabled{opacity:.43}
+.iq-choices button:disabled:not(:first-child){transition:opacity .2s}
+@keyframes iq-spotlight{0%{transform:rotate(-19deg);opacity:.19}50%{opacity:.36}100%{transform:rotate(12deg);opacity:.27}}
+@keyframes iq-halo{from{opacity:.6;scale:.92}to{opacity:1;scale:1.12}}
+@keyframes iq-emblem-breathe{50%{box-shadow:0 0 34px #f6c76680,0 0 85px #3e7ec766}}
+@keyframes iq-timer-breathe{50%{box-shadow:0 0 0 7px #e7c46c15,0 0 38px #e5b44980,inset 0 0 20px #e2ae3940}}
+@keyframes iq-timer-urgent{50%{box-shadow:0 0 40px #fa504fb0;transform:scale(1.055)}}
+@keyframes iq-question-shimmer{0%,55%,100%{transform:translateX(-110%)}75%{transform:translateX(110%)}}
+@media(prefers-reduced-motion:reduce){.iq-stage-beam,.iq-stage-halo,.iq-hero .iq-emblem,.iq-timer,.iq-question::before{animation:none}}
