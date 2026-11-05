@@ -24,65 +24,73 @@ export const IQPlay:React.FC=()=>{
   const mutedRef=useRef(true);
 
   type Sound='intro'|'correct'|'wrong'|'win'|'lose'|'music'|'test';
-  const createSound=useCallback((kind:Sound)=>{
-    // Render short layered chiptune phrases into WAV for iOS Telegram WebView.
-    const rate=22050;
-    const notes:Record<Sound,Array<[number,number,number]>>={
-      intro:[[523,0,.12],[659,.13,.12],[784,.27,.23]],
-      correct:[[659,0,.1],[880,.11,.12],[1047,.24,.24]],
-      wrong:[[330,0,.14],[247,.16,.24]],
-      win:[[523,0,.12],[659,.13,.12],[784,.26,.12],[1047,.4,.4]],
-      lose:[[392,0,.18],[330,.2,.18],[262,.4,.3]],
-      music:[[262,0,.22],[330,.28,.22],[392,.56,.22],[523,.84,.24],[392,1.16,.22],[330,1.44,.22],[294,1.72,.22],[392,2,.3]],
-      test:[[523,0,.12],[659,.14,.12],[784,.28,.28]]
-    };
-    const phrase=notes[kind], duration=Math.max(...phrase.map(n=>n[1]+n[2]))+.08;
-    const samples=Math.ceil(rate*duration),buf=new ArrayBuffer(44+samples*2),v=new DataView(buf);
-    const str=(at:number,s:string)=>{for(let i=0;i<s.length;i++)v.setUint8(at+i,s.charCodeAt(i));};
-    str(0,'RIFF');v.setUint32(4,36+samples*2,true);str(8,'WAVE');str(12,'fmt ');
+  // Original quiz-show sound design: short cues and a restrained suspense bed.
+  // Everything is synthesized locally; no external audio assets or network requests.
+  const wav=(data:Float32Array,rate=22050)=>{
+    const buf=new ArrayBuffer(44+data.length*2),v=new DataView(buf);
+    const write=(at:number,s:string)=>{for(let i=0;i<s.length;i++)v.setUint8(at+i,s.charCodeAt(i));};
+    write(0,'RIFF');v.setUint32(4,36+data.length*2,true);write(8,'WAVE');write(12,'fmt ');
     v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
     v.setUint32(24,rate,true);v.setUint32(28,rate*2,true);v.setUint16(32,2,true);
-    v.setUint16(34,16,true);str(36,'data');v.setUint32(40,samples*2,true);
-    for(let i=0;i<samples;i++){
-      const t=i/rate;let value=0;
-      for(const [freq,start,len] of phrase){
-        const local=t-start;
-        if(local<0||local>=len)continue;
-        const envelope=Math.min(1,local/.012)*Math.min(1,(len-local)/.075);
-        const harmonic=Math.sin(2*Math.PI*freq*local)*.72+Math.sin(4*Math.PI*freq*local)*.18+Math.sin(6*Math.PI*freq*local)*.1;
-        value+=harmonic*envelope;
-      }
-      v.setInt16(44+i*2,Math.round(Math.max(-1,Math.min(1,value*.52))*32767),true);
-    }
+    v.setUint16(34,16,true);write(36,'data');v.setUint32(40,data.length*2,true);
+    for(let i=0;i<data.length;i++)v.setInt16(44+i*2,Math.round(Math.max(-1,Math.min(1,data[i]))*29000),true);
     return URL.createObjectURL(new Blob([buf],{type:'audio/wav'}));
+  };
+  const createSound=useCallback((kind:Sound)=>{
+    const rate=22050;
+    type Note=[number,number,number,number];
+    const phrases:Record<Sound,Note[]>={
+      intro:[[392,0,.12,.28],[523,.13,.12,.33],[659,.26,.15,.36],[784,.43,.3,.4]],
+      correct:[[659,0,.09,.28],[880,.11,.12,.32],[1175,.25,.27,.37]],
+      wrong:[[392,0,.12,.3],[311,.13,.18,.34],[233,.33,.23,.3]],
+      win:[[523,0,.15,.28],[659,.17,.15,.32],[784,.34,.16,.35],[1047,.53,.23,.4],[1319,.78,.5,.4],[1047,.78,.5,.16]],
+      lose:[[440,0,.2,.3],[370,.24,.23,.3],[311,.51,.28,.32],[220,.83,.55,.28]],
+      music:[],
+      test:[[523,0,.12,.3],[659,.15,.12,.3],[784,.3,.3,.35]]
+    };
+    const notes=phrases[kind],duration=Math.max(.4,...notes.map(n=>n[1]+n[2]))+.12;
+    const data=new Float32Array(Math.ceil(rate*duration));
+    for(const [freq,start,len,volume] of notes){
+      const offset=Math.floor(start*rate),count=Math.min(Math.ceil(len*rate),data.length-offset);
+      for(let i=0;i<count;i++){
+        const t=i/rate,fade=Math.min(1,t/.014,(len-t)/.095);
+        const tone=.75*Math.sin(2*Math.PI*freq*t)+.18*Math.sin(4*Math.PI*freq*t)+.07*Math.sin(6*Math.PI*freq*t);
+        data[offset+i]+=tone*Math.max(0,fade)*volume;
+      }
+    }
+    return wav(data,rate);
   },[]);
   const createMusic=useCallback(()=>{
-    // Full 16-beat looping arcade theme with lead, bass and sustained chords.
-    const rate=22050,beat=60/112,beats=16,samples=Math.ceil(rate*beat*beats);
-    const melody=[659,784,932,784,698,659,587,523,587,698,784,698,659,587,523,587,659,784,1047,932,784,698,659,587,523,587,659,784,698,659,587,523];
-    const bass=[130.81,116.54,103.83,130.81];
-    const data=new Float32Array(samples);
-    const add=(start:number,duration:number,freq:number,volume:number,kind:'lead'|'bass'|'pad')=>{
-      const offset=Math.floor(start*rate),count=Math.min(Math.floor(duration*rate),samples-offset);
+    // 16-beat original suspense loop: soft pulse, ticking accents and changing harmony.
+    // The final chord resolves into the opening chord for a seamless repeat.
+    const rate=22050,beat=.625,beats=16,duration=beat*beats;
+    const data=new Float32Array(Math.ceil(rate*duration));
+    const add=(start:number,len:number,freq:number,volume:number,mode:'bell'|'pad'|'bass')=>{
+      const offset=Math.floor(start*rate),count=Math.min(Math.ceil(len*rate),data.length-offset);
       for(let i=0;i<count;i++){
-        const t=i/rate,envelope=Math.min(1,t/.025)*Math.min(1,(duration-t)/.08);
-        const wave=kind==='lead'?.68*Math.sin(2*Math.PI*freq*t)+.22*Math.sin(4*Math.PI*freq*t)+.1*Math.sin(6*Math.PI*freq*t):Math.sin(2*Math.PI*freq*t)+(kind==='bass'?.14*Math.sin(4*Math.PI*freq*t):0);
-        data[offset+i]+=wave*envelope*volume;
+        const t=i/rate;
+        const envelope=mode==='pad'
+          ?Math.min(1,t/.32,(len-t)/.32)
+          :Math.exp(-t*(mode==='bell'?5:3))*Math.min(1,t/.008);
+        const tone=mode==='bell'
+          ?Math.sin(2*Math.PI*freq*t)+.22*Math.sin(2*Math.PI*freq*2.01*t)
+          :mode==='bass'
+            ?Math.sin(2*Math.PI*freq*t)+.12*Math.sin(4*Math.PI*freq*t)
+            :Math.sin(2*Math.PI*freq*t)+.16*Math.sin(2*Math.PI*freq*1.005*t);
+        data[offset+i]+=tone*Math.max(0,envelope)*volume;
       }
     };
-    melody.forEach((freq,i)=>add(i*beat/2,beat*.43,freq,.18,'lead'));
-    bass.forEach((root,bar)=>{
-      for(let j=0;j<4;j++)add((bar*4+j)*beat,beat*.84,root*(j===2?2:1),.1,'bass');
-      for(const j of [0,2])add((bar*4+j)*beat,beat*1.8,root*4,.035,'pad');
-    });
-    const buf=new ArrayBuffer(44+samples*2),v=new DataView(buf);
-    const write=(at:number,s:string)=>{for(let i=0;i<s.length;i++)v.setUint8(at+i,s.charCodeAt(i));};
-    write(0,'RIFF');v.setUint32(4,36+samples*2,true);write(8,'WAVE');write(12,'fmt ');
-    v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
-    v.setUint32(24,rate,true);v.setUint32(28,rate*2,true);v.setUint16(32,2,true);
-    v.setUint16(34,16,true);write(36,'data');v.setUint32(40,samples*2,true);
-    for(let i=0;i<samples;i++)v.setInt16(44+i*2,Math.round(Math.max(-1,Math.min(1,data[i]))*28000),true);
-    return URL.createObjectURL(new Blob([buf],{type:'audio/wav'}));
+    const roots=[146.83,130.81,164.81,146.83];
+    const chords=[[293.66,349.23,440],[261.63,329.63,392],[329.63,392,493.88],[293.66,349.23,440]];
+    for(let bar=0;bar<4;bar++){
+      const start=bar*4*beat;
+      for(const note of chords[bar])add(start,4*beat,note,.018,'pad');
+      for(let pulse=0;pulse<4;pulse++)add(start+pulse*beat,.32,roots[bar],.075,'bass');
+    }
+    const ticks=[587.33,659.25,698.46,659.25,587.33,523.25,659.25,698.46,
+      783.99,698.46,659.25,587.33,523.25,587.33,659.25,587.33];
+    ticks.forEach((freq,i)=>add(i*beat,.24,freq,.075,'bell'));
+    return wav(data,rate);
   },[]);
   const playSound=useCallback((kind:Sound)=>{
     if(mutedRef.current)return;
