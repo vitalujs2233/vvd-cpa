@@ -21,8 +21,15 @@ export const IQPlay:React.FC=()=>{
   const [musicMuted,setMusicMuted]=useState(false);
   const [musicError,setMusicError]=useState(false);
   const musicRef=useRef<HTMLAudioElement|null>(null);
+  const tensionRef=useRef<HTMLAudioElement|null>(null);
+  const winRef=useRef<HTMLAudioElement|null>(null);
+  const loseRef=useRef<HTMLAudioElement|null>(null);
+  const tensionActiveRef=useRef(false);
+  const endingPlayedRef=useRef<string|null>(null);
   const fadeRef=useRef<number|null>(null);
   const musicSrc='/vvd-cpa/audio/franzian-deo-question-thinking-time-472736.mp3';
+  const stopTension=()=>{const audio=tensionRef.current;if(audio){audio.pause();audio.currentTime=0;}tensionActiveRef.current=false;};
+  const stopEndings=()=>{for(const audio of [winRef.current,loseRef.current])if(audio){audio.pause();audio.currentTime=0;}};
   const fadeMusic=(target:number)=>{
     const audio=musicRef.current;if(!audio)return;
     if(fadeRef.current!==null)window.clearInterval(fadeRef.current);
@@ -44,12 +51,12 @@ export const IQPlay:React.FC=()=>{
   const toggleMusic=()=>{
     const audio=musicRef.current;
     if(!audio)return;
-    if(musicMuted){setMusicMuted(false);setMusicError(false);void audio.play().catch(()=>setMusicError(true));}
-    else{setMusicMuted(true);audio.pause();}
+    if(musicMuted){setMusicMuted(false);setMusicError(false);if(round?.status==='active')void audio.play().catch(()=>setMusicError(true));}
+    else{setMusicMuted(true);audio.pause();stopTension();stopEndings();}
   };
   useEffect(()=>()=>{
     if(fadeRef.current!==null)window.clearInterval(fadeRef.current);
-    musicRef.current?.pause();
+    musicRef.current?.pause();tensionRef.current?.pause();winRef.current?.pause();loseRef.current?.pause();
   },[]);
   useEffect(()=>{
     const audio=musicRef.current;
@@ -84,6 +91,7 @@ export const IQPlay:React.FC=()=>{
   useEffect(()=>{void refresh();},[refresh]);
   useEffect(()=>{const id=window.setInterval(()=>setClock(x=>x+1),250);return()=>window.clearInterval(id);},[]);
   const start=async()=>{
+    stopTension();stopEndings();endingPlayedRef.current=null;
     startMusic();
     setBusy(true);setError('');setFeedback('');setAnswerEffect(null);try{sync(await apiRequest<Round>('/iq-play/rounds',{method:'POST'}));}catch(e){setError(e instanceof Error?e.message:'Не удалось начать игру');}finally{setBusy(false);}};
   const answer=async(choice:number)=>{if(!round||busy||answerEffect||round.status!=='active'||choice===round.blocked_index)return;
@@ -93,6 +101,7 @@ export const IQPlay:React.FC=()=>{
       const effectKind=response.outcome==='correct'?(response.round.status==='won'?'win':'correct'):(response.round.status==='lost'?'lose':'wrong');
       const gained=Math.max(0,response.round.round_xp-round.round_xp);
       showAnswerEffect(effectKind,gained);
+      if(response.round.status!=='active')stopTension();
       setFeedback(response.outcome==='wrong'?'Неверно! Используй второй шанс.':'');
       sync(response.round);
       if(response.round.status!=='active')setProfile(await apiRequest<Profile>('/iq-play/profile'));
@@ -100,6 +109,32 @@ export const IQPlay:React.FC=()=>{
     finally{setBusy(false);}
   };
   const seconds=remaining(round?.deadline,offset);
+  useEffect(()=>{
+    const tension=tensionRef.current;
+    if(!tension)return;
+    const active=round?.status==='active'&&seconds>0&&seconds<=10&&!musicMuted;
+    if(active){
+      if(!tensionActiveRef.current){
+        tensionActiveRef.current=true;
+        const seek=()=>{if(Number.isFinite(tension.duration)&&tension.duration>12)tension.currentTime=tension.duration-11;};
+        if(tension.readyState>=1)seek();
+        else tension.addEventListener('loadedmetadata',seek,{once:true});
+        tension.volume=.30;
+        void tension.play().catch(()=>{tensionActiveRef.current=false;});
+      }
+      tension.volume=seconds<=5?.78:.42;
+    }else if(tensionActiveRef.current)stopTension();
+    if(round?.status==='active'&&!musicMuted)fadeMusic(active?.10:answerEffect?.kind==='correct'?.09:.25);
+  },[seconds,round?.status,round?.round_id,musicMuted,answerEffect?.kind]);
+  useEffect(()=>{
+    if(!round||round.status==='active'||musicMuted)return;
+    const key=round.round_id+':'+round.status;
+    if(endingPlayedRef.current===key)return;
+    endingPlayedRef.current=key;
+    stopTension();
+    const audio=round.status==='won'?winRef.current:loseRef.current;
+    if(audio){audio.currentTime=0;audio.volume=.85;void audio.play().catch(()=>{});}
+  },[round?.round_id,round?.status,musicMuted]);
   useEffect(()=>{
     if(!round||round.status!=='active'||seconds!==0||busy)return;
     let live=true;
@@ -112,6 +147,9 @@ export const IQPlay:React.FC=()=>{
   },[round?.round_id,round?.deadline,round?.status,seconds]);
   return <main className={'iq-root'+(round?.status==='active'?' iq-playing':'')}>
     <audio ref={musicRef} src={musicSrc} preload="auto" loop onError={()=>setMusicError(true)} />
+    <audio ref={tensionRef} src="/vvd-cpa/audio/%D0%9F%D0%BE%D1%81%D0%BB%D0%B5%D0%B4%D0%BD%D0%B8%D0%B5%20%D1%81%D0%B5%D0%BA%D1%83%D0%BD%D0%B4%D1%8B%20%D0%BD%D0%B0%D0%BF%D1%80%D1%8F%D0%B6%D0%B5%D0%BD%D0%B8%D1%8F%20.mp3" preload="auto" />
+    <audio ref={winRef} src="/vvd-cpa/audio/%D0%92%D1%8B%D0%B8%D0%B3%D1%80%D1%8B%D1%88%20.mp3" preload="auto" />
+    <audio ref={loseRef} src="/vvd-cpa/audio/%D0%9F%D1%80%D0%BE%D0%B8%D0%B3%D1%80%D0%B8%D1%88%D1%8C.mp3" preload="auto" />
     <div className="iq-stage" aria-hidden="true"><div className="iq-stage-beam iq-beam-left"/><div className="iq-stage-beam iq-beam-right"/><div className="iq-stage-halo"/><div className="iq-stage-dots"/><div className="iq-audience"><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/></div></div>
     {answerEffect&&<div className={'iq-answer-effect iq-effect-'+answerEffect.kind} role="status" aria-live="polite">
       <div className="iq-effect-card"><div className="iq-effect-symbol">{answerEffect.kind==='correct'?'✓':answerEffect.kind==='win'?'★':'✕'}</div>
