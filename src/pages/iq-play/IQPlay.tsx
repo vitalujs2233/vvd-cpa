@@ -17,11 +17,12 @@ export const IQPlay:React.FC=()=>{
   const [loading,setLoading]=useState(true);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
+  const [answerEffect,setAnswerEffect]=useState<{kind:'correct'|'wrong'|'win'|'lose';xp:number}|null>(null);
   const [musicMuted,setMusicMuted]=useState(false);
   const [musicError,setMusicError]=useState(false);
   const musicRef=useRef<HTMLAudioElement|null>(null);
   const fadeRef=useRef<number|null>(null);
-  const musicSrc=`${import.meta.env.BASE_URL}audio/franzian-deo-question-thinking-time-472736.mp3`;
+  const musicSrc='/vvd-cpa/audio/franzian-deo-question-thinking-time-472736.mp3';
   const fadeMusic=(target:number)=>{
     const audio=musicRef.current;if(!audio)return;
     if(fadeRef.current!==null)window.clearInterval(fadeRef.current);
@@ -63,7 +64,7 @@ export const IQPlay:React.FC=()=>{
   const [clock,setClock]=useState(0);
   const [offset,setOffset]=useState(0);
   const [feedback,setFeedback]=useState('');
-  const [answerEffect,setAnswerEffect]=useState<{kind:'correct'|'wrong'|'win'|'lose';xp:number}|null>(null);
+
   const effectTimer=useRef<number|null>(null);
   const showAnswerEffect=(kind:'correct'|'wrong'|'win'|'lose',xp:number)=>{
     if(effectTimer.current!==null)window.clearTimeout(effectTimer.current);
