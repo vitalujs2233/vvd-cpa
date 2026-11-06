@@ -7,6 +7,8 @@ import './IQPlay.css';
 type Profile={xp:number;games:number;wins:number;best_correct:number;level:number;league:string;achievements:string[]};
 type Round={round_id:string;status:'active'|'won'|'lost';position:number;correct_count:number;round_xp:number;retry:boolean;server_now:string;prompt?:string;options?:string[];blocked_index?:number|null;deadline?:string;seconds?:number};
 type Response={outcome:string;round:Round};
+type Leader={rank:number;name:string;xp:number;wins:number;is_admin:boolean;is_me:boolean};
+type Leaderboard={leaders:Leader[];bosses:Leader[];me:Leader|null};
 const initial:Profile={xp:0,games:0,wins:0,best_correct:0,level:1,league:'Новичок',achievements:[]};
 const remaining=(deadline?:string,offset=0)=>deadline?Math.max(0,Math.ceil((new Date(deadline).getTime()-Date.now()-offset)/1000)):0;
 
@@ -15,6 +17,9 @@ export const IQPlay:React.FC=()=>{
   const [profile,setProfile]=useState<Profile>(initial);
   const [round,setRound]=useState<Round|null>(null);
   const [showGame,setShowGame]=useState(false);
+  const [showLeaders,setShowLeaders]=useState(false);
+  const [leaderboard,setLeaderboard]=useState<Leaderboard|null>(null);
+  const [leadersLoading,setLeadersLoading]=useState(false);
   const [loading,setLoading]=useState(true);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
@@ -93,11 +98,17 @@ export const IQPlay:React.FC=()=>{
   useEffect(()=>{void refresh();},[refresh]);
   useEffect(()=>{const id=window.setInterval(()=>setClock(x=>x+1),250);return()=>window.clearInterval(id);},[]);
   const backToMenu=()=>{
+    if(showLeaders){setShowLeaders(false);return;}
     if(!showGame){navigate('/');return;}
     setShowGame(false);setAnswerEffect(null);setFeedback('');setError('');
     if(effectTimer.current!==null){window.clearTimeout(effectTimer.current);effectTimer.current=null;}
     stopTension();stopEndings();musicRef.current?.pause();
     void apiRequest<Profile>('/iq-play/profile').then(setProfile).catch(()=>{});
+  };
+  const openLeaders=async()=>{
+    setShowLeaders(true);setLeadersLoading(true);
+    try{setLeaderboard(await apiRequest<Leaderboard>('/iq-play/leaderboard'));}catch{setError('Не удалось загрузить рейтинг');}
+    finally{setLeadersLoading(false);}
   };
   const start=async()=>{
     stopTension();stopEndings();endingPlayedRef.current=null;wrongCueUntilRef.current=0;
@@ -214,11 +225,11 @@ export const IQPlay:React.FC=()=>{
       {answerEffect.xp>0&&<span className="iq-effect-xp">+{answerEffect.xp} XP</span>}
       {answerEffect.kind==='wrong'&&<small>Используй второй шанс</small>}</div>
     </div>}
-    <header className="iq-header"><button onClick={backToMenu} aria-label={showGame?"В меню IQ Play":"На главную VVD"}><ArrowLeft size={20}/></button><span>VVD <strong>IQ PLAY</strong></span><button onClick={toggleMusic} aria-label={musicMuted?'Включить музыку':'Выключить музыку'}>{musicMuted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button></header>
+    <header className="iq-header"><button onClick={backToMenu} aria-label={showLeaders?"В меню IQ Play":showGame?"В меню IQ Play":"На главную VVD"}><ArrowLeft size={20}/></button><span>VVD <strong>IQ PLAY</strong></span><button onClick={toggleMusic} aria-label={musicMuted?'Включить музыку':'Выключить музыку'}>{musicMuted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button></header>
     <section className="iq-hero"><div className="iq-emblem"><Brain size={42}/><Crown size={20}/></div><h1>IQ PLAY</h1><p>Прокачай себя в арбитраже</p></section>
     {musicError&&!musicMuted&&<p className="iq-warning" role="status">Музыка не запустилась. Нажми на значок динамика, чтобы включить её.</p>}
     {error&&<div className="iq-error" role="alert">{error}<button onClick={()=>void refresh()}>Повторить загрузку</button></div>}
-    {loading?<p className="iq-muted">Загрузка…</p>:showGame&&round?.status==='active'?<>
+    {showLeaders?<section className="iq-leaderboard"><h2>🏆 ЛИДЕРЫ IQ PLAY</h2><p className="iq-muted">Рейтинг по реальным XP · победы решают равенство</p>{leadersLoading?<p>Загружаем рейтинг…</p>:<>{leaderboard?.bosses.length? <div className="iq-boss-panel"><strong>👑 БОСС VVD · ВЫЗОВ ИГРОКАМ</strong>{leaderboard.bosses.map(b=><p key={b.rank}>Место №{b.rank} · {b.xp.toLocaleString('ru-RU')} XP · {b.wins} побед</p>)}</div>:null}{leaderboard?.leaders.map(p=><div className={'iq-leader-row'+(p.is_me?' iq-leader-me':'')} key={p.rank}><b>#{p.rank}</b><span>{p.is_admin?'👑 ':''}{p.name}{p.is_me?' · Вы':''}</span><strong>{p.xp.toLocaleString('ru-RU')} XP</strong></div>)}{leaderboard?.me&&!leaderboard.leaders.some(p=>p.is_me)&&<div className="iq-leader-row iq-leader-me"><b>#{leaderboard.me.rank}</b><span>Вы</span><strong>{leaderboard.me.xp.toLocaleString('ru-RU')} XP</strong></div>}</>}</section>:loading?<p className="iq-muted">Загрузка…</p>:showGame&&round?.status==='active'?<>
       <div className="iq-show-label">VVD · ИНТЕЛЛЕКТУАЛЬНОЕ ШОУ</div>
       <div className="iq-stats"><span>Вопрос {round.position} из 15</span><span>{round.retry?'Последний шанс':'❤️ 2 шанса'}</span></div>
       <div className="iq-progress"><div style={{width:`${(round.position-1)/15*100}%`}}/></div>
@@ -236,6 +247,7 @@ export const IQPlay:React.FC=()=>{
       <div className="iq-profile"><Crown size={34}/><div><b>{profile.league} · уровень {profile.level}</b><span>{profile.xp.toLocaleString('ru-RU')} XP</span></div></div>
       <div className="iq-grid"><div>🏆<b>{profile.best_correct}/15</b><span>Рекорд</span></div><div>🎮<b>{profile.games}</b><span>Раундов</span></div><div>👑<b>{profile.wins}</b><span>Побед</span></div><div>⭐<b>{profile.achievements.length}/7</b><span>Наград</span></div></div>
       <button className="iq-primary" disabled={busy} onClick={()=>void start()}>{busy?'Загрузка…':'▶ НАЧАТЬ ИГРУ'}</button>
+      <button className="iq-leader-button" onClick={()=>void openLeaders()}>🏆 ТАБЛИЦА ЛИДЕРОВ</button>
       <p className="iq-muted">15 вопросов · 2 шанса · до 1 800 XP за раунд</p>
     </>}
   </main>;
