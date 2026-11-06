@@ -138,3 +138,17 @@
 .iq-leader-row>.iq-player-avatar{flex:0 0 40px;width:40px;height:40px;min-width:40px;min-height:40px;max-width:40px;max-height:40px;aspect-ratio:1/1;border-radius:50%;overflow:hidden;box-sizing:border-box}
 .iq-leader-row>.iq-player-avatar img{display:block;width:100%;height:100%;object-fit:cover;border-radius:50%}
 .iq-leader-row>span:not(.iq-player-avatar){flex:1 1 0;min-width:0}
+
+
+/* Legendary Boss VVD: permanent featured challenge, separate from real rankings. */
+.iq-boss-challenge{padding:18px 14px;background:radial-gradient(ellipse at 50% 0%,#6b461e,#32200f 60%,#21160d);box-shadow:inset 0 0 26px #e5ac2420,0 0 22px #b7862a28}
+.iq-boss-challenge>strong{display:block;font-size:1.05rem;letter-spacing:.025em}
+.iq-boss-identity{display:flex;align-items:center;justify-content:center;gap:10px;margin:12px auto 14px;color:#ffebc1;font-weight:700}
+.iq-boss-identity .iq-player-avatar{flex:0 0 44px;width:44px;height:44px;min-width:44px;max-width:44px;border-radius:50%}
+.iq-boss-identity .iq-player-avatar img{width:100%;height:100%;object-fit:cover}
+.iq-boss-goal-label{font-size:.85rem;font-weight:800;letter-spacing:.07em;color:#f2ca76}
+.iq-boss-goal{font-size:2rem;font-weight:900;line-height:1.3;color:#ffdd8a;text-shadow:0 0 20px #f3ba4b55}
+.iq-boss-explainer{font-size:.76rem;color:#d7bd91;line-height:1.5}
+.iq-boss-progress{height:12px;margin:16px 2px 7px;border:1px solid #a98141;border-radius:999px;background:#130e0a;overflow:hidden}
+.iq-boss-progress>div{height:100%;background:linear-gradient(90deg,#ad7526,#f9d676);border-radius:999px;transition:width .3s ease}
+.iq-boss-progress-text{font-size:.83rem;color:#f9dfab;overflow-wrap:anywhere}
