@@ -81,3 +81,25 @@
 @keyframes iq-studio-win{50%{box-shadow:0 0 140px #ffd35fbc,0 0 30px #fff9}}
 @media(prefers-reduced-motion:reduce){.iq-audience span,.iq-effect-correct .iq-effect-card,.iq-effect-win .iq-effect-card{animation:none}}
 
+
+
+/* Unified black-and-gold studio treatment: stage lives behind gameplay, never on top. */
+.iq-root.iq-playing{background:radial-gradient(ellipse at 50% 180px,#34240d 0%,#16120c 36%,#080808 72%)}
+.iq-playing>.iq-stage{position:absolute;top:0;left:0;right:0;height:440px;min-height:0;z-index:-1;overflow:hidden;isolation:isolate;mask-image:linear-gradient(#000 0%,#000 72%,transparent 100%)}
+.iq-curtain{position:absolute;top:0;height:300px;width:28%;z-index:2;opacity:.94;background:repeating-linear-gradient(90deg,#210609 0%,#621820 11%,#9d2930 18%,#3c0a10 26%,#180407 33%);filter:drop-shadow(0 0 12px #000)}
+.iq-curtain-left{left:-6%;clip-path:polygon(0 0,100% 0,90% 48%,58% 87%,0 100%);transform-origin:top left;animation:iq-curtain-breathe 9s ease-in-out infinite alternate}
+.iq-curtain-right{right:-6%;clip-path:polygon(0 0,100% 0,100% 100%,42% 87%,10% 48%);transform-origin:top right;animation:iq-curtain-breathe 10s ease-in-out infinite alternate-reverse}
+.iq-stage-proscenium{position:absolute;top:0;left:0;right:0;height:245px;border-top:8px solid #b68b3e;background:radial-gradient(ellipse at 50% 50%,#91642d24,transparent 75%);box-shadow:inset 0 15px 24px #0009}
+.iq-playing .iq-stage-beam{z-index:1;opacity:.2}
+.iq-playing .iq-stage-halo{top:125px;background:radial-gradient(ellipse,#e0b65b40,#76542c22 40%,transparent 70%)}
+.iq-playing .iq-stage-dots{opacity:.10}
+.iq-playing .iq-audience{top:208px;height:110px;opacity:.52;filter:blur(1.2px);z-index:1;mask-image:linear-gradient(180deg,transparent,#000 24%,#000 70%,transparent)}
+.iq-playing .iq-audience span{background:radial-gradient(ellipse at 50% 10%,#86654a,#3c2d28 55%,#11100e);box-shadow:0 0 8px #bd944028}
+.iq-playing .iq-audience span::before{background:#82604c;box-shadow:0 -5px 0 -2px #211b19}
+.iq-playing .iq-hero,.iq-playing .iq-show-label,.iq-playing .iq-stats,.iq-playing .iq-timer,.iq-playing .iq-question,.iq-playing .iq-choices{z-index:1}
+.iq-playing .iq-show-label{color:#ffda88;text-shadow:0 0 12px #f4bd4e80}
+.iq-playing .iq-question{background:linear-gradient(145deg,#241b10f2,#10100ff5 55%,#20170ef2);border:1px solid #d2a64d;box-shadow:0 0 0 2px #4b3518,0 0 25px #d8a74638,inset 0 0 25px #c38b2415}
+.iq-playing .iq-choices button{background:linear-gradient(105deg,#211b13f5,#0e0e0ef5 60%,#292014f5);border-color:#a77d3c}
+.iq-playing .iq-timer{background:radial-gradient(circle,#30230f,#0c0b09 75%);border-color:#e4b85b}
+@keyframes iq-curtain-breathe{to{transform:scaleX(.96) skewY(1deg)}}
+@media(prefers-reduced-motion:reduce){.iq-curtain{animation:none}}
