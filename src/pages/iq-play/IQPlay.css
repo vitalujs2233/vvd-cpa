@@ -103,3 +103,13 @@
 .iq-playing .iq-timer{background:radial-gradient(circle,#30230f,#0c0b09 75%);border-color:#e4b85b}
 @keyframes iq-curtain-breathe{to{transform:scaleX(.96) skewY(1deg)}}
 @media(prefers-reduced-motion:reduce){.iq-curtain{animation:none}}
+
+
+/* Real animated studio audience, contained entirely inside the stage behind gameplay. */
+.iq-playing .iq-audience-video{position:absolute;inset:58px 0 auto;height:335px;z-index:0;overflow:hidden;pointer-events:none;mask-image:linear-gradient(to bottom,transparent 0%,#000 14%,#000 73%,transparent 100%)}
+.iq-playing .iq-audience-video img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 44%;opacity:.78;filter:brightness(.68) saturate(.88)}
+.iq-playing .iq-stage-proscenium{z-index:1;pointer-events:none;background:transparent}
+.iq-playing .iq-stage-beam,.iq-playing .iq-stage-halo,.iq-playing .iq-stage-dots{z-index:1;pointer-events:none}
+.iq-playing .iq-curtain{z-index:3}
+@media(max-width:380px){.iq-playing .iq-audience-video{top:62px;height:305px}}
+@media(prefers-reduced-motion:reduce){.iq-playing .iq-audience-video img{opacity:.65}}
