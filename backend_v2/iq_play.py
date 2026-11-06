@@ -58,16 +58,16 @@ def get_profile(x_telegram_init_data: str | None = Header(default=None)):
 
 @router.get("/leaderboard")
 def leaderboard(x_telegram_init_data: str | None = Header(default=None)):
-    """Real XP standings; admins get a visible pinned feature, not artificial XP."""
-    from access_guard import authorized_admin
+    """Genuine XP standings, with a permanently featured (unranked) admin."""
+    import os
+    from access_guard import LEGACY_ADMIN_ID
     uid = user_id(x_telegram_init_data)
+    ids = [int(x.strip()) for x in os.getenv("ADMIN_TELEGRAM_IDS", str(LEGACY_ADMIN_ID)).split(",") if x.strip().isdigit()]
     with engine.connect() as conn:
         rows = conn.execute(text("""
             SELECT user_id,xp,wins,games,
                    ROW_NUMBER() OVER (ORDER BY xp DESC,wins DESC,user_id ASC) AS place
-            FROM iq_progress
-            ORDER BY xp DESC,wins DESC,user_id ASC
-            LIMIT 100
+            FROM iq_progress ORDER BY xp DESC,wins DESC,user_id ASC LIMIT 20
         """)).mappings().all()
         mine = conn.execute(text("""
             SELECT user_id,xp,wins,games,place FROM (
@@ -76,14 +76,28 @@ def leaderboard(x_telegram_init_data: str | None = Header(default=None)):
                 FROM iq_progress
             ) ranked WHERE user_id=:u
         """), {"u": uid}).mappings().first()
+        bosses = conn.execute(text("""
+            SELECT p.user_id,p.xp,p.wins,p.games,
+                   (SELECT COUNT(*)+1 FROM iq_progress q
+                    WHERE q.xp>p.xp OR (q.xp=p.xp AND q.wins>p.wins)
+                       OR (q.xp=p.xp AND q.wins=p.wins AND q.user_id<p.user_id)) AS place
+            FROM iq_progress p JOIN users u ON u.telegram_id=p.user_id
+            WHERE u.role='admin' OR p.user_id = ANY(:ids)
+            ORDER BY p.xp DESC LIMIT 5
+        """), {"ids": ids}).mappings().all()
         def entry(row):
-            admin = authorized_admin(row["user_id"])
+            admin = row["user_id"] in ids or row["user_id"] in admin_user_ids
             return {"rank": row["place"], "name": "Босс VVD" if admin else "Игрок #" + str(row["place"]),
                     "xp": row["xp"], "wins": row["wins"], "is_admin": admin,
                     "is_me": row["user_id"] == uid}
-        top = [entry(row) for row in rows[:20]]
-        bosses = [entry(row) for row in rows if authorized_admin(row["user_id"])]
-        return {"leaders": top, "bosses": bosses, "me": entry(mine) if mine else None}
+        admin_user_ids = {r["user_id"] for r in bosses}
+        top = [entry(row) for row in rows]
+        boss_cards = [entry(row) for row in bosses]
+        if not boss_cards:
+            # Show the admin's challenge card even before their first completed game.
+            boss_cards = [{"rank": None, "name": "Босс VVD", "xp": 0, "wins": 0,
+                           "is_admin": True, "is_me": uid in ids}]
+        return {"leaders": top, "bosses": boss_cards, "me": entry(mine) if mine else None}
 
 
 @router.get("/rounds/active")
