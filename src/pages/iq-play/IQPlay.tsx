@@ -1,5 +1,4 @@
 import React, {useCallback,useEffect,useRef,useState} from 'react';
-import {useNavigate} from 'react-router-dom';
 import {Brain,Crown,ArrowLeft,Trophy,Volume2,VolumeX} from 'lucide-react';
 import {apiRequest} from '@/shared/lib/api';
 import './IQPlay.css';
@@ -11,9 +10,9 @@ const initial:Profile={xp:0,games:0,wins:0,best_correct:0,level:1,league:'Нов
 const remaining=(deadline?:string,offset=0)=>deadline?Math.max(0,Math.ceil((new Date(deadline).getTime()-Date.now()-offset)/1000)):0;
 
 export const IQPlay:React.FC=()=>{
-  const navigate=useNavigate();
   const [profile,setProfile]=useState<Profile>(initial);
   const [round,setRound]=useState<Round|null>(null);
+  const [showGame,setShowGame]=useState(false);
   const [loading,setLoading]=useState(true);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
@@ -62,13 +61,13 @@ export const IQPlay:React.FC=()=>{
   useEffect(()=>{
     const audio=musicRef.current;
     if(!audio)return;
-    if(round?.status==='active'&&!musicMuted){
+    if(showGame&&round?.status==='active'&&!musicMuted){
       if(audio.paused)void audio.play().catch(()=>setMusicError(true));
     }else audio.pause();
-  },[round?.status,musicMuted]);
+  },[round?.status,musicMuted,showGame]);
   useEffect(()=>{
-    if(!musicMuted&&round?.status==='active')fadeMusic(answerEffect?.kind==='correct'?.09:.25);
-  },[answerEffect?.kind,round?.status,musicMuted]);
+    if(showGame&&!musicMuted&&round?.status==='active')fadeMusic(answerEffect?.kind==='correct'?.09:.25);
+  },[answerEffect?.kind,round?.status,musicMuted,showGame]);
   const [clock,setClock]=useState(0);
   const [offset,setOffset]=useState(0);
   const [feedback,setFeedback]=useState('');
@@ -91,10 +90,16 @@ export const IQPlay:React.FC=()=>{
   },[]);
   useEffect(()=>{void refresh();},[refresh]);
   useEffect(()=>{const id=window.setInterval(()=>setClock(x=>x+1),250);return()=>window.clearInterval(id);},[]);
+  const backToMenu=()=>{
+    setShowGame(false);setAnswerEffect(null);setFeedback('');setError('');
+    if(effectTimer.current!==null){window.clearTimeout(effectTimer.current);effectTimer.current=null;}
+    stopTension();stopEndings();musicRef.current?.pause();
+    void apiRequest<Profile>('/iq-play/profile').then(setProfile).catch(()=>{});
+  };
   const start=async()=>{
     stopTension();stopEndings();endingPlayedRef.current=null;wrongCueUntilRef.current=0;
     startMusic();
-    setBusy(true);setError('');setFeedback('');setAnswerEffect(null);try{sync(await apiRequest<Round>('/iq-play/rounds',{method:'POST'}));}catch(e){setError(e instanceof Error?e.message:'Не удалось начать игру');}finally{setBusy(false);}};
+    setBusy(true);setError('');setFeedback('');setAnswerEffect(null);try{const fresh=await apiRequest<Round>('/iq-play/rounds?fresh=true',{method:'POST'});sync(fresh);setShowGame(true);}catch(e){setError(e instanceof Error?e.message:'Не удалось начать игру');}finally{setBusy(false);}};
   const answer=async(choice:number)=>{if(!round||busy||answerEffect||round.status!=='active'||choice===round.blocked_index)return;
     if(!musicMuted&&musicRef.current?.paused)startMusic();
     setBusy(true);setError('');
@@ -138,7 +143,7 @@ export const IQPlay:React.FC=()=>{
     if(!tension)return;
     const lastTen=round?.status==='active'&&seconds>0&&seconds<=10;
     const inWrongCue=Date.now()<wrongCueUntilRef.current;
-    const active=lastTen&&!musicMuted&&!answerEffect&&!inWrongCue;
+    const active=showGame&&lastTen&&!musicMuted&&!answerEffect&&!inWrongCue;
     if(active){
       if(!tensionActiveRef.current){
         tensionActiveRef.current=true;
@@ -152,12 +157,12 @@ export const IQPlay:React.FC=()=>{
       }
       tension.volume=seconds<=5?.78:.42;
     }else if(tensionActiveRef.current)stopTension();
-    if(round?.status==='active'&&!musicMuted){
+    if(showGame&&round?.status==='active'&&!musicMuted){
       fadeMusic(active?.10:answerEffect?.kind==='correct'||inWrongCue?.08:.25);
     }
-  },[seconds,round?.status,round?.round_id,musicMuted,answerEffect?.kind,clock]);
+  },[seconds,round?.status,round?.round_id,musicMuted,answerEffect?.kind,clock,showGame]);
   useEffect(()=>{
-    if(!round||round.status==='active'||musicMuted)return;
+    if(!showGame||!round||round.status==='active'||musicMuted)return;
     const key=round.round_id+':'+round.status;
     if(endingPlayedRef.current===key)return;
     endingPlayedRef.current=key;
@@ -165,9 +170,9 @@ export const IQPlay:React.FC=()=>{
     // Victory audio already plays on the final correct answer; do not replay it.
     const audio=round.status==='lost'?loseRef.current:null;
     if(audio){audio.currentTime=0;audio.volume=.85;void audio.play().catch(()=>{});}
-  },[round?.round_id,round?.status,musicMuted]);
+  },[round?.round_id,round?.status,musicMuted,showGame]);
   useEffect(()=>{
-    if(!round||round.status!=='active'||seconds!==0||busy)return;
+    if(!showGame||!round||round.status!=='active'||seconds!==0||busy)return;
     let live=true;
     setBusy(true);
     void apiRequest<Round>(`/iq-play/rounds/${round.round_id}/timeout`,{method:'POST'})
@@ -175,8 +180,8 @@ export const IQPlay:React.FC=()=>{
       .catch(()=>{if(live)setError('Не удалось проверить таймер. Повторите попытку.');})
       .finally(()=>{if(live)setBusy(false);});
     return()=>{live=false;};
-  },[round?.round_id,round?.deadline,round?.status,seconds]);
-  return <main className={'iq-root'+(round?.status==='active'?' iq-playing':'')}>
+  },[round?.round_id,round?.deadline,round?.status,seconds,showGame,busy]);
+  return <main className={'iq-root'+(showGame&&round?.status==='active'?' iq-playing':'')}>
     <audio ref={musicRef} src={musicSrc} preload="auto" loop onError={()=>setMusicError(true)} />
     <audio ref={tensionRef} src="/vvd-cpa/audio/%D0%9F%D0%BE%D1%81%D0%BB%D0%B5%D0%B4%D0%BD%D0%B8%D0%B5%20%D1%81%D0%B5%D0%BA%D1%83%D0%BD%D0%B4%D1%8B%20%D0%BD%D0%B0%D0%BF%D1%80%D1%8F%D0%B6%D0%B5%D0%BD%D0%B8%D1%8F%20.mp3" preload="auto" loop />
     <audio ref={winRef} src="/vvd-cpa/audio/%D0%92%D1%8B%D0%B8%D0%B3%D1%80%D1%8B%D1%88%20.mp3" preload="auto" />
@@ -188,11 +193,11 @@ export const IQPlay:React.FC=()=>{
       {answerEffect.xp>0&&<span className="iq-effect-xp">+{answerEffect.xp} XP</span>}
       {answerEffect.kind==='wrong'&&<small>Используй второй шанс</small>}</div>
     </div>}
-    <header className="iq-header"><button onClick={()=>navigate('/')} aria-label="Назад"><ArrowLeft size={20}/></button><span>VVD <strong>IQ PLAY</strong></span><button onClick={toggleMusic} aria-label={musicMuted?'Включить музыку':'Выключить музыку'}>{musicMuted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button></header>
+    <header className="iq-header"><button onClick={backToMenu} aria-label="В меню IQ Play"><ArrowLeft size={20}/></button><span>VVD <strong>IQ PLAY</strong></span><button onClick={toggleMusic} aria-label={musicMuted?'Включить музыку':'Выключить музыку'}>{musicMuted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button></header>
     <section className="iq-hero"><div className="iq-emblem"><Brain size={42}/><Crown size={20}/></div><h1>IQ PLAY</h1><p>Прокачай себя в арбитраже</p></section>
     {musicError&&!musicMuted&&<p className="iq-warning" role="status">Музыка не запустилась. Нажми на значок динамика, чтобы включить её.</p>}
     {error&&<div className="iq-error" role="alert">{error}<button onClick={()=>void refresh()}>Повторить загрузку</button></div>}
-    {loading?<p className="iq-muted">Загрузка…</p>:round?.status==='active'?<>
+    {loading?<p className="iq-muted">Загрузка…</p>:showGame&&round?.status==='active'?<>
       <div className="iq-show-label">VVD · ИНТЕЛЛЕКТУАЛЬНОЕ ШОУ</div>
       <div className="iq-stats"><span>Вопрос {round.position} из 15</span><span>{round.retry?'Последний шанс':'❤️ 2 шанса'}</span></div>
       <div className="iq-progress"><div style={{width:`${(round.position-1)/15*100}%`}}/></div>
@@ -203,7 +208,7 @@ export const IQPlay:React.FC=()=>{
       {feedback&&<p className="iq-muted">{feedback}</p>}
       {seconds===0&&<p className="iq-muted">Проверяем таймер на сервере…</p>}
       <p className="iq-muted">За раунд: {round.round_xp} XP</p>
-    </>:round?<>
+    </>:showGame&&round?<>
       <div className="iq-result">{round.status==='won'?<Trophy size={64}/>:<Brain size={64}/>}<h2>{round.status==='won'?'ПОБЕДА!':'ИГРА ОКОНЧЕНА'}</h2><p>Правильных ответов: {round.correct_count} / 15</p><p>Заработано {round.round_xp} XP</p></div>
       <button className="iq-primary" disabled={busy} onClick={()=>void start()}>Играть снова</button>
     </>:<>
