@@ -56,6 +56,36 @@ def get_profile(x_telegram_init_data: str | None = Header(default=None)):
         return profile(conn, uid)
 
 
+@router.get("/leaderboard")
+def leaderboard(x_telegram_init_data: str | None = Header(default=None)):
+    """Real XP standings; admins get a visible pinned feature, not artificial XP."""
+    from access_guard import authorized_admin
+    uid = user_id(x_telegram_init_data)
+    with engine.connect() as conn:
+        rows = conn.execute(text("""
+            SELECT user_id,xp,wins,games,
+                   ROW_NUMBER() OVER (ORDER BY xp DESC,wins DESC,user_id ASC) AS place
+            FROM iq_progress
+            ORDER BY xp DESC,wins DESC,user_id ASC
+            LIMIT 100
+        """)).mappings().all()
+        mine = conn.execute(text("""
+            SELECT user_id,xp,wins,games,place FROM (
+                SELECT user_id,xp,wins,games,
+                       ROW_NUMBER() OVER (ORDER BY xp DESC,wins DESC,user_id ASC) AS place
+                FROM iq_progress
+            ) ranked WHERE user_id=:u
+        """), {"u": uid}).mappings().first()
+        def entry(row):
+            admin = authorized_admin(row["user_id"])
+            return {"rank": row["place"], "name": "Босс VVD" if admin else "Игрок #" + str(row["place"]),
+                    "xp": row["xp"], "wins": row["wins"], "is_admin": admin,
+                    "is_me": row["user_id"] == uid}
+        top = [entry(row) for row in rows[:20]]
+        bosses = [entry(row) for row in rows if authorized_admin(row["user_id"])]
+        return {"leaders": top, "bosses": bosses, "me": entry(mine) if mine else None}
+
+
 @router.get("/rounds/active")
 def active_round(x_telegram_init_data: str | None = Header(default=None)):
     uid = user_id(x_telegram_init_data)
