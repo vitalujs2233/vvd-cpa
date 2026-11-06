@@ -90,7 +90,7 @@ class OfferIn(BaseModel):
     @classmethod
     def payment_models(cls,v):
         options=v.split(' / ')
-        allowed={'CPA','CPL SOI','CPL DOI','RevShare','PPS','CPL','CPI','Other'}
+        allowed={'CPA','CPL SOI','CPL DOI','RevShare','PPS','CPL','SOI','DOI','CPI','Other'}
         if not options or any(option not in allowed for option in options) or len(set(options))!=len(options):
             raise ValueError('Выберите допустимые модели оплаты без повторов')
         return v
