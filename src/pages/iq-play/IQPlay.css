@@ -160,3 +160,10 @@
 .iq-boss-progress{height:12px;margin:16px 2px 7px;border:1px solid #a98141;border-radius:999px;background:#130e0a;overflow:hidden}
 .iq-boss-progress>div{height:100%;background:linear-gradient(90deg,#ad7526,#f9d676);border-radius:999px;transition:width .3s ease}
 .iq-boss-progress-text{font-size:.83rem;color:#f9dfab;overflow-wrap:anywhere}
+
+/* Show one complete screen once its data is ready; no half-rendered stage. */
+.iq-initial-loading{display:flex;align-items:center;justify-content:center;min-height:100dvh;background:radial-gradient(ellipse at 50% 35%,#30200e,#090909 70%);color:#f5cf7d}
+.iq-load-card{display:flex;align-items:center;flex-direction:column;gap:15px;padding:32px 20px;text-align:center}
+.iq-load-card strong{font-size:1.45rem;letter-spacing:.14em}
+.iq-load-card span{color:#d5bd92;font-size:.9rem}
+.iq-leader-button:disabled{opacity:.78;cursor:wait}
