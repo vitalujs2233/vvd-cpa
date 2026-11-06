@@ -113,3 +113,16 @@
 .iq-playing .iq-curtain{z-index:3}
 @media(max-width:380px){.iq-playing .iq-audience-video{top:62px;height:305px}}
 @media(prefers-reduced-motion:reduce){.iq-playing .iq-audience-video img{opacity:.65}}
+
+
+/* Leaderboard keeps VVD IQ Play's black-and-gold visual language. */
+.iq-leader-button{display:block;width:100%;margin:14px 0 8px;padding:16px;border:1px solid #cba052;border-radius:17px;background:linear-gradient(110deg,#20170d,#0e0d0b);color:#f7d47d;font-weight:800;letter-spacing:.07em;cursor:pointer}
+.iq-leaderboard{position:relative;z-index:2;margin:14px 0 28px;padding:18px 12px;border:1px solid #a78040;border-radius:22px;background:linear-gradient(145deg,#23190fef,#0d0c0bf7);box-shadow:0 0 24px #c7953420}
+.iq-leaderboard h2{text-align:center;color:#f7ce75;font-size:1.3rem;margin:6px 0 8px}
+.iq-boss-panel{margin:16px 0;padding:16px;border:1px solid #f0be5a;border-radius:16px;background:linear-gradient(110deg,#503619,#21160d);color:#ffe0a0;text-align:center}
+.iq-boss-panel p{margin:8px 0 0}
+.iq-leader-row{display:flex;align-items:center;gap:12px;margin:7px 0;padding:12px 10px;border:1px solid #5f492b;border-radius:12px;background:#17130f;color:#f6e8cf}
+.iq-leader-row>b{min-width:32px;color:#dcb567}
+.iq-leader-row>span{flex:1;min-width:0}
+.iq-leader-row>strong{white-space:nowrap;color:#eac06e;font-size:.92rem}
+.iq-leader-me{border-color:#e4b85c;background:#322411}
