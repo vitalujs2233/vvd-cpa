@@ -91,8 +91,8 @@ export const IQPlay:React.FC=()=>{
   const refresh=useCallback(async()=>{
     setError('');
     try {
-      const [p,r]=await Promise.all([apiRequest<Profile>('/iq-play/profile'),apiRequest<Round|null>('/iq-play/rounds/active')]);
-      setProfile(p);if(r)sync(r);
+      const [p,r,leaders]=await Promise.all([apiRequest<Profile>('/iq-play/profile'),apiRequest<Round|null>('/iq-play/rounds/active'),apiRequest<Leaderboard>('/iq-play/leaderboard').catch(()=>null)]);
+      setProfile(p);if(r)sync(r);if(leaders)setLeaderboard(leaders);
     }catch{setError('Не удалось загрузить игру. Проверьте соединение.');}
     finally{setLoading(false);}
   },[]);
@@ -107,9 +107,16 @@ export const IQPlay:React.FC=()=>{
     void apiRequest<Profile>('/iq-play/profile').then(setProfile).catch(()=>{});
   };
   const openLeaders=async()=>{
-    setShowLeaders(true);setLeadersLoading(true);
-    try{setLeaderboard(await apiRequest<Leaderboard>('/iq-play/leaderboard'));}catch{setError('Не удалось загрузить рейтинг');}
-    finally{setLeadersLoading(false);}
+    if(leadersLoading)return;
+    setLeadersLoading(true);setError('');
+    try{
+      const data=await apiRequest<Leaderboard>('/iq-play/leaderboard');
+      setLeaderboard(data);
+      setShowLeaders(true);
+    }catch{
+      if(leaderboard)setShowLeaders(true);
+      else setError('Не удалось загрузить рейтинг. Попробуйте ещё раз.');
+    }finally{setLeadersLoading(false);}
   };
   const start=async()=>{
     stopTension();stopEndings();endingPlayedRef.current=null;wrongCueUntilRef.current=0;
@@ -230,7 +237,7 @@ export const IQPlay:React.FC=()=>{
     <section className="iq-hero"><div className="iq-emblem"><Brain size={42}/><Crown size={20}/></div><h1>IQ PLAY</h1><p>Прокачай себя в арбитраже</p></section>
     {musicError&&!musicMuted&&<p className="iq-warning" role="status">Музыка не запустилась. Нажми на значок динамика, чтобы включить её.</p>}
     {error&&<div className="iq-error" role="alert">{error}<button onClick={()=>void refresh()}>Повторить загрузку</button></div>}
-    {showLeaders?<section className="iq-leaderboard"><h2>🏆 ЛИДЕРЫ IQ PLAY</h2><p className="iq-muted">Рейтинг по реальным XP · победы решают равенство</p>{leadersLoading?<p>Загружаем рейтинг…</p>:<>{leaderboard?.bosses.length? <div className="iq-boss-panel iq-boss-challenge">
+    {showLeaders?<section className="iq-leaderboard"><h2>🏆 ЛИДЕРЫ IQ PLAY</h2><p className="iq-muted">Рейтинг по реальным XP · победы решают равенство</p>{<>{leaderboard?.bosses.length? <div className="iq-boss-panel iq-boss-challenge">
   <strong>👑 ЛЕГЕНДАРНЫЙ БОСС VVD</strong>
   {leaderboard.bosses.map((boss,i)=><div className="iq-boss-identity" key={i}><PlayerAvatar player={boss}/><span>{boss.name}</span></div>)}
   <div className="iq-boss-goal-label">⚔️ СМОЖЕШЬ ПОКОРИТЬ БОССА?</div>
@@ -254,7 +261,7 @@ export const IQPlay:React.FC=()=>{
       <button className="iq-primary" disabled={busy} onClick={()=>void start()}>Играть снова</button>
     </>:<>
       <div className="iq-profile"><Crown size={34}/><div><b>{profile.league} · уровень {profile.level}</b><span>{profile.xp.toLocaleString('ru-RU')} XP</span></div></div>
-      <button className="iq-leader-button" onClick={()=>void openLeaders()}><span className="iq-leader-icon"><Trophy size={26}/></span><span className="iq-leader-copy"><strong>ТАБЛИЦА ЛИДЕРОВ</strong><small>Рейтинг игроков · Вызов Босса VVD</small></span><span className="iq-leader-arrow" aria-hidden="true">›</span></button>
+      <button className="iq-leader-button" disabled={leadersLoading} onClick={()=>void openLeaders()}><span className="iq-leader-icon"><Trophy size={26}/></span><span className="iq-leader-copy"><strong>ТАБЛИЦА ЛИДЕРОВ</strong><small>Рейтинг игроков · Вызов Босса VVD</small></span><span className="iq-leader-arrow" aria-hidden="true">›</span></button>
       <div className="iq-grid"><div>🏆<b>{profile.best_correct}/15</b><span>Рекорд</span></div><div>🎮<b>{profile.games}</b><span>Раундов</span></div><div>👑<b>{profile.wins}</b><span>Побед</span></div><div>⭐<b>{profile.achievements.length}/7</b><span>Наград</span></div></div>
       <button className="iq-primary" disabled={busy} onClick={()=>void start()}>{busy?'Загрузка…':'▶ НАЧАТЬ ИГРУ'}</button>
       <p className="iq-muted">15 вопросов · 2 шанса · до 1 800 XP за раунд</p>
