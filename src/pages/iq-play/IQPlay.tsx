@@ -1,4 +1,5 @@
 import React, {useCallback,useEffect,useRef,useState} from 'react';
+import {useNavigate} from 'react-router-dom';
 import {Brain,Crown,ArrowLeft,Trophy,Volume2,VolumeX} from 'lucide-react';
 import {apiRequest} from '@/shared/lib/api';
 import './IQPlay.css';
@@ -10,6 +11,7 @@ const initial:Profile={xp:0,games:0,wins:0,best_correct:0,level:1,league:'Нов
 const remaining=(deadline?:string,offset=0)=>deadline?Math.max(0,Math.ceil((new Date(deadline).getTime()-Date.now()-offset)/1000)):0;
 
 export const IQPlay:React.FC=()=>{
+  const navigate=useNavigate();
   const [profile,setProfile]=useState<Profile>(initial);
   const [round,setRound]=useState<Round|null>(null);
   const [showGame,setShowGame]=useState(false);
@@ -91,6 +93,7 @@ export const IQPlay:React.FC=()=>{
   useEffect(()=>{void refresh();},[refresh]);
   useEffect(()=>{const id=window.setInterval(()=>setClock(x=>x+1),250);return()=>window.clearInterval(id);},[]);
   const backToMenu=()=>{
+    if(!showGame){navigate('/');return;}
     setShowGame(false);setAnswerEffect(null);setFeedback('');setError('');
     if(effectTimer.current!==null){window.clearTimeout(effectTimer.current);effectTimer.current=null;}
     stopTension();stopEndings();musicRef.current?.pause();
@@ -193,7 +196,7 @@ export const IQPlay:React.FC=()=>{
       {answerEffect.xp>0&&<span className="iq-effect-xp">+{answerEffect.xp} XP</span>}
       {answerEffect.kind==='wrong'&&<small>Используй второй шанс</small>}</div>
     </div>}
-    <header className="iq-header"><button onClick={backToMenu} aria-label="В меню IQ Play"><ArrowLeft size={20}/></button><span>VVD <strong>IQ PLAY</strong></span><button onClick={toggleMusic} aria-label={musicMuted?'Включить музыку':'Выключить музыку'}>{musicMuted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button></header>
+    <header className="iq-header"><button onClick={backToMenu} aria-label={showGame?"В меню IQ Play":"На главную VVD"}><ArrowLeft size={20}/></button><span>VVD <strong>IQ PLAY</strong></span><button onClick={toggleMusic} aria-label={musicMuted?'Включить музыку':'Выключить музыку'}>{musicMuted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button></header>
     <section className="iq-hero"><div className="iq-emblem"><Brain size={42}/><Crown size={20}/></div><h1>IQ PLAY</h1><p>Прокачай себя в арбитраже</p></section>
     {musicError&&!musicMuted&&<p className="iq-warning" role="status">Музыка не запустилась. Нажми на значок динамика, чтобы включить её.</p>}
     {error&&<div className="iq-error" role="alert">{error}<button onClick={()=>void refresh()}>Повторить загрузку</button></div>}
