@@ -80,6 +80,16 @@ export const IQPlay:React.FC=()=>{
   const [clock,setClock]=useState(0);
   const [offset,setOffset]=useState(0);
   const [feedback,setFeedback]=useState('');
+  const [streak,setStreak]=useState(0);
+  const [streakNotice,setStreakNotice]=useState('');
+  const [newRecord,setNewRecord]=useState(false);
+  const streakNoticeTimer=useRef<number|null>(null);
+  const streakRef=useRef(0);
+  const notifyStreak=(value:number)=>{
+    if(streakNoticeTimer.current!==null)window.clearTimeout(streakNoticeTimer.current);
+    setStreakNotice(value===3?'🔥 В УДАРЕ!':value===5?'🔥 ГЕНИЙ IQ!':'');
+    if(value===3||value===5)streakNoticeTimer.current=window.setTimeout(()=>setStreakNotice(''),2000);
+  };
 
   const effectTimer=useRef<number|null>(null);
   const showAnswerEffect=(kind:'correct'|'wrong'|'win'|'lose',xp:number)=>{
@@ -87,7 +97,7 @@ export const IQPlay:React.FC=()=>{
     setAnswerEffect({kind,xp});
     effectTimer.current=window.setTimeout(()=>{setAnswerEffect(null);effectTimer.current=null;},1050);
   };
-  useEffect(()=>()=>{if(effectTimer.current!==null)window.clearTimeout(effectTimer.current);},[]);
+  useEffect(()=>()=>{if(effectTimer.current!==null)window.clearTimeout(effectTimer.current);if(streakNoticeTimer.current!==null)window.clearTimeout(streakNoticeTimer.current);},[]);
   const sync=(r:Round)=>{setRound(r);setOffset(Date.now()-new Date(r.server_now).getTime());};
   const refresh=useCallback(async()=>{
     setError('');
@@ -107,10 +117,10 @@ export const IQPlay:React.FC=()=>{
   const backToMenu=()=>{
     if(showLeaders){setShowLeaders(false);return;}
     if(!showGame){navigate('/');return;}
-    setShowGame(false);setAnswerEffect(null);setFeedback('');setError('');
+    setShowGame(false);setAnswerEffect(null);setFeedback('');setError('');setStreakNotice('');
     if(effectTimer.current!==null){window.clearTimeout(effectTimer.current);effectTimer.current=null;}
     stopTension();stopEndings();musicRef.current?.pause();
-    void apiRequest<Profile>('/iq-play/profile').then(setProfile).catch(()=>{});
+    void Promise.all([apiRequest<Profile>('/iq-play/profile'),apiRequest<Leaderboard>('/iq-play/leaderboard').catch(()=>null)]).then(([p,l])=>{setProfile(p);if(l)setLeaderboard(l);}).catch(()=>{});
   };
   const openLeaders=async()=>{
     if(leadersLoading)return;
@@ -127,6 +137,7 @@ export const IQPlay:React.FC=()=>{
   const start=async()=>{
     stopTension();stopEndings();endingPlayedRef.current=null;wrongCueUntilRef.current=0;
     startMusic();
+    streakRef.current=0;setStreak(0);setStreakNotice('');setNewRecord(false);
     setBusy(true);setError('');setFeedback('');setAnswerEffect(null);try{const fresh=await apiRequest<Round>('/iq-play/rounds?fresh=true',{method:'POST'});sync(fresh);setShowGame(true);}catch(e){setError(e instanceof Error?e.message:'Не удалось начать игру');}finally{setBusy(false);}};
   const answer=async(choice:number)=>{if(!round||busy||answerEffect||round.status!=='active'||choice===round.blocked_index)return;
     if(!musicMuted&&musicRef.current?.paused)startMusic();
@@ -134,6 +145,10 @@ export const IQPlay:React.FC=()=>{
     try{const response=await apiRequest<Response>(`/iq-play/rounds/${round.round_id}/answers`,{method:'POST',body:JSON.stringify({position:round.position,choice,event_id:crypto.randomUUID()})});
       const effectKind=response.outcome==='correct'?(response.round.status==='won'?'win':'correct'):(response.round.status==='lost'?'lose':'wrong');
       const gained=Math.max(0,response.round.round_xp-round.round_xp);
+      if(response.outcome==='correct'){
+        const next=streakRef.current+1;streakRef.current=next;setStreak(next);notifyStreak(next);
+      }else{streakRef.current=0;setStreak(0);setStreakNotice('');}
+      if(response.round.status!=='active'&&response.round.correct_count>profile.best_correct)setNewRecord(true);
       showAnswerEffect(effectKind,gained);
       if(response.outcome==='wrong'){
         stopTension();
@@ -215,6 +230,8 @@ export const IQPlay:React.FC=()=>{
           return;
         }
         setError('');
+        if(r.retry||r.status!=='active'){streakRef.current=0;setStreak(0);setStreakNotice('');}
+        if(r.status!=='active'&&r.correct_count>profile.best_correct)setNewRecord(true);
         sync(r);
         if(r.status!=='active')void apiRequest<Profile>('/iq-play/profile').then(p=>{if(live)setProfile(p);}).catch(()=>{});
       }catch{
@@ -254,6 +271,7 @@ export const IQPlay:React.FC=()=>{
   <div className="iq-boss-progress-text">{leaderboard.me.xp>=50000?'🏅 Покоритель Босса — цель достигнута!':`Ваш прогресс: ${leaderboard.me.xp.toLocaleString('ru-RU')} / 50 000 XP`}</div></>:<p className="iq-boss-progress-text">Играй, набирай XP и открой звание «Покоритель Босса»</p>}
 </div>:null}{leaderboard?.leaders.map(p=><div className={'iq-leader-row'+(p.is_me?' iq-leader-me':'')} key={p.rank}><b>#{p.rank}</b><PlayerAvatar player={p}/><span>{p.is_admin?'👑 ':''}{p.name}{p.is_me?' · Вы':''}</span><strong>{p.xp.toLocaleString('ru-RU')} XP</strong></div>)}{leaderboard?.me&&!leaderboard.leaders.some(p=>p.is_me)&&<div className="iq-leader-row iq-leader-me"><b>#{leaderboard.me.rank}</b><PlayerAvatar player={leaderboard.me}/><span>{leaderboard.me.name} · Вы</span><strong>{leaderboard.me.xp.toLocaleString('ru-RU')} XP</strong></div>}</></section>:showGame&&round?.status==='active'?<>
       <div className="iq-show-label">VVD · ИНТЕЛЛЕКТУАЛЬНОЕ ШОУ</div>
+      {streakNotice&&<div className="iq-mini-notice" role="status">{streakNotice}</div>}
       <div className="iq-stats"><span>Вопрос {round.position} из 15</span><span>{round.retry?'Последний шанс':'❤️ 2 шанса'}</span></div>
       <div className="iq-progress"><div style={{width:`${(round.position-1)/15*100}%`}}/></div>
       <div className={`iq-timer ${seconds<=5?'urgent':''}`} role="timer" aria-label="Осталось секунд" style={{'--iq-time':`${Math.max(0,Math.min(100,seconds/(round.retry?10:round.seconds||30)*100))}%`} as React.CSSProperties}>{seconds}</div>
@@ -264,10 +282,10 @@ export const IQPlay:React.FC=()=>{
       {seconds===0&&<p className="iq-muted">Проверяем таймер на сервере…</p>}
       <p className="iq-muted">За раунд: {round.round_xp} XP</p>
     </>:showGame&&round?<>
-      <div className="iq-result">{round.status==='won'?<Trophy size={64}/>:<Brain size={64}/>}<h2>{round.status==='won'?'ПОБЕДА!':'ИГРА ОКОНЧЕНА'}</h2><p>Правильных ответов: {round.correct_count} / 15</p><p>Заработано {round.round_xp} XP</p></div>
+      <div className="iq-result">{round.status==='won'?<Trophy size={64}/>:<Brain size={64}/>}<h2>{round.status==='won'?'ПОБЕДА!':'ИГРА ОКОНЧЕНА'}</h2><p>Правильных ответов: {round.correct_count} / 15</p><p>Заработано {round.round_xp} XP</p>{newRecord&&<div className="iq-record-notice" role="status">🏆 НОВЫЙ ЛИЧНЫЙ РЕКОРД!</div>}</div>
       <button className="iq-primary" disabled={busy} onClick={()=>void start()}>Играть снова</button>
     </>:<>
-      <div className="iq-profile"><Crown size={34}/><div><b>{profile.league} · уровень {profile.level}</b><span>{profile.xp.toLocaleString('ru-RU')} XP</span></div></div>
+      <div className="iq-profile"><Crown size={34}/><div><b>{profile.league} · уровень {profile.level}</b><span>{profile.xp.toLocaleString('ru-RU')} XP</span>{leaderboard?.me?.rank!=null&&<small className="iq-my-rank">🏆 Место в рейтинге: №{leaderboard.me.rank}</small>}</div></div>
       <button className="iq-leader-button" disabled={leadersLoading} onClick={()=>void openLeaders()}><span className="iq-leader-icon"><Trophy size={26}/></span><span className="iq-leader-copy"><strong>ТАБЛИЦА ЛИДЕРОВ</strong><small>Рейтинг игроков · Вызов Босса VVD</small></span><span className="iq-leader-arrow" aria-hidden="true">›</span></button>
       <div className="iq-grid"><div>🏆<b>{profile.best_correct}/15</b><span>Рекорд</span></div><div>🎮<b>{profile.games}</b><span>Раундов</span></div><div>👑<b>{profile.wins}</b><span>Побед</span></div><div>⭐<b>{profile.achievements.length}/7</b><span>Наград</span></div></div>
       <button className="iq-primary" disabled={busy} onClick={()=>void start()}>{busy?'Загрузка…':'▶ НАЧАТЬ ИГРУ'}</button>
