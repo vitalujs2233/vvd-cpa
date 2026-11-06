@@ -187,3 +187,27 @@
 @keyframes iq-load-glow{50%{box-shadow:0 0 0 12px #d7a3420d,0 0 50px #e8b35465,inset 0 0 22px #e3ad4230}}
 @keyframes iq-load-travel{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
 @media(prefers-reduced-motion:reduce){.iq-load-emblem,.iq-load-progress>div{animation:none}.iq-load-progress>div{width:100%}}
+
+/* Theater entrance: menu is a closed velvet curtain; starting a round reveals the existing live audience. */
+.iq-root>.iq-stage.iq-stage-closed{height:560px;min-height:0;isolation:isolate;mask-image:linear-gradient(#000 0%,#000 79%,transparent 100%)}
+.iq-stage-closed .iq-curtain{top:0;height:530px;width:52%;z-index:5;opacity:1;clip-path:none;filter:drop-shadow(0 8px 15px #000b);animation:none}
+.iq-stage-closed .iq-curtain-left{left:0;transform:none;border-right:2px solid #c08b3b;box-shadow:inset -24px 0 28px #100305b0}
+.iq-stage-closed .iq-curtain-right{right:0;transform:none;border-left:2px solid #c08b3b;box-shadow:inset 24px 0 28px #100305b0}
+.iq-stage-closed .iq-audience-video{display:none}
+.iq-stage-closed .iq-stage-beam,.iq-stage-closed .iq-stage-halo{opacity:0}
+.iq-stage-closed .iq-stage-proscenium{z-index:6;border-top:8px solid #c89a4e;background:transparent}
+.iq-stage-open .iq-curtain-left{animation:iq-show-curtain-left 1.45s cubic-bezier(.2,.72,.18,1) both}
+.iq-stage-open .iq-curtain-right{animation:iq-show-curtain-right 1.45s cubic-bezier(.2,.72,.18,1) both}
+.iq-stage-open .iq-audience-video{animation:iq-show-audience 1.6s ease-out both}
+@keyframes iq-show-curtain-left{
+  0%{left:0;width:52%;height:390px;clip-path:polygon(0 0,100% 0,100% 100%,0 100%);transform:none}
+  100%{left:-6%;width:28%;height:300px;clip-path:polygon(0 0,100% 0,90% 48%,58% 87%,0 100%);transform:none}
+}
+@keyframes iq-show-curtain-right{
+  0%{right:0;width:52%;height:390px;clip-path:polygon(0 0,100% 0,100% 100%,0 100%);transform:none}
+  100%{right:-6%;width:28%;height:300px;clip-path:polygon(0 0,100% 0,100% 100%,42% 87%,10% 48%);transform:none}
+}
+@keyframes iq-show-audience{0%,15%{opacity:0}100%{opacity:1}}
+@media(prefers-reduced-motion:reduce){
+ .iq-stage-open .iq-curtain-left,.iq-stage-open .iq-curtain-right,.iq-stage-open .iq-audience-video{animation:none}
+}
