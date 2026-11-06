@@ -85,9 +85,18 @@ def leaderboard(x_telegram_init_data: str | None = Header(default=None)):
             WHERE u.role='admin' OR p.user_id = ANY(:ids)
             ORDER BY p.xp DESC LIMIT 5
         """), {"ids": ids}).mappings().all()
+        participant_ids = list({r["user_id"] for r in [*rows, *bosses, *([mine] if mine else [])]})
+        people = conn.execute(text("""
+            SELECT telegram_id,first_name,last_name,username,photo_url
+            FROM users WHERE telegram_id = ANY(:ids)
+        """), {"ids": participant_ids}).mappings().all() if participant_ids else []
+        people_by_id = {p["telegram_id"]: p for p in people}
         def entry(row):
             admin = row["user_id"] in ids or row["user_id"] in admin_user_ids
-            return {"rank": row["place"], "name": "Босс VVD" if admin else "Игрок #" + str(row["place"]),
+            person = people_by_id.get(row["user_id"], {})
+            full_name = " ".join(filter(None, [person.get("first_name"), person.get("last_name")])).strip()
+            name = full_name or ("@" + person["username"] if person.get("username") else "Участник IQ Play")
+            return {"rank": row["place"], "name": name, "photo_url": person.get("photo_url") or None,
                     "xp": row["xp"], "wins": row["wins"], "is_admin": admin,
                     "is_me": row["user_id"] == uid}
         admin_user_ids = {r["user_id"] for r in bosses}
@@ -96,7 +105,7 @@ def leaderboard(x_telegram_init_data: str | None = Header(default=None)):
         if not boss_cards:
             # Show the admin's challenge card even before their first completed game.
             boss_cards = [{"rank": None, "name": "Босс VVD", "xp": 0, "wins": 0,
-                           "is_admin": True, "is_me": uid in ids}]
+                           "is_admin": True, "is_me": uid in ids, "photo_url": None}]
         return {"leaders": top, "bosses": boss_cards, "me": entry(mine) if mine else None}
 
 
