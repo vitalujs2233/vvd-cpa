@@ -19,6 +19,7 @@ export const IQPlay:React.FC=()=>{
   const [error,setError]=useState('');
   const [muted,setMuted]=useState(true);
   const mutedRef=useRef(true);
+  const soundPreferenceSetRef=useRef(false);
   const applauseBufferRef=useRef<AudioBuffer|null>(null);
   const applauseLoadingRef=useRef<Promise<AudioBuffer|null>|null>(null);
   const applauseSourceRef=useRef<AudioBufferSourceNode|null>(null);
@@ -57,6 +58,7 @@ export const IQPlay:React.FC=()=>{
       const ctx=audioContext();
       try{applauseSourceRef.current?.stop();}catch{/* previous playback finished */}
       const source=ctx.createBufferSource(),gain=ctx.createGain();
+      if(ctx.state==='suspended')void ctx.resume();
       source.buffer=buffer;gain.gain.value=full?1:.95;
       source.connect(gain);gain.connect(ctx.destination);
       source.start();if(!full)source.stop(ctx.currentTime+Math.min(2.8,buffer.duration));
@@ -178,17 +180,13 @@ export const IQPlay:React.FC=()=>{
       hit(ctx,t,.11);chord([196,293.66,392],t,.85,.025,'strings');
       chord([261.63,392,523.25],t+.55,1.15,.042,'brass');
     }else if(kind==='correct'){
-      playRealApplause(false);hit(ctx,t,.11);
-      chord([392,493.88,587.33],t,.5,.038,'brass');
-      tone(ctx,t+.22,783.99,.65,.11,'bell');
+      playRealApplause(false);
     }else if(kind==='wrong'){
       audience(ctx,t+.1,'gasp');hit(ctx,t,.21);
       chord([220,261.63,311.13],t,.85,.045,'brass');
       tone(ctx,t+.26,155.56,.85,.095,'bass');
     }else if(kind==='win'){
-      playRealApplause(true);[0,.26,.52,.78].forEach((d,i)=>{hit(ctx,t+d,.14);tone(ctx,t+d,[392,493.88,587.33,783.99][i],.9,.09,'bell');});
-      chord([261.63,329.63,392,523.25],t+.8,2.1,.05,'brass');
-      chord([523.25,659.25,783.99],t+1.12,1.9,.035,'strings');
+      playRealApplause(true);
     }else if(kind==='lose'){
       audience(ctx,t+.1,'gasp');hit(ctx,t,.22);chord([233.08,293.66,349.23],t,1.2,.042,'brass');
       chord([196,233.08,293.66],t+.55,1.65,.035,'strings');
@@ -262,6 +260,7 @@ export const IQPlay:React.FC=()=>{
     musicTimerRef.current=window.setInterval(schedule,90);
   };
   const toggleSound=()=>{
+    soundPreferenceSetRef.current=true;
     if(muted){mutedRef.current=false;setMuted(false);void loadApplause();startMusic();}
     else{mutedRef.current=true;setMuted(true);stopMusic();}
   };
@@ -288,8 +287,13 @@ export const IQPlay:React.FC=()=>{
   },[]);
   useEffect(()=>{void refresh();},[refresh]);
   useEffect(()=>{const id=window.setInterval(()=>setClock(x=>x+1),250);return()=>window.clearInterval(id);},[]);
-  const start=async()=>{setBusy(true);setError('');setFeedback('');setAnswerEffect(null);try{sync(await apiRequest<Round>('/iq-play/rounds',{method:'POST'}));}catch(e){setError(e instanceof Error?e.message:'Не удалось начать игру');}finally{setBusy(false);}};
+  const start=async()=>{
+    // A direct Play tap unlocks audio in Telegram WebView. Respect explicit mute.
+    if(!soundPreferenceSetRef.current&&mutedRef.current){mutedRef.current=false;setMuted(false);void loadApplause();}
+    if(!mutedRef.current){const ctx=audioContext();void ctx.resume();void loadApplause();}
+    setBusy(true);setError('');setFeedback('');setAnswerEffect(null);try{sync(await apiRequest<Round>('/iq-play/rounds',{method:'POST'}));}catch(e){setError(e instanceof Error?e.message:'Не удалось начать игру');}finally{setBusy(false);}};
   const answer=async(choice:number)=>{if(!round||busy||answerEffect||round.status!=='active'||choice===round.blocked_index)return;
+    if(!mutedRef.current){const ctx=audioContext();void ctx.resume();void loadApplause();}
     setBusy(true);setError('');
     try{const response=await apiRequest<Response>(`/iq-play/rounds/${round.round_id}/answers`,{method:'POST',body:JSON.stringify({position:round.position,choice,event_id:crypto.randomUUID()})});
       const effectKind=response.outcome==='correct'?(response.round.status==='won'?'win':'correct'):(response.round.status==='lost'?'lose':'wrong');
