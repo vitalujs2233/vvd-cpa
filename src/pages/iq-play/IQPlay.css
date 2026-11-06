@@ -81,35 +81,3 @@
 @keyframes iq-studio-win{50%{box-shadow:0 0 140px #ffd35fbc,0 0 30px #fff9}}
 @media(prefers-reduced-motion:reduce){.iq-audience span,.iq-effect-correct .iq-effect-card,.iq-effect-win .iq-effect-card{animation:none}}
 
-
-/* Two-tier studio audience: individual heads, hair, clothes and gentle reactions. */
-.iq-root>.iq-stage{min-height:100%;height:100%;position:sticky;top:0;margin-bottom:-100dvh;z-index:-1}
-.iq-stage{background:radial-gradient(ellipse 90% 32% at 50% 37%,#19406d55,transparent 80%)}
-.iq-audience{position:absolute;left:-5%;right:-5%;width:110%;display:flex;align-items:flex-end;justify-content:space-evenly;gap:1px;overflow:visible;filter:none;mask-image:linear-gradient(to bottom,transparent 0%,#000 15%,#000 84%,transparent 100%);pointer-events:none}
-.iq-audience-back{top:185px;height:115px;opacity:.65;transform:scale(.91);transform-origin:bottom center}
-.iq-audience-front{top:245px;height:142px;opacity:.86}
-.iq-audience .iq-person{--skin:#b88766;--hair:#2b1d19;--shirt:#233a54;position:relative;display:block;flex:0 1 37px;max-width:37px;height:53px;border-radius:48% 48% 18% 18%;background:linear-gradient(100deg,#0007,transparent 43%,#fff2 75%,#0007),var(--shirt);box-shadow:inset 0 5px 10px #0006,0 3px 7px #0009;transform-origin:50% 95%;animation:iq-audience-live 4.3s ease-in-out infinite alternate}
-.iq-audience .iq-person::before{content:'';position:absolute;left:50%;bottom:41px;width:22px;height:28px;transform:translateX(-50%);border-radius:43% 43% 47% 47%;background:radial-gradient(ellipse at 68% 48%,#ffe6c43a,transparent 58%),var(--skin);box-shadow:inset -4px -2px 5px #0004,0 -6px 0 -2px var(--hair),0 -9px 0 -4px var(--hair)}
-.iq-audience .iq-person::after{content:'';position:absolute;left:50%;bottom:66px;width:24px;height:13px;transform:translateX(-50%);border-radius:55% 55% 20% 20%;background:var(--hair);box-shadow:0 1px 4px #0008}
-.iq-audience .iq-person-0{--skin:#d9a47c;--hair:#241915;--shirt:#463042;animation-delay:-.8s}
-.iq-audience .iq-person-1{--skin:#80523d;--hair:#131417;--shirt:#38506b;animation-delay:-2.1s}
-.iq-audience .iq-person-2{--skin:#e6bb98;--hair:#6b3f23;--shirt:#8d4b43;animation-delay:-1.3s}
-.iq-audience .iq-person-3{--skin:#aa765b;--hair:#18191d;--shirt:#293d32;animation-delay:-3.5s}
-.iq-audience .iq-person-4{--skin:#f0c9a5;--hair:#b48749;--shirt:#384b70;animation-delay:-2.7s}
-.iq-audience .iq-person-5{--skin:#674432;--hair:#171013;--shirt:#5d384e;animation-delay:-4.1s}
-.iq-audience .iq-person-6{--skin:#c38a63;--hair:#322323;--shirt:#735f35;animation-delay:-1.8s}
-.iq-audience .iq-person-7{--skin:#e1aa8b;--hair:#4b3024;--shirt:#34454c;animation-delay:-3.1s}
-.iq-audience-back .iq-person{height:42px;filter:brightness(.72) blur(.65px);animation-duration:6.5s}
-.iq-audience-back .iq-person::before{bottom:33px}
-.iq-audience-back .iq-person::after{bottom:58px}
-.iq-audience-front .iq-person:nth-child(3n){height:60px}
-.iq-audience-front .iq-person:nth-child(4n){height:47px}
-.iq-studio-rail{position:absolute;top:380px;left:-5%;width:110%;height:9px;border-top:2px solid #e5ad5e99;border-radius:50%;background:linear-gradient(90deg,#162e53,#b68446,#223b5e);box-shadow:0 0 16px #d6a0577d,0 8px 24px #000}
-.iq-studio-lights{position:absolute;top:180px;left:0;right:0;height:225px;background:radial-gradient(ellipse at 8% 50%,#b0d7ff38,transparent 28%),radial-gradient(ellipse at 91% 35%,#ffcf8440,transparent 29%);animation:iq-audience-light 7s ease-in-out infinite alternate}
-.iq-celebrating .iq-audience-front .iq-person{animation:iq-audience-cheer .34s ease-in-out infinite alternate}
-.iq-celebrating .iq-studio-lights{background:radial-gradient(ellipse at 20% 55%,#ffdb7970,transparent 40%),radial-gradient(ellipse at 85% 40%,#8bffb65e,transparent 40%)}
-@keyframes iq-audience-live{0%{transform:translateY(0) rotate(-2deg)}45%{transform:translateY(-2px) rotate(1deg)}100%{transform:translateY(-5px) rotate(3deg)}}
-@keyframes iq-audience-cheer{to{transform:translateY(-9px) rotate(4deg)}}
-@keyframes iq-audience-light{to{opacity:.6;transform:translateX(8px)}}
-@media(max-width:380px){.iq-audience-front{top:225px}.iq-audience-back{top:170px}.iq-studio-rail{top:359px}}
-@media(prefers-reduced-motion:reduce){.iq-audience .iq-person,.iq-studio-lights{animation:none}}
