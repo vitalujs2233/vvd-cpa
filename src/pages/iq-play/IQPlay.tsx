@@ -22,6 +22,7 @@ export const IQPlay:React.FC=()=>{
   const [leaderboard,setLeaderboard]=useState<Leaderboard|null>(null);
   const [leadersLoading,setLeadersLoading]=useState(false);
   const [loading,setLoading]=useState(true);
+  const introStartedAt=useRef(Date.now());
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [answerEffect,setAnswerEffect]=useState<{kind:'correct'|'wrong'|'win'|'lose';xp:number}|null>(null);
@@ -94,7 +95,12 @@ export const IQPlay:React.FC=()=>{
       const [p,r,leaders]=await Promise.all([apiRequest<Profile>('/iq-play/profile'),apiRequest<Round|null>('/iq-play/rounds/active'),apiRequest<Leaderboard>('/iq-play/leaderboard').catch(()=>null)]);
       setProfile(p);if(r)sync(r);if(leaders)setLeaderboard(leaders);
     }catch{setError('Не удалось загрузить игру. Проверьте соединение.');}
-    finally{setLoading(false);}
+    finally{
+      // Keep the theatrical intro visible for at least 3 seconds, even on fast connections.
+      const elapsed=Date.now()-introStartedAt.current;
+      if(elapsed<3000)await new Promise<void>(resolve=>window.setTimeout(resolve,3000-elapsed));
+      setLoading(false);
+    }
   },[]);
   useEffect(()=>{void refresh();},[refresh]);
   useEffect(()=>{const id=window.setInterval(()=>setClock(x=>x+1),250);return()=>window.clearInterval(id);},[]);
