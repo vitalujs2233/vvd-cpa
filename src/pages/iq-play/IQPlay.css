@@ -167,3 +167,23 @@
 .iq-load-card strong{font-size:1.45rem;letter-spacing:.14em}
 .iq-load-card span{color:#d5bd92;font-size:.9rem}
 .iq-leader-button:disabled{opacity:.78;cursor:wait}
+
+/* Theatrical IQ Play loading interlude; no audio or game logic changes. */
+.iq-initial-loading{position:relative;isolation:isolate;overflow:hidden;min-height:100dvh;background:radial-gradient(ellipse at 50% 38%,#39250f 0%,#1a130c 38%,#08090d 78%);color:#f7d27c}
+.iq-initial-loading:before,.iq-initial-loading:after{content:"";position:absolute;z-index:-1;top:0;bottom:0;width:18%;background:repeating-linear-gradient(90deg,#280a0c 0%,#601923 24%,#300b11 45%,#831f29 60%,#2a080d 100%);opacity:.65;filter:drop-shadow(0 0 22px #0009)}
+.iq-initial-loading:before{left:-11%;transform:skewY(8deg)}
+.iq-initial-loading:after{right:-11%;transform:skewY(-8deg)}
+.iq-load-spotlight{position:absolute;z-index:-1;inset:0;background:conic-gradient(from 192deg at 50% -14%,transparent 0deg,#df9e3a19 12deg,transparent 30deg,transparent 332deg,#df9e3a19 347deg,transparent 360deg);pointer-events:none}
+.iq-load-card{position:relative;gap:13px;width:min(90%,380px);padding:32px 16px;text-align:center}
+.iq-load-kicker{font-size:.68rem;font-weight:800;letter-spacing:.22em;color:#d5ae65}
+.iq-load-emblem{position:relative;display:grid;place-items:center;width:116px;height:116px;margin:12px 0 3px;border:2px solid #d5a750;border-radius:50%;background:radial-gradient(circle,#3d2913,#16120e 72%);box-shadow:0 0 0 9px #d7a34212,0 0 38px #d6a24640,inset 0 0 22px #e3ad4225;animation:iq-load-glow 2.5s ease-in-out infinite}
+.iq-load-crown{position:absolute;top:-24px;color:#ffd57a;filter:drop-shadow(0 2px 7px #bd7d26)}
+.iq-load-card>strong{font-family:Georgia,serif;font-size:clamp(2.1rem,9vw,3rem);font-weight:800;letter-spacing:.12em;text-shadow:0 2px 20px #d8a34a66}
+.iq-load-line{width:118px;height:1px;margin:3px auto 8px;background:linear-gradient(90deg,transparent,#e8b95c,transparent)}
+.iq-load-card>span{font-size:.95rem;color:#ebd5ad}
+.iq-load-progress{width:178px;height:5px;margin-top:14px;overflow:hidden;border:1px solid #85602c;border-radius:20px;background:#110e0b}
+.iq-load-progress>div{width:40%;height:100%;border-radius:20px;background:linear-gradient(90deg,#ae7529,#ffe5a0);box-shadow:0 0 12px #f1bd62;animation:iq-load-travel 1.65s ease-in-out infinite alternate}
+.iq-load-card>small{font-size:.74rem;color:#bfa67e;letter-spacing:.07em}
+@keyframes iq-load-glow{50%{box-shadow:0 0 0 12px #d7a3420d,0 0 50px #e8b35465,inset 0 0 22px #e3ad4230}}
+@keyframes iq-load-travel{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
+@media(prefers-reduced-motion:reduce){.iq-load-emblem,.iq-load-progress>div{animation:none}.iq-load-progress>div{width:100%}}
