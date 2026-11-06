@@ -85,7 +85,15 @@ class OfferIn(BaseModel):
     source_url:str|None=None
     geo:str=Field("",max_length=300)
     traffic_restrictions:str=Field("",max_length=2000)
-    payment_model:str=Field("CPA",max_length=30)
+    payment_model:str=Field("CPA",min_length=1,max_length=100)
+    @field_validator('payment_model')
+    @classmethod
+    def payment_models(cls,v):
+        options=v.split(' / ')
+        allowed={'CPA','CPL SOI','CPL DOI','RevShare','PPS','CPL','CPI','Other'}
+        if not options or any(option not in allowed for option in options) or len(set(options))!=len(options):
+            raise ValueError('Выберите допустимые модели оплаты без повторов')
+        return v
     currency:str=Field("USD",pattern=r"^[A-Z]{3}$")
     payout_terms:str=Field("",max_length=1000)
     status:str=Field("draft",pattern=r"^(draft|published|disabled)$")
