@@ -76,7 +76,21 @@ export const CPAManager:React.FC<{onBack:()=>void}>=({onBack})=>{
       <CpaIconPicker value={offer.icon_name} onChange={s=>o('icon_name',s)}/>
       {row('Разрешённые GEO',offer.geo,s=>o('geo',s))}
       {row('Ограничения трафика',offer.traffic_restrictions,s=>o('traffic_restrictions',s),true)}
-      {option('Модель оплаты',offer.payment_model,[['CPA','CPA'],['CPL','CPL'],['RevShare','RevShare'],['CPI','CPI'],['Other','Другая']],s=>o('payment_model',s))}
+      <fieldset className="rounded-app-xs border border-white/10 p-3">
+        <legend className="px-1 text-xs text-textSecondary">Модель оплаты · можно выбрать несколько</legend>
+        <div className="grid grid-cols-2 gap-3 mt-2">
+          {(['CPA','CPL SOI','CPL DOI','RevShare','PPS'] as const).map(model=>{
+            const selected=offer.payment_model.split(' / ').filter(Boolean);
+            return <label key={model} className="flex items-center gap-2 text-xs text-textPrimary">
+              <input type="checkbox" checked={selected.includes(model)} onChange={e=>{
+                const next=e.target.checked?[...selected,model]:selected.filter(x=>x!==model);
+                o('payment_model',next.join(' / '));
+              }}/>{model}
+            </label>;
+          })}
+        </div>
+        <p className="mt-2 text-[11px] text-textSecondary">Выбрано: {offer.payment_model||'Ничего не выбрано'}</p>
+      </fieldset>
       {row('Валюта',offer.currency,s=>o('currency',s.toUpperCase()))}
       {row('Условия и ставка',offer.payout_terms,s=>o('payout_terms',s),true)}
       {option('Статус',offer.status,[['draft','Черновик'],['published','Опубликован'],['disabled','Отключён']],s=>o('status',s as Offer['status']))}
