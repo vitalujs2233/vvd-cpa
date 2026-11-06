@@ -1,6 +1,6 @@
 import React, {useCallback,useEffect,useRef,useState} from 'react';
 import {useNavigate} from 'react-router-dom';
-import {Brain,Crown,ArrowLeft,Trophy} from 'lucide-react';
+import {Brain,Crown,ArrowLeft,Trophy,Volume2,VolumeX} from 'lucide-react';
 import {apiRequest} from '@/shared/lib/api';
 import './IQPlay.css';
 
@@ -17,6 +17,49 @@ export const IQPlay:React.FC=()=>{
   const [loading,setLoading]=useState(true);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
+  const [musicMuted,setMusicMuted]=useState(false);
+  const [musicError,setMusicError]=useState(false);
+  const musicRef=useRef<HTMLAudioElement|null>(null);
+  const fadeRef=useRef<number|null>(null);
+  const musicSrc=`${import.meta.env.BASE_URL}audio/franzian-deo-question-thinking-time-472736.mp3`;
+  const fadeMusic=(target:number)=>{
+    const audio=musicRef.current;if(!audio)return;
+    if(fadeRef.current!==null)window.clearInterval(fadeRef.current);
+    fadeRef.current=window.setInterval(()=>{
+      const delta=target-audio.volume;
+      if(Math.abs(delta)<.015){
+        audio.volume=target;
+        if(fadeRef.current!==null)window.clearInterval(fadeRef.current);
+        fadeRef.current=null;
+      }else audio.volume=Math.max(0,Math.min(1,audio.volume+Math.sign(delta)*.012));
+    },40);
+  };
+  const startMusic=()=>{
+    const audio=musicRef.current;
+    if(!audio||musicMuted)return;
+    setMusicError(false);
+    void audio.play().catch(()=>setMusicError(true));
+  };
+  const toggleMusic=()=>{
+    const audio=musicRef.current;
+    if(!audio)return;
+    if(musicMuted){setMusicMuted(false);setMusicError(false);void audio.play().catch(()=>setMusicError(true));}
+    else{setMusicMuted(true);audio.pause();}
+  };
+  useEffect(()=>()=>{
+    if(fadeRef.current!==null)window.clearInterval(fadeRef.current);
+    musicRef.current?.pause();
+  },[]);
+  useEffect(()=>{
+    const audio=musicRef.current;
+    if(!audio)return;
+    if(round?.status==='active'&&!musicMuted){
+      if(audio.paused)void audio.play().catch(()=>setMusicError(true));
+    }else audio.pause();
+  },[round?.status,musicMuted]);
+  useEffect(()=>{
+    if(!musicMuted&&round?.status==='active')fadeMusic(answerEffect?.kind==='correct'?.09:.25);
+  },[answerEffect?.kind,round?.status,musicMuted]);
   const [clock,setClock]=useState(0);
   const [offset,setOffset]=useState(0);
   const [feedback,setFeedback]=useState('');
@@ -40,8 +83,10 @@ export const IQPlay:React.FC=()=>{
   useEffect(()=>{void refresh();},[refresh]);
   useEffect(()=>{const id=window.setInterval(()=>setClock(x=>x+1),250);return()=>window.clearInterval(id);},[]);
   const start=async()=>{
+    startMusic();
     setBusy(true);setError('');setFeedback('');setAnswerEffect(null);try{sync(await apiRequest<Round>('/iq-play/rounds',{method:'POST'}));}catch(e){setError(e instanceof Error?e.message:'Не удалось начать игру');}finally{setBusy(false);}};
   const answer=async(choice:number)=>{if(!round||busy||answerEffect||round.status!=='active'||choice===round.blocked_index)return;
+    if(!musicMuted&&musicRef.current?.paused)startMusic();
     setBusy(true);setError('');
     try{const response=await apiRequest<Response>(`/iq-play/rounds/${round.round_id}/answers`,{method:'POST',body:JSON.stringify({position:round.position,choice,event_id:crypto.randomUUID()})});
       const effectKind=response.outcome==='correct'?(response.round.status==='won'?'win':'correct'):(response.round.status==='lost'?'lose':'wrong');
@@ -65,6 +110,7 @@ export const IQPlay:React.FC=()=>{
     return()=>{live=false;};
   },[round?.round_id,round?.deadline,round?.status,seconds]);
   return <main className={'iq-root'+(round?.status==='active'?' iq-playing':'')}>
+    <audio ref={musicRef} src={musicSrc} preload="auto" loop onError={()=>setMusicError(true)} />
     <div className="iq-stage" aria-hidden="true"><div className="iq-stage-beam iq-beam-left"/><div className="iq-stage-beam iq-beam-right"/><div className="iq-stage-halo"/><div className="iq-stage-dots"/><div className="iq-audience"><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/></div></div>
     {answerEffect&&<div className={'iq-answer-effect iq-effect-'+answerEffect.kind} role="status" aria-live="polite">
       <div className="iq-effect-card"><div className="iq-effect-symbol">{answerEffect.kind==='correct'?'✓':answerEffect.kind==='win'?'★':'✕'}</div>
@@ -72,8 +118,9 @@ export const IQPlay:React.FC=()=>{
       {answerEffect.xp>0&&<span className="iq-effect-xp">+{answerEffect.xp} XP</span>}
       {answerEffect.kind==='wrong'&&<small>Используй второй шанс</small>}</div>
     </div>}
-    <header className="iq-header"><button onClick={()=>navigate('/')} aria-label="Назад"><ArrowLeft size={20}/></button><span>VVD <strong>IQ PLAY</strong></span></header>
+    <header className="iq-header"><button onClick={()=>navigate('/')} aria-label="Назад"><ArrowLeft size={20}/></button><span>VVD <strong>IQ PLAY</strong></span><button onClick={toggleMusic} aria-label={musicMuted?'Включить музыку':'Выключить музыку'}>{musicMuted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button></header>
     <section className="iq-hero"><div className="iq-emblem"><Brain size={42}/><Crown size={20}/></div><h1>IQ PLAY</h1><p>Прокачай себя в арбитраже</p></section>
+    {musicError&&!musicMuted&&<p className="iq-warning" role="status">Музыка не запустилась. Нажми на значок динамика, чтобы включить её.</p>}
     {error&&<div className="iq-error" role="alert">{error}<button onClick={()=>void refresh()}>Повторить загрузку</button></div>}
     {loading?<p className="iq-muted">Загрузка…</p>:round?.status==='active'?<>
       <div className="iq-show-label">VVD · ИНТЕЛЛЕКТУАЛЬНОЕ ШОУ</div>
