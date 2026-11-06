@@ -20,53 +20,6 @@ export const IQPlay:React.FC=()=>{
   const [muted,setMuted]=useState(true);
   const mutedRef=useRef(true);
   const soundPreferenceSetRef=useRef(false);
-  const applauseBufferRef=useRef<AudioBuffer|null>(null);
-  const applauseLoadingRef=useRef<Promise<AudioBuffer|null>|null>(null);
-  const applauseSourceRef=useRef<AudioBufferSourceNode|null>(null);
-  const [applauseError,setApplauseError]=useState('');
-  const applauseFile='iq-crowd-cheer-and-applause.mp3';
-  const applauseUrls=[
-    `${import.meta.env.BASE_URL}audio/${applauseFile}`,
-    `/audio/${applauseFile}`,
-    `/vvd-cpa/audio/${applauseFile}`
-  ];
-  const loadApplause=()=>{
-    if(applauseBufferRef.current)return Promise.resolve(applauseBufferRef.current);
-    if(applauseLoadingRef.current)return applauseLoadingRef.current;
-    applauseLoadingRef.current=(async()=>{
-      for(const url of [...new Set(applauseUrls)]){
-        try{
-          const response=await fetch(url,{cache:'no-store'});
-          if(!response.ok)continue;
-          const bytes=await response.arrayBuffer();
-          if(bytes.byteLength<2000)continue;
-          const decoded=await audioContext().decodeAudioData(bytes);
-          applauseBufferRef.current=decoded;
-          setApplauseError('');
-          return decoded;
-        }catch{/* Try the next deployment path */}
-      }
-      setApplauseError('Аплодисменты не загрузились. Проверьте публикацию аудиофайла.');
-      return null;
-    })().finally(()=>{applauseLoadingRef.current=null;});
-    return applauseLoadingRef.current;
-  };
-  const playRealApplause=(full:boolean)=>{
-    if(mutedRef.current)return;
-    void loadApplause().then(buffer=>{
-      if(!buffer||mutedRef.current)return;
-      const ctx=audioContext();
-      try{applauseSourceRef.current?.stop();}catch{/* previous playback finished */}
-      const source=ctx.createBufferSource(),gain=ctx.createGain();
-      if(ctx.state==='suspended')void ctx.resume();
-      source.buffer=buffer;gain.gain.value=full?1:.95;
-      source.connect(gain);gain.connect(ctx.destination);
-      source.start();if(!full)source.stop(ctx.currentTime+Math.min(2.8,buffer.duration));
-      applauseSourceRef.current=source;
-      source.onended=()=>{if(applauseSourceRef.current===source)applauseSourceRef.current=null;gain.disconnect();};
-    });
-  };
-
   type Sound='intro'|'correct'|'wrong'|'win'|'lose'|'tick';
   const contextRef=useRef<AudioContext|null>(null);
   const musicTimerRef=useRef<number|null>(null);
@@ -180,13 +133,13 @@ export const IQPlay:React.FC=()=>{
       hit(ctx,t,.11);chord([196,293.66,392],t,.85,.025,'strings');
       chord([261.63,392,523.25],t+.55,1.15,.042,'brass');
     }else if(kind==='correct'){
-      playRealApplause(false);
+      // No applause sound on correct answers.
     }else if(kind==='wrong'){
       audience(ctx,t+.1,'gasp');hit(ctx,t,.21);
       chord([220,261.63,311.13],t,.85,.045,'brass');
       tone(ctx,t+.26,155.56,.85,.095,'bass');
     }else if(kind==='win'){
-      playRealApplause(true);
+      // No applause sound on victory.
     }else if(kind==='lose'){
       audience(ctx,t+.1,'gasp');hit(ctx,t,.22);chord([233.08,293.66,349.23],t,1.2,.042,'brass');
       chord([196,233.08,293.66],t+.55,1.65,.035,'strings');
@@ -197,8 +150,6 @@ export const IQPlay:React.FC=()=>{
   },[]);
   const stopMusic=()=>{
     stopAudienceBed();
-    try{applauseSourceRef.current?.stop();}catch{/* already finished */}
-    applauseSourceRef.current=null;
     if(musicTimerRef.current!==null){window.clearInterval(musicTimerRef.current);musicTimerRef.current=null;}
     // Stop only future scheduled notes when muting; allow brief effects to decay.
     soundNodesRef.current.forEach(o=>{try{o.stop();}catch{/* already stopped */}});
@@ -261,7 +212,7 @@ export const IQPlay:React.FC=()=>{
   };
   const toggleSound=()=>{
     soundPreferenceSetRef.current=true;
-    if(muted){mutedRef.current=false;setMuted(false);void loadApplause();startMusic();}
+    if(muted){mutedRef.current=false;setMuted(false);startMusic();}
     else{mutedRef.current=true;setMuted(true);stopMusic();}
   };
   useEffect(()=>()=>{stopMusic();if(contextRef.current)void contextRef.current.close();},[]);
@@ -334,7 +285,6 @@ export const IQPlay:React.FC=()=>{
     </div>}
     <header className="iq-header"><button onClick={()=>navigate('/')} aria-label="Назад"><ArrowLeft size={20}/></button><span>VVD <strong>IQ PLAY</strong></span><button onClick={toggleSound} aria-label={muted?'Включить звук':'Выключить звук'}>{muted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button></header>
     <section className="iq-hero"><div className="iq-emblem"><Brain size={42}/><Crown size={20}/></div><h1>IQ PLAY</h1><p>Прокачай себя в арбитраже</p></section>
-    {applauseError&&!muted&&<p className="iq-warning" role="alert">{applauseError}</p>}
     {error&&<div className="iq-error" role="alert">{error}<button onClick={()=>void refresh()}>Повторить загрузку</button></div>}
     {loading?<p className="iq-muted">Загрузка…</p>:round?.status==='active'?<>
       <div className="iq-show-label">VVD · ИНТЕЛЛЕКТУАЛЬНОЕ ШОУ</div>
