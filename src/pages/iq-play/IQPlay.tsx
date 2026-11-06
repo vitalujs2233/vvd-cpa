@@ -221,6 +221,7 @@ export const IQPlay:React.FC=()=>{
     void checkTimeout();
     return()=>{live=false;if(retryTimer!==undefined)window.clearTimeout(retryTimer);};
   },[round?.round_id,round?.deadline,round?.status,seconds,showGame]);
+  if(loading)return <main className="iq-root iq-initial-loading"><div className="iq-load-card" role="status"><Brain size={42}/><strong>VVD IQ PLAY</strong><span>Подготавливаем игру…</span></div></main>;
   return <main className={'iq-root'+(showGame&&round?.status==='active'?' iq-playing':'')}>
     <audio ref={musicRef} src={musicSrc} preload="auto" loop onError={()=>setMusicError(true)} />
     <audio ref={tensionRef} src="/vvd-cpa/audio/%D0%9F%D0%BE%D1%81%D0%BB%D0%B5%D0%B4%D0%BD%D0%B8%D0%B5%20%D1%81%D0%B5%D0%BA%D1%83%D0%BD%D0%B4%D1%8B%20%D0%BD%D0%B0%D0%BF%D1%80%D1%8F%D0%B6%D0%B5%D0%BD%D0%B8%D1%8F%20.mp3" preload="auto" loop />
@@ -237,7 +238,7 @@ export const IQPlay:React.FC=()=>{
     <section className="iq-hero"><div className="iq-emblem"><Brain size={42}/><Crown size={20}/></div><h1>IQ PLAY</h1><p>Прокачай себя в арбитраже</p></section>
     {musicError&&!musicMuted&&<p className="iq-warning" role="status">Музыка не запустилась. Нажми на значок динамика, чтобы включить её.</p>}
     {error&&<div className="iq-error" role="alert">{error}<button onClick={()=>void refresh()}>Повторить загрузку</button></div>}
-    {showLeaders?<section className="iq-leaderboard"><h2>🏆 ЛИДЕРЫ IQ PLAY</h2><p className="iq-muted">Рейтинг по реальным XP · победы решают равенство</p>{<>{leaderboard?.bosses.length? <div className="iq-boss-panel iq-boss-challenge">
+    {showLeaders?<section className="iq-leaderboard"><h2>🏆 ЛИДЕРЫ IQ PLAY</h2><p className="iq-muted">Рейтинг по реальным XP · победы решают равенство</p><>{leaderboard?.bosses.length? <div className="iq-boss-panel iq-boss-challenge">
   <strong>👑 ЛЕГЕНДАРНЫЙ БОСС VVD</strong>
   {leaderboard.bosses.map((boss,i)=><div className="iq-boss-identity" key={i}><PlayerAvatar player={boss}/><span>{boss.name}</span></div>)}
   <div className="iq-boss-goal-label">⚔️ СМОЖЕШЬ ПОКОРИТЬ БОССА?</div>
@@ -245,7 +246,7 @@ export const IQPlay:React.FC=()=>{
   <div className="iq-boss-explainer">Особый вызов · цель по суммарным XP, не место в рейтинге</div>
   {leaderboard.me?<><div className="iq-boss-progress" role="progressbar" aria-label="Прогресс к вызову Босса" aria-valuemin={0} aria-valuemax={50000} aria-valuenow={Math.min(50000,leaderboard.me.xp)}><div style={{width:`${Math.min(100,Math.max(0,leaderboard.me.xp/50000*100))}%`}}/></div>
   <div className="iq-boss-progress-text">{leaderboard.me.xp>=50000?'🏅 Покоритель Босса — цель достигнута!':`Ваш прогресс: ${leaderboard.me.xp.toLocaleString('ru-RU')} / 50 000 XP`}</div></>:<p className="iq-boss-progress-text">Играй, набирай XP и открой звание «Покоритель Босса»</p>}
-</div>:null}{leaderboard?.leaders.map(p=><div className={'iq-leader-row'+(p.is_me?' iq-leader-me':'')} key={p.rank}><b>#{p.rank}</b><PlayerAvatar player={p}/><span>{p.is_admin?'👑 ':''}{p.name}{p.is_me?' · Вы':''}</span><strong>{p.xp.toLocaleString('ru-RU')} XP</strong></div>)}{leaderboard?.me&&!leaderboard.leaders.some(p=>p.is_me)&&<div className="iq-leader-row iq-leader-me"><b>#{leaderboard.me.rank}</b><PlayerAvatar player={leaderboard.me}/><span>{leaderboard.me.name} · Вы</span><strong>{leaderboard.me.xp.toLocaleString('ru-RU')} XP</strong></div>}</>}</section>:loading?<p className="iq-muted">Загрузка…</p>:showGame&&round?.status==='active'?<>
+</div>:null}{leaderboard?.leaders.map(p=><div className={'iq-leader-row'+(p.is_me?' iq-leader-me':'')} key={p.rank}><b>#{p.rank}</b><PlayerAvatar player={p}/><span>{p.is_admin?'👑 ':''}{p.name}{p.is_me?' · Вы':''}</span><strong>{p.xp.toLocaleString('ru-RU')} XP</strong></div>)}{leaderboard?.me&&!leaderboard.leaders.some(p=>p.is_me)&&<div className="iq-leader-row iq-leader-me"><b>#{leaderboard.me.rank}</b><PlayerAvatar player={leaderboard.me}/><span>{leaderboard.me.name} · Вы</span><strong>{leaderboard.me.xp.toLocaleString('ru-RU')} XP</strong></div>}</>}</section>:showGame&&round?.status==='active'?<>
       <div className="iq-show-label">VVD · ИНТЕЛЛЕКТУАЛЬНОЕ ШОУ</div>
       <div className="iq-stats"><span>Вопрос {round.position} из 15</span><span>{round.retry?'Последний шанс':'❤️ 2 шанса'}</span></div>
       <div className="iq-progress"><div style={{width:`${(round.position-1)/15*100}%`}}/></div>
