@@ -25,6 +25,7 @@ export const IQPlay:React.FC=()=>{
   const winRef=useRef<HTMLAudioElement|null>(null);
   const loseRef=useRef<HTMLAudioElement|null>(null);
   const tensionActiveRef=useRef(false);
+  const wrongCueUntilRef=useRef(0);
   const endingPlayedRef=useRef<string|null>(null);
   const fadeRef=useRef<number|null>(null);
   const musicSrc='/vvd-cpa/audio/franzian-deo-question-thinking-time-472736.mp3';
@@ -91,7 +92,7 @@ export const IQPlay:React.FC=()=>{
   useEffect(()=>{void refresh();},[refresh]);
   useEffect(()=>{const id=window.setInterval(()=>setClock(x=>x+1),250);return()=>window.clearInterval(id);},[]);
   const start=async()=>{
-    stopTension();stopEndings();endingPlayedRef.current=null;
+    stopTension();stopEndings();endingPlayedRef.current=null;wrongCueUntilRef.current=0;
     startMusic();
     setBusy(true);setError('');setFeedback('');setAnswerEffect(null);try{sync(await apiRequest<Round>('/iq-play/rounds',{method:'POST'}));}catch(e){setError(e instanceof Error?e.message:'Не удалось начать игру');}finally{setBusy(false);}};
   const answer=async(choice:number)=>{if(!round||busy||answerEffect||round.status!=='active'||choice===round.blocked_index)return;
@@ -101,6 +102,19 @@ export const IQPlay:React.FC=()=>{
       const effectKind=response.outcome==='correct'?(response.round.status==='won'?'win':'correct'):(response.round.status==='lost'?'lose':'wrong');
       const gained=Math.max(0,response.round.round_xp-round.round_xp);
       showAnswerEffect(effectKind,gained);
+      if(response.outcome==='wrong'){
+        stopTension();
+        wrongCueUntilRef.current=Date.now()+2000;
+        if(!musicMuted){
+          const wrongSound=loseRef.current;
+          if(wrongSound){
+            wrongSound.pause();wrongSound.currentTime=0;wrongSound.volume=.75;
+            void wrongSound.play().catch(()=>{});
+          }
+          fadeMusic(.08);
+        }
+        if(response.round.status==='lost')endingPlayedRef.current=response.round.round_id+':lost';
+      }
       if(response.outcome==='correct'&&!musicMuted){
         stopTension();
         const cheer=winRef.current;
@@ -122,20 +136,26 @@ export const IQPlay:React.FC=()=>{
   useEffect(()=>{
     const tension=tensionRef.current;
     if(!tension)return;
-    const active=round?.status==='active'&&seconds>0&&seconds<=10&&!musicMuted;
+    const lastTen=round?.status==='active'&&seconds>0&&seconds<=10;
+    const inWrongCue=Date.now()<wrongCueUntilRef.current;
+    const active=lastTen&&!musicMuted&&!answerEffect&&!inWrongCue;
     if(active){
       if(!tensionActiveRef.current){
         tensionActiveRef.current=true;
-        const seek=()=>{if(Number.isFinite(tension.duration)&&tension.duration>12)tension.currentTime=tension.duration-11;};
-        if(tension.readyState>=1)seek();
-        else tension.addEventListener('loadedmetadata',seek,{once:true});
-        tension.volume=.30;
+        // Play a continuous middle section, not the last seconds of the MP3.
+        if(tension.readyState>=1&&tension.duration>35)tension.currentTime=15;
+        else if(tension.readyState<1)tension.addEventListener('loadedmetadata',()=>{
+          if(tensionActiveRef.current&&tension.duration>35)tension.currentTime=15;
+        },{once:true});
+        tension.volume=.42;
         void tension.play().catch(()=>{tensionActiveRef.current=false;});
       }
       tension.volume=seconds<=5?.78:.42;
     }else if(tensionActiveRef.current)stopTension();
-    if(round?.status==='active'&&!musicMuted)fadeMusic(active?.10:answerEffect?.kind==='correct'?.09:.25);
-  },[seconds,round?.status,round?.round_id,musicMuted,answerEffect?.kind]);
+    if(round?.status==='active'&&!musicMuted){
+      fadeMusic(active?.10:answerEffect?.kind==='correct'||inWrongCue?.08:.25);
+    }
+  },[seconds,round?.status,round?.round_id,musicMuted,answerEffect?.kind,clock]);
   useEffect(()=>{
     if(!round||round.status==='active'||musicMuted)return;
     const key=round.round_id+':'+round.status;
@@ -158,7 +178,7 @@ export const IQPlay:React.FC=()=>{
   },[round?.round_id,round?.deadline,round?.status,seconds]);
   return <main className={'iq-root'+(round?.status==='active'?' iq-playing':'')}>
     <audio ref={musicRef} src={musicSrc} preload="auto" loop onError={()=>setMusicError(true)} />
-    <audio ref={tensionRef} src="/vvd-cpa/audio/%D0%9F%D0%BE%D1%81%D0%BB%D0%B5%D0%B4%D0%BD%D0%B8%D0%B5%20%D1%81%D0%B5%D0%BA%D1%83%D0%BD%D0%B4%D1%8B%20%D0%BD%D0%B0%D0%BF%D1%80%D1%8F%D0%B6%D0%B5%D0%BD%D0%B8%D1%8F%20.mp3" preload="auto" />
+    <audio ref={tensionRef} src="/vvd-cpa/audio/%D0%9F%D0%BE%D1%81%D0%BB%D0%B5%D0%B4%D0%BD%D0%B8%D0%B5%20%D1%81%D0%B5%D0%BA%D1%83%D0%BD%D0%B4%D1%8B%20%D0%BD%D0%B0%D0%BF%D1%80%D1%8F%D0%B6%D0%B5%D0%BD%D0%B8%D1%8F%20.mp3" preload="auto" loop />
     <audio ref={winRef} src="/vvd-cpa/audio/%D0%92%D1%8B%D0%B8%D0%B3%D1%80%D1%8B%D1%88%20.mp3" preload="auto" />
     <audio ref={loseRef} src="/vvd-cpa/audio/%D0%9F%D1%80%D0%BE%D0%B8%D0%B3%D1%80%D0%B8%D1%88%D1%8C.mp3" preload="auto" />
     <div className="iq-stage" aria-hidden="true"><div className="iq-stage-beam iq-beam-left"/><div className="iq-stage-beam iq-beam-right"/><div className="iq-stage-halo"/><div className="iq-stage-dots"/><div className="iq-audience"><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/></div></div>
