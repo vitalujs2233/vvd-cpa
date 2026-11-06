@@ -66,7 +66,7 @@ def active_round(x_telegram_init_data: str | None = Header(default=None)):
 
 
 @router.post("/rounds")
-def start_round(x_telegram_init_data: str | None = Header(default=None)):
+def start_round(fresh: bool = False, x_telegram_init_data: str | None = Header(default=None)):
     uid = user_id(x_telegram_init_data)
     with engine.begin() as conn:
         # Serialize starts per user even when no round exists yet.
@@ -74,6 +74,13 @@ def start_round(x_telegram_init_data: str | None = Header(default=None)):
             raise HTTPException(404, "account_not_found")
         existing = conn.execute(text("SELECT * FROM iq_rounds WHERE user_id=:u AND status='active'"),
                                 {"u": uid}).mappings().first()
+        if existing and fresh:
+            # A new entry from the game menu starts a fresh round.
+            # An unfinished round is discarded without awarding XP or a loss.
+            conn.execute(text("DELETE FROM iq_answer_events WHERE round_id=:r"), {"r": existing["id"]})
+            conn.execute(text("DELETE FROM iq_round_questions WHERE round_id=:r"), {"r": existing["id"]})
+            conn.execute(text("DELETE FROM iq_rounds WHERE id=:r"), {"r": existing["id"]})
+            existing = None
         if existing:
             return current(conn, existing)
         questions = conn.execute(text("""
