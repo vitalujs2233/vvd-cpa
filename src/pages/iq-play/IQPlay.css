@@ -116,7 +116,15 @@
 
 
 /* Leaderboard keeps VVD IQ Play's black-and-gold visual language. */
-.iq-leader-button{display:block;width:100%;margin:14px 0 8px;padding:16px;border:1px solid #cba052;border-radius:17px;background:linear-gradient(110deg,#20170d,#0e0d0b);color:#f7d47d;font-weight:800;letter-spacing:.07em;cursor:pointer}
+.iq-leader-button{display:flex;align-items:center;gap:13px;width:100%;min-height:82px;margin:14px 0 17px;padding:13px 16px;border:1.5px solid #f0c76d;border-radius:19px;background:linear-gradient(115deg,#483016 0%,#24180e 47%,#100e0b 100%);box-shadow:inset 0 1px 0 #ffe1a454,0 7px 24px #0007,0 0 18px #d6a33a18;color:#ffe1a0;text-align:left;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease}
+.iq-leader-button:active{transform:scale(.985)}
+.iq-leader-button:focus-visible{outline:3px solid #ffdf8b;outline-offset:3px}
+.iq-leader-icon{display:grid;place-items:center;flex:0 0 49px;width:49px;height:49px;border:1px solid #efc16a;border-radius:15px;background:linear-gradient(135deg,#936226,#3c2913);color:#ffe4a1;box-shadow:0 0 14px #d9a44340}
+.iq-leader-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:5px}
+.iq-leader-copy strong{font-size:clamp(.95rem,3.6vw,1.12rem);font-weight:900;letter-spacing:.035em}
+.iq-leader-copy small{font-size:.75rem;line-height:1.25;font-weight:500;color:#d8bd8c;letter-spacing:0}
+.iq-leader-arrow{flex:0 0 auto;font-size:2rem;line-height:1;color:#f5c973}
+@media(prefers-reduced-motion:reduce){.iq-leader-button{transition:none}}
 .iq-leaderboard{position:relative;z-index:2;margin:14px 0 28px;padding:18px 12px;border:1px solid #a78040;border-radius:22px;background:linear-gradient(145deg,#23190fef,#0d0c0bf7);box-shadow:0 0 24px #c7953420}
 .iq-leaderboard h2{text-align:center;color:#f7ce75;font-size:1.3rem;margin:6px 0 8px}
 .iq-boss-panel{margin:16px 0;padding:16px;border:1px solid #f0be5a;border-radius:16px;background:linear-gradient(110deg,#503619,#21160d);color:#ffe0a0;text-align:center}
