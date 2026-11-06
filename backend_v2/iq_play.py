@@ -183,12 +183,12 @@ def submit(round_id: uuid.UUID, answer: Answer, x_telegram_init_data: str | None
         elif row["retry"]:
             finish(conn, row, False, row["xp"], row["correct_count"])
         else:
-            # A timed-out first attempt gets the same 10s retry; choice is blocked only
-            # when it was actually submitted before the first deadline.
+            # Keep any remaining time on an early wrong answer (minimum 10s).
+            # A timed-out attempt gets a fresh 10s retry; block only submitted wrong choices.
             conn.execute(text("""
                 UPDATE iq_rounds SET retry=TRUE,used_retry=TRUE,blocked_index=:b,deadline=:d WHERE id=:r
             """), {"b": None if expired else answer.choice,
-                   "d": now + timedelta(seconds=10), "r": round_id})
+                   "d": max(row["deadline"], now + timedelta(seconds=10)) if not expired else now + timedelta(seconds=10), "r": round_id})
         conn.execute(text("""
             INSERT INTO iq_answer_events(id,round_id,position,choice,result,xp_awarded)
             VALUES (:e,:r,:p,:c,:o,:xp)
