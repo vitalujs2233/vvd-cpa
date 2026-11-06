@@ -175,15 +175,33 @@ export const IQPlay:React.FC=()=>{
     if(audio){audio.currentTime=0;audio.volume=.85;void audio.play().catch(()=>{});}
   },[round?.round_id,round?.status,musicMuted,showGame]);
   useEffect(()=>{
-    if(!showGame||!round||round.status!=='active'||seconds!==0||busy)return;
+    if(!showGame||!round||round.status!=='active'||seconds!==0)return;
     let live=true;
-    setBusy(true);
-    void apiRequest<Round>(`/iq-play/rounds/${round.round_id}/timeout`,{method:'POST'})
-      .then(r=>{if(live){sync(r);if(r.status!=='active')void apiRequest<Profile>('/iq-play/profile').then(setProfile);}})
-      .catch(()=>{if(live)setError('Не удалось проверить таймер. Повторите попытку.');})
-      .finally(()=>{if(live)setBusy(false);});
-    return()=>{live=false;};
-  },[round?.round_id,round?.deadline,round?.status,seconds,showGame,busy]);
+    let retryTimer:number|undefined;
+    const roundId=round.round_id;
+    const checkTimeout=async()=>{
+      setBusy(true);
+      try{
+        const r=await apiRequest<Round>(`/iq-play/rounds/${roundId}/timeout`,{method:'POST'});
+        if(!live)return;
+        if(r.status==='active'&&r.deadline===round.deadline){
+          // Client reached zero slightly before the server: try again shortly.
+          retryTimer=window.setTimeout(()=>{if(live)void checkTimeout();},700);
+          return;
+        }
+        setError('');
+        sync(r);
+        if(r.status!=='active')void apiRequest<Profile>('/iq-play/profile').then(p=>{if(live)setProfile(p);}).catch(()=>{});
+      }catch{
+        if(live){
+          setError('Не удалось проверить таймер. Повторяем запрос…');
+          retryTimer=window.setTimeout(()=>{if(live)void checkTimeout();},1800);
+        }
+      }finally{if(live)setBusy(false);}
+    };
+    void checkTimeout();
+    return()=>{live=false;if(retryTimer!==undefined)window.clearTimeout(retryTimer);};
+  },[round?.round_id,round?.deadline,round?.status,seconds,showGame]);
   return <main className={'iq-root'+(showGame&&round?.status==='active'?' iq-playing':'')}>
     <audio ref={musicRef} src={musicSrc} preload="auto" loop onError={()=>setMusicError(true)} />
     <audio ref={tensionRef} src="/vvd-cpa/audio/%D0%9F%D0%BE%D1%81%D0%BB%D0%B5%D0%B4%D0%BD%D0%B8%D0%B5%20%D1%81%D0%B5%D0%BA%D1%83%D0%BD%D0%B4%D1%8B%20%D0%BD%D0%B0%D0%BF%D1%80%D1%8F%D0%B6%D0%B5%D0%BD%D0%B8%D1%8F%20.mp3" preload="auto" loop />
