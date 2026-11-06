@@ -254,9 +254,9 @@ export const IQPlay:React.FC=()=>{
       <button className="iq-primary" disabled={busy} onClick={()=>void start()}>Играть снова</button>
     </>:<>
       <div className="iq-profile"><Crown size={34}/><div><b>{profile.league} · уровень {profile.level}</b><span>{profile.xp.toLocaleString('ru-RU')} XP</span></div></div>
+      <button className="iq-leader-button" onClick={()=>void openLeaders()}><span className="iq-leader-icon"><Trophy size={26}/></span><span className="iq-leader-copy"><strong>ТАБЛИЦА ЛИДЕРОВ</strong><small>Рейтинг игроков · Вызов Босса VVD</small></span><span className="iq-leader-arrow" aria-hidden="true">›</span></button>
       <div className="iq-grid"><div>🏆<b>{profile.best_correct}/15</b><span>Рекорд</span></div><div>🎮<b>{profile.games}</b><span>Раундов</span></div><div>👑<b>{profile.wins}</b><span>Побед</span></div><div>⭐<b>{profile.achievements.length}/7</b><span>Наград</span></div></div>
       <button className="iq-primary" disabled={busy} onClick={()=>void start()}>{busy?'Загрузка…':'▶ НАЧАТЬ ИГРУ'}</button>
-      <button className="iq-leader-button" onClick={()=>void openLeaders()}>🏆 ТАБЛИЦА ЛИДЕРОВ</button>
       <p className="iq-muted">15 вопросов · 2 шанса · до 1 800 XP за раунд</p>
     </>}
   </main>;
