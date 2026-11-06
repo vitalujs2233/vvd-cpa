@@ -191,8 +191,8 @@
 /* Theater entrance: menu is a closed velvet curtain; starting a round reveals the existing live audience. */
 .iq-root>.iq-stage.iq-stage-closed{height:560px;min-height:0;isolation:isolate;mask-image:linear-gradient(#000 0%,#000 79%,transparent 100%)}
 .iq-stage-closed .iq-curtain{top:0;height:530px;width:52%;z-index:5;opacity:1;clip-path:none;filter:drop-shadow(0 8px 15px #000b);animation:none}
-.iq-stage-closed .iq-curtain-left{left:0;transform:none;border-right:2px solid #c08b3b;box-shadow:inset -24px 0 28px #100305b0}
-.iq-stage-closed .iq-curtain-right{right:0;transform:none;border-left:2px solid #c08b3b;box-shadow:inset 24px 0 28px #100305b0}
+.iq-stage-closed .iq-curtain-left{left:0;transform:none;border-right:0;box-shadow:inset -24px 0 28px #100305b0}
+.iq-stage-closed .iq-curtain-right{right:0;transform:none;border-left:0;box-shadow:inset 24px 0 28px #100305b0}
 .iq-stage-closed .iq-audience-video{display:none}
 .iq-stage-closed .iq-stage-beam,.iq-stage-closed .iq-stage-halo{opacity:0}
 .iq-stage-closed .iq-stage-proscenium{z-index:6;border-top:8px solid #c89a4e;background:transparent}
