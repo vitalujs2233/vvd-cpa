@@ -211,3 +211,20 @@
 @media(prefers-reduced-motion:reduce){
  .iq-stage-open .iq-curtain-left,.iq-stage-open .iq-curtain-right,.iq-stage-open .iq-audience-video{animation:none}
 }
+
+/* Audience reacts to the server-confirmed answer; existing sound effects remain unchanged. */
+.iq-audience-reaction{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;z-index:2}
+.iq-audience-reaction span{display:block;padding:9px 18px;border:1px solid #f4ce7c;border-radius:99px;background:#17100cdd;color:#ffe3a0;font-size:clamp(15px,4vw,22px);font-weight:900;letter-spacing:.07em;text-shadow:0 2px 9px #000;box-shadow:0 0 28px #eeb75c88;transform:translateY(18px) scale(.8)}
+.iq-audience-react-correct,.iq-audience-react-win{background:radial-gradient(ellipse at 50% 55%,#ffd65a4a,transparent 70%)}
+.iq-audience-react-wrong,.iq-audience-react-lose{background:linear-gradient(#0005,#4010164d)}
+.iq-audience-react-correct .iq-audience-reaction,.iq-audience-react-win .iq-audience-reaction,.iq-audience-react-wrong .iq-audience-reaction,.iq-audience-react-lose .iq-audience-reaction{animation:iq-crowd-reaction 1.05s ease-out both}
+.iq-audience-react-correct .iq-audience-reaction span,.iq-audience-react-win .iq-audience-reaction span,.iq-audience-react-wrong .iq-audience-reaction span,.iq-audience-react-lose .iq-audience-reaction span{animation:iq-crowd-pop 1.05s ease-out both}
+.iq-audience-react-win .iq-audience-reaction span{border-color:#fff1a8;background:#7b4b14e8;box-shadow:0 0 42px #ffd66dcc}
+.iq-audience-react-wrong .iq-audience-reaction span,.iq-audience-react-lose .iq-audience-reaction span{border-color:#be6a6a;background:#261317e8;color:#f3b3b3;box-shadow:0 0 20px #7c303088}
+.iq-audience-react-correct img,.iq-audience-react-win img{animation:iq-crowd-bright 1.05s ease-out both}
+.iq-audience-react-wrong img,.iq-audience-react-lose img{animation:iq-crowd-dim 1.05s ease-out both}
+@keyframes iq-crowd-reaction{0%{opacity:0}18%,76%{opacity:1}100%{opacity:0}}
+@keyframes iq-crowd-pop{0%{transform:translateY(18px) scale(.8)}22%{transform:translateY(0) scale(1.08)}70%{transform:translateY(0) scale(1)}100%{transform:translateY(-14px) scale(.97)}}
+@keyframes iq-crowd-bright{20%,70%{filter:brightness(1.25) saturate(1.2)}}
+@keyframes iq-crowd-dim{20%,70%{filter:brightness(.4) saturate(.65)}}
+@media(prefers-reduced-motion:reduce){.iq-audience-reaction,.iq-audience-reaction span,.iq-audience-react-correct img,.iq-audience-react-win img,.iq-audience-react-wrong img,.iq-audience-react-lose img{animation:none!important}}
