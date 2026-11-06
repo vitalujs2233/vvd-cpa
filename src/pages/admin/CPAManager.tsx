@@ -79,7 +79,7 @@ export const CPAManager:React.FC<{onBack:()=>void}>=({onBack})=>{
       <fieldset className="rounded-app-xs border border-white/10 p-3">
         <legend className="px-1 text-xs text-textSecondary">Модель оплаты · можно выбрать несколько</legend>
         <div className="grid grid-cols-2 gap-3 mt-2">
-          {(['CPA','CPL SOI','CPL DOI','RevShare','PPS'] as const).map(model=>{
+          {(['CPA','CPL','SOI','DOI','RevShare','PPS'] as const).map(model=>{
             const selected=offer.payment_model.split(' / ').filter(Boolean);
             return <label key={model} className="flex items-center gap-2 text-xs text-textPrimary">
               <input type="checkbox" checked={selected.includes(model)} onChange={e=>{
