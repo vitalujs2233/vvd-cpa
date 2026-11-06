@@ -101,6 +101,16 @@ export const IQPlay:React.FC=()=>{
       const effectKind=response.outcome==='correct'?(response.round.status==='won'?'win':'correct'):(response.round.status==='lost'?'lose':'wrong');
       const gained=Math.max(0,response.round.round_xp-round.round_xp);
       showAnswerEffect(effectKind,gained);
+      if(response.outcome==='correct'&&!musicMuted){
+        stopTension();
+        const cheer=winRef.current;
+        if(cheer){
+          cheer.pause();
+          cheer.currentTime=0;
+          cheer.volume=.85;
+          void cheer.play().catch(()=>{});
+        }
+      }
       if(response.round.status!=='active')stopTension();
       setFeedback(response.outcome==='wrong'?'Неверно! Используй второй шанс.':'');
       sync(response.round);
@@ -132,7 +142,8 @@ export const IQPlay:React.FC=()=>{
     if(endingPlayedRef.current===key)return;
     endingPlayedRef.current=key;
     stopTension();
-    const audio=round.status==='won'?winRef.current:loseRef.current;
+    // Victory audio already plays on the final correct answer; do not replay it.
+    const audio=round.status==='lost'?loseRef.current:null;
     if(audio){audio.currentTime=0;audio.volume=.85;void audio.play().catch(()=>{});}
   },[round?.round_id,round?.status,musicMuted]);
   useEffect(()=>{
