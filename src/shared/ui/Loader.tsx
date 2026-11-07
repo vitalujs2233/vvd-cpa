@@ -123,16 +123,21 @@ export const Loader: React.FC<LoaderProps> = ({ onComplete }) => {
         .vvd-spark-star::after { width:1px; height:280%; background:linear-gradient(180deg,transparent,#ffe8a1,transparent); }
         @keyframes vvdRingTurn { to { transform: rotate(360deg); } }
         @keyframes vvdRingGlow { 0%,100% { opacity:.55; filter:drop-shadow(0 0 4px #d4af37); } 50% { opacity:1; filter:drop-shadow(0 0 13px #f6c453); } }
-        @keyframes vvdLightSweep { 0%,100% { transform:translate3d(-12%,10%,0) rotate(-29deg); opacity:.24; } 50% { transform:translate3d(10%,-8%,0) rotate(-24deg); opacity:.55; } }
+        @keyframes vvdWaveDrift { 0%,100% { transform:translate3d(-2%,0,0) scaleY(1); opacity:.38; } 50% { transform:translate3d(2%,9px,0) scaleY(1.12); opacity:.72; } }
+        @keyframes vvdWaveBreathe { 0%,100% { transform:translate3d(2%,6px,0) scaleY(1.06); opacity:.3; } 50% { transform:translate3d(-2%,-7px,0) scaleY(.92); opacity:.6; } }
         @keyframes vvdShine { 0%,70%,100% { opacity:0; transform:translateX(-80px) rotate(35deg); } 78% { opacity:.85; } 95% { opacity:0; transform:translateX(90px) rotate(35deg); } }
         .vvd-ring { position:absolute; inset:0; border-radius:50%; border:1px solid rgba(246,196,83,.45); box-shadow:0 0 30px rgba(212,175,55,.12), inset 0 0 20px rgba(212,175,55,.07); animation:vvdRingGlow 3s ease-in-out infinite; }
         .vvd-ring::after { content:''; position:absolute; inset:-2px; border-radius:50%; border:2px solid transparent; border-top-color:#ffe08a; border-right-color:rgba(246,196,83,.3); animation:vvdRingTurn 5s linear infinite; }
-        .vvd-streak { position:absolute; width:110%; height:180px; left:-5%; background:linear-gradient(180deg,transparent 28%,rgba(212,175,55,.07) 49%,rgba(255,224,138,.32) 50%,transparent 52%); pointer-events:none; animation:vvdLightSweep 7s ease-in-out infinite alternate; }
-        .vvd-streak-top { top:8%; transform-origin:left center; }
-        .vvd-streak-bottom { bottom:4%; animation-delay:-3s; transform-origin:right center; }
+        .vvd-wave { position:absolute; left:-8%; width:116%; height:190px; overflow:visible; pointer-events:none; filter:drop-shadow(0 0 6px rgba(246,196,83,.28)); }
+        .vvd-wave-top { top:7%; }
+        .vvd-wave-bottom { bottom:3%; transform:rotate(180deg); }
+        .vvd-wave-primary { animation:vvdWaveDrift 8s ease-in-out infinite; transform-origin:center; }
+        .vvd-wave-secondary { animation:vvdWaveBreathe 10s ease-in-out infinite; transform-origin:center; }
+        .vvd-wave-bottom .vvd-wave-primary { animation-delay:-3s; }
+        .vvd-wave-bottom .vvd-wave-secondary { animation-delay:-5s; }
         .vvd-logo-shine { position:absolute; inset:0; pointer-events:none; overflow:hidden; border-radius:50%; }
         .vvd-logo-shine::after { content:''; position:absolute; top:5%; bottom:5%; width:24px; left:45%; background:linear-gradient(90deg,transparent,rgba(255,224,138,.5),transparent); filter:blur(9px); animation:vvdShine 5s ease-in-out infinite; }
-        @media (prefers-reduced-motion: reduce) { .vvd-ring,.vvd-ring::after,.vvd-streak,.vvd-logo-shine::after,.floating-particle,.vvd-spark { animation:none !important; } }
+        @media (prefers-reduced-motion: reduce) { .vvd-ring,.vvd-ring::after,.vvd-wave-primary,.vvd-wave-secondary,.vvd-logo-shine::after,.floating-particle,.vvd-spark { animation:none !important; } }
 
         .cinematic-flash {
           animation: flashEffect 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -143,9 +148,19 @@ export const Loader: React.FC<LoaderProps> = ({ onComplete }) => {
       <div className="absolute top-[20%] left-[15%] w-80 h-80 bg-[#D4AF37]/[0.02] rounded-full blur-[90px] pointer-events-none" />
       <div className="absolute top-[40%] right-[10%] w-96 h-96 bg-[#FFE08A]/[0.02] rounded-full blur-[110px] pointer-events-none" />
 
-      {/* Мягкие кинематографичные золотые лучи по краям */}
-      <div aria-hidden="true" className="vvd-streak vvd-streak-top" />
-      <div aria-hidden="true" className="vvd-streak vvd-streak-bottom" />
+      {/* Несколько мягких волнистых золотых лент, плавно плывущих сверху и снизу */}
+      {(['top', 'bottom'] as const).map((edge) => (
+        <svg key={edge} aria-hidden="true" className={`vvd-wave vvd-wave-${edge}`} viewBox="0 0 500 190" preserveAspectRatio="none">
+          <g className="vvd-wave-primary" fill="none" strokeLinecap="round">
+            <path d="M-25 152 C60 148 94 83 175 93 S293 166 368 109 S466 47 525 57" stroke="#D4AF37" strokeWidth="1.3" opacity=".65" />
+            <path d="M-25 162 C58 158 103 96 180 103 S291 174 370 121 S469 59 525 68" stroke="#FFE08A" strokeWidth=".75" opacity=".42" />
+          </g>
+          <g className="vvd-wave-secondary" fill="none" strokeLinecap="round">
+            <path d="M-25 140 C68 132 101 70 178 82 S300 153 373 97 S464 32 525 43" stroke="#F6C453" strokeWidth=".9" opacity=".38" />
+            <path d="M-25 173 C66 170 104 115 187 119 S307 186 382 137 S475 79 525 86" stroke="#D4AF37" strokeWidth=".7" opacity=".32" />
+          </g>
+        </svg>
+      ))}
 
       {/* Золотая звездная пыль: мелкие огоньки, искры и четырехлучевые снежинки по всему экрану */}
       <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden">
