@@ -25,35 +25,11 @@ import { Loader } from '@/shared/ui/Loader';
 // Импортируем методы сетевого API и хелперы токенов
 import { loginViaTelegramApi, ApiError, isTemporarySignInError } from '@/shared/lib/api';
 
-// Главный Лейаут приложения, фиксирующий Bottom Menu
-const AppLayout = () => {
+// Единый фон всех обычных экранов, кроме театральной сцены IQ Play.
+const AppBackdrop = () => {
   const location = useLocation();
-  const tabPaths = ['/', '/offers', '/stats', '/tools', '/profile'] as const;
-  const activeTab = tabPaths.includes(location.pathname as typeof tabPaths[number]) ? location.pathname : null;
-  // Keep visited tab screens mounted: switching tabs no longer destroys their data or UI.
-  const [visitedTabs,setVisitedTabs] = useState<string[]>(()=>activeTab?[activeTab]:[]);
-  useEffect(()=>{
-    if(activeTab)setVisitedTabs(current=>current.includes(activeTab)?current:[...current,activeTab]);
-  },[activeTab]);
-  const tabScreens:Record<string,React.ReactNode> = {
-    '/': <Home />, '/offers': <Offers />, '/stats': <Stats />,
-    '/tools': <Tools />, '/profile': <Profile />
-  };
-  const handleTabClick = () => {
-    // Вызов легкого тактильного отклика на смартфоне при переключении табов
-    triggerHaptic.lightImpact();
-  };
-
+  if (location.pathname === '/iq-play') return null;
   return (
-    // bg-bgMain заменен на bg-transparent для открытия видимости неоновых волн и картинки bg.png на фоне
-    <div
-  className="flex flex-col w-full bg-transparent text-textPrimary relative"
-  style={{
-    height: "100dvh",
-  }}
->
-      
-      {/* Декоративный фон — только за интерфейсом, без влияния на нажатия и скролл */}
       <div className="vvd-app-backdrop" aria-hidden="true">
         <div className="vvd-app-backdrop-stars" />
         <svg className="vvd-app-backdrop-waves" viewBox="0 0 430 900" preserveAspectRatio="none" focusable="false">
@@ -85,7 +61,37 @@ const AppLayout = () => {
           </g>
         </svg>
       </div>
+  );
+};
 
+// Главный Лейаут приложения, фиксирующий Bottom Menu
+const AppLayout = () => {
+  const location = useLocation();
+  const tabPaths = ['/', '/offers', '/stats', '/tools', '/profile'] as const;
+  const activeTab = tabPaths.includes(location.pathname as typeof tabPaths[number]) ? location.pathname : null;
+  // Keep visited tab screens mounted: switching tabs no longer destroys their data or UI.
+  const [visitedTabs,setVisitedTabs] = useState<string[]>(()=>activeTab?[activeTab]:[]);
+  useEffect(()=>{
+    if(activeTab)setVisitedTabs(current=>current.includes(activeTab)?current:[...current,activeTab]);
+  },[activeTab]);
+  const tabScreens:Record<string,React.ReactNode> = {
+    '/': <Home />, '/offers': <Offers />, '/stats': <Stats />,
+    '/tools': <Tools />, '/profile': <Profile />
+  };
+  const handleTabClick = () => {
+    // Вызов легкого тактильного отклика на смартфоне при переключении табов
+    triggerHaptic.lightImpact();
+  };
+
+  return (
+    // bg-bgMain заменен на bg-transparent для открытия видимости неоновых волн и картинки bg.png на фоне
+    <div
+  className="flex flex-col w-full bg-transparent text-textPrimary relative"
+  style={{
+    height: "100dvh",
+  }}
+>
+      
       {/* Контейнер контента со скроллом */}
       <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden scrollable-container relative z-10 w-full max-w-[1200px] mx-auto pb-[80px]">
         {tabPaths.map(path=>(visitedTabs.includes(path)||activeTab===path)&&(
@@ -249,12 +255,13 @@ const MiniApp = () => {
 
   return (
     <div
-  className="w-full relative bg-transparent"
+  className="w-full relative isolate bg-transparent"
   style={{
     minHeight: "100dvh",
   }}
 >
       <MemoryRouter>
+        <AppBackdrop />
         <Routes>
           {/* Обертка Лейаута */}
           <Route path="/" element={<AppLayout />}>
