@@ -2,6 +2,7 @@ import {readApiSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import { CPAManager } from './CPAManager';
 import { InfoAdmin } from './InfoAdmin';
+import { ServiceDirectoryAdmin } from './ServiceDirectoryAdmin';
 import { HomeAdsAdmin } from './HomeAdsAdmin';
 import { HomeTickerAdmin } from './HomeTickerAdmin';
 import { HomeInfoAdmin } from './HomeInfoAdmin';
@@ -95,7 +96,7 @@ export const Admin: React.FC = () => {
   'chatBans' |
   'toolsBalance' |
   'supportTickets' |
-  'cpa' | 'information' | 'homeAds' | 'homeTicker' | 'homeInfo'
+  'cpa' | 'information' | 'homeAds' | 'homeTicker' | 'homeInfo' | 'directory'
 >('menu');
   const [searchQuery, setSearchQuery] = useState('');
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>(()=>readApiSnapshot('/admin/users')?.users||[]);
@@ -463,6 +464,7 @@ const saveChatBanner = async () => {
           <button type="button" onClick={()=>handleSubViewChange('homeTicker')} className="w-full rounded-card border border-accentGold/30 bg-bgCard p-4 text-left text-accentGoldBright font-bold">Бегущая строка →</button>
           <button type="button" onClick={()=>handleSubViewChange('homeAds')} className="w-full rounded-card border border-accentGold/30 bg-bgCard p-4 text-left text-accentGoldBright font-bold">Рекламные баннеры →</button>
           <button type="button" onClick={()=>handleSubViewChange('information')} className="w-full rounded-card border border-accentGold/30 bg-bgCard p-4 text-left text-accentGoldBright font-bold">Управление информацией →</button>
+          <button type="button" onClick={()=>handleSubViewChange('directory')} className="w-full rounded-card border border-accentGold/30 bg-bgCard p-4 text-left text-accentGoldBright font-bold">Каталог сервисов → Категории · Предложения</button>
           {/* Шапка админ-панели */}
           <div className="flex items-center gap-3 text-left">
             <button 
@@ -1098,6 +1100,7 @@ const saveChatBanner = async () => {
       {subView === 'homeTicker' && <HomeTickerAdmin onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'homeAds' && <HomeAdsAdmin onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'information' && <InfoAdmin onBack={() => handleSubViewChange('menu')}/>}
+      {subView === 'directory' && <ServiceDirectoryAdmin onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'cpa' && <CPAManager onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'chatBans' && (
   <div className="flex flex-col gap-4 animate-fade-in">
