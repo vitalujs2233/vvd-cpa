@@ -53,6 +53,39 @@ const AppLayout = () => {
   }}
 >
       
+      {/* Декоративный фон — только за интерфейсом, без влияния на нажатия и скролл */}
+      <div className="vvd-app-backdrop" aria-hidden="true">
+        <div className="vvd-app-backdrop-stars" />
+        <svg className="vvd-app-backdrop-waves" viewBox="0 0 430 900" preserveAspectRatio="none" focusable="false">
+          <defs>
+            <linearGradient id="vvd-bg-gold-wave" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#F6C453" stopOpacity=".04" />
+              <stop offset="18%" stopColor="#FFE08A" stopOpacity=".65" />
+              <stop offset="55%" stopColor="#D4AF37" stopOpacity=".36" />
+              <stop offset="85%" stopColor="#FFE08A" stopOpacity=".75" />
+              <stop offset="100%" stopColor="#D4AF37" stopOpacity=".06" />
+            </linearGradient>
+            <linearGradient id="vvd-bg-soft-wave" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#F6C453" stopOpacity=".04" />
+              <stop offset="50%" stopColor="#E8B857" stopOpacity=".36" />
+              <stop offset="100%" stopColor="#D4AF37" stopOpacity=".02" />
+            </linearGradient>
+          </defs>
+          <g className="vvd-app-wave-upper" fill="none" strokeLinecap="round">
+            <path d="M-45 166 C35 144 58 86 143 80 S274 65 348 15 S438 -17 475 -26" stroke="url(#vvd-bg-gold-wave)" strokeWidth="1.6" />
+            <path d="M-48 180 C32 160 65 105 152 100 S284 80 358 33 S442 -1 477 -8" stroke="url(#vvd-bg-gold-wave)" strokeWidth=".85" opacity=".65" />
+            <path d="M-52 150 C22 127 63 63 140 60 S273 47 346 -2 S435 -34 476 -45" stroke="#E5B754" strokeWidth=".65" opacity=".25" />
+            <path d="M-65 246 C15 223 30 166 83 150" stroke="url(#vvd-bg-soft-wave)" strokeWidth="18" opacity=".13" />
+          </g>
+          <g className="vvd-app-wave-lower" fill="none" strokeLinecap="round">
+            <path d="M-48 770 C62 713 82 755 158 752 S306 809 393 730 S447 704 480 679" stroke="url(#vvd-bg-gold-wave)" strokeWidth="1.5" />
+            <path d="M-48 784 C65 734 80 771 159 771 S311 827 395 752 S447 722 480 699" stroke="url(#vvd-bg-gold-wave)" strokeWidth=".8" opacity=".55" />
+            <path d="M-49 755 C48 691 90 740 159 735 S308 788 392 709 S449 682 480 659" stroke="#D4AF37" strokeWidth=".7" opacity=".28" />
+            <path d="M346 920 C363 820 434 781 480 735" stroke="url(#vvd-bg-soft-wave)" strokeWidth="24" opacity=".13" />
+          </g>
+        </svg>
+      </div>
+
       {/* Контейнер контента со скроллом */}
       <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden scrollable-container relative z-10 w-full max-w-[1200px] mx-auto pb-[80px]">
         {tabPaths.map(path=>(visitedTabs.includes(path)||activeTab===path)&&(
