@@ -1,6 +1,6 @@
 import { apiRequest } from '@/shared/lib/api';
 import {
-  Search, PanelsTopLeft, Megaphone, Sparkles, BarChart3,
+  Search, Monitor, Megaphone, Sparkles, BarChart3,
   Palette, Globe2, Server, Phone, LayoutGrid,
   type LucideIcon
 } from 'lucide-react';
@@ -33,7 +33,7 @@ export type DirectoryData = {
   services: DirectoryService[];
 };
 export const directoryIcons: Record<string, LucideIcon> = {
-  search: Search, browser: PanelsTopLeft, megaphone: Megaphone, sparkles: Sparkles,
+  search: Search, browser: Monitor, megaphone: Megaphone, sparkles: Sparkles,
   chart: BarChart3, palette: Palette, globe: Globe2, server: Server, phone: Phone, grid: LayoutGrid
 };
 export const directoryIconOptions = [
