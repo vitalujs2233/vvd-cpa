@@ -129,7 +129,7 @@ export const Loader: React.FC<LoaderProps> = ({ onComplete }) => {
         .vvd-ring { position:absolute; inset:0; border-radius:50%; border:1px solid rgba(246,196,83,.45); box-shadow:0 0 30px rgba(212,175,55,.12), inset 0 0 20px rgba(212,175,55,.07); animation:vvdRingGlow 3s ease-in-out infinite; }
         .vvd-ring::after { content:''; position:absolute; inset:-2px; border-radius:50%; border:2px solid transparent; border-top-color:#ffe08a; border-right-color:rgba(246,196,83,.3); animation:vvdRingTurn 5s linear infinite; }
         .vvd-wave { position:absolute; left:-8%; width:116%; height:190px; overflow:visible; pointer-events:none; filter:drop-shadow(0 0 6px rgba(246,196,83,.28)); }
-        .vvd-wave-top { top:7%; }
+        .vvd-wave-top { top:-2%; }
         .vvd-wave-bottom { bottom:3%; transform:rotate(180deg); }
         .vvd-wave-primary { animation:vvdWaveDrift 8s ease-in-out infinite; transform-origin:center; }
         .vvd-wave-secondary { animation:vvdWaveBreathe 10s ease-in-out infinite; transform-origin:center; }
