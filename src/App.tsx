@@ -14,6 +14,7 @@ import { Dvizh } from '@/pages/dvizh/Dvizh';
 import { IQPlay } from '@/pages/iq-play/IQPlay';
 import { Tools,ToolsTopupPage,ToolsHistory,ToolsPurchases,ToolsNumbers,MyNumbers,ToolsProxy,MyProxies } from '@/pages/tools/MarketplacePages';
 import { AIModelsPage,AIEditor } from '@/pages/tools/AIStudio';
+import {ServiceDirectoryPage,ServiceCategoryPage} from '@/pages/tools/ServiceDirectory';
 import { PublicAIPage } from '@/pages/tools/PublicAIChat';
 import { Profile } from '@/pages/profile/Profile';
 import { Referral } from '@/pages/Referral';
@@ -276,6 +277,8 @@ const MiniApp = () => {
               <Route path="topup" element={<ToolsTopupPage />} />
               <Route path="history" element={<ToolsHistory />} />
               <Route path="purchases" element={<ToolsPurchases />} />
+              <Route path="directory" element={<ServiceDirectoryPage />} />
+              <Route path="directory/:categoryId" element={<ServiceCategoryPage />} />
               <Route path="numbers" element={<ToolsNumbers />} />
               <Route path="numbers/my" element={<MyNumbers />} />
               <Route path="proxy" element={<ToolsProxy />} />
