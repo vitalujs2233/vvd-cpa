@@ -232,7 +232,7 @@ button:disabled,[aria-disabled="true"] { cursor: not-allowed; opacity: .45; }
 .vvd-app-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 0;
+  z-index: -1;
   pointer-events: none;
   overflow: hidden;
   background:
