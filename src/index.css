@@ -226,3 +226,74 @@ button:disabled,[aria-disabled="true"] { cursor: not-allowed; opacity: .45; }
 @media (prefers-reduced-motion: reduce) {
   button,a[href],[role="button"],summary { transition: none !important; }
 }
+
+
+/* VVD CPA: subdued luxury backdrop underneath the existing Mini App cards. */
+.vvd-app-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 58% 42% at 100% 8%, rgba(204, 139, 37, .145), transparent 72%),
+    radial-gradient(ellipse 46% 42% at 0% 46%, rgba(180, 113, 26, .095), transparent 75%),
+    radial-gradient(ellipse 64% 38% at 100% 91%, rgba(215, 151, 44, .135), transparent 73%),
+    radial-gradient(ellipse 45% 35% at 0% 89%, rgba(143, 92, 24, .07), transparent 75%),
+    linear-gradient(145deg, #080806, #0c0a08 46%, #080807);
+}
+.vvd-app-backdrop::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 18% 13% at 91% 9%, rgba(255, 192, 82, .13), transparent 90%),
+    radial-gradient(ellipse 17% 17% at 3% 54%, rgba(232, 159, 52, .12), transparent 95%),
+    radial-gradient(ellipse 24% 17% at 94% 81%, rgba(236, 174, 62, .1), transparent 95%);
+}
+.vvd-app-backdrop-stars {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle 1px at 7% 8%, rgba(255, 221, 145, .8) 99%, transparent),
+    radial-gradient(circle 1.5px at 24% 6%, rgba(246, 196, 83, .72) 99%, transparent),
+    radial-gradient(circle 1px at 79% 14%, rgba(255, 218, 134, .66) 99%, transparent),
+    radial-gradient(circle 1px at 95% 28%, rgba(255, 224, 138, .9) 99%, transparent),
+    radial-gradient(circle 1px at 5% 39%, rgba(246, 196, 83, .6) 99%, transparent),
+    radial-gradient(circle 1.3px at 91% 45%, rgba(255, 218, 134, .7) 99%, transparent),
+    radial-gradient(circle 1px at 14% 57%, rgba(255, 224, 138, .72) 99%, transparent),
+    radial-gradient(circle 1px at 82% 60%, rgba(255, 224, 138, .78) 99%, transparent),
+    radial-gradient(circle 1.5px at 6% 72%, rgba(246, 196, 83, .74) 99%, transparent),
+    radial-gradient(circle 1px at 98% 74%, rgba(255, 224, 138, .67) 99%, transparent),
+    radial-gradient(circle 1px at 29% 87%, rgba(255, 218, 134, .5) 99%, transparent),
+    radial-gradient(circle 1.4px at 90% 93%, rgba(255, 224, 138, .74) 99%, transparent);
+  animation: vvd-app-twinkle 9s ease-in-out infinite;
+}
+.vvd-app-backdrop-waves {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 0 5px rgba(222, 159, 57, .36));
+}
+.vvd-app-wave-upper,
+.vvd-app-wave-lower {
+  transform-origin: center;
+  animation: vvd-app-wave-drift 13s ease-in-out infinite;
+}
+.vvd-app-wave-lower {
+  animation-delay: -6s;
+  animation-duration: 16s;
+}
+@keyframes vvd-app-wave-drift {
+  0%, 100% { transform: translate3d(-6px, 0, 0); opacity: .63; }
+  50% { transform: translate3d(7px, 7px, 0); opacity: .95; }
+}
+@keyframes vvd-app-twinkle {
+  0%, 100% { opacity: .38; }
+  50% { opacity: .85; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vvd-app-wave-upper, .vvd-app-wave-lower, .vvd-app-backdrop-stars { animation: none; }
+}
