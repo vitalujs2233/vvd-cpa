@@ -144,7 +144,10 @@ export const ServiceDirectoryAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
             <button type="button" onClick={()=>{setServiceForm({...s});setCategoryForm(null);setError('');}} className="rounded-app-xs border border-white/15 px-3 py-2 text-xs text-accentBrightGold">Изменить</button>
           </div>
           <div className="mt-3 flex items-center gap-4 border-t border-white/[0.06] pt-3">
-            <button type="button" onClick={()=>modify(d=>({...d,services:d.services.map(x=>x.id===s.id?{...x,active:!x.active}:x)}))} className="text-xs text-textSecondary">{s.active?'Скрыть':'Опубликовать'}</button>
+            <button type="button" onClick={()=>{
+              if(!s.active&&!s.website_url.startsWith('https://')){setError('Сначала добавьте HTTPS-ссылку в карточку сервиса.');return;}
+              modify(d=>({...d,services:d.services.map(x=>x.id===s.id?{...x,active:!x.active}:x)}));
+            }} className="text-xs text-textSecondary">{s.active?'Скрыть':'Опубликовать'}</button>
             <button type="button" className="ml-auto text-xs text-red-300" onClick={()=>{if(window.confirm('Удалить предложение «'+s.name+'»?'))modify(d=>({...d,services:d.services.filter(x=>x.id!==s.id)}));}}><Trash2 size={14}/></button>
           </div>
         </div>)}
