@@ -111,6 +111,19 @@ export const Loader: React.FC<LoaderProps> = ({ onComplete }) => {
           bottom: 20%;
         }
 
+        @keyframes vvdRingTurn { to { transform: rotate(360deg); } }
+        @keyframes vvdRingGlow { 0%,100% { opacity:.55; filter:drop-shadow(0 0 4px #d4af37); } 50% { opacity:1; filter:drop-shadow(0 0 13px #f6c453); } }
+        @keyframes vvdLightSweep { 0%,100% { transform:translate3d(-12%,10%,0) rotate(-29deg); opacity:.24; } 50% { transform:translate3d(10%,-8%,0) rotate(-24deg); opacity:.55; } }
+        @keyframes vvdShine { 0%,70%,100% { opacity:0; transform:translateX(-80px) rotate(35deg); } 78% { opacity:.85; } 95% { opacity:0; transform:translateX(90px) rotate(35deg); } }
+        .vvd-ring { position:absolute; inset:0; border-radius:50%; border:1px solid rgba(246,196,83,.45); box-shadow:0 0 30px rgba(212,175,55,.12), inset 0 0 20px rgba(212,175,55,.07); animation:vvdRingGlow 3s ease-in-out infinite; }
+        .vvd-ring::after { content:''; position:absolute; inset:-2px; border-radius:50%; border:2px solid transparent; border-top-color:#ffe08a; border-right-color:rgba(246,196,83,.3); animation:vvdRingTurn 5s linear infinite; }
+        .vvd-streak { position:absolute; width:110%; height:180px; left:-5%; background:linear-gradient(180deg,transparent 28%,rgba(212,175,55,.07) 49%,rgba(255,224,138,.32) 50%,transparent 52%); pointer-events:none; animation:vvdLightSweep 7s ease-in-out infinite alternate; }
+        .vvd-streak-top { top:8%; transform-origin:left center; }
+        .vvd-streak-bottom { bottom:4%; animation-delay:-3s; transform-origin:right center; }
+        .vvd-logo-shine { position:absolute; inset:0; pointer-events:none; overflow:hidden; border-radius:50%; }
+        .vvd-logo-shine::after { content:''; position:absolute; top:5%; bottom:5%; width:24px; left:45%; background:linear-gradient(90deg,transparent,rgba(255,224,138,.5),transparent); filter:blur(9px); animation:vvdShine 5s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) { .vvd-ring,.vvd-ring::after,.vvd-streak,.vvd-logo-shine::after,.floating-particle { animation:none !important; } }
+
         .cinematic-flash {
           animation: flashEffect 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
@@ -120,11 +133,17 @@ export const Loader: React.FC<LoaderProps> = ({ onComplete }) => {
       <div className="absolute top-[20%] left-[15%] w-80 h-80 bg-[#D4AF37]/[0.02] rounded-full blur-[90px] pointer-events-none" />
       <div className="absolute top-[40%] right-[10%] w-96 h-96 bg-[#FFE08A]/[0.02] rounded-full blur-[110px] pointer-events-none" />
 
+      {/* Мягкие кинематографичные золотые лучи по краям */}
+      <div aria-hidden="true" className="vvd-streak vvd-streak-top" />
+      <div aria-hidden="true" className="vvd-streak vvd-streak-bottom" />
+
       {/* Золотые парящие частицы */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="floating-particle left-[20%]" style={{ '--particle-x': '-30px', animationDelay: '0s', animationDuration: '3.8s' } as React.CSSProperties} />
         <div className="floating-particle left-[40%]" style={{ '--particle-x': '20px', animationDelay: '1.5s', animationDuration: '4.8s' } as React.CSSProperties} />
         <div className="floating-particle left-[60%]" style={{ '--particle-x': '-15px', animationDelay: '0.8s', animationDuration: '4.2s' } as React.CSSProperties} />
+        <div className="floating-particle left-[12%]" style={{ '--particle-x': '18px', animationDelay: '2.1s', animationDuration: '5.5s' } as React.CSSProperties} />
+        <div className="floating-particle left-[72%]" style={{ '--particle-x': '-22px', animationDelay: '3.2s', animationDuration: '4.6s' } as React.CSSProperties} />
         <div className="floating-particle left-[85%]" style={{ '--particle-x': '35px', animationDelay: '2.5s', animationDuration: '5.2s' } as React.CSSProperties} />
       </div>
 
@@ -134,7 +153,9 @@ export const Loader: React.FC<LoaderProps> = ({ onComplete }) => {
       <div className="flex flex-col items-center justify-center gap-16 relative z-10">
         
         {/* Изящная золотая лента в форме буквы V */}
-        <div className="animate-logo">
+        <div className="animate-logo relative w-[176px] h-[176px] flex items-center justify-center">
+          <div aria-hidden="true" className="vvd-ring" />
+          <div aria-hidden="true" className="vvd-logo-shine" />
           <svg width="110" height="110" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
             <g filter="url(#goldGlow)">
               {/* Левая золотая ветвь логотипа */}
