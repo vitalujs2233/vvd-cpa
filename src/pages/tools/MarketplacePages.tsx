@@ -1,9 +1,10 @@
 import { ProxyOrders } from './ProxyOrders';
+import './ServiceDirectory.css';
 import { ApiError } from '@/shared/lib/api';
 import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Bot, Check, ChevronRight, Clock, Copy, CreditCard, FileClock, Globe2, History, Package, Phone, Plus, Server, Settings2, ShieldCheck, Wallet, Wrench } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Bot, Check, ChevronRight, Clock, Copy, CreditCard, FileClock, Globe2, History, Package, Phone, Plus, Server, Layers, ShieldCheck, Wallet, Wrench } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { triggerHaptic } from '@/shared/lib/telegram';
@@ -65,7 +66,17 @@ export const Tools:React.FC=()=>{
           </Card>
         </Link>;
       })}
-      <Card className="col-span-2 flex items-center gap-3"><div className="rounded-app-xs bg-white/[0.05] p-3"><Settings2 size={20} className="text-textSecondary"/></div><div><b className="text-sm">Дополнительные сервисы</b><p className="text-xs text-textSecondary">Каталог будет расширяться</p></div></Card>
+      <Link to="/tools/directory" className="vvd-directory-feature col-span-2 p-5 transition-transform">
+        <div className="relative z-10 flex min-h-[110px] items-center gap-4">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-card border border-accentGold/45 bg-accentGold/15 text-accentBrightGold shadow-[0_0_14px_rgba(246,196,83,.12)]"><Layers size={28} strokeWidth={1.8}/></div>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-lg font-bold text-white">Каталог сервисов</h3>
+            <p className="mt-1 text-xs leading-5 text-textSecondary">Спай-сервисы, рекламные сети, AI и другие инструменты</p>
+            <p className="mt-2 text-xs font-bold text-accentBrightGold">Смотреть категории</p>
+          </div>
+          <ChevronRight size={21} className="shrink-0 text-accentBrightGold"/>
+        </div>
+      </Link>
     </div>
   </Shell>;
 };
