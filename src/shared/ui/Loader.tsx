@@ -111,6 +111,16 @@ export const Loader: React.FC<LoaderProps> = ({ onComplete }) => {
           bottom: 20%;
         }
 
+        @keyframes vvdSparkle {
+          0%,100% { opacity:.14; transform:translate3d(0,8px,0) scale(.65); }
+          45% { opacity:.95; transform:translate3d(var(--spark-drift),-9px,0) scale(1.25); }
+          75% { opacity:.42; transform:translate3d(var(--spark-drift),-17px,0) scale(.9); }
+        }
+        .vvd-spark { position:absolute; display:block; border-radius:50%; background:#ffe49b; box-shadow:0 0 5px 1px rgba(246,196,83,.85),0 0 14px 3px rgba(212,175,55,.28); animation:vvdSparkle 4s ease-in-out infinite; will-change:transform,opacity; }
+        .vvd-spark-star { background:#fff1bd; box-shadow:0 0 7px 2px rgba(255,224,138,.8),0 0 20px 5px rgba(212,175,55,.3); }
+        .vvd-spark-star::before,.vvd-spark-star::after { content:''; position:absolute; left:50%; top:50%; background:linear-gradient(90deg,transparent,#ffe8a1,transparent); transform:translate(-50%,-50%); border-radius:100%; }
+        .vvd-spark-star::before { width:280%; height:1px; }
+        .vvd-spark-star::after { width:1px; height:280%; background:linear-gradient(180deg,transparent,#ffe8a1,transparent); }
         @keyframes vvdRingTurn { to { transform: rotate(360deg); } }
         @keyframes vvdRingGlow { 0%,100% { opacity:.55; filter:drop-shadow(0 0 4px #d4af37); } 50% { opacity:1; filter:drop-shadow(0 0 13px #f6c453); } }
         @keyframes vvdLightSweep { 0%,100% { transform:translate3d(-12%,10%,0) rotate(-29deg); opacity:.24; } 50% { transform:translate3d(10%,-8%,0) rotate(-24deg); opacity:.55; } }
@@ -122,7 +132,7 @@ export const Loader: React.FC<LoaderProps> = ({ onComplete }) => {
         .vvd-streak-bottom { bottom:4%; animation-delay:-3s; transform-origin:right center; }
         .vvd-logo-shine { position:absolute; inset:0; pointer-events:none; overflow:hidden; border-radius:50%; }
         .vvd-logo-shine::after { content:''; position:absolute; top:5%; bottom:5%; width:24px; left:45%; background:linear-gradient(90deg,transparent,rgba(255,224,138,.5),transparent); filter:blur(9px); animation:vvdShine 5s ease-in-out infinite; }
-        @media (prefers-reduced-motion: reduce) { .vvd-ring,.vvd-ring::after,.vvd-streak,.vvd-logo-shine::after,.floating-particle { animation:none !important; } }
+        @media (prefers-reduced-motion: reduce) { .vvd-ring,.vvd-ring::after,.vvd-streak,.vvd-logo-shine::after,.floating-particle,.vvd-spark { animation:none !important; } }
 
         .cinematic-flash {
           animation: flashEffect 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -137,14 +147,20 @@ export const Loader: React.FC<LoaderProps> = ({ onComplete }) => {
       <div aria-hidden="true" className="vvd-streak vvd-streak-top" />
       <div aria-hidden="true" className="vvd-streak vvd-streak-bottom" />
 
-      {/* Золотые парящие частицы */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="floating-particle left-[20%]" style={{ '--particle-x': '-30px', animationDelay: '0s', animationDuration: '3.8s' } as React.CSSProperties} />
-        <div className="floating-particle left-[40%]" style={{ '--particle-x': '20px', animationDelay: '1.5s', animationDuration: '4.8s' } as React.CSSProperties} />
-        <div className="floating-particle left-[60%]" style={{ '--particle-x': '-15px', animationDelay: '0.8s', animationDuration: '4.2s' } as React.CSSProperties} />
-        <div className="floating-particle left-[12%]" style={{ '--particle-x': '18px', animationDelay: '2.1s', animationDuration: '5.5s' } as React.CSSProperties} />
-        <div className="floating-particle left-[72%]" style={{ '--particle-x': '-22px', animationDelay: '3.2s', animationDuration: '4.6s' } as React.CSSProperties} />
-        <div className="floating-particle left-[85%]" style={{ '--particle-x': '35px', animationDelay: '2.5s', animationDuration: '5.2s' } as React.CSSProperties} />
+      {/* Золотая звездная пыль: мелкие огоньки, искры и четырехлучевые снежинки по всему экрану */}
+      <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden">
+        {Array.from({ length: 64 }, (_, index) => {
+          const star = index % 7 === 0;
+          const size = star ? 7 + (index % 3) * 2 : 2 + (index % 5);
+          const left = 4 + ((index * 37 + 11) % 92);
+          const top = 5 + ((index * 43 + Math.floor(index / 3) * 17) % 90);
+          return <span key={index} className={star ? 'vvd-spark vvd-spark-star' : 'vvd-spark'} style={{
+            left: `${left}%`, top: `${top}%`, width: size, height: size,
+            animationDelay: `${-(index * 0.37) % 6}s`,
+            animationDuration: `${2.6 + (index % 7) * 0.55}s`,
+            '--spark-drift': `${(index % 2 ? 1 : -1) * (8 + index % 19)}px`
+          } as React.CSSProperties} />;
+        })}
       </div>
 
       <div className="h-4" />
