@@ -307,7 +307,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
         <section className="vvd-web-workspace-intro" id="top" aria-labelledby="vvd-web-intro-title">
           <div className="vvd-web-workspace-copy">
             <span className="vvd-web-eyebrow"><span className="vvd-web-dot"/> CPA-ПАРТНЁРСКАЯ СЕТЬ · VVD CPA</span>
-            <h1 id="vvd-web-intro-title">VVD CPA — <em>партнёрка для трафика.</em></h1>
+            <h1 id="vvd-web-intro-title">Зарабатывай на своём трафике.<br/><em>VVD CPA — партнёрка.</em></h1>
             <p>Монетизируй свой трафик через смартлинки разных вертикалей. <strong>Выплаты, аналитика и поддержка</strong> — в одной платформе.</p>
             <div className="vvd-web-hero-points" aria-label="Преимущества VVD CPA">
               <span><Link2 size={18} aria-hidden="true"/> Смартлинки</span>
