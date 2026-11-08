@@ -6,8 +6,11 @@ import {DirectoryIconPicker} from './DirectoryIconPicker';
 
 const field='w-full rounded-app-xs border border-white/15 bg-bgMain px-3 py-2.5 text-sm text-white outline-none focus:border-accentGold/60';
 const makeId=(prefix:string)=>prefix+'-'+crypto.randomUUID().slice(0,12);
-const newCategory=():DirectoryCategory=>({id:makeId('category'),name:'',description:'',icon:'grid',sort_order:100,active:true});
-const newService=(categoryId:string):DirectoryService=>({id:makeId('service'),category_id:categoryId,name:'',description:'',benefits:'',icon:'layers',image_url:'',website_url:'',discount_text:'',promo_code:'',partner_link:false,active:false,sort_order:100});
+const newCategory=():DirectoryCategory=>({id:makeId('category'),name:'',description:'',icon:'grid',sort_order:100,active:true,show_on_web:true,show_in_mini_app:true});
+const visibilityText=(active:boolean,web?:boolean,mini?:boolean):string=>
+  !active?'Черновик / скрыто':web===false&&mini===false?'Скрыто в обоих местах':web===false?'Только Mini App':mini===false?'Только открытый сайт':'Сайт + Mini App';
+const PUBLIC_SITE='https://vitalujs2233.github.io/vvd-cpa/';
+const newService=(categoryId:string):DirectoryService=>({id:makeId('service'),category_id:categoryId,name:'',description:'',benefits:'',icon:'layers',image_url:'',website_url:'',discount_text:'',promo_code:'',partner_link:false,active:false,show_on_web:true,show_in_mini_app:true,sort_order:100});
 
 export const ServiceDirectoryAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
   const [data,setData]=useState<DirectoryData|null>(null);
@@ -83,7 +86,7 @@ export const ServiceDirectoryAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
       const res=await directoryApi.save(data);
       setData({...data,version:res.version});
       setDirty(false);
-      setNotice('Каталог сохранён. Опубликованные категории и сервисы видны в Mini App.');
+      setNotice('Каталог сохранён. Опубликованные записи доступны в выбранных местах: на открытом сайте и/или в Mini App.');
     }catch(e){
       setError(e instanceof Error?e.message:'Не удалось сохранить каталог. Проверьте ссылки и соединение.');
     }finally{setSaving(false);}
@@ -92,11 +95,14 @@ export const ServiceDirectoryAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
   return <div className="flex flex-col gap-4 p-4 pb-32">
     <button type="button" className="flex items-center gap-2 text-sm font-semibold text-accentBrightGold" onClick={onBack}><ArrowLeft size={18}/> Админ-панель</button>
     <div className="flex items-start justify-between gap-3">
-      <div><h1 className="text-xl font-bold text-white">Каталог сервисов</h1><p className="mt-1 text-xs leading-5 text-textSecondary">Категории, предложения и партнёрские ссылки</p></div>
-      <Link to="/tools/directory" className="flex shrink-0 items-center gap-1 text-xs text-accentBrightGold"><ExternalLink size={14}/> Каталог</Link>
+      <div><h1 className="text-xl font-bold text-white">Каталог сервисов</h1><p className="mt-1 text-xs leading-5 text-textSecondary">Один редактор для сайта и Telegram Mini App</p></div>
+      <div className="flex flex-wrap justify-end gap-2">
+        <a href={PUBLIC_SITE} target="_blank" rel="noopener noreferrer" className="flex shrink-0 items-center gap-1 text-xs text-accentBrightGold"><ExternalLink size={14}/> Сайт без входа</a>
+        <Link to="/tools/directory" className="flex shrink-0 items-center gap-1 text-xs text-accentBrightGold"><ExternalLink size={14}/> Mini App</Link>
+      </div>
     </div>
     <div className="rounded-card border border-accentGold/20 bg-accentGold/[0.06] p-3 text-xs leading-5 text-textSecondary">
-      Меняйте категории и предложения здесь. На сайте будут показаны только включённые категории и опубликованные сервисы. Партнёрские ссылки, промокоды и скидки добавляются вручную, без API.
+      Выбирайте, где показывать каждую категорию и сервис: <b className="text-white">на открытом сайте (без регистрации)</b>, в <b className="text-white">Telegram Mini App</b> или сразу в обоих местах. Включите публикацию, выберите площадки, нажмите «Применить», затем «Сохранить изменения». Категория тоже должна быть опубликована для выбранной площадки.
     </div>
     {error&&<p role="alert" className="rounded-card border border-red-500/25 bg-red-500/[0.07] p-3 text-xs text-red-300">{error}</p>}
     {notice&&<p role="status" className="rounded-card border border-accentGold/20 p-3 text-xs text-accentBrightGold">{notice}</p>}
@@ -115,7 +121,12 @@ export const ServiceDirectoryAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
           <DirectoryIconPicker value={categoryForm.icon||'grid'} label="Иконка категории"
             onChange={icon=>setCategoryForm({...categoryForm,icon})}/>
           <label className="text-xs text-textSecondary">Порядок<input type="number" className={field} value={categoryForm.sort_order} onChange={e=>setCategoryForm({...categoryForm,sort_order:Number(e.target.value)||0})}/></label>
-          <label className="flex items-center gap-2 text-xs text-white"><input type="checkbox" checked={categoryForm.active} onChange={e=>setCategoryForm({...categoryForm,active:e.target.checked})}/> Показывать категорию</label>
+          <label className="flex items-center gap-2 text-xs text-white"><input type="checkbox" checked={categoryForm.active} onChange={e=>setCategoryForm({...categoryForm,active:e.target.checked})}/> Опубликовать категорию</label>
+          <fieldset className="rounded-app-xs border border-accentGold/25 p-3">
+            <legend className="px-1 text-xs font-semibold text-accentBrightGold">Где показывать категорию</legend>
+            <label className="mt-2 flex items-center gap-2 text-xs text-white"><input type="checkbox" checked={categoryForm.show_on_web!==false} onChange={e=>setCategoryForm({...categoryForm,show_on_web:e.target.checked})}/> На открытом сайте (без входа)</label>
+            <label className="mt-3 flex items-center gap-2 text-xs text-white"><input type="checkbox" checked={categoryForm.show_in_mini_app!==false} onChange={e=>setCategoryForm({...categoryForm,show_in_mini_app:e.target.checked})}/> В Telegram Mini App</label>
+          </fieldset>
           <div className="flex gap-2">
             <button type="button" onClick={applyCategory} className="flex-1 rounded-app-xs bg-gold-gradient px-3 py-2.5 text-sm font-bold text-bgMain">Применить</button>
             <button type="button" onClick={()=>setCategoryForm(null)} className="rounded-app-xs border border-white/20 px-3 py-2.5 text-xs">Отмена</button>
@@ -126,7 +137,7 @@ export const ServiceDirectoryAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-app-xs border border-accentGold/30 bg-accentGold/10 text-accentBrightGold">
               {React.createElement(directoryIcons[c.icon]||Layers,{size:21})}
             </span>
-            <div className="min-w-0 flex-1"><b className="text-sm text-white">{c.name}</b><p className="mt-1 text-xs text-textSecondary">{c.description}</p><p className="mt-2 text-[11px] text-accentBrightGold">{data.services.filter(s=>s.category_id===c.id).length} сервисов · {c.active?'Виден':'Скрыт'}</p></div>
+            <div className="min-w-0 flex-1"><b className="text-sm text-white">{c.name}</b><p className="mt-1 text-xs text-textSecondary">{c.description}</p><p className="mt-2 text-[11px] text-accentBrightGold">{data.services.filter(s=>s.category_id===c.id).length} сервисов · {visibilityText(c.active,c.show_on_web,c.show_in_mini_app)}</p></div>
             <button type="button" className="rounded-app-xs border border-white/15 px-3 py-2 text-xs text-accentBrightGold" onClick={()=>{setCategoryForm({...c});setServiceForm(null);setError('');}}>Изменить</button>
           </div>
           <div className="mt-3 flex flex-wrap gap-3 border-t border-white/[0.06] pt-3">
@@ -177,7 +188,13 @@ export const ServiceDirectoryAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
             <label className="text-xs text-textSecondary">Порядок<input className={field} type="number" value={serviceForm.sort_order} onChange={e=>setServiceForm({...serviceForm,sort_order:Number(e.target.value)||0})}/></label>
           </div>
           <label className="flex items-center gap-2 text-xs text-white"><input type="checkbox" checked={serviceForm.partner_link} onChange={e=>setServiceForm({...serviceForm,partner_link:e.target.checked})}/> Это партнёрская ссылка</label>
-          <label className="flex items-center gap-2 text-xs text-white"><input type="checkbox" checked={serviceForm.active} onChange={e=>setServiceForm({...serviceForm,active:e.target.checked})}/> Опубликовать сервис в каталоге</label>
+          <label className="flex items-center gap-2 text-xs text-white"><input type="checkbox" checked={serviceForm.active} onChange={e=>setServiceForm({...serviceForm,active:e.target.checked})}/> Опубликовать сервис</label>
+          <fieldset className="rounded-app-xs border border-accentGold/25 p-3">
+            <legend className="px-1 text-xs font-semibold text-accentBrightGold">Где показывать сервис</legend>
+            <label className="mt-2 flex items-center gap-2 text-xs text-white"><input type="checkbox" checked={serviceForm.show_on_web!==false} onChange={e=>setServiceForm({...serviceForm,show_on_web:e.target.checked})}/> На открытом сайте (без входа)</label>
+            <label className="mt-3 flex items-center gap-2 text-xs text-white"><input type="checkbox" checked={serviceForm.show_in_mini_app!==false} onChange={e=>setServiceForm({...serviceForm,show_in_mini_app:e.target.checked})}/> В Telegram Mini App</label>
+            <p className="mt-2 text-[11px] leading-4 text-textSecondary">Для отображения категория должна быть опубликована на той же площадке. По умолчанию включены обе.</p>
+          </fieldset>
           <div className="flex gap-2">
             <button type="button" disabled={imageUploading} onClick={applyService} className="flex-1 rounded-app-xs bg-gold-gradient disabled:opacity-50 px-3 py-2.5 text-sm font-bold text-bgMain">Применить</button>
             <button type="button" disabled={imageUploading} onClick={()=>setServiceForm(null)} className="rounded-app-xs border border-white/20 px-3 py-2.5 text-xs disabled:opacity-50">Отмена</button>
@@ -191,7 +208,7 @@ export const ServiceDirectoryAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
                 ?<img src={s.image_url} alt="" className="h-full w-full object-contain"/>
                 :React.createElement(directoryIcons[s.icon]||Layers,{size:21})}
             </span>
-            <div className="min-w-0 flex-1"><b className="text-sm text-white">{s.name}</b><p className="mt-1 text-xs text-textSecondary">{data.categories.find(c=>c.id===s.category_id)?.name||'Без категории'}</p><p className="mt-2 text-[11px] text-accentBrightGold">{s.active?'Опубликован':'Скрыт'}</p></div>
+            <div className="min-w-0 flex-1"><b className="text-sm text-white">{s.name}</b><p className="mt-1 text-xs text-textSecondary">{data.categories.find(c=>c.id===s.category_id)?.name||'Без категории'}</p><p className="mt-2 text-[11px] text-accentBrightGold">{visibilityText(s.active,s.show_on_web,s.show_in_mini_app)}</p></div>
             <button type="button" onClick={()=>{setServiceForm({...s});setCategoryForm(null);setError('');}} className="rounded-app-xs border border-white/15 px-3 py-2 text-xs text-accentBrightGold">Изменить</button>
           </div>
           <div className="mt-3 flex items-center gap-4 border-t border-white/[0.06] pt-3">
