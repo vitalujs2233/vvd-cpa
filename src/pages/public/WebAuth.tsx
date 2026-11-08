@@ -53,29 +53,63 @@ export const useBrowserSession=()=>{
   const [session,setSession]=useState(getWebSession);
   const [profile,setProfile]=useState<BrowserProfile|null>(null);
   const [restoring,setRestoring]=useState(Boolean(getWebSession()));
+  const [restoreError,setRestoreError]=useState(false);
+  const [restoreAttempt,setRestoreAttempt]=useState(0);
   const [loginOpen,setLoginOpen]=useState(false);
   useEffect(()=>{
-    if(!session){setProfile(null);setRestoring(false);return;}
+    if(!session){setProfile(null);setRestoring(false);setRestoreError(false);return;}
     let active=true;
-    void readJson<BrowserProfile>('/web-auth/me',withSession(session)).then(data=>{
-      if(active){setProfile(data);setRestoring(false);}
-    }).catch(()=>{
-      if(active){clearWebSession();setSession('');setProfile(null);setRestoring(false);}
-    });
-    return()=>{active=false;};
-  },[session]);
+    const controllers:AbortController[]=[];
+    setRestoring(true);
+    setRestoreError(false);
+    void (async()=>{
+      for(let attempt=0;attempt<2&&active;attempt++){
+        const controller=new AbortController();
+        controllers.push(controller);
+        const timeout=setTimeout(()=>controller.abort(),15000);
+        try{
+          const data=await readJson<BrowserProfile>('/web-auth/me',{
+            ...withSession(session),signal:controller.signal
+          });
+          if(active){setProfile(data);setRestoring(false);setRestoreError(false);}
+          return;
+        }catch(error){
+          if(!active)return;
+          // Only a confirmed invalid/revoked session should sign the user out.
+          // Safari and mobile app switching can temporarily interrupt a valid request.
+          const code=error instanceof Error?error.message:'';
+          if(code==='http_401'||code==='http_403'){
+            clearWebSession();setSession('');setProfile(null);
+            setRestoring(false);setRestoreError(false);
+            return;
+          }
+          if(attempt===1){setRestoring(false);setRestoreError(true);}
+        }finally{clearTimeout(timeout);}
+      }
+    })();
+    return()=>{active=false;controllers.forEach(controller=>controller.abort());};
+  },[session,restoreAttempt]);
+  useEffect(()=>{
+    const onVisible=()=>{
+      if(!document.hidden&&restoreError&&session)setRestoreAttempt(n=>n+1);
+    };
+    document.addEventListener('visibilitychange',onVisible);
+    return()=>document.removeEventListener('visibilitychange',onVisible);
+  },[restoreError,session]);
+  const retryRestore=()=>setRestoreAttempt(n=>n+1);
   const login=(value:string)=>{
     setWebSession(value);
+    setProfile(null);setRestoreError(false);
     setRestoring(true);
     setSession(value);
     setLoginOpen(false);
   };
   const logout=async()=>{
     const previous=session;
-    clearWebSession();setSession('');setProfile(null);setRestoring(false);
+    clearWebSession();setSession('');setProfile(null);setRestoring(false);setRestoreError(false);
     if(previous){try{await readJson('/web-auth/logout',{...withSession(previous),method:'POST'});}catch{/* logout locally regardless of network */}}
   };
-  return {profile,restoring,isLoggedIn:Boolean(profile),loginOpen,setLoginOpen,login,logout};
+  return {profile,restoring,restoreError,retryRestore,isLoggedIn:Boolean(profile),loginOpen,setLoginOpen,login,logout};
 };
 
 export const TelegramBrowserLogin:React.FC<{
