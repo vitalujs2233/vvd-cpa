@@ -16,6 +16,7 @@ import { Tools,ToolsTopupPage,ToolsHistory,ToolsPurchases,ToolsNumbers,MyNumbers
 import { AIModelsPage,AIEditor } from '@/pages/tools/AIStudio';
 import {ServiceDirectoryPage,ServiceCategoryPage} from '@/pages/tools/ServiceDirectory';
 import { PublicAIPage } from '@/pages/tools/PublicAIChat';
+import { PublicWebsite } from '@/pages/public/PublicWebsite';
 import { Profile } from '@/pages/profile/Profile';
 import { Referral } from '@/pages/Referral';
 import { Admin } from '@/pages/admin/Admin';
@@ -309,9 +310,12 @@ const MiniApp = () => {
   );
 };
 
-// Public AI profiles work without Telegram login at /vvd-cpa/?model=slug.
+// Keep the existing Mini App and public AI links unchanged.
+// Outside Telegram, show the browser website instead of a dead-end sign-in error.
+// Protected account actions always remain inside the signed Telegram session.
 const App = () => {
   const slug = new URLSearchParams(window.location.search).get('model');
-  return slug ? <PublicAIPage slug={slug} /> : <MiniApp />;
+  if (slug) return <PublicAIPage slug={slug} />;
+  return window.Telegram?.WebApp?.initData ? <MiniApp /> : <PublicWebsite />;
 };
 export default App;
