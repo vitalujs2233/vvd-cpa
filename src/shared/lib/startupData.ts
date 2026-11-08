@@ -36,13 +36,13 @@ export function preloadStartupData(id:number,partnerCode='',role='user'):Promise
       const response=await authorizedFetch(request.url,{cache:'no-store'});
       if(!response.ok)throw new StartupDataError();
       const data=await response.json();
-      if(!request.valid(data)||window.Telegram?.WebApp?.initData!==session)throw new StartupDataError();
+      if(!request.valid(data)||currentSignedSession()!==session)throw new StartupDataError();
       saveSnapshot(request.key,request.select(data));
     };
     const results=await Promise.allSettled(requests.slice(0,2).map(fetchOne));
     if(results.some(result=>result.status==='rejected'))
       throw new StartupDataError('Не удалось загрузить данные. Проверьте соединение и нажмите «Повторить».');
-    if(window.Telegram?.WebApp?.initData!==session)throw new StartupDataError('Сессия изменилась. Откройте приложение заново.');
+    if(currentSignedSession()!==session)throw new StartupDataError('Сессия изменилась. Откройте приложение заново.');
     // Keep secondary pages warm without blocking the first visible screen.
     void Promise.allSettled(requests.slice(2).map(fetchOne));
     void preloadPages(id,partnerCode,role).catch(()=>{});
