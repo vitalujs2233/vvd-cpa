@@ -1,7 +1,7 @@
 """External service directory for VVD CPA. Informational links only; no payments or purchases."""
 import json
 import re
-from typing import Optional
+from typing import Literal, Optional
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Header, HTTPException, UploadFile, File
@@ -30,6 +30,8 @@ class DirectoryCategory(BaseModel):
     icon: str = Field(default="grid", max_length=32)
     sort_order: int = Field(default=100, ge=-10000, le=10000)
     active: bool = True
+    show_on_web: bool = True
+    show_in_mini_app: bool = True
 
 
 class DirectoryService(BaseModel):
@@ -45,6 +47,8 @@ class DirectoryService(BaseModel):
     promo_code: str = Field(default="", max_length=100)
     partner_link: bool = False
     active: bool = False
+    show_on_web: bool = True
+    show_in_mini_app: bool = True
     sort_order: int = Field(default=100, ge=-10000, le=10000)
 
     @field_validator("website_url", "image_url")
@@ -93,16 +97,24 @@ def _load():
 
 
 @router.get("")
-def published_directory():
+def published_directory(surface: Literal["web", "mini"] = "web"):
+    """Public website and Mini App share content, but each has explicit visibility.
+
+    Legacy entries without visibility flags remain visible in both places.
+    Publishing flags affect display only; administrator writes remain protected.
+    """
     data = _load()
+    visibility_key = "show_on_web" if surface == "web" else "show_in_mini_app"
     categories = sorted(
-        [c for c in data["categories"] if c.get("active", True)],
+        [c for c in data["categories"]
+         if c.get("active", True) and c.get(visibility_key, True)],
         key=lambda item: (item.get("sort_order", 100), item["name"].lower())
     )
     visible_ids = {c["id"] for c in categories}
     services = sorted(
-        [s for s in data["services"] if s.get("active") and s.get("website_url") and
-         s.get("category_id") in visible_ids],
+        [s for s in data["services"]
+         if s.get("active") and s.get("website_url")
+         and s.get(visibility_key, True) and s.get("category_id") in visible_ids],
         key=lambda item: (item.get("sort_order", 100), item["name"].lower())
     )
     return {"version": data["version"], "categories": categories, "services": services}
