@@ -37,7 +37,7 @@ let cachedInfo:HomeInfoBlock[]|undefined;
 export const HomeInfoBlocks:React.FC=()=>{
  const [items,setItems]=useState<HomeInfoBlock[]>(()=>cachedHomeFeed<Feed>('home:info')?.items||cachedInfo||[]);
  const navigate=useNavigate();
- useEffect(()=>{let live=true;const load=()=>apiRequest<Feed>('/home-info/published').then(data=>{if(live){cachedInfo=data.items;setItems(data.items)}}).catch(()=>{});void load();const refresh=()=>{if(!document.hidden)void load()};document.addEventListener('visibilitychange',refresh);return()=>{live=false;document.removeEventListener('visibilitychange',refresh)}},[]);
+ useEffect(()=>{let live=true;const load=()=>apiRequest<Feed>('/home-info/published').then(data=>{if(live){cachedInfo=data.items;setItems(data.items)}}).catch(()=>{});if(!cachedHomeFeed<Feed>('home:info'))void load();const refresh=()=>{if(!document.hidden)void load()};document.addEventListener('visibilitychange',refresh);return()=>{live=false;document.removeEventListener('visibilitychange',refresh)}},[]);
  if(!items.length)return null;
  return <div className="flex flex-col gap-3 min-w-0">{items.map(item=><article key={item.id} className={`min-w-0 overflow-hidden rounded-card border border-[#b18a38]/45 bg-[#0c0b09] shadow-[0_0_22px_rgba(203,155,51,0.11)] ${item.image_url&&!item.title&&!item.subtitle&&!item.description&&!item.target_url ? "p-0" : "px-4 py-5"}`}>
   <div className="text-center">
