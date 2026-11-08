@@ -2,8 +2,9 @@ import React,{useEffect,useMemo,useState} from 'react';
 import {ArrowRight,Check,ExternalLink,KeyRound,LoaderCircle,LogOut,ShieldCheck,UserRound,Wallet,X} from 'lucide-react';
 import {API_BASE_URL} from '@/shared/lib/api';
 import './WebAuth.css';
+import {getWebSession,setWebSession,clearWebSession} from '@/shared/lib/browserSession';
 
-const STORAGE='vvd_cpa_browser_session_v1';
+
 const OIDC_SCRIPT='https://oauth.telegram.org/js/telegram-login.js';
 const BOT_URL='https://t.me/vvd_cpa_bot';
 
@@ -22,15 +23,6 @@ type TelegramLoginAPI={auth:(options:{client_id:number;scope:string[];nonce:stri
 
 function sdk():TelegramLoginAPI|undefined{
   return (window as unknown as {Telegram?:{Login?:TelegramLoginAPI}}).Telegram?.Login;
-}
-function getSession():string{
-  try{return sessionStorage.getItem(STORAGE)||'';}catch{return '';}
-}
-function saveSession(value:string){
-  try{sessionStorage.setItem(STORAGE,value);}catch{/* disabled private storage */}
-}
-function clearSession(){
-  try{sessionStorage.removeItem(STORAGE);}catch{/* session may be blocked */}
 }
 async function readJson<T>(url:string,options?:RequestInit):Promise<T>{
   const res=await fetch(API_BASE_URL+url,{...options,cache:'no-store'});
@@ -58,9 +50,9 @@ function loadTelegramScript():Promise<void>{
 }
 
 export const useBrowserSession=()=>{
-  const [session,setSession]=useState(getSession);
+  const [session,setSession]=useState(getWebSession);
   const [profile,setProfile]=useState<BrowserProfile|null>(null);
-  const [restoring,setRestoring]=useState(Boolean(getSession()));
+  const [restoring,setRestoring]=useState(Boolean(getWebSession()));
   const [loginOpen,setLoginOpen]=useState(false);
   useEffect(()=>{
     if(!session){setProfile(null);setRestoring(false);return;}
@@ -68,19 +60,19 @@ export const useBrowserSession=()=>{
     void readJson<BrowserProfile>('/web-auth/me',withSession(session)).then(data=>{
       if(active){setProfile(data);setRestoring(false);}
     }).catch(()=>{
-      if(active){clearSession();setSession('');setProfile(null);setRestoring(false);}
+      if(active){clearWebSession();setSession('');setProfile(null);setRestoring(false);}
     });
     return()=>{active=false;};
   },[session]);
   const login=(value:string)=>{
-    saveSession(value);
+    setWebSession(value);
     setRestoring(true);
     setSession(value);
     setLoginOpen(false);
   };
   const logout=async()=>{
     const previous=session;
-    clearSession();setSession('');setProfile(null);setRestoring(false);
+    clearWebSession();setSession('');setProfile(null);setRestoring(false);
     if(previous){try{await readJson('/web-auth/logout',{...withSession(previous),method:'POST'});}catch{/* logout locally regardless of network */}}
   };
   return {profile,restoring,isLoggedIn:Boolean(profile),loginOpen,setLoginOpen,login,logout};
