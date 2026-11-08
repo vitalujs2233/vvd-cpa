@@ -1,4 +1,4 @@
-import { apiRequest } from '@/shared/lib/api';
+import { apiRequest, API_BASE_URL } from '@/shared/lib/api';
 import { readApiSnapshot } from '@/shared/lib/viewSnapshot';
 import {
   Search, Monitor, Megaphone, Sparkles, BarChart3,
@@ -97,6 +97,14 @@ export const directoryApi = {
   snapshot:cachedDirectory,
   published:publishedDirectory,
   admin: () => apiRequest<DirectoryData>('/service-directory/admin'),
+  uploadImage: async (id:string,image:File) => {
+    const body=new FormData();
+    body.append('image',image);
+    const uploaded=await apiRequest<{image_url:string}>(
+      '/service-directory/admin/images/'+encodeURIComponent(id),{method:'POST',body}
+    );
+    return API_BASE_URL+uploaded.image_url;
+  },
   save: async (data:DirectoryData) => {
     const result=await apiRequest<{success:boolean;version:number}>('/service-directory/admin', {
       method:'PUT',
