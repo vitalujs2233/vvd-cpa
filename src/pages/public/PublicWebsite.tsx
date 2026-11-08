@@ -1,5 +1,5 @@
 import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import {ArrowRight,ArrowUpRight,BarChart3,Check,ChevronLeft,ChevronRight,Globe2,Layers,Menu,Search,ShieldCheck,Sparkles,Users,Wrench,X} from 'lucide-react';
+import {ArrowRight,ArrowUpRight,BarChart3,Check,ChevronLeft,ChevronRight,Globe2,Layers,Menu,Search,ShieldCheck,Users,Wrench,Target,MousePointerClick,Wallet,Link2,Activity,LayoutDashboard} from 'lucide-react';
 import {API_BASE_URL} from '@/shared/lib/api';
 import {directoryIcons,type DirectoryData,type DirectoryService} from '@/pages/tools/serviceDirectoryApi';
 import {BrowserAccount, TelegramBrowserLogin, type useBrowserSession} from './WebAuth';
@@ -138,7 +138,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
     }else if(category){
       setMetadata(category.name+' — Каталог сервисов VVD CPA',category.description||'Каталог профессиональных сервисов для вебмастеров.',category.id);
     }else{
-      setMetadata('VVD CPA — Каталог сервисов и инструменты для вебмастеров','VVD CPA — каталог полезных сервисов для вебмастеров. AI, аналитика, рекламные сети, инструменты и партнёрские предложения в одном месте.');
+      setMetadata('VVD CPA — CPA партнёрская сеть для арбитражников и вебмастеров','VVD CPA — CPA-партнёрская сеть: офферы, партнёрские ссылки, монетизация трафика, аналитика, баланс и инструменты для арбитражников и вебмастеров. Веб-кабинет и Telegram Mini App.');
     }
   },[category,accountView]);
 
@@ -164,7 +164,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
         <nav className={'vvd-web-nav '+(mobileMenu?'is-open':'')} aria-label="Основная навигация">
           <button type="button" onClick={openMain}>Главная</button>
           <button type="button" onClick={()=>jumpTo('catalog')}>Каталог сервисов</button>
-          <button type="button" onClick={()=>jumpTo('features')}>Возможности</button>
+          <button type="button" onClick={()=>jumpTo('features')}>Как работает</button>
           <button type="button" onClick={openAccount}>Личный кабинет</button>
         </nav>
         {auth.isLoggedIn
@@ -193,21 +193,37 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
         </>:<div className="vvd-web-empty-service"><h1>Раздел не найден</h1><p>Возможно, категория была переименована или скрыта.</p><button onClick={openMain}>Вернуться в каталог</button></div>}
       </main> :
       <main>
-        <section className="vvd-web-workspace-intro" id="top">
-          <div>
-            <span className="vvd-web-eyebrow"><span className="vvd-web-dot"/> VVD CPA · ЦИФРОВАЯ ПЛАТФОРМА</span>
-            <h1>Инструменты и сервисы <em>в одном месте.</em></h1>
-            <p>Выбирай категорию, изучай условия и переходи к нужному сервису. Личный кабинет доступен через подтверждённый аккаунт Telegram.</p>
+        <section className="vvd-web-workspace-intro" id="top" aria-labelledby="vvd-web-intro-title">
+          <div className="vvd-web-workspace-copy">
+            <span className="vvd-web-eyebrow"><span className="vvd-web-dot"/> CPA-ПАРТНЁРСКАЯ СЕТЬ · VVD CPA</span>
+            <h1 id="vvd-web-intro-title">Монетизируй трафик.<br/><em>Развивайся с VVD CPA.</em></h1>
+            <p><strong>VVD CPA — партнёрская сеть для арбитражников и вебмастеров.</strong> Изучай CPA-офферы, направляй подходящий трафик по партнёрским ссылкам и отслеживай результаты: клики, конверсии и начисления. Рядом — инструменты и каталог сервисов для работы.</p>
+            <div className="vvd-web-hero-points" aria-label="Возможности VVD CPA">
+              <span><Target size={15}/> CPA-офферы</span>
+              <span><MousePointerClick size={15}/> Трафик и конверсии</span>
+              <span><BarChart3 size={15}/> Аналитика</span>
+            </div>
+            <div className="vvd-web-workspace-actions">
+              <button type="button" className="vvd-web-gold-button" onClick={()=>auth.isLoggedIn?openAccount():auth.setLoginOpen(true)}>{auth.isLoggedIn?'Открыть кабинет':'Начать через Telegram'} <ArrowRight size={16}/></button>
+              <button type="button" className="vvd-web-outline-button" onClick={()=>jumpTo('catalog')}>Каталог сервисов <ArrowRight size={16}/></button>
+            </div>
+            <p className="vvd-web-hero-disclaimer">Условия, доступность офферов и размер вознаграждений зависят от конкретного предложения. Доход не гарантируется.</p>
           </div>
-          <div className="vvd-web-workspace-actions">
-            <button type="button" className="vvd-web-gold-button" onClick={()=>auth.isLoggedIn?openAccount():auth.setLoginOpen(true)}>{auth.isLoggedIn?'Мой кабинет':'Войти / Зарегистрироваться'} <ArrowRight size={16}/></button>
-            <a href={BOT_URL} target="_blank" rel="noopener noreferrer" className="vvd-web-outline-button">Открыть Mini App <ArrowUpRight size={16}/></a>
+          <div className="vvd-web-hero-panel" aria-label="Что есть внутри партнёрской платформы">
+            <div className="vvd-web-hero-panel-heading"><span className="vvd-web-panel-symbol"><Layers size={22}/></span><div><small>ОДНА ПЛАТФОРМА</small><strong>Трафик · Офферы · Сервисы</strong></div></div>
+            <div className="vvd-web-hero-panel-grid">
+              <div><Link2 size={19}/><strong>Офферы</strong><span>Партнёрские предложения и ссылки</span></div>
+              <div><Activity size={19}/><strong>Статистика</strong><span>Клики, конверсии, результаты</span></div>
+              <div><Wallet size={19}/><strong>Финансы</strong><span>Баланс и история начислений</span></div>
+              <div><Wrench size={19}/><strong>Инструменты</strong><span>Сервисы для вебмастеров</span></div>
+            </div>
+            <div className="vvd-web-hero-panel-footer"><ShieldCheck size={15}/> Один Telegram-аккаунт для сайта и Mini App</div>
           </div>
         </section>
 
         <section className="vvd-web-section" id="catalog">
           <div className="vvd-web-section-heading">
-            <div><span className="vvd-web-eyebrow">ПОДОБРАННЫЕ ИНСТРУМЕНТЫ</span><h2>Каталог сервисов</h2><p>Разделы без путаницы: в каждой категории только соответствующие предложения.</p></div>
+            <div><span className="vvd-web-eyebrow">ИНСТРУМЕНТЫ ДЛЯ РАБОТЫ С ТРАФИКОМ</span><h2>Каталог сервисов</h2><p>Отдельный каталог полезных инструментов для арбитражников и вебмастеров: изучай категории, сравнивай предложения и переходи к нужному сервису. Каталог доступен без регистрации.</p></div>
             <div className="vvd-web-catalog-count">{loading?'Загрузка каталога':data.categories.length+' категорий'}</div>
           </div>
           <label className="vvd-web-search"><Search size={21}/><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Найти категорию или сервис..." aria-label="Поиск по каталогу"/></label>
@@ -234,18 +250,27 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
             </div>:<div className="vvd-web-notice">По вашему запросу разделов не найдено.</div>}
         </section>
 
-        <section className="vvd-web-section vvd-web-feature-section" id="features">
-          <div className="vvd-web-section-heading"><div><span className="vvd-web-eyebrow">VVD CPA В TELEGRAM</span><h2>Больше возможностей<br/>в Mini App</h2><p>Веб-сайт помогает изучить платформу. Для работы с личным кабинетом открой VVD CPA в Telegram.</p></div></div>
+        <section className="vvd-web-section vvd-web-feature-section" id="features" aria-labelledby="vvd-how-heading">
+          <div className="vvd-web-section-heading"><div><span className="vvd-web-eyebrow">КАК УСТРОЕНА ПАРТНЁРСКАЯ СЕТЬ</span><h2 id="vvd-how-heading">От трафика до статистики</h2><p>VVD CPA объединяет CPA-предложения и инструменты для партнёров в одном кабинете. Работа с офферами требует соблюдения условий рекламодателей и правил источников трафика.</p></div></div>
+          <div className="vvd-web-steps">
+            <article><span>01</span><div><h3>Выбери оффер</h3><p>Ознакомься с предложением, разрешёнными источниками трафика и моделью вознаграждения.</p></div></article>
+            <article><span>02</span><div><h3>Направляй трафик</h3><p>Используй доступные партнёрские ссылки для подходящей аудитории с соблюдением правил оффера.</p></div></article>
+            <article><span>03</span><div><h3>Анализируй результат</h3><p>Следи за кликами, конверсиями и начислениями в статистике своего аккаунта.</p></div></article>
+          </div>
+          <div className="vvd-web-section-heading vvd-web-inside-heading"><div><span className="vvd-web-eyebrow">ПОСЛЕ РЕГИСТРАЦИИ ЧЕРЕЗ TELEGRAM</span><h2>Всё необходимое в одном кабинете</h2><p>На сайте и в Telegram Mini App открывается один и тот же VVD CPA с общим аккаунтом и данными.</p></div></div>
           <div className="vvd-web-features-grid">
-            <div className="vvd-web-feature"><span><BarChart3 size={27}/></span><h3>Аналитика</h3><p>Статистика кликов, конверсий и эффективности ваших ссылок внутри Mini App.</p></div>
-            <div className="vvd-web-feature"><span><Wrench size={27}/></span><h3>Инструменты</h3><p>Доступ к существующим инструментам платформы и дополнительным сервисам.</p></div>
-            <div className="vvd-web-feature"><span><ShieldCheck size={27}/></span><h3>Личный кабинет</h3><p>Баланс, история начислений и персональные настройки с защищённым Telegram-входом.</p></div>
+            <div className="vvd-web-feature"><span><Target size={24}/></span><h3>CPA-офферы и ссылки</h3><p>Список доступных предложений, условия и инструменты для получения партнёрских ссылок.</p></div>
+            <div className="vvd-web-feature"><span><BarChart3 size={24}/></span><h3>Аналитика трафика</h3><p>Клики, конверсии, разбивка по источникам и другим параметрам, доступным в системе.</p></div>
+            <div className="vvd-web-feature"><span><LayoutDashboard size={24}/></span><h3>Кабинет и инструменты</h3><p>Баланс, история начислений, профиль и раздел инструментов VVD CPA.</p></div>
           </div>
         </section>
 
         <section className="vvd-web-cta">
-          <div><span className="vvd-web-eyebrow">ГОТОВ К РАБОТЕ?</span><h2>VVD CPA всегда под рукой.</h2><p>Открывай Mini App из Telegram и пользуйся личными инструментами и статистикой.</p></div>
-          <a className="vvd-web-gold-button" href={BOT_URL} target="_blank" rel="noopener noreferrer">Запустить в Telegram <ArrowUpRight size={18}/></a>
+          <div><span className="vvd-web-eyebrow">ОДИН АККАУНТ · ДВА СПОСОБА ВХОДА</span><h2>Начни работу с VVD CPA</h2><p>Войди через Telegram, чтобы открыть партнёрский кабинет прямо в браузере. Те же разделы доступны и в Mini App.</p></div>
+          <div className="vvd-web-cta-actions">
+            <button type="button" className="vvd-web-gold-button" onClick={()=>auth.isLoggedIn?openAccount():auth.setLoginOpen(true)}>{auth.isLoggedIn?'Перейти в кабинет':'Войти / Зарегистрироваться'} <ArrowRight size={17}/></button>
+            <a className="vvd-web-outline-button" href={BOT_URL} target="_blank" rel="noopener noreferrer">Telegram Mini App <ArrowUpRight size={17}/></a>
+          </div>
         </section>
       </main>}
       <footer className="vvd-web-footer">
