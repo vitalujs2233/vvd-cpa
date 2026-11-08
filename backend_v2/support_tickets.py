@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from database import engine
-from stars_payments import verified_telegram_id, TelegramAuthError
+from stars_payments import authenticated_user_id, TelegramAuthError
 from access_guard import authorized_admin
 
 router = APIRouter()
@@ -20,7 +20,7 @@ class TicketStatus(BaseModel):
 
 def actor(request: Request) -> int:
     try:
-        return verified_telegram_id(request.headers.get("X-Telegram-Init-Data", ""))
+        return authenticated_user_id(request.headers.get("X-Telegram-Init-Data", ""))
     except TelegramAuthError as exc:
         raise HTTPException(401, "Telegram authentication required") from exc
 
