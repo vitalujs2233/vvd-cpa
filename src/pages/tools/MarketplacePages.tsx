@@ -1,4 +1,5 @@
 import { ProxyOrders } from './ProxyOrders';
+import { directoryApi } from './serviceDirectoryApi';
 import './ServiceDirectory.css';
 import { ApiError } from '@/shared/lib/api';
 import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
@@ -40,6 +41,19 @@ const cards=[{id:'ai',to:'/tools/ai',title:'AI-модели',description:'Соз
 export const Tools:React.FC=()=>{
   const w=useRemote(readWallet,emptyWallet);
   const c=useRemote(readCatalog,{services:[] as ServiceInfo[],payment_provider:{status:'unavailable',assets:[] as string[]}});
+  const navigate=useNavigate();
+  const [openingDirectory,setOpeningDirectory]=useState(false);
+  // Warm the shared catalog before the user taps the directory card.
+  useEffect(()=>{void directoryApi.published().catch(()=>{});},[]);
+  const openDirectory=async(event:React.MouseEvent<HTMLAnchorElement>)=>{
+    if(directoryApi.snapshot())return;
+    event.preventDefault();
+    if(openingDirectory)return;
+    setOpeningDirectory(true);
+    try {await directoryApi.published();}
+    catch {/* the directory page shows a clear error if the server is unavailable */}
+    finally {setOpeningDirectory(false);navigate('/tools/directory');}
+  };
   return <Shell>
     <div><h1 className="text-2xl font-bold">Инструменты</h1><p className="mt-1 text-xs text-textSecondary">Все сервисы для работы в одном месте</p></div>
     <Card variant="glow" padding="lg" className="flex flex-col gap-3">
@@ -66,13 +80,13 @@ export const Tools:React.FC=()=>{
           </Card>
         </Link>;
       })}
-      <Link to="/tools/directory" className="vvd-directory-feature col-span-2 p-5 transition-transform">
+      <Link to="/tools/directory" onClick={openDirectory} onPointerEnter={()=>{void directoryApi.published().catch(()=>{});}} className="vvd-directory-feature col-span-2 p-5 transition-transform">
         <div className="relative z-10 flex min-h-[110px] items-center gap-4">
           <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-card border border-accentGold/45 bg-accentGold/15 text-accentBrightGold shadow-[0_0_14px_rgba(246,196,83,.12)]"><Layers size={28} strokeWidth={1.8}/></div>
           <div className="min-w-0 flex-1">
             <h3 className="text-lg font-bold text-white">Каталог сервисов</h3>
             <p className="mt-1 text-xs leading-5 text-textSecondary">Спай-сервисы, рекламные сети, AI и другие инструменты</p>
-            <p className="mt-2 text-xs font-bold text-accentBrightGold">Смотреть категории</p>
+            <p className="mt-2 text-xs font-bold text-accentBrightGold">{openingDirectory?'Подготавливаем каталог…':'Смотреть категории'}</p>
           </div>
           <ChevronRight size={21} className="shrink-0 text-accentBrightGold"/>
         </div>
