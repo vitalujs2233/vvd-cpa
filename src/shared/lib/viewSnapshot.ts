@@ -1,8 +1,9 @@
+import {currentSignedSession} from './browserSession';
 // Display only; always refresh on mount. Never used to authorize financial operations.
 let session = '';
 const snapshots = new Map<string, unknown>();
 function scope() {
-  const current = window.Telegram?.WebApp?.initData || '';
+  const current = currentSignedSession();
   if (current !== session) { snapshots.clear(); session = current; }
 }
 export function readSnapshot<T>(key: string): T | undefined {
