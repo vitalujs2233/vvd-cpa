@@ -277,3 +277,53 @@
   .vvd-web-category-card h3{font-size:13px}
   .vvd-web-category-card p{font-size:10px}
 }
+
+
+/* Public home: reuse the Mini App's admin-managed banners and information cards.
+   Scoped to the landing page only; no changes to the authenticated app. */
+.vvd-web-public-banners{margin:5px auto 24px;max-width:1060px;min-width:0}
+.vvd-web-banner-rail{
+  display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;
+  overscroll-behavior-x:contain;scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;scroll-behavior:smooth;
+}
+.vvd-web-banner-rail::-webkit-scrollbar{display:none}
+.vvd-web-banner-slide{
+  position:relative;flex:0 0 100%;min-width:0;aspect-ratio:3/1;
+  background:#0e0c0a;border:1px solid rgba(234,185,89,.28);
+  border-radius:18px;overflow:hidden;scroll-snap-align:start;
+  box-shadow:0 12px 32px rgba(0,0,0,.23),inset 0 1px 0 rgba(251,214,143,.08);
+}
+.vvd-web-banner-slide img{width:100%;height:100%;display:block;object-fit:contain}
+.vvd-web-banner-link{position:absolute;inset:0;display:block}
+.vvd-web-banner-dots{display:flex;align-items:center;justify-content:center;gap:9px;padding:12px 0 0}
+.vvd-web-banner-dots button{
+  display:block;width:9px;height:9px;border-radius:99px;border:0;
+  padding:0;background:rgba(255,255,255,.27);transition:width .2s ease,background-color .2s ease;
+}
+.vvd-web-banner-dots button.is-active{width:20px;background:#f1c66f}
+.vvd-web-public-info{display:flex;flex-direction:column;gap:17px;max-width:930px;margin:30px auto 8px;min-width:0}
+.vvd-web-public-info-card{
+  overflow:hidden;border:1px solid rgba(224,174,80,.34);border-radius:22px;
+  background:linear-gradient(130deg,rgba(28,23,16,.94),rgba(10,10,10,.95));
+  box-shadow:0 15px 35px rgba(0,0,0,.27);
+  padding:20px;text-align:center;
+}
+.vvd-web-public-info-card.is-image-only{padding:0}
+.vvd-web-public-info-card h2{font-size:clamp(17px,2.2vw,25px);color:#f5d48b;font-weight:800;line-height:1.3;margin:8px 0 12px}
+.vvd-web-public-info-subtitle{color:#e8c274;letter-spacing:.15em;font-weight:750;font-size:11px;margin:0}
+.vvd-web-public-info-card img{display:block;width:100%;max-height:570px;object-fit:contain;margin:0 auto}
+.vvd-web-public-info-description{color:#d5c6a9;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7;font-size:13px;margin:15px 0 0}
+.vvd-web-public-info-link{display:inline-flex;align-items:center;gap:7px;justify-content:center;color:#f1ca7e!important;font-weight:700;font-size:12px;border:1px solid rgba(232,181,77,.38);border-radius:10px;margin-top:15px;padding:10px 15px}
+@media(max-width:730px){
+  .vvd-web-public-banners{margin:0 auto 19px}
+  .vvd-web-banner-rail{gap:10px}
+  .vvd-web-banner-slide{border-radius:14px}
+  .vvd-web-public-info{margin:24px auto 6px;gap:14px}
+  .vvd-web-public-info-card{padding:14px;border-radius:17px}
+  .vvd-web-public-info-description{font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){
+  .vvd-web-banner-rail{scroll-behavior:auto}
+  .vvd-web-banner-dots button{transition:none}
+}
