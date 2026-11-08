@@ -3,6 +3,7 @@ import {warmHomeContent} from './homeWarmup';
 import {API_BASE_URL, authorizedFetch} from './api';
 import {CHAT_SNAPSHOT_KEY,normalizeChatMessages} from './chatSnapshot';
 import {saveSnapshot} from './viewSnapshot';
+import {currentSignedSession} from './browserSession';
 
 export const statisticsTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 export function statisticsSources(id:number, params:URLSearchParams) {
@@ -21,7 +22,7 @@ export const statisticsSnapshotKey=(url:string)=>
 export class StartupDataError extends Error {}
 let pending:{session:string;id:number;promise:Promise<void>}|undefined;
 export function preloadStartupData(id:number,partnerCode='',role='user'):Promise<void> {
-  const session=window.Telegram?.WebApp?.initData||'';
+  const session=currentSignedSession();
   if(pending?.session===session&&pending.id===id)return pending.promise;
   const stats=statisticsSources(id,new URLSearchParams({period:'today',tz:statisticsTimezone}));
   const requests=[
