@@ -1,10 +1,11 @@
 import {saveSnapshot} from './viewSnapshot';
+import {currentSignedSession} from './browserSession';
 /** VVD CPA primary backend_v2 API. No synthetic bearer token or client-side identity. */
 export const API_BASE_URL = 'https://vvd-cpa-v2.onrender.com';
 
 export const signedHeaders = (): Record<string,string> => {
-  const data = window.Telegram?.WebApp?.initData;
-  if (!data) throw new Error('Откройте VVD CPA через Telegram Mini App для авторизации.');
+  const data = currentSignedSession();
+  if (!data) throw new Error('Для доступа к личным данным войдите через Telegram.');
   return {'X-Telegram-Init-Data': data};
 };
 
@@ -40,7 +41,7 @@ export const apiRequest = <T>(endpoint: string, options: RequestInit = {}): Prom
   const read=(options.method||'GET').toUpperCase()==='GET';
   // Only share ordinary GETs; custom headers, signals and writes keep independent semantics.
   const share=read&&!options.signal&&!options.body&&!options.headers&&endpoint!=='/auth';
-  const key=share?JSON.stringify([window.Telegram?.WebApp?.initData||'',endpoint]):'';
+  const key=share?JSON.stringify([currentSignedSession(),endpoint]):'';
   if(share&&pendingReads.has(key))return pendingReads.get(key)! as Promise<T>;
   const task=performApiRequest<T>(endpoint,options);
   if(share){
@@ -56,10 +57,11 @@ const performApiRequest = async <T>(endpoint: string, options: RequestInit = {})
     headers.set('Content-Type','application/json');
   }
   // Auth request carries initData in its body. Other owner endpoints get the signed header.
-  if (endpoint !== '/auth' && window.Telegram?.WebApp?.initData && !headers.has('X-Telegram-Init-Data')) {
-    headers.set('X-Telegram-Init-Data',window.Telegram.WebApp.initData);
+  const currentSession=currentSignedSession();
+  if (endpoint !== '/auth' && currentSession && !headers.has('X-Telegram-Init-Data')) {
+    headers.set('X-Telegram-Init-Data',currentSession);
   }
-  const requestSession=window.Telegram?.WebApp?.initData;
+  const requestSession=currentSession;
   let response: Response;
   try {
     response = await fetchRead(API_BASE_URL + endpoint,{...options,headers});
@@ -75,7 +77,7 @@ const performApiRequest = async <T>(endpoint: string, options: RequestInit = {})
     throw new ApiError(response.status, code);
   }
   const result=await response.json() as T;
-  if((options.method||'GET').toUpperCase()==='GET'&&requestSession===window.Telegram?.WebApp?.initData)saveSnapshot('api:'+endpoint,result);
+  if((options.method||'GET').toUpperCase()==='GET'&&requestSession===currentSignedSession())saveSnapshot('api:'+endpoint,result);
   return result;
 };
 
