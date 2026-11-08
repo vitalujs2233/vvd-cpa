@@ -1,5 +1,6 @@
 import { ProxyOrders } from './ProxyOrders';
 import { directoryApi } from './serviceDirectoryApi';
+import { ServiceNavigationCard } from './ServiceNavigationCard';
 import './ServiceDirectory.css';
 import { ApiError } from '@/shared/lib/api';
 import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
@@ -34,9 +35,9 @@ const useRemote = <T,>(load:()=>Promise<T>, fallback:T) => {
 };
 const readWallet=()=>marketApi.wallet(),readCatalog=()=>marketApi.catalog(),readTransactions=()=>marketApi.transactions(),readOrders=()=>marketApi.orders(),readModels=()=>marketApi.models();
 const iconById={ai:Bot,numbers:Phone,proxy:Globe2};
-const cards=[{id:'ai',to:'/tools/ai',title:'AI-модели',description:'Создавайте собственных AI-персонажей',icon:Bot},
-  {id:'numbers',to:'/tools/numbers',title:'Виртуальные номера',description:'Подключение поставщиков номеров',icon:Phone},
-  {id:'proxy',to:'/tools/proxy',title:'Прокси',description:'Поставщики и тарифы прокси',icon:Server}];
+const cards=[{id:'ai',to:'/tools/ai',title:'AI-модели',description:'Персонажи и AI-чаты',icon:Bot},
+  {id:'numbers',to:'/tools/numbers',title:'Виртуальные номера',description:'Номера для приёма SMS',icon:Phone},
+  {id:'proxy',to:'/tools/proxy',title:'Прокси',description:'IPv4, IPv6, ISP и Mobile',icon:Server}];
 
 export const Tools:React.FC=()=>{
   const w=useRemote(readWallet,emptyWallet);
@@ -68,29 +69,17 @@ export const Tools:React.FC=()=>{
       {w.error&&<Status>{w.error}</Status>}
     </Card>
     <div className="flex items-center justify-between"><h2 className="text-base font-bold">Каталог сервисов</h2><Link to="/tools/purchases" className="text-xs font-semibold text-accentBrightGold">Мои покупки →</Link></div>
-    <div className="grid grid-cols-2 gap-3">
-      {cards.map((item,i)=>{
-        const Icon=item.icon;
+    <div className="flex flex-col gap-2">
+      {cards.map(item=>{
         const current=c.value.services.find(s=>s.id===item.id);
-        return <Link key={item.id} to={item.to} className={i===0?'col-span-2':''}>
-          <Card className="flex h-full min-h-[152px] flex-col justify-between gap-4">
-            <div className="flex items-center justify-between"><div className="rounded-app-xs border border-accentGold/25 bg-accentGold/10 p-3 text-accentBrightGold"><Icon size={20}/></div><ChevronRight size={18} className="text-textSecondary"/></div>
-            <div><h3 className="text-sm font-bold">{item.title}</h3><p className="mt-1 text-[11px] leading-4 text-textSecondary">{item.description}</p>
-            {current?.status!=='available'&&<p className="mt-2 text-[11px] text-accentBrightGold">Подключение сервиса</p>}</div>
-          </Card>
-        </Link>;
+        return <ServiceNavigationCard key={item.id} to={item.to} icon={item.icon}
+          title={item.title} description={item.description}
+          status={current&&current.status!=='available'?'Подключается':undefined}/>;
       })}
-      <Link to="/tools/directory" onClick={openDirectory} onPointerEnter={()=>{void directoryApi.published().catch(()=>{});}} className="vvd-directory-feature col-span-2 p-5 transition-transform">
-        <div className="relative z-10 flex min-h-[110px] items-center gap-4">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-card border border-accentGold/45 bg-accentGold/15 text-accentBrightGold shadow-[0_0_14px_rgba(246,196,83,.12)]"><Layers size={28} strokeWidth={1.8}/></div>
-          <div className="min-w-0 flex-1">
-            <h3 className="text-lg font-bold text-white">Каталог сервисов</h3>
-            <p className="mt-1 text-xs leading-5 text-textSecondary">Спай-сервисы, рекламные сети, AI и другие инструменты</p>
-            <p className="mt-2 text-xs font-bold text-accentBrightGold">{openingDirectory?'Подготавливаем каталог…':'Смотреть категории'}</p>
-          </div>
-          <ChevronRight size={21} className="shrink-0 text-accentBrightGold"/>
-        </div>
-      </Link>
+      <ServiceNavigationCard to="/tools/directory" icon={Layers} title="Каталог сервисов"
+        description="Реклама, аналитика и другие сервисы"
+        status={openingDirectory?'Загрузка…':undefined} aria-busy={openingDirectory}
+        onClick={openDirectory} onPointerEnter={()=>{void directoryApi.published().catch(()=>{});}}/>
     </div>
   </Shell>;
 };
