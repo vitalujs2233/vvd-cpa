@@ -73,6 +73,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
   const [data,setData]=useState<DirectoryData>(()=>readPublicDirectoryCache()||INITIAL);
   const [loading,setLoading]=useState(()=>!readPublicDirectoryCache());
   const [error,setError]=useState(false);
+  const [catalogAttempt,setCatalogAttempt]=useState(0);
   const [categoryId,setCategoryId]=useState(readCategory);
   const [query,setQuery]=useState('');
   const [mobileMenu,setMobileMenu]=useState(false);
@@ -82,13 +83,18 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
   useEffect(()=>{
     let mounted=true;
     const controller=new AbortController();
+    // A sleeping backend or interrupted mobile request must not leave skeletons forever.
+    const timeout=setTimeout(()=>controller.abort(),18000);
     fetch(API_BASE_URL+'/service-directory',{signal:controller.signal})
       .then(res=>{if(!res.ok)throw new Error('catalog_error');return res.json();})
-      .then((res:DirectoryData)=>{if(mounted&&validDirectory(res)){savePublicDirectoryCache(res);setData(res);setError(false);}})
-      .catch(()=>{if(mounted&&!controller.signal.aborted)setError(true);})
-      .finally(()=>{if(mounted)setLoading(false);});
-    return()=>{mounted=false;controller.abort();};
-  },[]);
+      .then((res:DirectoryData)=>{
+        if(!validDirectory(res))throw new Error('invalid_catalog');
+        if(mounted){savePublicDirectoryCache(res);setData(res);setError(false);}
+      })
+      .catch(()=>{if(mounted)setError(true);})
+      .finally(()=>{clearTimeout(timeout);if(mounted)setLoading(false);});
+    return()=>{mounted=false;clearTimeout(timeout);controller.abort();};
+  },[catalogAttempt]);
 
   useEffect(()=>{
     const onHistory=()=>{setCategoryId(readCategory());setAccountView(new URLSearchParams(window.location.search).has('account'));setQuery('');viewport.current?.scrollTo({top:0,behavior:'auto'});};
@@ -204,7 +210,14 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
             <div className="vvd-web-catalog-count">{loading?'Загрузка каталога':data.categories.length+' категорий'}</div>
           </div>
           <label className="vvd-web-search"><Search size={21}/><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Найти категорию или сервис..." aria-label="Поиск по каталогу"/></label>
-          {error&&<div className="vvd-web-notice" role="alert">Каталог временно недоступен. Остальные разделы сайта продолжают работать.</div>}
+          {error&&<div className="vvd-web-notice" role="alert">
+            Не удалось обновить каталог. {data.categories.length?'Показаны последние загруженные категории.':'Сервер временно не отвечает.'}
+            <button type="button" className="vvd-web-outline-button" style={{marginTop:12}} onClick={()=>{
+              setError(false);
+              setLoading(!data.categories.length);
+              setCatalogAttempt(n=>n+1);
+            }}>Повторить загрузку каталога</button>
+          </div>}
           {loading?<div className="vvd-web-categories-grid" aria-busy="true">{[0,1,2,3,4,5].map(n=><div key={n} className="vvd-web-placeholder"/>)}</div>:
             filtered.length>0?<div className="vvd-web-categories-grid">
               {filtered.map(c=>{
