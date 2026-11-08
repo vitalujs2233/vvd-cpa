@@ -66,7 +66,7 @@ export const ServiceDirectoryPage:React.FC=()=>{
     const term=query.trim().toLowerCase();
     if(!term)return data.categories;
     return data.categories.filter(c=>
-      (c.name+' '+c.description).toLowerCase().includes(term) ||
+      (c.name+' '+c.description+' '+conciseDescription(c.description)).toLowerCase().includes(term) ||
       data.services.some(s=>s.category_id===c.id&&(s.name+' '+s.description).toLowerCase().includes(term))
     );
   },[data,query]);
