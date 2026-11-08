@@ -1,4 +1,5 @@
-import { apiRequest } from '@/shared/lib/api';
+import { apiRequest, signedHeaders } from '@/shared/lib/api';
+import {currentSignedSession} from '@/shared/lib/browserSession';
 
 export type ProxyIpv4Catalog = {type:string;data:{days:number[];countries:{code:string;name:string}[];tariffs?:{country:string;mobileOperator:{name:string;rotationTime:number[]}[]}[];mobile_tariff_error?:string};minimum_count:number;purchases_enabled:boolean};
 export type DeliveredProxy = {id:string;host:string;endpoints:{protocol:string;port:string}[];login?:string;password?:string;expires_at?:string;mobile_operator?:string;rotation_minutes?:number};
@@ -20,11 +21,7 @@ export type Character = {
 };
 export type PublicCharacter = Pick<Character,'name'|'description'|'photo_url'|'greeting'|'affiliate_url'|'button_label'|'language'> & { ai_online: boolean; disclosure: string };
 
-const authHeaders = () => {
-  const initData = window.Telegram?.WebApp?.initData;
-  if (!initData) throw new Error('Откройте VVD CPA внутри Telegram для доступа к своим данным.');
-  return { 'X-Telegram-Init-Data': initData };
-};
+const authHeaders = signedHeaders;
 const get = <T>(path:string) => apiRequest<T>('/tools-market'+path, { headers: authHeaders(), cache:'no-store' });
 const write = <T>(path:string, method:'POST'|'PUT', body:object) => apiRequest<T>('/tools-market'+path,{
   method, headers:authHeaders(), body:JSON.stringify(body)
@@ -35,10 +32,10 @@ export type NoirOrder = {id:string;request_id:string;country:string;service:stri
 let noirSession = '';
 const noirPending = new Map<string,Promise<unknown>>();
 function noirGet<T>(path:string):Promise<T> {
-  const session=window.Telegram?.WebApp?.initData||'';
+  const session=currentSignedSession();
   if(session!==noirSession){noirPending.clear();noirSession=session;}
   const existing=noirPending.get(path); if(existing)return existing as Promise<T>;
-  const request=get<T>('/numbers'+path).then(data=>{if(session!==(window.Telegram?.WebApp?.initData||''))throw new Error('Сессия изменилась. Откройте раздел заново.');return data;}).catch((e:unknown)=>{
+  const request=get<T>('/numbers'+path).then(data=>{if(session!==(currentSignedSession()))throw new Error('Сессия изменилась. Откройте раздел заново.');return data;}).catch((e:unknown)=>{
     if(e instanceof Error && e.message==='network_error')throw new Error('Нет соединения с каталогом. Повторите загрузку.');
     throw e;
   }).finally(()=>{if(noirPending.get(path)===request)noirPending.delete(path);});
@@ -53,11 +50,11 @@ const noirPurchaseRequest=async(body:{request_id:string;country:string;service:s
 const proxyReads = new Map<string, Promise<unknown>>();
 let proxyReadSession = '';
 function proxyRead<T>(path:string):Promise<T> {
-  const session=window.Telegram?.WebApp?.initData||'';
+  const session=currentSignedSession();
   if(session!==proxyReadSession){proxyReads.clear();proxyReadSession=session;}
   const existing=proxyReads.get(path);if(existing)return existing as Promise<T>;
   const request=get<T>(path).then(value=>{
-    if(session!==(window.Telegram?.WebApp?.initData||''))throw new Error('Сессия изменилась. Откройте раздел заново.');
+    if(session!==(currentSignedSession()))throw new Error('Сессия изменилась. Откройте раздел заново.');
     return value;
   }).finally(()=>{if(proxyReads.get(path)===request)proxyReads.delete(path);});
   proxyReads.set(path,request);return request;
