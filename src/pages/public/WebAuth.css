@@ -1,0 +1,40 @@
+/* Browser auth and workspace — inherits VVD CPA black and gold palette. */
+.vvd-web-login-overlay{position:fixed;inset:0;z-index:20000;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.80);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.vvd-web-login-card{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;width:min(100%,445px);max-height:min(95vh,760px);overflow-y:auto;padding:36px 30px 28px;border-radius:24px;border:1px solid rgba(248,199,102,.48);background:radial-gradient(ellipse at 88% 0,rgba(138,102,38,.16),transparent 60%),linear-gradient(140deg,#1c1914,#0c0c0d);box-shadow:0 28px 100px #000b,0 0 45px rgba(213,155,56,.09)}
+.vvd-web-login-close{position:absolute;top:15px;right:15px;width:36px;height:36px;display:grid;place-items:center;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:#171512;color:#bcb4a8}
+.vvd-web-login-icon{display:grid;place-items:center;width:70px;height:70px;margin:8px 0 23px;border:1px solid rgba(240,190,84,.46);border-radius:19px;background:rgba(239,179,62,.1);color:#efbe60;box-shadow:0 0 24px rgba(228,166,54,.09)}
+.vvd-web-login-card .vvd-web-eyebrow{font-size:10px;letter-spacing:1.9px}
+.vvd-web-login-card h2{margin:13px 0 13px;font-size:25px;letter-spacing:-.6px;color:#fff;font-weight:780;line-height:1.25}
+.vvd-web-login-card>p{font-size:13px;line-height:1.8;color:#b3afa8;margin:0 0 26px}
+.vvd-web-login-card .vvd-web-login-action{width:100%;min-height:53px;border:0}
+.vvd-web-login-card .vvd-web-login-action:disabled{opacity:.65;cursor:progress}
+.vvd-web-login-card>small{font-size:11px;line-height:1.6;color:#888179;display:block;margin:15px 0 0}
+.vvd-web-login-divider{width:100%;height:1px;background:rgba(240,188,83,.16);margin:20px 0}
+.vvd-web-login-card>a{display:inline-flex;gap:6px;align-items:center;font-size:12px;color:#f1c56e}
+.vvd-web-login-retry{margin-top:12px;background:none;border:0;color:#e4c177;text-decoration:underline;font-size:12px}
+.vvd-web-login-error{padding:12px;margin:0 0 14px;font-size:12px;line-height:1.6;border-radius:10px;background:rgba(150,40,40,.13);border:1px solid rgba(224,90,90,.3);color:#f0abab}
+.vvd-web-spin{animation:vvd-web-spin 1s linear infinite}
+@keyframes vvd-web-spin{to{transform:rotate(360deg)}}
+.vvd-web-account{min-height:600px;padding:55px 0 90px}
+.vvd-web-account-heading{margin-bottom:30px}
+.vvd-web-account-heading h1{color:#fff;font-size:clamp(30px,4vw,46px);letter-spacing:-1px;font-weight:800;margin:11px 0 9px}
+.vvd-web-account-heading p{color:#aaa4a0;font-size:13px;line-height:1.7;margin:0}
+.vvd-web-account-profile{display:flex;align-items:center;gap:18px;border:1px solid rgba(224,173,81,.35);background:linear-gradient(135deg,#1f1b14,#11100e);padding:23px;border-radius:22px;max-width:100%}
+.vvd-web-account-avatar{width:64px;height:64px;flex-shrink:0;display:grid;place-items:center;overflow:hidden;border-radius:50%;color:#f4c973;background:#252015;border:1px solid rgba(233,185,83,.40)}
+.vvd-web-account-avatar img{width:100%;height:100%;object-fit:cover}
+.vvd-web-account-profile>div:nth-child(2){min-width:0;flex:1}
+.vvd-web-account-profile h2{color:#fff;font-size:20px;margin:0 0 5px}
+.vvd-web-account-profile p{font-size:12px;color:#aaa5a4;margin:0 0 7px;word-break:break-word}
+.vvd-web-account-profile span{font-size:11px;color:#cfa856}
+.vvd-web-account-shield{color:#e8bc63;flex-shrink:0}
+.vvd-web-account-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:18px 0 23px}
+.vvd-web-account-stat{padding:25px;border:1px solid rgba(215,174,81,.26);border-radius:18px;background:linear-gradient(135deg,#191713,#0f0e0f)}
+.vvd-web-account-stat span{display:flex;align-items:center;gap:9px;color:#aaa4a3;font-size:12px}
+.vvd-web-account-stat span svg{color:#ebc16c}
+.vvd-web-account-stat strong{display:block;margin-top:14px;color:#fff;font-size:27px;font-weight:800}
+.vvd-web-account-choices{display:flex;flex-wrap:wrap;gap:12px}
+.vvd-web-account-choices button,.vvd-web-account-choices a{display:inline-flex;align-items:center;gap:8px;padding:13px 20px;min-height:45px;border:1px solid rgba(237,189,90,.32);border-radius:11px;background:rgba(224,174,67,.09);color:#f0c66f;font-size:13px;font-weight:650}
+.vvd-web-account-note{font-size:12px;color:#98918a;line-height:1.7;margin:19px 0}
+.vvd-web-account-logout{display:inline-flex;align-items:center;gap:8px;padding:10px 0;border:0;background:none;font-size:12px;color:#bcb3a6}
+@media(max-width:650px){.vvd-web-login-card{padding:32px 20px 25px}.vvd-web-account{padding:35px 0 65px;min-height:450px}.vvd-web-account-cards{grid-template-columns:1fr;gap:10px}.vvd-web-account-stat{padding:17px 20px}.vvd-web-account-stat strong{font-size:23px;margin-top:7px}.vvd-web-account-profile{padding:17px;gap:13px}.vvd-web-account-profile h2{font-size:16px}.vvd-web-account-avatar{height:50px;width:50px}.vvd-web-account-choices{flex-direction:column}.vvd-web-account-choices>*{width:100%;justify-content:center}}
+@media(prefers-reduced-motion:reduce){.vvd-web-spin{animation:none}}
