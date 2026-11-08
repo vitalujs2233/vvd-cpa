@@ -2004,6 +2004,9 @@ app.include_router(info_content_router)
 from service_directory import router as service_directory_router
 app.include_router(service_directory_router)
 
+from web_auth import router as web_auth_router
+app.include_router(web_auth_router)
+
 from home_ads import router as home_ads_router
 app.include_router(home_ads_router)
 
