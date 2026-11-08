@@ -16,7 +16,7 @@ import {
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { Input } from '@/shared/ui/Input';
-import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
+import { triggerHaptic } from '@/shared/lib/telegram';
 
 const API_URL = 'https://vvd-cpa-v2.onrender.com';
 const MIN_WITHDRAWAL = 50;
@@ -34,7 +34,7 @@ interface WithdrawalItem {
 
 export const Withdrawal: React.FC = () => {
   const navigate = useNavigate();
-  const telegramId=getTelegramUser().id;
+  const telegramId=window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
   const account=readSnapshot<any>(`account:${telegramId}`);
   const cachedBalance=readSnapshot<any>(`balance:${telegramId}`);
   const cachedCode=account?.partner_code||'';
