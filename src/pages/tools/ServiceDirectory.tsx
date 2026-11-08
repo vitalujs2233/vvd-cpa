@@ -101,11 +101,12 @@ export const ServiceDirectoryPage:React.FC=()=>{
 const ServiceCard:React.FC<{service:DirectoryService}>=({service})=>{
   const [copied,setCopied]=useState(false);
   const benefits=service.benefits.split(/\n+/).map(v=>v.trim()).filter(Boolean);
+  const ServiceIcon=directoryIcons[service.icon]||Layers;
   return <article className="vvd-directory-service flex flex-col gap-4 p-4">
     <div className="flex items-start gap-3">
       <div className="flex h-[76px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-card border border-accentGold/25 bg-accentGold/10">
         {service.image_url ? <img src={service.image_url} loading="lazy" alt={service.name} className="h-full w-full object-contain p-1"/> :
-          <Layers size={30} className="text-accentBrightGold"/>}
+          <ServiceIcon size={30} strokeWidth={1.8} className="text-accentBrightGold"/>}
       </div>
       <div className="min-w-0 flex-1">
         <h2 className="text-base font-bold text-white">{service.name}</h2>
