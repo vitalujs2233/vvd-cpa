@@ -135,7 +135,8 @@ def login(payload: TelegramWebsiteLogin):
         key = _jwks.get_signing_key_from_jwt(payload.id_token).key
         claims = jwt.decode(
             payload.id_token, key,
-            algorithms=["RS256"],
+            # Telegram supports RS256 by default and optional ES256 in BotFather.
+            algorithms=["RS256", "ES256"],
             audience=client_id(), issuer=TELEGRAM_ISSUER,
             options={"require": ["iss", "aud", "sub", "iat", "exp", "nonce"]},
             leeway=15,
