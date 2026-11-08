@@ -1,5 +1,6 @@
 import {apiRequest} from './api';
 import {readSnapshot,saveSnapshot} from './viewSnapshot';
+import {currentSignedSession} from './browserSession';
 
 // Limit parallel reads: warming pages must not flood the database connection pool.
 async function parallel<T>(items:T[],fn:(item:T)=>Promise<void>) {
@@ -9,10 +10,10 @@ async function parallel<T>(items:T[],fn:(item:T)=>Promise<void>) {
   }));
 }
 export async function preloadPages(id:number,partnerCode:string,role:string) {
-  const session=window.Telegram?.WebApp?.initData;
+  const session=currentSignedSession();
   const failures:string[]=[];
   const read=async(path:string,required=false)=>{
-    try{const data=await apiRequest<any>(path);if(session!==window.Telegram?.WebApp?.initData)throw new Error('Session changed');return data;}
+    try{const data=await apiRequest<any>(path);if(session!==currentSignedSession())throw new Error('Session changed');return data;}
     catch {if(required)failures.push(path);return undefined;}
   };
   const paths=[`/referral/${id}`,'/tools-market/wallet','/tools-market/catalog',
