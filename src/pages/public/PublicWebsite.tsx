@@ -2,7 +2,7 @@ import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {ArrowRight,ArrowUpRight,BarChart3,Check,ChevronLeft,ChevronRight,Globe2,Layers,Menu,Search,ShieldCheck,Sparkles,Users,Wrench,X} from 'lucide-react';
 import {API_BASE_URL} from '@/shared/lib/api';
 import {directoryIcons,type DirectoryData,type DirectoryService} from '@/pages/tools/serviceDirectoryApi';
-import {BrowserAccount, TelegramBrowserLogin, useBrowserSession} from './WebAuth';
+import {BrowserAccount, TelegramBrowserLogin, type useBrowserSession} from './WebAuth';
 import './PublicWebsite.css';
 
 const BOT_URL='https://t.me/vvd_cpa_bot';
@@ -47,7 +47,7 @@ const ServiceTile:React.FC<{service:DirectoryService}>=({service})=>{
   </article>;
 };
 
-export const PublicWebsite:React.FC=()=>{
+export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;onOpenApp:()=>void}>=({auth,onOpenApp})=>{
   const [data,setData]=useState<DirectoryData>(INITIAL);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState(false);
@@ -55,7 +55,6 @@ export const PublicWebsite:React.FC=()=>{
   const [query,setQuery]=useState('');
   const [mobileMenu,setMobileMenu]=useState(false);
   const [accountView,setAccountView]=useState(()=>new URLSearchParams(window.location.search).has('account'));
-  const auth=useBrowserSession();
   const viewport=useRef<HTMLDivElement>(null);
 
   useEffect(()=>{
@@ -86,6 +85,7 @@ export const PublicWebsite:React.FC=()=>{
     viewport.current?.scrollTo({top:0,behavior:'smooth'});
   },[categoryId,accountView]);
   const openAccount=()=>{
+    if(auth.isLoggedIn){onOpenApp();return;}
     window.history.pushState(null,'',BASE_URL+'?account=1');
     setCategoryId('');setAccountView(true);setMobileMenu(false);
     viewport.current?.scrollTo({top:0,behavior:'auto'});
@@ -220,7 +220,7 @@ export const PublicWebsite:React.FC=()=>{
     </div>
     {auth.loginOpen&&<TelegramBrowserLogin
       onClose={()=>auth.setLoginOpen(false)}
-      onLogin={session=>{auth.login(session);openAccount();}}
+      onLogin={session=>{auth.login(session);onOpenApp();}}
     />}
   </div>;
 };
