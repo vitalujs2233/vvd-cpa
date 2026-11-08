@@ -351,6 +351,8 @@ useLayoutEffect(() => {
       offEvent?: (event:string,callback:()=>void)=>void;
     }) | undefined;
     if(tg?.isExpanded===false) tg.expand();
+    const browserMode=!Boolean(tg?.initData);
+    if(browserMode) document.body.classList.add('dvizh-browser-mode');
     let fullHeight=Math.max(window.innerHeight,window.visualViewport?.height||0,tg?.viewportStableHeight||0);
     let liveHeight=window.visualViewport?.height || tg?.viewportHeight || window.innerHeight;
     document.body.classList.add('dvizh-active');
@@ -365,7 +367,11 @@ useLayoutEffect(() => {
       // WebView's Telegram height can lag behind iOS keyboard dismissal.
       // Use one live viewport source instead of taking the smallest cached value.
       const vv=window.visualViewport;
-      const height=editing ? liveHeight : fullHeight;
+      // Outside Telegram, iOS Safari uses the visual viewport for keyboard height.
+      // Re-read it on every resize/scroll: the initial height can be stale.
+      const height=browserMode && editing
+        ? (vv?.height || window.innerHeight)
+        : editing ? liveHeight : fullHeight;
       fullHeight=Math.max(fullHeight,height);
       const reduced=editing && fullHeight-height>100;
       if(reduced) keyboardOpen=true;
@@ -374,7 +380,7 @@ useLayoutEffect(() => {
       document.body.style.setProperty('--dvizh-full-height',`${fullHeight}px`);
       const box=chatContainerRef.current;
       const nearBottom=box ? box.scrollHeight-box.scrollTop-box.clientHeight<100 : false;
-      setViewport({height,fullHeight,top:editing && keyboardOpen ? vv?.offsetTop||0 : 0,keyboard:keyboardOpen});
+      setViewport({height,fullHeight,top:editing && (browserMode || keyboardOpen) ? vv?.offsetTop||0 : 0,keyboard:keyboardOpen});
       if(nearBottom || document.activeElement?.tagName==='INPUT') {
         requestAnimationFrame(()=>{if(!disposed && box) box.scrollTop=box.scrollHeight;});
       }
@@ -397,11 +403,13 @@ useLayoutEffect(() => {
     const focusIn=(event:FocusEvent)=>{
       if(!(event.target instanceof HTMLInputElement) || !event.target.closest('.dvizh-chat')) return;
       editing=true;
+      if(browserMode) document.body.classList.add('dvizh-browser-typing');
       updateViewport();
     };
     const focusOut=()=>{
       editing=false;
       keyboardOpen=false;
+      if(browserMode) document.body.classList.remove('dvizh-browser-typing');
       // The composer returns to the menu immediately. No stale viewport or timer
       // is allowed to keep the unfocused chat at the keyboard height.
       applyViewport();
@@ -428,7 +436,7 @@ useLayoutEffect(() => {
       document.removeEventListener('pointerdown',dismissOnOutside,true);
       cancelAnimationFrame(frame);
       window.clearTimeout(settleTimer);
-      document.body.classList.remove('dvizh-active');
+      document.body.classList.remove('dvizh-active','dvizh-browser-mode','dvizh-browser-typing');
       document.body.style.removeProperty('--dvizh-full-height');
       window.removeEventListener('resize',visualResize);
       window.visualViewport?.removeEventListener('resize',visualResize);
@@ -714,7 +722,9 @@ if (!response.ok || !data.success) {
     <div
   className={`dvizh-chat flex flex-col bg-bgMain fixed left-0 right-0 select-none overflow-hidden ${viewport.keyboard ? "dvizh-chat-typing" : ""}`}
   style={{
-    height: `${Math.max(0,Math.min(viewport.height,viewport.fullHeight - 80))}px`,
+    // Web Safari: while typing, fit the visible viewport instead of reserving
+    // space for the bottom navigation (which is hidden until blur).
+    height: `${Math.max(0,Math.min(viewport.height,viewport.fullHeight - (!window.Telegram?.WebApp?.initData && document.body.classList.contains('dvizh-browser-typing') ? 0 : 80)))}px`,
     top: viewport.top,
   }}
 >
