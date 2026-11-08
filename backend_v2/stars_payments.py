@@ -107,11 +107,23 @@ def verified_telegram_id(init_data: str, now: int | None = None) -> int:
         raise TelegramAuthError("init_data_invalid") from exc
 
 
+def authenticated_user_id(raw: str | None) -> int:
+    """Accept either independently validated Telegram Mini App data or a revocable
+    website token. Never interpret unsigned Telegram user IDs as credentials.
+    """
+    value = raw or ""
+    if value.startswith("vvdweb1."):
+        from web_auth import verify_web_session
+        return verify_web_session(value)
+    return verified_telegram_id(value)
+
+
 def require_telegram_id(raw: str | None) -> int:
     try:
-        return verified_telegram_id(raw or "")
-    except ValueError as exc:
-        raise HTTPException(status_code=401, detail=str(exc)) from exc
+        return authenticated_user_id(raw)
+    except TelegramAuthError as exc:
+        status = 503 if exc.code == "auth_config_error" else 401
+        raise HTTPException(status_code=status, detail=exc.code) from exc
 
 
 class InvoiceRequest(BaseModel):
