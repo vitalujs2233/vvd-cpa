@@ -2,6 +2,7 @@ import React,{useEffect,useState} from 'react';
 import {API_BASE_URL,authorizedFetch} from '@/shared/lib/api';
 import {getTelegramUser} from '@/shared/lib/telegram';
 import {readSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
+import {currentSignedSession} from '@/shared/lib/browserSession';
 import {Card} from '@/shared/ui/Card';
 import {trafficFields} from '../offers/trafficTags';
 
@@ -30,7 +31,7 @@ export const TrafficSubs:React.FC<{params:URLSearchParams;refreshKey:number}>=({
   useEffect(()=>{const t=setTimeout(()=>setDebounced(search.trim()),300);return()=>clearTimeout(t);},[search]);
   useEffect(()=>{
     const controller=new AbortController();let active=true;
-    const session=window.Telegram?.WebApp?.initData;
+    const session=currentSignedSession();
     setLoading(true);setError('');
     (async()=>{
       try{
@@ -38,7 +39,7 @@ export const TrafficSubs:React.FC<{params:URLSearchParams;refreshKey:number}>=({
         if(!response.ok)throw new Error();
         const report:Report=await response.json();
         if(!report.success||!Array.isArray(report.rows))throw new Error();
-        if(!active||session!==window.Telegram?.WebApp?.initData)return;
+        if(!active||session!==currentSignedSession())return;
         saveSnapshot(key,report);setResult({key,data:report});
       }catch{if(active)setError('Не удалось обновить метки.');}
       finally{if(active)setLoading(false);}
