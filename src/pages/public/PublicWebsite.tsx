@@ -84,7 +84,8 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
     let mounted=true;
     const controller=new AbortController();
     // A sleeping backend or interrupted mobile request must not leave skeletons forever.
-    const timeout=setTimeout(()=>controller.abort(),18000);
+    // Render Free may need time to wake up after inactivity; keep the first request alive.
+    const timeout=setTimeout(()=>controller.abort(),90000);
     fetch(API_BASE_URL+'/service-directory',{signal:controller.signal})
       .then(res=>{if(!res.ok)throw new Error('catalog_error');return res.json();})
       .then((res:DirectoryData)=>{
