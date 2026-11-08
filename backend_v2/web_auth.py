@@ -152,10 +152,19 @@ def login(payload: TelegramWebsiteLogin):
         uid = int(claims["id"])
         if uid <= 0 or uid >= 2**63:
             raise ValueError("Invalid Telegram ID")
-        if not str(claims["sub"]).isdigit():
-            raise ValueError("Invalid Telegram subject")
-    except Exception:
-        logger.info("website_telegram_login_rejected: token_invalid")
+        # OIDC sub is an opaque subject identifier, not necessarily a numeric
+        # Telegram user ID. Only the signed profile 'id' binds the Mini App account.
+        if not isinstance(claims["sub"], str) or not claims["sub"]:
+            raise ValueError("Missing Telegram subject")
+    except jwt.InvalidTokenError as exc:
+        # Log only the exception class, never JWTs, nonces, profile details or IDs.
+        logger.info("website_telegram_login_rejected: jwt_%s", type(exc).__name__)
+        raise HTTPException(status_code=401, detail="invalid_telegram_identity") from None
+    except ValueError as exc:
+        logger.info("website_telegram_login_rejected: %s", str(exc))
+        raise HTTPException(status_code=401, detail="invalid_telegram_identity") from None
+    except Exception as exc:
+        logger.warning("website_telegram_login_rejected: verification_%s", type(exc).__name__)
         raise HTTPException(status_code=401, detail="invalid_telegram_identity") from None
 
     try:
