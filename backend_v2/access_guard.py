@@ -7,7 +7,7 @@ import os
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from database import engine
-from stars_payments import verified_telegram_id, TelegramAuthError
+from stars_payments import authenticated_user_id, TelegramAuthError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ async def access_guard(request,call_next):
     if not protected(path,request.method):
         return await call_next(request)
     try:
-        uid=verified_telegram_id(request.headers.get("X-Telegram-Init-Data",""))
+        uid=authenticated_user_id(request.headers.get("X-Telegram-Init-Data",""))
     except TelegramAuthError as exc:
         logger.warning("telegram_access_rejected code=%s", exc.code)
         status = 503 if exc.code == "auth_config_error" else 401
