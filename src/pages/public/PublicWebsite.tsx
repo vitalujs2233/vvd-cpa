@@ -69,6 +69,117 @@ const ServiceTile:React.FC<{service:DirectoryService}>=({service})=>{
   </article>;
 };
 
+
+/** Public read-only feeds, managed by the existing Mini App administration. */
+type PublicBanner={id:string;title:string;image_url:string;target_url:string;updated_at:string};
+type PublicInfo={id:string;title:string;subtitle:string;description:string;image_url:string|null;target_url:string;updated_at:string};
+const publicMedia=(path:string,kind:'home-ads'|'home-info',version:string)=>{
+  if(!path.startsWith('/'+kind+'/images/'))return '';
+  return API_BASE_URL+path+'?v='+encodeURIComponent(version);
+};
+// The public landing page never follows Mini App-only internal destinations.
+const publicTarget=(url:string)=>allowedLink(url);
+
+const PublicHomeBanners:React.FC=()=>{
+  const [items,setItems]=useState<PublicBanner[]>([]);
+  const [autoplay,setAutoplay]=useState(false);
+  const [active,setActive]=useState(0);
+  const rail=useRef<HTMLDivElement>(null);
+  const paused=useRef(false);
+  useEffect(()=>{
+    let mounted=true;
+    const controller=new AbortController();
+    const timeout=window.setTimeout(()=>controller.abort(),90000);
+    void fetch(API_BASE_URL+'/home-ads/published',{signal:controller.signal})
+      .then(response=>{if(!response.ok)throw new Error('banners');return response.json();})
+      .then((feed:{items:PublicBanner[];autoplay:boolean})=>{
+        if(!mounted||!Array.isArray(feed.items))return;
+        setItems(feed.items.slice(0,4));
+        setAutoplay(Boolean(feed.autoplay));
+      }).catch(()=>{}).finally(()=>window.clearTimeout(timeout));
+    return()=>{mounted=false;controller.abort();window.clearTimeout(timeout)};
+  },[]);
+  const select=(index:number)=>{
+    const container=rail.current;
+    if(!container)return;
+    const slide=container.children[index] as HTMLElement|undefined;
+    if(!slide)return;
+    container.scrollTo({left:slide.offsetLeft-(container.children[0] as HTMLElement).offsetLeft,behavior:'smooth'});
+    setActive(index);
+  };
+  useEffect(()=>{
+    if(!autoplay||items.length<2||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    const interval=window.setInterval(()=>{
+      if(document.hidden||paused.current)return;
+      setActive(index=>{
+        const next=(index+1)%items.length;
+        const el=rail.current;
+        const slide=el?.children[next] as HTMLElement|undefined;
+        if(el&&slide)el.scrollTo({left:slide.offsetLeft-(el.children[0] as HTMLElement).offsetLeft,behavior:'smooth'});
+        return next;
+      });
+    },6500);
+    return()=>window.clearInterval(interval);
+  },[autoplay,items.length]);
+  if(!items.length)return null;
+  return <section className="vvd-web-public-banners" aria-label="Баннеры VVD CPA">
+    <div ref={rail} className="vvd-web-banner-rail" onTouchStart={()=>{paused.current=true}} onPointerDown={()=>{paused.current=true}}
+      onScroll={event=>{
+        const el=event.currentTarget;
+        const first=el.children[0] as HTMLElement|undefined;
+        if(!first)return;
+        let index=0,smallest=Infinity;
+        Array.from(el.children).forEach((child,i)=>{
+          const delta=Math.abs((child as HTMLElement).offsetLeft-first.offsetLeft-el.scrollLeft);
+          if(delta<smallest){smallest=delta;index=i}
+        });
+        setActive(index);
+      }}>
+      {items.map((banner,index)=>{
+        const src=publicMedia(banner.image_url,'home-ads',banner.updated_at);
+        const href=publicTarget(banner.target_url);
+        return <div className="vvd-web-banner-slide" key={banner.id}>
+          {src&&<img src={src} alt={banner.title||'VVD CPA'} loading={index===0?'eager':'lazy'} decoding="async"/>}
+          {href&&<a href={href} target="_blank" rel="noopener noreferrer" aria-label={'Открыть: '+banner.title} className="vvd-web-banner-link"/>}
+        </div>;
+      })}
+    </div>
+    {items.length>1&&<div className="vvd-web-banner-dots" aria-label="Выбор баннера">
+      {items.map((banner,index)=><button type="button" key={banner.id} onClick={()=>{paused.current=true;select(index)}}
+        aria-label={'Баннер '+(index+1)} aria-current={active===index?'true':undefined}
+        className={active===index?'is-active':''}/>)}
+    </div>}
+  </section>;
+};
+
+const PublicHomeInfo:React.FC=()=>{
+  const [items,setItems]=useState<PublicInfo[]>([]);
+  useEffect(()=>{
+    let mounted=true;
+    const controller=new AbortController();
+    const timeout=window.setTimeout(()=>controller.abort(),90000);
+    void fetch(API_BASE_URL+'/home-info/published',{signal:controller.signal})
+      .then(response=>{if(!response.ok)throw new Error('info');return response.json();})
+      .then((feed:{items:PublicInfo[]})=>{if(mounted&&Array.isArray(feed.items))setItems(feed.items);})
+      .catch(()=>{}).finally(()=>window.clearTimeout(timeout));
+    return()=>{mounted=false;controller.abort();window.clearTimeout(timeout)};
+  },[]);
+  if(!items.length)return null;
+  return <section className="vvd-web-public-info" aria-label="Информация VVD CPA">
+    {items.map(item=>{
+      const src=item.image_url?publicMedia(item.image_url,'home-info',item.updated_at):'';
+      const href=publicTarget(item.target_url);
+      return <article key={item.id} className={'vvd-web-public-info-card'+(src&&!item.title&&!item.subtitle&&!item.description?' is-image-only':'')}>
+        {item.subtitle&&<p className="vvd-web-public-info-subtitle">{item.subtitle}</p>}
+        {item.title&&<h2>{item.title}</h2>}
+        {src&&<img src={src} alt={item.title||'Информация VVD CPA'} loading="lazy" decoding="async"/>}
+        {item.description&&<p className="vvd-web-public-info-description">{item.description}</p>}
+        {href&&<a className="vvd-web-public-info-link" href={href} target="_blank" rel="noopener noreferrer">Подробнее <ArrowUpRight size={16}/></a>}
+      </article>;
+    })}
+  </section>;
+};
+
 export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;onOpenApp:()=>void}>=({auth,onOpenApp})=>{
   const [data,setData]=useState<DirectoryData>(()=>readPublicDirectoryCache()||INITIAL);
   const [loading,setLoading]=useState(()=>!readPublicDirectoryCache());
@@ -222,6 +333,8 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
           </div>
         </section>
 
+        <PublicHomeBanners/>
+
         <section className="vvd-web-section" id="catalog">
           <div className="vvd-web-section-heading">
             <div><span className="vvd-web-eyebrow">ИНСТРУМЕНТЫ ДЛЯ РАБОТЫ С ТРАФИКОМ</span><h2>Каталог сервисов</h2><p>Отдельный каталог полезных инструментов для арбитражников и вебмастеров: изучай категории, сравнивай предложения и переходи к нужному сервису. Каталог доступен без регистрации.</p></div>
@@ -248,6 +361,8 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
               })}
             </div>:<div className="vvd-web-notice">По вашему запросу разделов не найдено.</div>}
         </section>
+
+        <PublicHomeInfo/>
 
         <section className="vvd-web-section vvd-web-feature-section" id="features" aria-labelledby="vvd-how-heading">
           <div className="vvd-web-section-heading"><div><span className="vvd-web-eyebrow">КАК УСТРОЕНА ПАРТНЁРСКАЯ СЕТЬ</span><h2 id="vvd-how-heading">Как зарабатывать с VVD CPA</h2><p>VVD CPA объединяет CPA-предложения и инструменты для партнёров в одном кабинете. Работа с офферами требует соблюдения условий рекламодателей и правил источников трафика.</p></div></div>
