@@ -89,7 +89,6 @@ export const PublicWebsite:React.FC=()=>{
     window.history.pushState(null,'',BASE_URL+'?account=1');
     setCategoryId('');setAccountView(true);setMobileMenu(false);
     viewport.current?.scrollTo({top:0,behavior:'auto'});
-    if(!auth.isLoggedIn&&!auth.restoring)auth.setLoginOpen(true);
   };
   const jumpTo=(id:string)=>{
     if(categoryId||accountView){window.history.pushState(null,'',BASE_URL);setCategoryId('');setAccountView(false);}
