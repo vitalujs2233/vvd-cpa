@@ -8,14 +8,20 @@ import './ServiceDirectory.css';
 const initial: DirectoryData = { version:0, categories:[], services:[] };
 
 const useDirectory = () => {
-  const [data,setData] = useState<DirectoryData>(initial);
-  const [loading,setLoading] = useState(true);
+  // Show the shared last-known catalog on the very first render.
+  const [data,setData] = useState<DirectoryData>(()=>directoryApi.snapshot()??initial);
+  const [loading,setLoading] = useState(()=>!directoryApi.snapshot());
   const [error,setError] = useState('');
   useEffect(()=>{
     let live=true;
-    directoryApi.published().then(value=>{if(live){setData(value);setError('');}})
-      .catch(()=>{if(live)setError('Не удалось загрузить каталог. Попробуйте открыть страницу ещё раз.');})
-      .finally(()=>{if(live)setLoading(false);});
+    const ready=directoryApi.snapshot();
+    if(ready){setData(ready);setLoading(false);}
+    // Refresh without clearing the already-rendered categories or services.
+    void directoryApi.published(true).then(value=>{
+      if(live){setData(value);setError('');setLoading(false);}
+    }).catch(()=>{
+      if(live){if(!directoryApi.snapshot())setError('Не удалось загрузить каталог. Проверьте соединение.');setLoading(false);}
+    });
     return()=>{live=false;};
   },[]);
   return {data,loading,error};
@@ -32,7 +38,7 @@ const BackTitle:React.FC<{title:string;subtitle?:string}> = ({title,subtitle}) =
 };
 
 const DirectoryShell:React.FC<{children:React.ReactNode}> = ({children}) =>
-  <main className="flex flex-col gap-4 p-4 pb-28 animate-fade-in">{children}</main>;
+  <main className="flex flex-col gap-4 p-4 pb-28">{children}</main>;
 
 const CategoryTile:React.FC<{category:DirectoryCategory;count:number;featured?:boolean}> = ({category,count,featured}) => {
   const Icon=directoryIcons[category.icon]||Layers;
@@ -62,6 +68,13 @@ export const ServiceDirectoryPage:React.FC=()=>{
       data.services.some(s=>s.category_id===c.id&&(s.name+' '+s.description).toLowerCase().includes(term))
     );
   },[data,query]);
+  if(loading)return <DirectoryShell>
+    <div className="vvd-directory-category flex min-h-[360px] flex-col items-center justify-center gap-3 p-6 text-center" aria-busy="true">
+      <Layers size={31} className="text-accentBrightGold"/>
+      <strong className="text-base text-white">Открываем каталог сервисов</strong>
+      <p className="text-xs text-textSecondary">Подготавливаем разделы каталога…</p>
+    </div>
+  </DirectoryShell>;
   return <DirectoryShell>
     <BackTitle title="Каталог сервисов" subtitle="Полезные инструменты и предложения для вебмастеров — в одном месте"/>
     <label className="flex items-center gap-3 rounded-card border border-accentGold/30 bg-bgCard/90 px-4 py-3 shadow-premium">
@@ -73,8 +86,7 @@ export const ServiceDirectoryPage:React.FC=()=>{
       <span className="text-xs text-textSecondary">{matching.length} категорий</span>
     </div>
     {error&&<p role="alert" className="rounded-card border border-red-400/30 bg-red-400/5 p-3 text-xs text-textSecondary">{error}</p>}
-    {loading?<p className="text-xs text-textSecondary">Загружаем категории…</p>:
-      matching.length===0?
+    {matching.length===0?
         <div className="vvd-directory-category p-6 text-center text-sm text-textSecondary">По запросу ничего не найдено.</div>:
         <div className="grid grid-cols-2 gap-3">
           {matching.map((category,i)=> <CategoryTile key={category.id} category={category} count={data.services.filter(s=>s.category_id===category.id).length} featured={i===0}/>)}
@@ -127,6 +139,13 @@ export const ServiceCategoryPage:React.FC=()=>{
   const services=data.services.filter(s=>s.category_id===categoryId &&
     (s.name+' '+s.description+' '+s.benefits).toLowerCase().includes(query.trim().toLowerCase()));
   const Icon=category ? directoryIcons[category.icon]||Layers : Layers;
+  if(loading)return <DirectoryShell>
+    <div className="vvd-directory-category flex min-h-[360px] flex-col items-center justify-center gap-3 p-6 text-center" aria-busy="true">
+      <Layers size={31} className="text-accentBrightGold"/>
+      <strong className="text-base text-white">Открываем раздел каталога</strong>
+      <p className="text-xs text-textSecondary">Подготавливаем предложения…</p>
+    </div>
+  </DirectoryShell>;
   return <DirectoryShell>
     <BackTitle title={category?.name||'Категория каталога'} subtitle={category?.description||'Каталог полезных сервисов VVD CPA'}/>
     {category&&<div className="vvd-directory-feature p-4">
@@ -141,8 +160,7 @@ export const ServiceCategoryPage:React.FC=()=>{
       <input type="search" placeholder="Найти сервис..." value={query} onChange={e=>setQuery(e.target.value)} className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-textSecondary" aria-label="Найти сервис"/>
     </label>
     {error&&<p role="alert" className="text-xs text-textSecondary">{error}</p>}
-    {loading?<p className="text-xs text-textSecondary">Загружаем предложения…</p>:
-      !category?<div className="vvd-directory-category p-5 text-xs text-textSecondary">Категория не найдена или скрыта администратором.</div>:
+    {!category?<div className="vvd-directory-category p-5 text-xs text-textSecondary">Категория не найдена или скрыта администратором.</div>:
       services.length?services.map(s=><ServiceCard key={s.id} service={s}/>):
       <div className="vvd-directory-service p-5">
         {query?<p className="text-sm text-textSecondary">По вашему запросу сервисов не найдено.</p>:<>
