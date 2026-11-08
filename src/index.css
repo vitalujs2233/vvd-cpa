@@ -297,3 +297,41 @@ button:disabled,[aria-disabled="true"] { cursor: not-allowed; opacity: .45; }
 @media (prefers-reduced-motion: reduce) {
   .vvd-app-wave-upper, .vvd-app-wave-lower, .vvd-app-backdrop-stars { animation: none; }
 }
+
+
+/* VVD CPA shared card polish — visual only, shared by Mini App and browser.
+   No route, data, authentication or card interaction changes. */
+.glass-card,
+.glass-card-glow {
+  background-image:
+    linear-gradient(145deg, rgba(255, 228, 160, .048) 0%, rgba(255, 255, 255, .014) 38%, rgba(0, 0, 0, .08) 100%);
+  background-color: rgba(17, 16, 15, .82);
+  box-shadow:
+    0 15px 38px -19px rgba(0, 0, 0, .88),
+    inset 0 1px 0 rgba(255, 241, 205, .11);
+}
+.glass-card {
+  border-color: rgba(218, 174, 82, .22);
+}
+.glass-card-glow {
+  border-color: rgba(246, 196, 83, .35);
+  box-shadow:
+    0 17px 44px -18px rgba(181, 112, 25, .18),
+    0 8px 28px -18px rgba(0, 0, 0, .8),
+    inset 0 1px 0 rgba(255, 235, 185, .16);
+}
+@media (hover: hover) and (pointer: fine) {
+  .glass-card[role="button"]:hover,
+  .glass-card-glow[role="button"]:hover {
+    border-color: rgba(246, 196, 83, .48);
+    box-shadow:
+      0 18px 43px -18px rgba(0, 0, 0, .88),
+      0 0 20px -15px rgba(246, 196, 83, .65),
+      inset 0 1px 0 rgba(255, 235, 185, .17);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .glass-card, .glass-card-glow {
+    animation: none !important;
+  }
+}
