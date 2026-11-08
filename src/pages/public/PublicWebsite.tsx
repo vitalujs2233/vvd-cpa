@@ -1,5 +1,5 @@
 import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import {ArrowRight,ArrowUpRight,BarChart3,Check,ChevronLeft,ChevronRight,Globe2,Layers,Menu,Search,ShieldCheck,Users,Wrench,Target,MousePointerClick,Wallet,Link2,Activity,LayoutDashboard} from 'lucide-react';
+import {ArrowRight,ArrowUpRight,BarChart3,Check,ChevronLeft,ChevronRight,Globe2,Layers,Menu,Search,ShieldCheck,Users,Wrench,Target,MousePointerClick,Wallet,Link2,Activity,LayoutDashboard,X} from 'lucide-react';
 import {API_BASE_URL} from '@/shared/lib/api';
 import {directoryIcons,type DirectoryData,type DirectoryService} from '@/pages/tools/serviceDirectoryApi';
 import {BrowserAccount, TelegramBrowserLogin, type useBrowserSession} from './WebAuth';
