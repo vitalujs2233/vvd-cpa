@@ -1,7 +1,7 @@
 import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import {ArrowRight,ArrowUpRight,BarChart3,Check,ChevronLeft,ChevronRight,ExternalLink,Globe2,Layers,Menu,Search,ShieldCheck,Sparkles,Users,Wrench,X} from 'lucide-react';
+import {ArrowRight,ArrowUpRight,BarChart3,Check,ChevronLeft,ChevronRight,Globe2,Layers,Menu,Search,ShieldCheck,Sparkles,Users,Wrench,X} from 'lucide-react';
 import {API_BASE_URL} from '@/shared/lib/api';
-import {directoryIcons,type DirectoryCategory,type DirectoryData,type DirectoryService} from '@/pages/tools/serviceDirectoryApi';
+import {directoryIcons,type DirectoryData,type DirectoryService} from '@/pages/tools/serviceDirectoryApi';
 import './PublicWebsite.css';
 
 const BOT_URL='https://t.me/vvd_cpa_bot';
@@ -67,7 +67,7 @@ export const PublicWebsite:React.FC=()=>{
   },[]);
 
   useEffect(()=>{
-    const onHistory=()=>{setCategoryId(readCategory());setQuery('');viewport.current?.scrollTo({top:0,behavior:'instant'});};
+    const onHistory=()=>{setCategoryId(readCategory());setQuery('');viewport.current?.scrollTo({top:0,behavior:'auto'});};
     window.addEventListener('popstate',onHistory);
     return()=>window.removeEventListener('popstate',onHistory);
   },[]);
@@ -180,12 +180,12 @@ export const PublicWebsite:React.FC=()=>{
               {filtered.map(c=>{
                 const Icon=directoryIcons[c.icon]||Layers;
                 const count=data.services.filter(s=>s.category_id===c.id).length;
-                return <button key={c.id} type="button" onClick={()=>showCategory(c.id)} className="vvd-web-category-card">
+                return <a key={c.id} href={getSiteUrl(c.id)} onClick={event=>{event.preventDefault();showCategory(c.id);}} className="vvd-web-category-card">
                   <div className="vvd-web-category-icon"><Icon size={26} strokeWidth={1.6}/></div>
                   <ChevronRight className="vvd-web-card-arrow" size={20}/>
                   <h3>{c.name}</h3><p>{c.description}</p>
                   <span>{count?count+' предложений':'Скоро предложения'}</span>
-                </button>;
+                </a>;
               })}
             </div>:<div className="vvd-web-notice">По вашему запросу разделов не найдено.</div>}
         </section>
