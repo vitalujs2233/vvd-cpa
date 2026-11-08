@@ -1,6 +1,7 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {ArrowRight,Check,ExternalLink,KeyRound,LoaderCircle,LogOut,ShieldCheck,UserRound,Wallet,X} from 'lucide-react';
 import {API_BASE_URL} from '@/shared/lib/api';
+import './WebAuth.css';
 
 const STORAGE='vvd_cpa_browser_session_v1';
 const OIDC_SCRIPT='https://oauth.telegram.org/js/telegram-login.js';
