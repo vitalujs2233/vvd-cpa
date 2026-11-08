@@ -196,12 +196,13 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
         <section className="vvd-web-workspace-intro" id="top" aria-labelledby="vvd-web-intro-title">
           <div className="vvd-web-workspace-copy">
             <span className="vvd-web-eyebrow"><span className="vvd-web-dot"/> CPA-ПАРТНЁРСКАЯ СЕТЬ · VVD CPA</span>
-            <h1 id="vvd-web-intro-title">Монетизируй трафик.<br/><em>Развивайся с VVD CPA.</em></h1>
-            <p><strong>VVD CPA — партнёрская сеть для арбитражников и вебмастеров.</strong> Изучай CPA-офферы, направляй подходящий трафик по партнёрским ссылкам и отслеживай результаты: клики, конверсии и начисления. Рядом — инструменты и каталог сервисов для работы.</p>
+            <h1 id="vvd-web-intro-title">Зарабатывай на своём трафике.<br/><em>VVD CPA — партнёрская сеть.</em></h1>
+            <p><strong>VVD CPA — для вебмастеров и арбитражников.</strong> Монетизируй свой трафик через смартлинки разных вертикалей, отслеживай конверсии и заработок. Получай выплаты за подтверждённые результаты по условиям офферов.</p>
             <div className="vvd-web-hero-points" aria-label="Возможности VVD CPA">
-              <span><Target size={15}/> CPA-офферы</span>
-              <span><MousePointerClick size={15}/> Трафик и конверсии</span>
-              <span><BarChart3 size={15}/> Аналитика</span>
+              <span><Link2 size={15}/> Смартлинки</span>
+              <span><Target size={15}/> Разные вертикали</span>
+              <span><Wallet size={15}/> Выплаты</span>
+              <span><BarChart3 size={15}/> Статистика</span>
             </div>
             <div className="vvd-web-workspace-actions">
               <button type="button" className="vvd-web-gold-button" onClick={()=>auth.isLoggedIn?openAccount():auth.setLoginOpen(true)}>{auth.isLoggedIn?'Открыть кабинет':'Начать через Telegram'} <ArrowRight size={16}/></button>
@@ -210,12 +211,12 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
             <p className="vvd-web-hero-disclaimer">Условия, доступность офферов и размер вознаграждений зависят от конкретного предложения. Доход не гарантируется.</p>
           </div>
           <div className="vvd-web-hero-panel" aria-label="Что есть внутри партнёрской платформы">
-            <div className="vvd-web-hero-panel-heading"><span className="vvd-web-panel-symbol"><Layers size={22}/></span><div><small>ОДНА ПЛАТФОРМА</small><strong>Трафик · Офферы · Сервисы</strong></div></div>
+            <div className="vvd-web-hero-panel-heading"><span className="vvd-web-panel-symbol"><Layers size={22}/></span><div><small>ОДНА ПЛАТФОРМА</small><strong>Смартлинки · Доход · Выплаты</strong></div></div>
             <div className="vvd-web-hero-panel-grid">
-              <div><Link2 size={19}/><strong>Офферы</strong><span>Партнёрские предложения и ссылки</span></div>
-              <div><Activity size={19}/><strong>Статистика</strong><span>Клики, конверсии, результаты</span></div>
-              <div><Wallet size={19}/><strong>Финансы</strong><span>Баланс и история начислений</span></div>
-              <div><Wrench size={19}/><strong>Инструменты</strong><span>Сервисы для вебмастеров</span></div>
+              <div><Link2 size={19}/><strong>Смартлинки</strong><span>Офферы разных вертикалей</span></div>
+              <div><Activity size={19}/><strong>Статистика</strong><span>Клики и конверсии</span></div>
+              <div><Wallet size={19}/><strong>Выплаты</strong><span>Баланс и история выплат</span></div>
+              <div><Wrench size={19}/><strong>Инструменты</strong><span>Сервисы для трафика</span></div>
             </div>
             <div className="vvd-web-hero-panel-footer"><ShieldCheck size={15}/> Один Telegram-аккаунт для сайта и Mini App</div>
           </div>
@@ -249,11 +250,11 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
         </section>
 
         <section className="vvd-web-section vvd-web-feature-section" id="features" aria-labelledby="vvd-how-heading">
-          <div className="vvd-web-section-heading"><div><span className="vvd-web-eyebrow">КАК УСТРОЕНА ПАРТНЁРСКАЯ СЕТЬ</span><h2 id="vvd-how-heading">От трафика до статистики</h2><p>VVD CPA объединяет CPA-предложения и инструменты для партнёров в одном кабинете. Работа с офферами требует соблюдения условий рекламодателей и правил источников трафика.</p></div></div>
+          <div className="vvd-web-section-heading"><div><span className="vvd-web-eyebrow">КАК УСТРОЕНА ПАРТНЁРСКАЯ СЕТЬ</span><h2 id="vvd-how-heading">Как зарабатывать с VVD CPA</h2><p>VVD CPA объединяет CPA-предложения и инструменты для партнёров в одном кабинете. Работа с офферами требует соблюдения условий рекламодателей и правил источников трафика.</p></div></div>
           <div className="vvd-web-steps">
-            <article><span>01</span><div><h3>Выбери оффер</h3><p>Ознакомься с предложением, разрешёнными источниками трафика и моделью вознаграждения.</p></div></article>
-            <article><span>02</span><div><h3>Направляй трафик</h3><p>Используй доступные партнёрские ссылки для подходящей аудитории с соблюдением правил оффера.</p></div></article>
-            <article><span>03</span><div><h3>Анализируй результат</h3><p>Следи за кликами, конверсиями и начислениями в статистике своего аккаунта.</p></div></article>
+            <article><span>01</span><div><h3>Выбери смартлинк</h3><p>Подбери вертикаль и изучи условия оффера и источники трафика.</p></div></article>
+            <article><span>02</span><div><h3>Направляй трафик</h3><p>Привлекай подходящую аудиторию по партнёрской ссылке.</p></div></article>
+            <article><span>03</span><div><h3>Отслеживай доход</h3><p>Смотри конверсии, начисления и выплаты в кабинете.</p></div></article>
           </div>
           <div className="vvd-web-section-heading vvd-web-inside-heading"><div><span className="vvd-web-eyebrow">ПОСЛЕ РЕГИСТРАЦИИ ЧЕРЕЗ TELEGRAM</span><h2>Всё необходимое в одном кабинете</h2><p>На сайте и в Telegram Mini App открывается один и тот же VVD CPA с общим аккаунтом и данными.</p></div></div>
           <div className="vvd-web-features-grid">
