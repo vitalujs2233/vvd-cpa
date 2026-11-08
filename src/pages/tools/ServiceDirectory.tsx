@@ -4,6 +4,7 @@ import { ArrowLeft, Check, ChevronRight, Copy, ExternalLink, Gift, Search, Layer
 import { triggerHaptic } from '@/shared/lib/telegram';
 import { directoryApi, directoryIcons, type DirectoryData, type DirectoryCategory, type DirectoryService } from './serviceDirectoryApi';
 import './ServiceDirectory.css';
+import { ServiceNavigationCard } from './ServiceNavigationCard';
 
 const initial: DirectoryData = { version:0, categories:[], services:[] };
 
@@ -40,22 +41,23 @@ const BackTitle:React.FC<{title:string;subtitle?:string}> = ({title,subtitle}) =
 const DirectoryShell:React.FC<{children:React.ReactNode}> = ({children}) =>
   <main className="flex flex-col gap-4 p-4 pb-28">{children}</main>;
 
-const CategoryTile:React.FC<{category:DirectoryCategory;count:number;featured?:boolean}> = ({category,count,featured}) => {
-  const Icon=directoryIcons[category.icon]||Layers;
-  return <Link to={'/tools/directory/'+category.id} className={'vvd-directory-category block p-4 transition-colors '+(featured?'col-span-2':'')}>
-    <div className={'flex '+(featured?'items-center':'items-start')+' gap-3'}>
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-app-xs border border-accentGold/35 bg-accentGold/10 text-accentBrightGold">
-        <Icon size={23} strokeWidth={1.8}/>
-      </div>
-      <div className={'min-w-0 flex-1 '+(featured?'':'pt-1')}>
-        <h2 className="text-[14px] font-bold text-white leading-5">{category.name}</h2>
-        <p className="mt-1 text-[11px] leading-4 text-textSecondary">{category.description}</p>
-        <p className="mt-2 text-[10px] font-semibold text-accentBrightGold">{count ? count+' предложений' : 'Скоро предложения'}</p>
-      </div>
-      <ChevronRight size={18} className="mt-1 shrink-0 text-textSecondary"/>
-    </div>
-  </Link>;
-};
+// Shorten only the original catalog copy; preserve descriptions edited by the owner.
+const conciseDescription = (description:string) => ({
+  'Библиотеки рекламы и анализ креативов':'Поиск и анализ рекламы',
+  'Инструменты для работы с браузерными профилями':'Управление профилями',
+  'Площадки и источники трафика':'Источники трафика',
+  'Аналитика рекламных кампаний':'Учёт трафика и конверсий',
+  'Конструкторы, домены и размещение сайтов':'Домены и размещение сайтов',
+  'Прокси и сетевые инструменты':'Прокси и работа с сетью',
+  'Поставщики виртуальных номеров':'Номера для приёма SMS',
+  'Дополнительные решения для вебмастеров':'Другие инструменты для работы',
+}[description] || description);
+
+const CategoryTile:React.FC<{category:DirectoryCategory;count:number}> = ({category,count}) => (
+  <ServiceNavigationCard to={'/tools/directory/'+category.id} icon={directoryIcons[category.icon]||Layers}
+    title={category.name} description={conciseDescription(category.description)}
+    status={count ? 'Предложений: '+count : 'Нет предложений'}/>
+);
 
 export const ServiceDirectoryPage:React.FC=()=>{
   const {data,loading,error}=useDirectory();
@@ -64,7 +66,7 @@ export const ServiceDirectoryPage:React.FC=()=>{
     const term=query.trim().toLowerCase();
     if(!term)return data.categories;
     return data.categories.filter(c=>
-      (c.name+' '+c.description).toLowerCase().includes(term) ||
+      (c.name+' '+c.description+' '+conciseDescription(c.description)).toLowerCase().includes(term) ||
       data.services.some(s=>s.category_id===c.id&&(s.name+' '+s.description).toLowerCase().includes(term))
     );
   },[data,query]);
@@ -76,23 +78,23 @@ export const ServiceDirectoryPage:React.FC=()=>{
     </div>
   </DirectoryShell>;
   return <DirectoryShell>
-    <BackTitle title="Каталог сервисов" subtitle="Полезные инструменты и предложения для вебмастеров — в одном месте"/>
+    <BackTitle title="Каталог сервисов" subtitle="Сервисы для рекламы и работы с трафиком"/>
     <label className="flex items-center gap-3 rounded-card border border-accentGold/30 bg-bgCard/90 px-4 py-3 shadow-premium">
       <Search size={19} className="shrink-0 text-accentBrightGold"/>
-      <input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Поиск категорий и сервисов..." className="w-full min-w-0 bg-transparent text-sm text-white placeholder:text-textSecondary outline-none" aria-label="Поиск по каталогу"/>
+      <input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Найти сервис или категорию" className="w-full min-w-0 bg-transparent text-sm text-white placeholder:text-textSecondary outline-none" aria-label="Поиск по каталогу"/>
     </label>
     <div className="flex items-center justify-between gap-2">
       <span className="text-sm font-bold text-white">Разделы каталога</span>
-      <span className="text-xs text-textSecondary">{matching.length} категорий</span>
+      <span className="text-xs text-textSecondary">Категорий: {matching.length}</span>
     </div>
     {error&&<p role="alert" className="rounded-card border border-red-400/30 bg-red-400/5 p-3 text-xs text-textSecondary">{error}</p>}
     {matching.length===0?
         <div className="vvd-directory-category p-6 text-center text-sm text-textSecondary">По запросу ничего не найдено.</div>:
-        <div className="grid grid-cols-2 gap-3">
-          {matching.map((category,i)=> <CategoryTile key={category.id} category={category} count={data.services.filter(s=>s.category_id===category.id).length} featured={i===0}/>)}
+        <div className="flex flex-col gap-2">
+          {matching.map(category=> <CategoryTile key={category.id} category={category} count={data.services.filter(s=>s.category_id===category.id).length}/>)}
         </div>
     }
-    <p className="text-[11px] leading-5 text-textSecondary">Внутри каждой категории собраны только подходящие сервисы. Ссылки могут быть партнёрскими; условия скидок устанавливают сами сервисы.</p>
+    <p className="text-[11px] leading-5 text-textSecondary">Ссылки могут быть партнёрскими. Условия и скидки — на сайтах сервисов.</p>
   </DirectoryShell>;
 };
 
@@ -147,7 +149,7 @@ export const ServiceCategoryPage:React.FC=()=>{
     </div>
   </DirectoryShell>;
   return <DirectoryShell>
-    <BackTitle title={category?.name||'Категория каталога'} subtitle={category?.description||'Каталог полезных сервисов VVD CPA'}/>
+    <BackTitle title={category?.name||'Категория каталога'} subtitle={category?conciseDescription(category.description):'Каталог сервисов VVD CPA'}/>
     {category&&<div className="vvd-directory-feature p-4">
       <div className="relative z-10 flex items-center gap-3">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-app-xs border border-accentGold/40 bg-accentGold/15 text-accentBrightGold"><Icon size={24}/></div>

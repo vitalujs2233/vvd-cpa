@@ -1,4 +1,34 @@
 /* VVD CPA service directory: restrained gold surfaces matching the existing Mini App. */
+.vvd-service-navigation {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 17px;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(198,155,72,.33);
+  border-radius: 18px;
+  background: linear-gradient(150deg, rgba(32,29,24,.94), rgba(13,13,14,.97));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+  text-align: left;
+}
+.vvd-service-navigation:active { border-color: #f6c453; }
+.vvd-service-navigation:focus-visible { outline: 2px solid #f6c453; outline-offset: 3px; }
+.vvd-service-navigation-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(198,155,72,.35);
+  border-radius: 12px;
+  background: rgba(212,175,55,.09);
+  color: #f6c453;
+}
+.vvd-service-navigation-copy { display: grid; min-width: 0; gap: 3px; overflow-wrap: anywhere; }
+.vvd-service-navigation-title { color: #fff; font-size: 14px; line-height: 20px; font-weight: 600; }
+.vvd-service-navigation-description { color: #a6adc8; font-size: 12px; line-height: 17px; }
+.vvd-service-navigation-status { color: #f5ca71; font-size: 11px; line-height: 16px; }
+.vvd-service-navigation-arrow { color: #b3b3c2; }
 .vvd-directory-feature {
   position: relative;
   display: block;
