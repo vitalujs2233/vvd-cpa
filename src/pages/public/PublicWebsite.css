@@ -380,3 +380,22 @@
   .vvd-web-workspace-copy{padding:20px 17px}
   .vvd-web-public-banners{margin-top:12px;margin-bottom:20px}
 }
+
+
+/* Public landing spacing rhythm: consistent cards, carousel and catalog gaps. */
+.vvd-web-workspace-intro{gap:16px}
+.vvd-web-public-banners{margin-top:16px;margin-bottom:16px}
+.vvd-web-portal #catalog{padding-top:0}
+.vvd-web-portal #catalog .vvd-web-section-heading{margin-bottom:20px}
+.vvd-web-workspace-copy>p:not(.vvd-web-hero-disclaimer){line-height:1.55}
+.vvd-web-workspace-copy .vvd-web-hero-points{margin-top:16px;margin-bottom:16px}
+@media(max-width:780px){
+  .vvd-web-workspace-intro{gap:14px}
+  .vvd-web-public-banners{margin-top:14px;margin-bottom:14px}
+  .vvd-web-portal #catalog{padding-top:0}
+}
+@media(max-width:480px){
+  .vvd-web-workspace-intro{gap:12px}
+  .vvd-web-public-banners{margin-top:12px;margin-bottom:12px}
+  .vvd-web-portal #catalog{padding-top:0}
+}
