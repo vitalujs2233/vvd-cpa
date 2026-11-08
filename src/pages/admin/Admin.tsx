@@ -377,6 +377,7 @@ const saveChatBanner = async () => {
     | 'homeAds'
     | 'homeTicker'
     | 'homeInfo'
+    | 'directory'
 ) => {
   triggerHaptic.lightImpact();
   setSubView(view);
