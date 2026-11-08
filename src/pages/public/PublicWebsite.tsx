@@ -2,6 +2,7 @@ import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {ArrowRight,ArrowUpRight,BarChart3,Check,ChevronLeft,ChevronRight,Globe2,Layers,Menu,Search,ShieldCheck,Sparkles,Users,Wrench,X} from 'lucide-react';
 import {API_BASE_URL} from '@/shared/lib/api';
 import {directoryIcons,type DirectoryData,type DirectoryService} from '@/pages/tools/serviceDirectoryApi';
+import {BrowserAccount, TelegramBrowserLogin, useBrowserSession} from './WebAuth';
 import './PublicWebsite.css';
 
 const BOT_URL='https://t.me/vvd_cpa_bot';
@@ -53,6 +54,8 @@ export const PublicWebsite:React.FC=()=>{
   const [categoryId,setCategoryId]=useState(readCategory);
   const [query,setQuery]=useState('');
   const [mobileMenu,setMobileMenu]=useState(false);
+  const [accountView,setAccountView]=useState(()=>new URLSearchParams(window.location.search).has('account'));
+  const auth=useBrowserSession();
   const viewport=useRef<HTMLDivElement>(null);
 
   useEffect(()=>{
@@ -67,23 +70,29 @@ export const PublicWebsite:React.FC=()=>{
   },[]);
 
   useEffect(()=>{
-    const onHistory=()=>{setCategoryId(readCategory());setQuery('');viewport.current?.scrollTo({top:0,behavior:'auto'});};
+    const onHistory=()=>{setCategoryId(readCategory());setAccountView(new URLSearchParams(window.location.search).has('account'));setQuery('');viewport.current?.scrollTo({top:0,behavior:'auto'});};
     window.addEventListener('popstate',onHistory);
     return()=>window.removeEventListener('popstate',onHistory);
   },[]);
 
   const showCategory=useCallback((id:string)=>{
     window.history.pushState(null,'',getSiteUrl(id));
-    setCategoryId(id);setQuery('');setMobileMenu(false);
+    setCategoryId(id);setAccountView(false);setQuery('');setMobileMenu(false);
     viewport.current?.scrollTo({top:0,behavior:'instant'});
   },[]);
   const openMain=useCallback(()=>{
-    if(categoryId){window.history.pushState(null,'',BASE_URL);setCategoryId('');setQuery('');}
+    if(categoryId||accountView){window.history.pushState(null,'',BASE_URL);setCategoryId('');setAccountView(false);setQuery('');}
     setMobileMenu(false);
     viewport.current?.scrollTo({top:0,behavior:'smooth'});
-  },[categoryId]);
+  },[categoryId,accountView]);
+  const openAccount=()=>{
+    window.history.pushState(null,'',BASE_URL+'?account=1');
+    setCategoryId('');setAccountView(true);setMobileMenu(false);
+    viewport.current?.scrollTo({top:0,behavior:'auto'});
+    if(!auth.isLoggedIn&&!auth.restoring)auth.setLoginOpen(true);
+  };
   const jumpTo=(id:string)=>{
-    if(categoryId){window.history.pushState(null,'',BASE_URL);setCategoryId('');}
+    if(categoryId||accountView){window.history.pushState(null,'',BASE_URL);setCategoryId('');setAccountView(false);}
     setMobileMenu(false);
     window.setTimeout(()=>document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'}),0);
   };
@@ -96,12 +105,14 @@ export const PublicWebsite:React.FC=()=>{
   const services=data.services.filter(s=>s.category_id===categoryId);
 
   useEffect(()=>{
-    if(category){
+    if(accountView){
+      setMetadata('Личный кабинет — VVD CPA','Защищённый вход в личный кабинет VVD CPA через Telegram.');
+    }else if(category){
       setMetadata(category.name+' — Каталог сервисов VVD CPA',category.description||'Каталог профессиональных сервисов для вебмастеров.',category.id);
     }else{
       setMetadata('VVD CPA — Каталог сервисов и инструменты для вебмастеров','VVD CPA — каталог полезных сервисов для вебмастеров. AI, аналитика, рекламные сети, инструменты и партнёрские предложения в одном месте.');
     }
-  },[category]);
+  },[category,accountView]);
 
   return <div className="vvd-web-portal" ref={viewport}>
     <div className="vvd-web-atmosphere" aria-hidden="true">
@@ -126,12 +137,21 @@ export const PublicWebsite:React.FC=()=>{
           <button type="button" onClick={openMain}>Главная</button>
           <button type="button" onClick={()=>jumpTo('catalog')}>Каталог сервисов</button>
           <button type="button" onClick={()=>jumpTo('features')}>Возможности</button>
+          <button type="button" onClick={openAccount}>Личный кабинет</button>
         </nav>
-        <a href={BOT_URL} target="_blank" rel="noopener noreferrer" className="vvd-web-header-action">Открыть в Telegram <ArrowUpRight size={16}/></a>
+        {auth.isLoggedIn
+          ?<button type="button" className="vvd-web-header-action" onClick={openAccount}><ShieldCheck size={17}/> Кабинет <ArrowRight size={15}/></button>
+          :<button type="button" className="vvd-web-header-action" onClick={()=>auth.setLoginOpen(true)}>Войти / Регистрация <ArrowRight size={15}/></button>}
         <button type="button" onClick={()=>setMobileMenu(v=>!v)} className="vvd-web-mobile-menu" aria-label={mobileMenu?'Закрыть меню':'Открыть меню'} aria-expanded={mobileMenu}>{mobileMenu?<X size={23}/>:<Menu size={23}/>}</button>
       </header>
 
-      {categoryId ? <main className="vvd-web-category-view">
+      {accountView ? (auth.profile
+        ?<BrowserAccount profile={auth.profile} onCatalog={()=>jumpTo('catalog')} onLogout={()=>{void auth.logout();openMain();}}/>
+        :<main className="vvd-web-account">
+          <div className="vvd-web-account-heading"><span className="vvd-web-eyebrow">ЛИЧНЫЙ КАБИНЕТ</span><h1>{auth.restoring?'Проверяем сессию…':'Вход через Telegram'}</h1><p>Один аккаунт для сайта и Mini App. Войти и зарегистрироваться можно с помощью Telegram.</p></div>
+          {!auth.restoring&&<button type="button" className="vvd-web-gold-button" onClick={()=>auth.setLoginOpen(true)}>Войти / Зарегистрироваться <ArrowRight size={17}/></button>}
+        </main>
+      ) : categoryId ? <main className="vvd-web-category-view">
         <button type="button" className="vvd-web-back" onClick={openMain}><ChevronLeft size={18}/> Все категории</button>
         {category?<>
           <div className="vvd-web-category-hero">
@@ -145,32 +165,21 @@ export const PublicWebsite:React.FC=()=>{
         </>:<div className="vvd-web-empty-service"><h1>Раздел не найден</h1><p>Возможно, категория была переименована или скрыта.</p><button onClick={openMain}>Вернуться в каталог</button></div>}
       </main> :
       <main>
-        <section className="vvd-web-hero" id="top">
-          <div className="vvd-web-hero-copy">
-            <span className="vvd-web-eyebrow"><span className="vvd-web-dot"/> ЦИФРОВАЯ ПЛАТФОРМА ДЛЯ ВЕБМАСТЕРОВ</span>
-            <h1>Всё для работы<br/>с трафиком.<br/><em>В одном месте.</em></h1>
-            <p>Сервисы, инструменты и партнёрские предложения для ежедневной работы. Удобный каталог в браузере и полноценный Mini App внутри Telegram.</p>
-            <div className="vvd-web-hero-actions">
-              <button type="button" className="vvd-web-gold-button" onClick={()=>jumpTo('catalog')}>Исследовать каталог <ArrowRight size={18}/></button>
-              <a className="vvd-web-outline-button" href={BOT_URL} target="_blank" rel="noopener noreferrer">Перейти в Telegram <ArrowUpRight size={18}/></a>
-            </div>
-            <div className="vvd-web-hero-benefits"><span><Check size={16}/> Удобная навигация</span><span><Check size={16}/> Разделы по категориям</span><span><Check size={16}/> Единая платформа</span></div>
+        <section className="vvd-web-workspace-intro" id="top">
+          <div>
+            <span className="vvd-web-eyebrow"><span className="vvd-web-dot"/> VVD CPA · ЦИФРОВАЯ ПЛАТФОРМА</span>
+            <h1>Инструменты и сервисы <em>в одном месте.</em></h1>
+            <p>Выбирай категорию, изучай условия и переходи к нужному сервису. Личный кабинет доступен через подтверждённый аккаунт Telegram.</p>
           </div>
-          <div className="vvd-web-art" aria-label="Фирменный знак VVD CPA">
-            <div className="vvd-web-orbit vvd-web-orbit-one"/><div className="vvd-web-orbit vvd-web-orbit-two"/>
-            <span className="vvd-web-spark vvd-web-spark-a"/><span className="vvd-web-spark vvd-web-spark-b"/><span className="vvd-web-spark vvd-web-spark-c"/>
-            <div className="vvd-web-art-mark"><span className="vvd-web-big-v">V</span><span>VVD CPA</span><small>PREMIUM NETWORK</small></div>
-            <div className="vvd-web-art-caption"><Sparkles size={15}/> СОЗДАНО ДЛЯ УДОБНОЙ РАБОТЫ</div>
+          <div className="vvd-web-workspace-actions">
+            <button type="button" className="vvd-web-gold-button" onClick={()=>auth.isLoggedIn?openAccount():auth.setLoginOpen(true)}>{auth.isLoggedIn?'Мой кабинет':'Войти / Зарегистрироваться'} <ArrowRight size={16}/></button>
+            <a href={BOT_URL} target="_blank" rel="noopener noreferrer" className="vvd-web-outline-button">Открыть Mini App <ArrowUpRight size={16}/></a>
           </div>
-        </section>
-
-        <section className="vvd-web-proofline" aria-label="Направления платформы">
-          <div><Wrench size={19}/><span>Инструменты</span></div><div><Globe2 size={19}/><span>Каталог сервисов</span></div><div><BarChart3 size={19}/><span>Аналитика в Mini App</span></div><div><Users size={19}/><span>Сообщество Telegram</span></div>
         </section>
 
         <section className="vvd-web-section" id="catalog">
           <div className="vvd-web-section-heading">
-            <div><span className="vvd-web-eyebrow">РАЗДЕЛЫ VVD CPA</span><h2>Каталог сервисов</h2><p>Выбирай нужное направление — внутри только относящиеся к нему предложения.</p></div>
+            <div><span className="vvd-web-eyebrow">ПОДОБРАННЫЕ ИНСТРУМЕНТЫ</span><h2>Каталог сервисов</h2><p>Разделы без путаницы: в каждой категории только соответствующие предложения.</p></div>
             <div className="vvd-web-catalog-count">{loading?'Загрузка каталога':data.categories.length+' категорий'}</div>
           </div>
           <label className="vvd-web-search"><Search size={21}/><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Найти категорию или сервис..." aria-label="Поиск по каталогу"/></label>
@@ -210,5 +219,9 @@ export const PublicWebsite:React.FC=()=>{
         <a href={BOT_URL} target="_blank" rel="noopener noreferrer">Наш Telegram <ArrowUpRight size={14}/></a>
       </footer>
     </div>
+    {auth.loginOpen&&<TelegramBrowserLogin
+      onClose={()=>auth.setLoginOpen(false)}
+      onLogin={session=>{auth.login(session);openAccount();}}
+    />}
   </div>;
 };
