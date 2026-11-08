@@ -8,6 +8,28 @@ import './PublicWebsite.css';
 const BOT_URL='https://t.me/vvd_cpa_bot';
 const BASE_URL='https://vitalujs2233.github.io/vvd-cpa/';
 const INITIAL:DirectoryData={version:0,categories:[],services:[]};
+// Public directory only: keep a short-lived copy to avoid blank cards when switching views.
+const DIRECTORY_CACHE_KEY='vvd_public_directory_v1';
+const DIRECTORY_CACHE_TTL=5*60*1000;
+let directoryMemory:{data:DirectoryData;time:number}|null=null;
+function validDirectory(data:DirectoryData):boolean{
+  return Boolean(data&&Array.isArray(data.categories)&&Array.isArray(data.services));
+}
+function readPublicDirectoryCache():DirectoryData|null{
+  if(directoryMemory&&Date.now()-directoryMemory.time<DIRECTORY_CACHE_TTL)return directoryMemory.data;
+  try{
+    const raw=sessionStorage.getItem(DIRECTORY_CACHE_KEY);
+    if(!raw)return null;
+    const stored=JSON.parse(raw) as {data:DirectoryData;time:number};
+    if(typeof stored.time!=='number'||Date.now()-stored.time>=DIRECTORY_CACHE_TTL||!validDirectory(stored.data))return null;
+    directoryMemory=stored;
+    return stored.data;
+  }catch{return null;}
+}
+function savePublicDirectoryCache(data:DirectoryData):void{
+  directoryMemory={data,time:Date.now()};
+  try{sessionStorage.setItem(DIRECTORY_CACHE_KEY,JSON.stringify(directoryMemory))}catch{/* Private browsing may disable storage. */}
+}
 const allowedLink=(url:string)=>{
   try {return new URL(url).protocol==='https:'?url:'';} catch {return '';}
 };
@@ -48,8 +70,8 @@ const ServiceTile:React.FC<{service:DirectoryService}>=({service})=>{
 };
 
 export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;onOpenApp:()=>void}>=({auth,onOpenApp})=>{
-  const [data,setData]=useState<DirectoryData>(INITIAL);
-  const [loading,setLoading]=useState(true);
+  const [data,setData]=useState<DirectoryData>(()=>readPublicDirectoryCache()||INITIAL);
+  const [loading,setLoading]=useState(()=>!readPublicDirectoryCache());
   const [error,setError]=useState(false);
   const [categoryId,setCategoryId]=useState(readCategory);
   const [query,setQuery]=useState('');
@@ -62,7 +84,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
     const controller=new AbortController();
     fetch(API_BASE_URL+'/service-directory',{signal:controller.signal})
       .then(res=>{if(!res.ok)throw new Error('catalog_error');return res.json();})
-      .then((res:DirectoryData)=>{if(mounted&&Array.isArray(res.categories)&&Array.isArray(res.services)){setData(res);setError(false);}})
+      .then((res:DirectoryData)=>{if(mounted&&validDirectory(res)){savePublicDirectoryCache(res);setData(res);setError(false);}})
       .catch(()=>{if(mounted&&!controller.signal.aborted)setError(true);})
       .finally(()=>{if(mounted)setLoading(false);});
     return()=>{mounted=false;controller.abort();};
