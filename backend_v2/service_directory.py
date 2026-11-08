@@ -38,6 +38,7 @@ class DirectoryService(BaseModel):
     name: str = Field(min_length=1, max_length=150)
     description: str = Field(default="", max_length=750)
     benefits: str = Field(default="", max_length=2400)
+    icon: str = Field(default="layers", min_length=1, max_length=32, pattern=r"^[a-z0-9-]+$")
     image_url: str = Field(default="", max_length=2048)
     website_url: str = Field(default="", max_length=2048)
     discount_text: str = Field(default="", max_length=300)
