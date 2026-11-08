@@ -1,11 +1,7 @@
-import { apiRequest } from '@/shared/lib/api';
+import { apiRequest, signedHeaders } from '@/shared/lib/api';
 import type { Character } from './marketApi';
 const base = 'https://vvd-cpa-v2.onrender.com';
-const auth = () => {
-  const raw=window.Telegram?.WebApp?.initData;
-  if (!raw) throw new Error('Для управления персонажами откройте VVD CPA через кнопку Mini App в Telegram.');
-  return {'X-Telegram-Init-Data':raw};
-};
+const auth = signedHeaders;
 export type Smartlink = {id:string;url:string;title:string;offer:string|null};
 export type Photo = {id:string;url:string;preview_url?:string;title:string;description:string;auto_allowed:boolean;send_rule:string};
 export type ChatEntry = {role:'user'|'assistant';content:string;photo?:{url:string;title?:string}|null;offer?:{title:string;advertising:true}|null};
