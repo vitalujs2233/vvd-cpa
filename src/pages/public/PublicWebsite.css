@@ -156,3 +156,76 @@
 @media(max-width:1060px){.vvd-web-workspace-intro{align-items:flex-start;flex-direction:column}.vvd-web-workspace-actions{flex-wrap:wrap}.vvd-web-categories-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:730px){.vvd-web-workspace-intro{margin-top:18px;padding:23px 20px}.vvd-web-workspace-actions{width:100%;flex-wrap:wrap}.vvd-web-workspace-intro h1{font-size:27px}.vvd-web-workspace-intro+.vvd-web-section{padding-top:32px}.vvd-web-categories-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.vvd-web-header-action{padding:10px 11px;font-size:11px}}
 @media(max-width:480px){.vvd-web-workspace-actions{flex-direction:column}.vvd-web-workspace-actions>*{width:100%}.vvd-web-categories-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.vvd-web-category-card{padding:14px;min-height:164px}.vvd-web-category-icon{width:38px;height:38px}.vvd-web-category-card h3{font-size:13px;overflow-wrap:anywhere}.vvd-web-category-card p{font-size:10px}.vvd-web-workspace-intro h1{font-size:25px}.vvd-web-workspace-intro p{font-size:12px}.vvd-web-header-action{font-size:0}.vvd-web-header-action svg{width:18px;height:18px}}
+
+
+/* CPA network homepage: compact, responsive introduction and clear partner journey. */
+.vvd-web-workspace-intro{
+  display:grid;grid-template-columns:minmax(0,1.15fr) minmax(290px,.85fr);
+  align-items:center;gap:27px;
+  padding:32px;margin-top:22px;
+  background:radial-gradient(ellipse at 95% 6%,rgba(194,136,43,.20),transparent 57%),linear-gradient(140deg,#1b1710 0%,#101010 67%);
+}
+.vvd-web-workspace-copy{min-width:0}
+.vvd-web-workspace-copy>p:not(.vvd-web-hero-disclaimer){font-size:13px;line-height:1.75;max-width:650px;color:#c6beb0}
+.vvd-web-workspace-copy>p strong{color:#f1d8a2;font-weight:730}
+.vvd-web-workspace-intro h1{font-size:clamp(30px,3.8vw,47px);line-height:1.12;letter-spacing:-1.4px;margin:15px 0}
+.vvd-web-hero-points{display:flex;flex-wrap:wrap;gap:8px;margin:17px 0 20px}
+.vvd-web-hero-points>span{display:inline-flex;align-items:center;gap:7px;padding:8px 10px;border:1px solid rgba(230,179,83,.23);background:rgba(235,180,77,.06);border-radius:999px;color:#eed19a;font-size:11px;font-weight:650}
+.vvd-web-hero-points svg{color:#efc46c;flex-shrink:0}
+.vvd-web-workspace-actions{flex-wrap:wrap;gap:10px}
+.vvd-web-workspace-actions .vvd-web-gold-button,.vvd-web-workspace-actions .vvd-web-outline-button{min-height:44px;padding:12px 16px;font-size:12px}
+.vvd-web-workspace-intro .vvd-web-hero-disclaimer{font-size:10px;color:#8f887e;line-height:1.6;margin-top:15px;max-width:640px}
+.vvd-web-hero-panel{min-width:0;border:1px solid rgba(240,194,98,.24);border-radius:18px;padding:19px;background:linear-gradient(135deg,rgba(40,33,21,.92),rgba(14,14,15,.94));box-shadow:inset 0 1px 0 rgba(255,229,158,.06)}
+.vvd-web-hero-panel-heading{display:flex;gap:12px;align-items:center;padding-bottom:15px;border-bottom:1px solid rgba(236,181,85,.18)}
+.vvd-web-panel-symbol{display:grid;place-items:center;flex-shrink:0;width:42px;height:42px;color:#f5cb7a;border:1px solid rgba(241,194,95,.29);background:rgba(243,185,75,.09);border-radius:12px}
+.vvd-web-hero-panel-heading>div{min-width:0;display:flex;flex-direction:column;gap:5px}
+.vvd-web-hero-panel-heading small{font-size:9px;color:#aa9471;letter-spacing:1.5px;font-weight:750}
+.vvd-web-hero-panel-heading strong{color:#fff0ce;font-size:13px}
+.vvd-web-hero-panel-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:13px}
+.vvd-web-hero-panel-grid>div{display:flex;flex-direction:column;gap:7px;min-width:0;background:rgba(255,255,255,.025);border:1px solid rgba(245,197,98,.10);border-radius:12px;padding:13px}
+.vvd-web-hero-panel-grid svg{color:#ecc16e}
+.vvd-web-hero-panel-grid strong{font-size:12px;color:#fff;font-weight:750}
+.vvd-web-hero-panel-grid span{font-size:10px;color:#aca194;line-height:1.5}
+.vvd-web-hero-panel-footer{display:flex;align-items:center;gap:8px;margin-top:15px;color:#bead8b;font-size:10px}
+.vvd-web-hero-panel-footer svg{flex-shrink:0;color:#e5bc68}
+.vvd-web-feature-section{padding-top:49px;padding-bottom:34px}
+.vvd-web-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.vvd-web-steps article{display:flex;gap:13px;min-width:0;padding:18px;border-radius:15px;border:1px solid rgba(234,179,78,.19);background:linear-gradient(140deg,#1c1914,#101010)}
+.vvd-web-steps article>span{flex-shrink:0;color:#eac16e;font-size:12px;font-weight:850;letter-spacing:1px}
+.vvd-web-steps h3{font-size:14px;color:#fff;margin:0 0 7px}
+.vvd-web-steps p{font-size:11px;line-height:1.65;color:#a9a39a;margin:0}
+.vvd-web-inside-heading{margin-top:44px}
+.vvd-web-features-grid{gap:12px}
+.vvd-web-feature{min-height:0;padding:21px;border-radius:16px}
+.vvd-web-feature>span{width:43px;height:43px;border-radius:11px}
+.vvd-web-feature h3{font-size:15px;margin:14px 0 7px}
+.vvd-web-feature p{font-size:11px;line-height:1.7}
+.vvd-web-cta{margin:23px 0 48px;padding:28px 30px}
+.vvd-web-cta-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.vvd-web-cta-actions .vvd-web-gold-button,.vvd-web-cta-actions .vvd-web-outline-button{min-height:44px;padding:11px 14px;font-size:12px}
+@media(max-width:1000px){
+  .vvd-web-workspace-intro{grid-template-columns:1fr 1fr;align-items:start;gap:18px}
+  .vvd-web-steps{gap:9px}
+}
+@media(max-width:780px){
+  .vvd-web-workspace-intro{grid-template-columns:minmax(0,1fr);padding:23px 20px;margin-top:16px;gap:19px}
+  .vvd-web-workspace-intro h1{font-size:clamp(28px,6.3vw,37px)}
+  .vvd-web-hero-panel{padding:14px}
+  .vvd-web-steps{grid-template-columns:1fr;gap:9px}
+  .vvd-web-steps article{padding:14px 16px}
+  .vvd-web-inside-heading{margin-top:31px}
+  .vvd-web-cta{align-items:stretch}
+  .vvd-web-cta-actions{justify-content:flex-start}
+}
+@media(max-width:480px){
+  .vvd-web-workspace-intro{padding:22px 17px}
+  .vvd-web-workspace-intro h1{font-size:30px;letter-spacing:-1px}
+  .vvd-web-workspace-copy>p:not(.vvd-web-hero-disclaimer){font-size:12px}
+  .vvd-web-workspace-actions{flex-direction:column}
+  .vvd-web-workspace-actions>*{width:100%}
+  .vvd-web-hero-points{gap:6px}
+  .vvd-web-hero-points>span{font-size:10px;padding:7px 9px}
+  .vvd-web-hero-panel-grid>div{padding:11px}
+  .vvd-web-cta-actions{flex-direction:column}
+  .vvd-web-cta-actions>*{width:100%}
+}
