@@ -303,7 +303,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
           <div className="vvd-web-empty-service"><Layers size={30}/><h2>Сервисы скоро появятся</h2><p>Мы добавляем предложения по мере подключения партнёрских программ. Сейчас здесь нет опубликованных сервисов.</p><button type="button" onClick={openMain}>Смотреть другие категории <ArrowRight size={17}/></button></div>}
         </>:<div className="vvd-web-empty-service"><h1>Раздел не найден</h1><p>Возможно, категория была переименована или скрыта.</p><button onClick={openMain}>Вернуться в каталог</button></div>}
       </main> :
-      <main>
+      <main className="vvd-web-public-main">
         <section className="vvd-web-workspace-intro" id="top" aria-labelledby="vvd-web-intro-title">
           <div className="vvd-web-workspace-copy">
             <span className="vvd-web-eyebrow"><span className="vvd-web-dot"/> CPA-ПАРТНЁРСКАЯ СЕТЬ · VVD CPA</span>
