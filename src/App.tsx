@@ -2,7 +2,7 @@ import {saveSnapshot} from '@/shared/lib/viewSnapshot';
 import {preloadStartupData, StartupDataError} from '@/shared/lib/startupData';
 import React, { useState, useEffect } from 'react';
 import { MemoryRouter, Routes, Route, NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Home as HomeIcon, Grid, BarChart3, Wrench, User } from 'lucide-react';
+import { Home as HomeIcon, Grid, BarChart3, Wrench, User, Globe2, LogOut, ShieldCheck } from 'lucide-react';
 import { triggerHaptic } from '@/shared/lib/telegram';
 import { Home } from '@/pages/home/Home';
 import { InfoPage } from '@/pages/info/InfoPage';
@@ -17,6 +17,9 @@ import { AIModelsPage,AIEditor } from '@/pages/tools/AIStudio';
 import {ServiceDirectoryPage,ServiceCategoryPage} from '@/pages/tools/ServiceDirectory';
 import { PublicAIPage } from '@/pages/tools/PublicAIChat';
 import { PublicWebsite } from '@/pages/public/PublicWebsite';
+import { useBrowserSession } from '@/pages/public/WebAuth';
+import {getWebSession} from '@/shared/lib/browserSession';
+import type {AuthResponse} from '@/shared/lib/api';
 import { Profile } from '@/pages/profile/Profile';
 import { Referral } from '@/pages/Referral';
 import { Admin } from '@/pages/admin/Admin';
@@ -67,7 +70,7 @@ const AppBackdrop = () => {
 };
 
 // Главный Лейаут приложения, фиксирующий Bottom Menu
-const AppLayout = () => {
+const AppLayout = ({webMode=false}:{webMode?:boolean}) => {
   const location = useLocation();
   const tabPaths = ['/', '/offers', '/stats', '/tools', '/profile'] as const;
   const activeTab = tabPaths.includes(location.pathname as typeof tabPaths[number]) ? location.pathname : null;
@@ -90,7 +93,7 @@ const AppLayout = () => {
     <div
   className="flex flex-col w-full bg-transparent text-textPrimary relative"
   style={{
-    height: "100dvh",
+    height: webMode ? "calc(100dvh - 64px)" : "100dvh",
   }}
 >
       
@@ -190,7 +193,7 @@ const AppLayout = () => {
 
 // Tools use the existing app shell and bottom navigation.
 
-const MiniApp = () => {
+const MiniApp = ({webUser}:{webUser?:AuthResponse['user']}) => {
   const [authState, setAuthState] = useState<'loading'|'ready'|'error'|'data-error'|'connection-error'>('loading');
   const [authMessage, setAuthMessage] = useState('');
   const [startupAttempt,setStartupAttempt]=useState(0);
@@ -205,10 +208,13 @@ const MiniApp = () => {
     const authenticate = async () => {
       setAuthState('loading');
       try {
-        if (!window.Telegram?.WebApp?.initData) {
-          throw new Error('Откройте VVD CPA через кнопку Mini App в Telegram.');
+        if (!webUser && !window.Telegram?.WebApp?.initData) {
+          throw new Error('Откройте VVD CPA через Telegram или авторизуйтесь на сайте.');
         }
-        const response = await loginViaTelegramApi();
+        if (webUser && !getWebSession()) {
+          throw new Error('Веб-сессия завершилась. Войдите ещё раз.');
+        }
+        const response = webUser ? {user:webUser} : await loginViaTelegramApi();
         if (active) {
           localStorage.setItem('vvd_cpa_user_data', JSON.stringify(response.user));
           saveSnapshot(`account:${response.user.telegram_id}`,response.user);
@@ -242,7 +248,7 @@ const MiniApp = () => {
     };
     void authenticate();
     return () => { active = false; };
-  }, [startupAttempt]);
+  }, [startupAttempt, webUser?.telegram_id]);
 
   if (authState === 'loading') return <Loader />;
   if (authState === 'error' || authState === 'data-error' || authState === 'connection-error') {
@@ -266,7 +272,7 @@ const MiniApp = () => {
         <AppBackdrop />
         <Routes>
           {/* Обертка Лейаута */}
-          <Route path="/" element={<AppLayout />}>
+          <Route path="/" element={<AppLayout webMode={Boolean(webUser)}/>}>
             <Route index element={null} />
             <Route path="why-vvd" element={<InfoPage />} />
             <Route path="offers" element={null} />
@@ -310,12 +316,49 @@ const MiniApp = () => {
   );
 };
 
-// Keep the existing Mini App and public AI links unchanged.
-// Outside Telegram, show the browser website instead of a dead-end sign-in error.
-// Protected account actions always remain inside the signed Telegram session.
+// Telegram inside-app and website users share the existing VVD CPA routes,
+// UI, accounts and API data. The website only differs in login and outer header.
+const BrowserPortal = () => {
+  const auth=useBrowserSession();
+  const [publicView,setPublicView]=useState(false);
+  const openApp=()=>setPublicView(false);
+  const goPublic=()=>setPublicView(true);
+
+  if(auth.restoring && !auth.profile) return <Loader />;
+
+  if(auth.profile && !publicView){
+    const user={...auth.profile.user,partner_code:auth.profile.user.partner_code||''};
+    const exit=async()=>{
+      await auth.logout();
+      localStorage.removeItem('vvd_cpa_user_data');
+      setPublicView(false);
+    };
+    return <div className="relative min-h-[100dvh] w-full overflow-hidden bg-bgMain text-textPrimary">
+      <header className="relative z-[10001] flex h-16 items-center justify-between gap-3 border-b border-accentGold/25 bg-[#100e0b]/95 px-4 text-white backdrop-blur-md">
+        <div className="min-w-0">
+          <b className="block truncate text-sm tracking-wider text-accentBrightGold">VVD CPA</b>
+          <span className="text-[10px] text-textSecondary">Веб-платформа · Telegram аккаунт</span>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <button type="button" onClick={goPublic}
+            className="flex items-center gap-1.5 rounded-app-xs border border-accentGold/30 bg-accentGold/10 px-3 py-2 text-[11px] font-semibold text-accentBrightGold">
+            <Globe2 size={15}/> <span>Сайт</span>
+          </button>
+          <button type="button" onClick={()=>void exit()} aria-label="Выйти из аккаунта"
+            className="flex items-center gap-1.5 rounded-app-xs border border-white/15 px-3 py-2 text-[11px] text-textSecondary">
+            <LogOut size={15}/> <span>Выйти</span>
+          </button>
+        </div>
+      </header>
+      <MiniApp key={user.telegram_id} webUser={user}/>
+    </div>;
+  }
+  return <PublicWebsite auth={auth} onOpenApp={openApp}/>;
+};
+
 const App = () => {
   const slug = new URLSearchParams(window.location.search).get('model');
   if (slug) return <PublicAIPage slug={slug} />;
-  return window.Telegram?.WebApp?.initData ? <MiniApp /> : <PublicWebsite />;
+  return window.Telegram?.WebApp?.initData ? <MiniApp /> : <BrowserPortal />;
 };
 export default App;
