@@ -145,9 +145,13 @@ def login(payload: TelegramWebsiteLogin):
         now = int(time.time())
         if int(claims["iat"]) > now + 15 or now - int(claims["iat"]) > 3600:
             raise ValueError("Stale identity token")
-        uid = int(claims.get("id") or claims["sub"])
-        if uid <= 0:
-            raise ValueError("Missing Telegram identity")
+        # OIDC 'sub' is not guaranteed to equal the ordinary Telegram user ID.
+        # The signed 'id' profile claim is the identity used by the existing Mini App.
+        if "id" not in claims or isinstance(claims["id"], bool):
+            raise ValueError("Missing Telegram profile ID")
+        uid = int(claims["id"])
+        if uid <= 0 or uid >= 2**63:
+            raise ValueError("Invalid Telegram ID")
         if not str(claims["sub"]).isdigit():
             raise ValueError("Invalid Telegram subject")
     except Exception:
