@@ -1,5 +1,5 @@
 import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import {ArrowRight,ArrowUpRight,BarChart3,Check,ChevronLeft,ChevronRight,Globe2,Layers,Menu,Search,ShieldCheck,Users,Wrench,Target,MousePointerClick,Wallet,Link2,Activity,LayoutDashboard,X} from 'lucide-react';
+import {ArrowRight,ArrowUpRight,BarChart3,Check,ChevronLeft,ChevronRight,Globe2,Layers,Menu,Search,ShieldCheck,Users,Wrench,Target,MousePointerClick,Wallet,Link2,Activity,LayoutDashboard,X,Zap,Headphones} from 'lucide-react';
 import {API_BASE_URL} from '@/shared/lib/api';
 import {directoryIcons,type DirectoryData,type DirectoryService} from '@/pages/tools/serviceDirectoryApi';
 import {BrowserAccount, TelegramBrowserLogin, type useBrowserSession} from './WebAuth';
@@ -307,13 +307,15 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
         <section className="vvd-web-workspace-intro" id="top" aria-labelledby="vvd-web-intro-title">
           <div className="vvd-web-workspace-copy">
             <span className="vvd-web-eyebrow"><span className="vvd-web-dot"/> CPA-ПАРТНЁРСКАЯ СЕТЬ · VVD CPA</span>
-            <h1 id="vvd-web-intro-title">Зарабатывай на своём трафике.<br/><em>VVD CPA — партнёрская сеть.</em></h1>
-            <p><strong>Для вебмастеров и арбитражников.</strong> Смартлинки разных вертикалей, статистика конверсий и выплаты за подтверждённый трафик.</p>
-            <div className="vvd-web-hero-points" aria-label="Возможности VVD CPA">
-              <span><Link2 size={15}/> Смартлинки</span>
-              <span><Target size={15}/> Разные вертикали</span>
-              <span><Wallet size={15}/> Выплаты</span>
-              <span><BarChart3 size={15}/> Статистика</span>
+            <h1 id="vvd-web-intro-title">VVD CPA — <em>партнёрка для трафика.</em></h1>
+            <p>Монетизируй свой трафик через смартлинки разных вертикалей. <strong>Выплаты, аналитика и поддержка</strong> — в одной платформе.</p>
+            <div className="vvd-web-hero-points" aria-label="Преимущества VVD CPA">
+              <span><Link2 size={18} aria-hidden="true"/> Смартлинки</span>
+              <span><Layers size={18} aria-hidden="true"/> Мультивертикаль</span>
+              <span><Wallet size={18} aria-hidden="true"/> Выплаты по запросу</span>
+              <span><Zap size={18} aria-hidden="true"/> Быстрый холд</span>
+              <span><Headphones size={18} aria-hidden="true"/> Саппорт 24/7</span>
+              <span><Globe2 size={18} aria-hidden="true"/> Весь мир</span>
             </div>
             <div className="vvd-web-workspace-actions">
               <button type="button" className="vvd-web-gold-button" onClick={()=>auth.isLoggedIn?openAccount():auth.setLoginOpen(true)}>{auth.isLoggedIn?'Открыть кабинет':'Начать через Telegram'} <ArrowRight size={16}/></button>
