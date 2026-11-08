@@ -327,3 +327,56 @@
   .vvd-web-banner-rail{scroll-behavior:auto}
   .vvd-web-banner-dots button{transition:none}
 }
+
+
+/* Public landing: split the oversized hero into two independent panels.
+   CSS-only: shared content, banner feed, catalog, and Mini App remain unchanged. */
+.vvd-web-workspace-intro{
+  align-items:stretch;
+  gap:16px;
+  padding:0;
+  margin-bottom:0;
+  border:0;
+  border-radius:0;
+  background:none;
+  box-shadow:none;
+}
+.vvd-web-workspace-copy{
+  min-width:0;
+  padding:26px 28px;
+  border:1px solid rgba(225,178,80,.27);
+  border-radius:20px;
+  background:radial-gradient(ellipse at 95% 0%,rgba(194,136,43,.16),transparent 60%),linear-gradient(135deg,#1b1711,#10100f 75%);
+  box-shadow:0 12px 32px rgba(0,0,0,.2),inset 0 1px 0 rgba(250,220,160,.06);
+}
+.vvd-web-hero-panel{
+  height:100%;
+  border-radius:20px;
+}
+.vvd-web-public-banners{
+  margin-top:16px;
+  margin-bottom:26px;
+}
+@media(max-width:780px){
+  .vvd-web-workspace-intro{
+    padding:0;
+    gap:13px;
+    margin-bottom:0;
+  }
+  .vvd-web-workspace-copy{
+    padding:22px 20px;
+    border-radius:18px;
+  }
+  .vvd-web-hero-panel{
+    border-radius:18px;
+  }
+  .vvd-web-public-banners{
+    margin-top:13px;
+    margin-bottom:23px;
+  }
+}
+@media(max-width:480px){
+  .vvd-web-workspace-intro{padding:0;gap:12px}
+  .vvd-web-workspace-copy{padding:20px 17px}
+  .vvd-web-public-banners{margin-top:12px;margin-bottom:20px}
+}
