@@ -399,3 +399,72 @@
   .vvd-web-public-banners{margin-top:12px;margin-bottom:12px}
   .vvd-web-portal #catalog{padding-top:0}
 }
+
+
+/* Public homepage layout rhythm: one vertical spacing owner.
+   Prevent legacy section paddings and block margins from stacking. */
+.vvd-web-public-main{
+  --vvd-public-gap:20px;
+  --vvd-public-inner-gap:16px;
+  display:flex;
+  flex-direction:column;
+  gap:var(--vvd-public-gap);
+  padding:20px 0 24px;
+  min-width:0;
+}
+.vvd-web-public-main > *{min-width:0}
+.vvd-web-public-main > .vvd-web-workspace-intro{
+  margin:0;
+  padding:0;
+  gap:var(--vvd-public-inner-gap);
+}
+.vvd-web-public-main > .vvd-web-public-banners,
+.vvd-web-public-main > .vvd-web-public-info{
+  margin:0;
+}
+.vvd-web-public-main > .vvd-web-section{
+  padding:0;
+  scroll-margin-top:18px;
+}
+.vvd-web-public-main > #catalog .vvd-web-section-heading,
+.vvd-web-public-main > #features .vvd-web-section-heading{
+  margin-bottom:var(--vvd-public-inner-gap);
+  gap:10px;
+}
+.vvd-web-public-main .vvd-web-section-heading h2{
+  margin:8px 0 10px;
+}
+.vvd-web-public-main .vvd-web-search{
+  margin-bottom:var(--vvd-public-inner-gap);
+}
+.vvd-web-public-main .vvd-web-categories-grid,
+.vvd-web-public-main .vvd-web-features-grid,
+.vvd-web-public-main .vvd-web-steps{
+  gap:var(--vvd-public-inner-gap);
+}
+.vvd-web-public-main .vvd-web-public-info{
+  gap:var(--vvd-public-inner-gap);
+}
+.vvd-web-public-main #features .vvd-web-inside-heading{
+  margin-top:24px;
+}
+.vvd-web-public-main > .vvd-web-cta{
+  margin:0;
+}
+@media(max-width:780px){
+  .vvd-web-public-main{
+    --vvd-public-gap:16px;
+    --vvd-public-inner-gap:12px;
+    padding:16px 0 20px;
+  }
+  .vvd-web-public-main > .vvd-web-workspace-intro{gap:12px}
+  .vvd-web-public-main #features .vvd-web-inside-heading{margin-top:20px}
+}
+@media(max-width:480px){
+  .vvd-web-public-main{
+    --vvd-public-gap:14px;
+    --vvd-public-inner-gap:12px;
+    padding:14px 0 18px;
+  }
+  .vvd-web-public-main > .vvd-web-workspace-intro{gap:12px}
+}
