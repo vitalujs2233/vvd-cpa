@@ -37,11 +37,15 @@ export const HomeAdCarousel:React.FC=()=>{
  const [reducedMotion,setReducedMotion]=useState(false);
  useEffect(()=>{
   let live=true;
-  apiRequest<Feed>('/home-ads/published').then(data=>{if(live){cachedAds={items:data.items.slice(0,4),autoplay:data.autoplay};setFeed(cachedAds)}}).catch(()=>{});
+  // Startup already fetched this feed. Avoid an immediate duplicate request and layout shift.
+  const refresh=()=>apiRequest<Feed>('/home-ads/published').then(data=>{if(live){cachedAds={items:data.items.slice(0,4),autoplay:data.autoplay};setFeed(cachedAds)}}).catch(()=>{});
+  if(!cachedHomeFeed<Feed>('home:ads'))void refresh();
+  const onVisible=()=>{if(!document.hidden)void refresh()};
+  document.addEventListener('visibilitychange',onVisible);
   const query=window.matchMedia('(prefers-reduced-motion: reduce)');
   const sync=()=>setReducedMotion(query.matches);
   sync();query.addEventListener?.('change',sync);
-  return()=>{live=false;query.removeEventListener?.('change',sync)};
+  return()=>{live=false;document.removeEventListener('visibilitychange',onVisible);query.removeEventListener?.('change',sync)};
  },[]);
  const count=feed.items.length;
  const go=(index:number)=>{
