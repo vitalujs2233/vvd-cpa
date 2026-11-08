@@ -43,10 +43,13 @@ export function preloadStartupData(id:number,partnerCode='',role='user'):Promise
     if(results.some(result=>result.status==='rejected'))
       throw new StartupDataError('Не удалось загрузить данные. Проверьте соединение и нажмите «Повторить».');
     if(currentSignedSession()!==session)throw new StartupDataError('Сессия изменилась. Откройте приложение заново.');
-    // Keep secondary pages warm without blocking the first visible screen.
-    void Promise.allSettled(requests.slice(2).map(fetchOne));
-    void preloadPages(id,partnerCode,role).catch(()=>{});
+    // Prioritize the visible home: secondary preloads must not compete with its feeds/images.
     await warmHomeContent();
+    // Warm other screens only after the home is ready; do not block initial navigation.
+    if(currentSignedSession()===session){
+      void Promise.allSettled(requests.slice(2).map(fetchOne));
+      void preloadPages(id,partnerCode,role).catch(()=>{});
+    }
   })().finally(()=>{if(pending?.promise===promise)pending=undefined;});
   pending={session,id,promise};
   return promise;
