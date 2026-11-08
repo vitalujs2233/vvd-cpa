@@ -308,7 +308,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
           <div className="vvd-web-workspace-copy">
             <span className="vvd-web-eyebrow"><span className="vvd-web-dot"/> CPA-ПАРТНЁРСКАЯ СЕТЬ · VVD CPA</span>
             <h1 id="vvd-web-intro-title">Зарабатывай на своём трафике.<br/><em>VVD CPA — партнёрская сеть.</em></h1>
-            <p><strong>VVD CPA — для вебмастеров и арбитражников.</strong> Монетизируй свой трафик через смартлинки разных вертикалей, отслеживай конверсии и заработок. Получай выплаты за подтверждённые результаты по условиям офферов.</p>
+            <p><strong>Для вебмастеров и арбитражников.</strong> Смартлинки разных вертикалей, статистика конверсий и выплаты за подтверждённый трафик.</p>
             <div className="vvd-web-hero-points" aria-label="Возможности VVD CPA">
               <span><Link2 size={15}/> Смартлинки</span>
               <span><Target size={15}/> Разные вертикали</span>
@@ -319,7 +319,6 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
               <button type="button" className="vvd-web-gold-button" onClick={()=>auth.isLoggedIn?openAccount():auth.setLoginOpen(true)}>{auth.isLoggedIn?'Открыть кабинет':'Начать через Telegram'} <ArrowRight size={16}/></button>
               <button type="button" className="vvd-web-outline-button" onClick={()=>jumpTo('catalog')}>Каталог сервисов <ArrowRight size={16}/></button>
             </div>
-            <p className="vvd-web-hero-disclaimer">Условия, доступность офферов и размер вознаграждений зависят от конкретного предложения. Доход не гарантируется.</p>
           </div>
           <div className="vvd-web-hero-panel" aria-label="Что есть внутри партнёрской платформы">
             <div className="vvd-web-hero-panel-heading"><span className="vvd-web-panel-symbol"><Layers size={22}/></span><div><small>ОДНА ПЛАТФОРМА</small><strong>Смартлинки · Доход · Выплаты</strong></div></div>
