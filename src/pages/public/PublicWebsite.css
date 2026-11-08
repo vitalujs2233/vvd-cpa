@@ -229,3 +229,51 @@
   .vvd-web-cta-actions{flex-direction:column}
   .vvd-web-cta-actions>*{width:100%}
 }
+
+
+/* Public homepage polish: keep login action inside the phone header. */
+.vvd-web-header-action{flex-shrink:0;white-space:nowrap;min-width:0;max-width:100%;font-size:12px}
+.vvd-web-header-action svg{flex-shrink:0}
+.vvd-web-login-short{display:none}
+@media(max-width:730px){
+  .vvd-web-header{gap:8px}
+  .vvd-web-brand{min-width:0;flex-shrink:1}
+  .vvd-web-brand-copy{min-width:0}
+  .vvd-web-header-action{padding:10px 12px;font-size:12px;gap:5px;line-height:1.2}
+  .vvd-web-header-action .vvd-web-login-long{display:none}
+  .vvd-web-header-action .vvd-web-login-short{display:inline}
+}
+@media(max-width:480px){
+  .vvd-web-header-action{font-size:12px;padding:10px 12px;min-width:0}
+  .vvd-web-header-action svg{width:15px;height:15px}
+}
+
+/* Catalog: consistent tile rhythm with no empty "coming soon" footer. */
+.vvd-web-categories-grid{align-items:stretch}
+.vvd-web-category-card{
+  display:grid;
+  grid-template-rows:38px minmax(36px,auto) 1fr;
+  align-content:start;
+  row-gap:10px;
+  min-width:0;
+  min-height:185px;
+}
+.vvd-web-category-icon{grid-row:1}
+.vvd-web-category-card h3{
+  grid-row:2;
+  margin:0;
+  line-height:1.35;
+  align-self:start;
+}
+.vvd-web-category-card p{
+  grid-row:3;
+  margin:0;
+  min-height:0;
+  line-height:1.5;
+  align-self:start;
+}
+@media(max-width:480px){
+  .vvd-web-category-card{min-height:195px;padding:14px;row-gap:9px}
+  .vvd-web-category-card h3{font-size:13px}
+  .vvd-web-category-card p{font-size:10px}
+}
