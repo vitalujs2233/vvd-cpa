@@ -1,14 +1,17 @@
 """External service directory for VVD CPA. Informational links only; no payments or purchases."""
 import json
+import re
 from typing import Optional
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, UploadFile, File
+from fastapi.responses import Response
 from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import text
 from database import engine
 from stars_payments import require_telegram_id
 from access_guard import authorized_admin
+from home_ads import sanitize
 
 router = APIRouter(prefix="/service-directory", tags=["Service Directory"])
 
@@ -102,6 +105,53 @@ def published_directory():
         key=lambda item: (item.get("sort_order", 100), item["name"].lower())
     )
     return {"version": data["version"], "categories": categories, "services": services}
+
+
+# Upload service logos without requiring the administrator to host an image.
+# Reuse the existing banner sanitizer: JPG/PNG/WebP, 5 MB input limit,
+# EXIF orientation correction and optimized WebP output.
+def _image_id(service_id: str) -> str:
+    if len(service_id) > 64 or not re.fullmatch(r"[a-z0-9][a-z0-9-]*", service_id):
+        raise HTTPException(status_code=422, detail="Неверный ID сервиса")
+    return service_id
+
+
+@router.get("/images/{service_id}")
+def service_image(service_id: str):
+    service_id = _image_id(service_id)
+    with engine.connect() as conn:
+        data = conn.execute(text("""
+            SELECT image_data FROM public.vvd_service_directory_images
+            WHERE service_id=:id
+        """), {"id": service_id}).scalar_one_or_none()
+    if data is None:
+        raise HTTPException(status_code=404, detail="Фото сервиса не найдено")
+    return Response(
+        content=bytes(data),
+        media_type="image/webp",
+        headers={"Cache-Control": "public, max-age=300", "X-Content-Type-Options": "nosniff"},
+    )
+
+
+@router.post("/admin/images/{service_id}")
+async def upload_service_image(
+    service_id: str,
+    image: UploadFile = File(...),
+    x_telegram_init_data: Optional[str] = Header(None),
+):
+    admin_id(x_telegram_init_data)
+    service_id = _image_id(service_id)
+    encoded = await sanitize(image)
+    with engine.begin() as conn:
+        updated = conn.execute(text("""
+            INSERT INTO public.vvd_service_directory_images(service_id,image_data)
+            VALUES (:id,:data)
+            ON CONFLICT(service_id) DO UPDATE SET
+              image_data=EXCLUDED.image_data,updated_at=now()
+            RETURNING updated_at
+        """), {"id": service_id, "data": encoded}).scalar_one()
+    # Use a versioned URL so replacing an image refreshes it on the phone.
+    return {"image_url": f"/service-directory/images/{service_id}?v={int(updated.timestamp() * 1000000)}"}
 
 
 @router.get("/admin")
