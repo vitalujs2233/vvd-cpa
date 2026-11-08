@@ -9,3 +9,13 @@ body.dvizh-active nav {
 .dvizh-chat-typing .dvizh-heading > div > div > span { display: none; }
 .dvizh-chat-typing .dvizh-heading > button { width: 32px; height: 32px; }
 .dvizh-chat input { font-size: 16px; }
+
+
+/* Browser-only iPhone keyboard: the global bottom navigation otherwise covers
+   the composer. Telegram Mini App keeps its existing navigation behavior. */
+body.dvizh-active.dvizh-browser-typing nav {
+  display: none !important;
+}
+body.dvizh-active.dvizh-browser-typing .dvizh-chat {
+  z-index: 10000;
+}
