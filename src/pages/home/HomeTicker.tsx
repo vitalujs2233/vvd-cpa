@@ -35,8 +35,8 @@ export const HomeTicker:React.FC=()=>{
  useEffect(()=>{
   let live=true;
   const load=()=>apiRequest<TickerFeed>('/home-ticker/published').then(result=>{if(live){cachedTicker=result;setFeed(result)}}).catch(()=>{});
-  void load();
-  const onFocus=()=>{void load()};
+  if(!cachedHomeFeed<TickerFeed>('home:ticker'))void load();
+  const onFocus=()=>{if(!document.hidden)void load()};
   document.addEventListener('visibilitychange',onFocus);
   const media=window.matchMedia('(prefers-reduced-motion: reduce)');
   const sync=()=>setReduced(media.matches);sync();media.addEventListener?.('change',sync);
