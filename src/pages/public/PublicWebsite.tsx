@@ -169,7 +169,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
         </nav>
         {auth.isLoggedIn
           ?<button type="button" className="vvd-web-header-action" onClick={openAccount}><ShieldCheck size={17}/> Кабинет <ArrowRight size={15}/></button>
-          :<button type="button" className="vvd-web-header-action" onClick={()=>auth.setLoginOpen(true)}>Войти / Регистрация <ArrowRight size={15}/></button>}
+          :<button type="button" className="vvd-web-header-action" onClick={()=>auth.setLoginOpen(true)}><span className="vvd-web-login-long">Войти / Регистрация</span><span className="vvd-web-login-short">Войти</span><ArrowRight size={15}/></button>}
         <button type="button" onClick={()=>setMobileMenu(v=>!v)} className="vvd-web-mobile-menu" aria-label={mobileMenu?'Закрыть меню':'Открыть меню'} aria-expanded={mobileMenu}>{mobileMenu?<X size={23}/>:<Menu size={23}/>}</button>
       </header>
 
@@ -239,12 +239,10 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
             filtered.length>0?<div className="vvd-web-categories-grid">
               {filtered.map(c=>{
                 const Icon=directoryIcons[c.icon]||Layers;
-                const count=data.services.filter(s=>s.category_id===c.id).length;
                 return <a key={c.id} href={getSiteUrl(c.id)} onClick={event=>{event.preventDefault();showCategory(c.id);}} className="vvd-web-category-card">
                   <div className="vvd-web-category-icon"><Icon size={26} strokeWidth={1.6}/></div>
                   <ChevronRight className="vvd-web-card-arrow" size={20}/>
                   <h3>{c.name}</h3><p>{c.description}</p>
-                  <span>{count?count+' предложений':'Скоро предложения'}</span>
                 </a>;
               })}
             </div>:<div className="vvd-web-notice">По вашему запросу разделов не найдено.</div>}
