@@ -126,3 +126,33 @@
 @media (max-width:720px){.vvd-web-layout{padding:0 19px}.vvd-web-header{min-height:76px}.vvd-web-header-action{margin-left:auto;font-size:11px;padding:11px 12px}.vvd-web-mobile-menu{display:grid;place-items:center;width:38px;height:38px;flex-shrink:0;border:1px solid rgba(227,180,83,.3);border-radius:9px;background:#19150d;color:#f6cb78}.vvd-web-nav{display:none;position:absolute;top:74px;right:19px;left:19px;z-index:20;padding:15px;background:#17140e;border:1px solid rgba(228,178,80,.4);border-radius:13px;box-shadow:0 12px 38px #000a}.vvd-web-nav.is-open{display:flex;flex-direction:column;align-items:stretch;gap:0}.vvd-web-nav button{text-align:left;padding:12px}.vvd-web-brand-copy strong{font-size:16px;letter-spacing:1.2px}.vvd-web-brand-copy small{font-size:7px;letter-spacing:1.7px}.vvd-web-monogram{width:39px;height:39px;font-size:24px}.vvd-web-hero{grid-template-columns:1fr;padding:55px 0 40px;gap:22px;min-height:0}.vvd-web-hero h1{font-size:clamp(39px,8vw,56px);letter-spacing:-1.8px}.vvd-web-hero-copy>p{font-size:14px}.vvd-web-art{height:320px}.vvd-web-orbit-one{width:235px;height:235px}.vvd-web-orbit-two{width:285px;height:285px}.vvd-web-big-v{font-size:115px}.vvd-web-art-mark>span:not(.vvd-web-big-v){font-size:21px}.vvd-web-art-caption{display:none}.vvd-web-proofline{grid-template-columns:repeat(2,1fr);gap:20px 10px}.vvd-web-proofline>div:nth-child(even){border:0}.vvd-web-proofline>div{font-size:10px;justify-content:flex-start;padding-left:8px}.vvd-web-section{padding-top:66px}.vvd-web-section-heading{align-items:start;flex-direction:column;gap:15px}.vvd-web-feature-section{padding-bottom:40px}.vvd-web-features-grid{grid-template-columns:1fr;gap:12px}.vvd-web-feature{min-height:0;padding:25px}.vvd-web-cta{flex-direction:column;align-items:flex-start;padding:29px 25px;margin:30px 0 55px}.vvd-web-footer{flex-wrap:wrap;gap:15px}.vvd-web-footer p{order:3;width:100%}.vvd-web-category-view{padding-top:35px}.vvd-web-category-hero{padding:22px;gap:15px}.vvd-web-category-hero .vvd-web-category-badge{width:65px;height:65px}.vvd-web-category-hero h1{font-size:28px}.vvd-web-services-grid{grid-template-columns:1fr}}
 @media (max-width:480px){.vvd-web-layout{padding:0 15px}.vvd-web-header{gap:9px}.vvd-web-brand{gap:8px}.vvd-web-header-action{font-size:0;padding:10px;min-width:40px}.vvd-web-header-action svg{width:19px;height:19px}.vvd-web-hero h1{font-size:40px}.vvd-web-hero-actions{display:flex;flex-direction:column}.vvd-web-hero-actions>*{width:100%}.vvd-web-hero-benefits{gap:10px}.vvd-web-hero-benefits span{font-size:10px}.vvd-web-categories-grid{grid-template-columns:1fr;gap:11px}.vvd-web-category-card{min-height:0;padding:20px}.vvd-web-category-card h3{margin-top:15px}.vvd-web-category-card p{min-height:0}.vvd-web-feature{padding:21px}.vvd-web-cta .vvd-web-gold-button{width:100%}.vvd-web-eyebrow{font-size:9px;letter-spacing:1.6px}.vvd-web-proofline{padding:19px 0}.vvd-web-category-hero{align-items:flex-start}.vvd-web-category-hero h1{font-size:24px}.vvd-web-category-hero .vvd-web-category-badge{width:55px;height:55px}.vvd-web-category-hero .vvd-web-category-badge svg{width:24px}}
 @media (prefers-reduced-motion:reduce){.vvd-web-portal,.vvd-web-orbit,.vvd-web-spark,.vvd-web-placeholder{animation:none!important;scroll-behavior:auto!important}.vvd-web-category-card,.vvd-web-gold-button,.vvd-web-outline-button{transition:none}}
+
+/* Website v2: service workspace instead of a long hero landing. */
+.vvd-web-workspace-intro{
+  display:flex;align-items:center;justify-content:space-between;gap:24px;
+  margin:32px 0 0;padding:30px 32px;
+  border:1px solid rgba(225,178,80,.27);border-radius:20px;
+  background:radial-gradient(ellipse at 90% 0%,rgba(172,119,40,.16),transparent 58%),linear-gradient(130deg,#191714,#0d0d0e);
+}
+.vvd-web-workspace-intro h1{margin:12px 0 10px;color:#fff;font-size:clamp(24px,2.9vw,35px);font-weight:790;letter-spacing:-.9px;line-height:1.2}
+.vvd-web-workspace-intro h1 em{font-style:normal;color:#f0c771}
+.vvd-web-workspace-intro p{font-size:12px;line-height:1.7;color:#aca7a0;max-width:640px;margin:0}
+.vvd-web-workspace-actions{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.vvd-web-workspace-actions .vvd-web-gold-button,.vvd-web-workspace-actions .vvd-web-outline-button{min-height:43px;padding:11px 15px;font-size:12px}
+.vvd-web-workspace-intro+.vvd-web-section{padding-top:38px}
+.vvd-web-workspace-intro+.vvd-web-section .vvd-web-section-heading{margin-bottom:20px}
+.vvd-web-workspace-intro+.vvd-web-section .vvd-web-section-heading h2{font-size:clamp(25px,2.8vw,34px)}
+.vvd-web-categories-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.vvd-web-category-card{min-height:151px;padding:17px;border-radius:16px}
+.vvd-web-category-icon{width:41px;height:41px;border-radius:10px}
+.vvd-web-category-icon svg{width:21px;height:21px}
+.vvd-web-card-arrow{top:18px;right:15px;width:16px;height:16px}
+.vvd-web-category-card h3{font-size:14px;margin:13px 0 5px;line-height:1.3}
+.vvd-web-category-card p{font-size:11px;line-height:1.45;min-height:0;margin-bottom:9px}
+.vvd-web-category-card>span{font-size:10px}
+.vvd-web-placeholder{height:155px;border-radius:16px}
+.vvd-web-feature-section{padding-top:66px}
+.vvd-web-header-action{background:linear-gradient(140deg,rgba(233,181,76,.17),rgba(218,150,53,.08))}
+@media(max-width:1060px){.vvd-web-workspace-intro{align-items:flex-start;flex-direction:column}.vvd-web-workspace-actions{flex-wrap:wrap}.vvd-web-categories-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:730px){.vvd-web-workspace-intro{margin-top:18px;padding:23px 20px}.vvd-web-workspace-actions{width:100%;flex-wrap:wrap}.vvd-web-workspace-intro h1{font-size:27px}.vvd-web-workspace-intro+.vvd-web-section{padding-top:32px}.vvd-web-categories-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.vvd-web-header-action{padding:10px 11px;font-size:11px}}
+@media(max-width:480px){.vvd-web-workspace-actions{flex-direction:column}.vvd-web-workspace-actions>*{width:100%}.vvd-web-categories-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.vvd-web-category-card{padding:14px;min-height:164px}.vvd-web-category-icon{width:38px;height:38px}.vvd-web-category-card h3{font-size:13px;overflow-wrap:anywhere}.vvd-web-category-card p{font-size:10px}.vvd-web-workspace-intro h1{font-size:25px}.vvd-web-workspace-intro p{font-size:12px}.vvd-web-header-action{font-size:0}.vvd-web-header-action svg{width:18px;height:18px}}
