@@ -325,6 +325,15 @@ const BrowserPortal = () => {
   const goPublic=()=>setPublicView(true);
 
   if(auth.restoring && !auth.profile) return <Loader />;
+  if(auth.restoreError && !auth.profile){
+    return <main role="alert" className="min-h-[100dvh] flex items-center justify-center bg-bgMain p-6 text-center text-textSecondary">
+      <div className="max-w-sm rounded-card border border-accentGold/25 bg-bgCard p-6">
+        <h1 className="mb-3 text-lg font-bold text-accentBrightGold">Временно нет связи с сервером</h1>
+        <p className="mb-4 text-sm">Вход Telegram сохранён. Проверь соединение и попробуй восстановить кабинет без повторной авторизации.</p>
+        <button type="button" onClick={auth.retryRestore} className="rounded-app-xs bg-accentGold px-5 py-3 font-semibold text-black">Повторить подключение</button>
+      </div>
+    </main>;
+  }
 
   if(auth.profile && !publicView){
     const user={...auth.profile.user,partner_code:auth.profile.user.partner_code||''};
