@@ -33,7 +33,7 @@ from cpa_manual_hold import (read_partner_hold, record_verified_receipt,
 from cpa_finance_corrections import register_dispute, confirm_cancellation
 from cpa_analytics import router as cpa_analytics_router
 
-from stars_payments import verified_telegram_id
+from stars_payments import verified_telegram_id, authenticated_user_id
 from urllib.parse import parse_qs
 from aiogram.types import Update
 import hmac
@@ -1518,7 +1518,7 @@ async def reject_withdrawal(withdrawal_id: int):
 @app.post("/chat/images")
 async def upload_chat_image(request: Request, image: UploadFile = File(...)):
     """Upload and sanitize an image; the user attaches it on message submission."""
-    uid = verified_telegram_id(request.headers.get("X-Telegram-Init-Data", ""))
+    uid = authenticated_user_id(request.headers.get("X-Telegram-Init-Data", ""))
     if image.content_type not in ("image/jpeg", "image/png", "image/webp"):
         raise HTTPException(400, "Поддерживаются только JPG, PNG и WebP")
     raw = await image.read(5 * 1024 * 1024 + 1)
@@ -1567,7 +1567,7 @@ async def upload_chat_image(request: Request, image: UploadFile = File(...)):
 
 @app.get("/chat/images/{image_id}")
 def get_chat_image(image_id: uuid.UUID, request: Request):
-    uid = verified_telegram_id(request.headers.get("X-Telegram-Init-Data", ""))
+    uid = authenticated_user_id(request.headers.get("X-Telegram-Init-Data", ""))
     with engine.connect() as conn:
         row = conn.execute(text("""
             SELECT image_data FROM dvizh_images
@@ -1764,7 +1764,7 @@ def get_chat_messages():
 
 @app.get("/chat/mentions")
 def get_chat_mentions(request: Request):
-    user_id = verified_telegram_id(request.headers.get("X-Telegram-Init-Data", ""))
+    user_id = authenticated_user_id(request.headers.get("X-Telegram-Init-Data", ""))
     with engine.connect() as conn:
         rows = conn.execute(text("""
             SELECT n.id, n.message_id, n.kind, n.is_read, n.created_at,
@@ -1785,7 +1785,7 @@ def get_chat_mentions(request: Request):
 
 @app.post("/chat/mentions/{notification_id}/read")
 def mark_chat_mention_read(notification_id: uuid.UUID, request: Request):
-    user_id = verified_telegram_id(request.headers.get("X-Telegram-Init-Data", ""))
+    user_id = authenticated_user_id(request.headers.get("X-Telegram-Init-Data", ""))
     with engine.begin() as conn:
         changed = conn.execute(text("""
             UPDATE chat_interaction_notifications SET is_read=true
@@ -1799,7 +1799,7 @@ def mark_chat_mention_read(notification_id: uuid.UUID, request: Request):
 
 @app.post("/chat/mentions/{notification_id}/dismiss")
 def dismiss_chat_mention(notification_id: uuid.UUID, request: Request):
-    uid = verified_telegram_id(request.headers.get("X-Telegram-Init-Data", ""))
+    uid = authenticated_user_id(request.headers.get("X-Telegram-Init-Data", ""))
     with engine.begin() as conn:
         row = conn.execute(text("""
             DELETE FROM chat_interaction_notifications
