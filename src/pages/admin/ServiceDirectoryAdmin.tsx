@@ -1,6 +1,6 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {Link} from 'react-router-dom';
-import {ArrowLeft,ChevronDown,ChevronUp,ExternalLink,Layers,Plus,Save,Trash2} from 'lucide-react';
+import {ArrowLeft,ChevronDown,ChevronUp,ExternalLink,Layers,Plus,Save,Trash2,Upload,Image as ImageIcon} from 'lucide-react';
 import {directoryApi,directoryIconOptions,type DirectoryCategory,type DirectoryData,type DirectoryService} from '@/pages/tools/serviceDirectoryApi';
 
 const field='w-full rounded-app-xs border border-white/15 bg-bgMain px-3 py-2.5 text-sm text-white outline-none focus:border-accentGold/60';
@@ -15,6 +15,7 @@ export const ServiceDirectoryAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
   const [serviceForm,setServiceForm]=useState<DirectoryService|null>(null);
   const [dirty,setDirty]=useState(false);
   const [saving,setSaving]=useState(false);
+  const [imageUploading,setImageUploading]=useState(false);
   const [notice,setNotice]=useState('');
   const [error,setError]=useState('');
   useEffect(()=>{
@@ -36,8 +37,32 @@ export const ServiceDirectoryAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
     setCategoryForm(null);
     setNotice('Категория добавлена в список. Теперь сохраните каталог.');
   };
+  const uploadServiceImage=async(file:File|null)=>{
+    if(!serviceForm||!file||imageUploading)return;
+    if(!['image/jpeg','image/png','image/webp'].includes(file.type)){
+      setError('Выберите JPG, PNG или WebP. Для фото HEIC сначала сохраните копию в JPG.');
+      return;
+    }
+    if(file.size>5*1024*1024){
+      setError('Изображение не должно превышать 5 МБ.');
+      return;
+    }
+    const id=serviceForm.id;
+    setImageUploading(true);
+    setError('');
+    setNotice('');
+    try {
+      const image_url=await directoryApi.uploadImage(id,file);
+      setServiceForm(current=>current?.id===id?{...current,image_url}:current);
+      setNotice('Фото загружено. Нажмите «Применить», затем «Сохранить изменения».');
+    }catch(e){
+      setError(e instanceof Error?'Не удалось загрузить фото: '+e.message:'Не удалось загрузить фото.');
+    }finally{
+      setImageUploading(false);
+    }
+  };
   const applyService=()=>{
-    if(!serviceForm)return;
+    if(!serviceForm||imageUploading)return;
     if(!serviceForm.name.trim()){setError('Введите название сервиса.');return;}
     if(!serviceForm.category_id){setError('Сначала создайте категорию.');return;}
     if(serviceForm.active&&!serviceForm.website_url.startsWith('https://')){setError('Для опубликованного сервиса нужна HTTPS-ссылка.');return;}
@@ -50,7 +75,7 @@ export const ServiceDirectoryAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
     setNotice('Сервис добавлен в список. Теперь сохраните каталог.');
   };
   const save=async()=>{
-    if(!data||saving)return;
+    if(!data||saving||imageUploading)return;
     if(categoryForm||serviceForm){setError('Сначала нажмите «Применить» в открытом редакторе.');return;}
     setSaving(true);setError('');setNotice('');
     try{
@@ -122,8 +147,27 @@ export const ServiceDirectoryAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
           <label className="text-xs text-textSecondary">Название сервиса<input className={field} value={serviceForm.name} onChange={e=>setServiceForm({...serviceForm,name:e.target.value})} maxLength={150}/></label>
           <label className="text-xs text-textSecondary">Краткое описание<textarea className={field} rows={3} value={serviceForm.description} onChange={e=>setServiceForm({...serviceForm,description:e.target.value})} maxLength={750}/></label>
           <label className="text-xs text-textSecondary">Преимущества (каждое с новой строки)<textarea className={field} rows={4} value={serviceForm.benefits} onChange={e=>setServiceForm({...serviceForm,benefits:e.target.value})} maxLength={2400}/></label>
-          <label className="text-xs text-textSecondary">HTTPS-ссылка на логотип или картинку<input className={field} type="url" value={serviceForm.image_url} onChange={e=>setServiceForm({...serviceForm,image_url:e.target.value})} placeholder="https://..." maxLength={2048}/></label>
-          {serviceForm.image_url.startsWith('https://')&&<img src={serviceForm.image_url} alt="Предпросмотр картинки" className="h-28 w-full rounded-card border border-white/10 object-contain"/>}
+          <div className="flex flex-col gap-2 rounded-card border border-accentGold/25 bg-accentGold/[0.04] p-3">
+            <b className="text-sm font-semibold text-white">Логотип или фото сервиса</b>
+            <label className="flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-app-xs border border-accentGold/45 bg-accentGold/10 px-3 py-3 text-center text-sm font-bold text-accentBrightGold">
+              <Upload size={18}/> {imageUploading?'Загружаем фото…':serviceForm.image_url?'Заменить фото с телефона':'Загрузить фото с телефона'}
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={imageUploading||saving}
+                aria-label="Выбрать фотографию для сервиса"
+                onChange={e=>{void uploadServiceImage(e.currentTarget.files?.[0]||null);e.currentTarget.value='';}}/>
+            </label>
+            <p className="text-[11px] leading-4 text-textSecondary">JPG, PNG или WebP, до 5 МБ. Можно выбрать изображение из галереи телефона.</p>
+            {serviceForm.image_url.startsWith('https://')
+              ?<div className="overflow-hidden rounded-card border border-accentGold/20 bg-bgMain/70 p-2">
+                <img src={serviceForm.image_url} alt="Предпросмотр фото сервиса" className="h-36 w-full object-contain"/>
+              </div>
+              :<div className="flex min-h-20 items-center justify-center gap-2 rounded-card border border-dashed border-white/15 text-xs text-textSecondary"><ImageIcon size={18}/> Фото пока не добавлено</div>}
+            <label className="text-[11px] text-textSecondary">Или HTTPS-ссылка на картинку (необязательно)
+              <input className={field} type="url" value={serviceForm.image_url}
+                onChange={e=>setServiceForm({...serviceForm,image_url:e.target.value})}
+                placeholder="https://..." maxLength={2048}/>
+            </label>
+            {serviceForm.image_url&&<button type="button" disabled={imageUploading} onClick={()=>setServiceForm({...serviceForm,image_url:''})} className="self-start text-xs text-textSecondary underline disabled:opacity-50">Убрать изображение из карточки</button>}
+          </div>
           <label className="text-xs text-textSecondary">Ссылка на сервис / партнёрская ссылка<input className={field} type="url" value={serviceForm.website_url} onChange={e=>setServiceForm({...serviceForm,website_url:e.target.value})} placeholder="https://..." maxLength={2048}/></label>
           <label className="text-xs text-textSecondary">Скидка или бонус (только подтверждённые)<input className={field} value={serviceForm.discount_text} onChange={e=>setServiceForm({...serviceForm,discount_text:e.target.value})} placeholder="Например: скидка 10% по промокоду" maxLength={300}/></label>
           <div className="grid grid-cols-2 gap-3">
@@ -133,8 +177,8 @@ export const ServiceDirectoryAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
           <label className="flex items-center gap-2 text-xs text-white"><input type="checkbox" checked={serviceForm.partner_link} onChange={e=>setServiceForm({...serviceForm,partner_link:e.target.checked})}/> Это партнёрская ссылка</label>
           <label className="flex items-center gap-2 text-xs text-white"><input type="checkbox" checked={serviceForm.active} onChange={e=>setServiceForm({...serviceForm,active:e.target.checked})}/> Опубликовать сервис в каталоге</label>
           <div className="flex gap-2">
-            <button type="button" onClick={applyService} className="flex-1 rounded-app-xs bg-gold-gradient px-3 py-2.5 text-sm font-bold text-bgMain">Применить</button>
-            <button type="button" onClick={()=>setServiceForm(null)} className="rounded-app-xs border border-white/20 px-3 py-2.5 text-xs">Отмена</button>
+            <button type="button" disabled={imageUploading} onClick={applyService} className="flex-1 rounded-app-xs bg-gold-gradient disabled:opacity-50 px-3 py-2.5 text-sm font-bold text-bgMain">Применить</button>
+            <button type="button" disabled={imageUploading} onClick={()=>setServiceForm(null)} className="rounded-app-xs border border-white/20 px-3 py-2.5 text-xs disabled:opacity-50">Отмена</button>
           </div>
         </div>}
         {services.length===0&&<p className="rounded-card border border-accentGold/15 bg-bgCard p-4 text-xs text-textSecondary">Пока нет сервисов. Нажмите «Добавить сервис», выберите категорию и заполните карточку.</p>}
@@ -152,10 +196,10 @@ export const ServiceDirectoryAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
           </div>
         </div>)}
       </>}
-      <div className="sticky bottom-2 z-20 rounded-card border border-accentGold/40 bg-[#16130c]/95 p-3 shadow-xl backdrop-blur">
+      {!categoryForm&&!serviceForm&&<div className="sticky bottom-2 z-20 rounded-card border border-accentGold/40 bg-[#16130c]/95 p-3 shadow-xl backdrop-blur">
         <button type="button" disabled={saving||!dirty} onClick={()=>void save()} className="flex w-full items-center justify-center gap-2 rounded-app-xs bg-gold-gradient px-3 py-3 text-sm font-bold text-bgMain disabled:opacity-50"><Save size={17}/>{saving?'Сохраняем…':dirty?'Сохранить изменения':'Все изменения сохранены'}</button>
         {dirty&&<p className="mt-2 text-center text-[11px] text-textSecondary">Изменения пока только в редакторе — нажмите «Сохранить изменения».</p>}
-      </div>
+      </div>}
     </>}
   </div>;
 };
