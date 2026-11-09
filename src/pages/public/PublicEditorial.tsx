@@ -38,6 +38,7 @@ export const PublicEditorial:React.FC<Props>=({slug,onArticle,onBack,onMetadata}
   useEffect(()=>{
     let live=true;setLoading(slug?true:!readCachedArticles());setError('');
     if(slug){
+      setItem(null);
       editorialApi.detail(slug).then(v=>{if(live){setItem(v.article);onMetadata(v.article.seo_title||v.article.title,v.article.seo_description||v.article.excerpt,v.article.cover_url,v.article.published_at);}})
       .catch(()=>{if(live)setError('Статья не найдена или временно недоступна.');}).finally(()=>{if(live)setLoading(false);});
     }else{
@@ -80,7 +81,7 @@ export const PublicEditorial:React.FC<Props>=({slug,onArticle,onBack,onMetadata}
         </div>
         <div className="vvd-article-tags">{item.tags.map(tag=><span key={tag}><Tag size={13}/> {tag}</span>)}</div>
         <button className="vvd-web-outline-button" onClick={onBack}><ArrowLeft size={16}/> К списку статей</button>
-      </article>:
+      </article>:<div className="vvd-web-notice">Материал не найден.</div>) :
       <section>
         <span className="vvd-web-eyebrow">БАЗА ЗНАНИЙ VVD CPA</span>
         <h1 className="vvd-articles-title">Статьи и кейсы</h1>
@@ -99,7 +100,7 @@ export const PublicEditorial:React.FC<Props>=({slug,onArticle,onBack,onMetadata}
         </div>:
         <div className="vvd-web-notice">{data.articles.length?'По этому запросу публикаций нет.':'Здесь появятся первые статьи и кейсы VVD CPA.'}</div>}
       </section>
-    )}
+    }
   </main>;
 };
 
