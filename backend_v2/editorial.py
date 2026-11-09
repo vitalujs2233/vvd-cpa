@@ -1,6 +1,7 @@
 """Public articles/cases and a protected editorial dashboard. Financial routes are untouched."""
 import json
 import re
+from datetime import datetime, timezone
 from typing import Optional
 from urllib.parse import urlsplit
 
@@ -46,6 +47,78 @@ def ensure_schema():
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
             )
         """))
+
+        db.execute(text("""
+            ALTER TABLE public.vvd_editorial
+            ADD COLUMN IF NOT EXISTS demo_seeded BOOLEAN NOT NULL DEFAULT FALSE
+        """))
+        # One-time, additive demo content. Never overwrite categories or existing posts.
+        row = db.execute(text("""
+            SELECT content, demo_seeded FROM public.vvd_editorial
+            WHERE id=1 FOR UPDATE
+        """)).mappings().one()
+        if not row["demo_seeded"]:
+            data = dict(row["content"])
+            categories = list(data.get("categories", []))
+            articles = list(data.get("articles", []))
+            if not any(c.get("id") == "vvd-demo" for c in categories):
+                categories.append({
+                    "id": "vvd-demo", "name": "Демо-статьи",
+                    "description": "Примеры оформления публикаций VVD CPA.",
+                    "image_url": "",
+                    "active": True, "sort_order": 900
+                })
+            now = datetime.now(timezone.utc).isoformat()
+            demo_articles = [
+                {
+                    "slug": "demo-cpa-basics", "category_id": "vvd-demo",
+                    "title": "Демо: как устроен CPA-маркетинг",
+                    "excerpt": "Простой пример оформления статьи: офферы, действия пользователей и статистика. Без обещаний заработка.",
+                    "cover_url": "https://vitalujs2233.github.io/vvd-cpa/articles/demo-cpa-basics.svg",
+                    "seo_title": "Как работает CPA-маркетинг — пример статьи VVD CPA",
+                    "seo_description": "Демонстрационная статья об основах CPA-маркетинга, офферах и учёте конверсий.",
+                    "tags": ["Демо", "CPA", "Обучение"],
+                    "blocks": [
+                        {"type": "heading", "text": "Что такое CPA-модель?", "url": "", "alt": ""},
+                        {"type": "paragraph", "text": "CPA (Cost Per Action) — модель сотрудничества, при которой результат оценивается по заранее определённому действию. Например, пользователь может отправить заявку на разрешённый сервис, если это соответствует условиям оффера.", "url": "", "alt": ""},
+                        {"type": "heading", "text": "Из чего состоит рабочий процесс", "url": "", "alt": ""},
+                        {"type": "paragraph", "text": "Вебмастер выбирает подходящий оффер, знакомится с правилами и получает ссылку для отслеживания переходов. Когда пользователь выполняет целевое действие, партнёрская система может передать сведения о конверсии через Postback. Подтверждение и начисления зависят от условий оффера.", "url": "", "alt": ""},
+                        {"type": "heading", "text": "Что полезно проверить", "url": "", "alt": ""},
+                        {"type": "paragraph", "text": "Перед запуском важно прочитать ограничения по источникам трафика и регионам, проверить корректность ссылки и отслеживания и не делать вводящих в заблуждение обещаний. Для удобства работы документы, инструменты и статистику полезно держать в одном кабинете.", "url": "", "alt": ""},
+                        {"type": "quote", "text": "Это демонстрационный материал для проверки внешнего вида раздела. Он не является реальным кейсом или финансовой рекомендацией.", "url": "", "alt": ""}
+                    ],
+                    "published": True, "published_at": now, "updated_at": now
+                },
+                {
+                    "slug": "demo-cpa-analytics", "category_id": "vvd-demo",
+                    "title": "Демо: как читать статистику рекламной кампании",
+                    "excerpt": "Учебная статья о кликах, CTR, конверсиях и сравнении результатов с красивой обложкой.",
+                    "cover_url": "https://vitalujs2233.github.io/vvd-cpa/articles/demo-analytics.svg",
+                    "seo_title": "Основные показатели CPA — пример статьи VVD CPA",
+                    "seo_description": "Демонстрационный материал об аналитике кампаний: клики, CTR, CR и конверсии.",
+                    "tags": ["Демо", "Аналитика", "Статистика"],
+                    "blocks": [
+                        {"type": "heading", "text": "Для чего нужна аналитика", "url": "", "alt": ""},
+                        {"type": "paragraph", "text": "Показатели помогают понять, замечают ли люди объявление и выполняют ли ожидаемые действия. При этом один показатель редко объясняет всю картину — полезно сравнивать несколько метрик и учитывать качество данных.", "url": "", "alt": ""},
+                        {"type": "heading", "text": "Основные термины", "url": "", "alt": ""},
+                        {"type": "paragraph", "text": "Показы — сколько раз отображалось объявление. Клики — сколько раз по нему переходили. CTR — отношение числа кликов к числу показов. CR — доля переходов, закончившихся целевым действием. Подтверждённые конверсии — действия, которые приняли по условиям оффера.", "url": "", "alt": ""},
+                        {"type": "heading", "text": "Как использовать данные", "url": "", "alt": ""},
+                        {"type": "paragraph", "text": "Сначала убедитесь, что ссылки и события учитываются корректно. Затем сравнивайте показатели за сопоставимые периоды. Если данных мало, не делайте поспешных выводов. Обращайте внимание на правила рекламных платформ и прозрачность информации для пользователей.", "url": "", "alt": ""},
+                        {"type": "quote", "text": "Цифры и ситуации в этой статье учебные. Здесь нет реальных результатов рекламной кампании.", "url": "", "alt": ""}
+                    ],
+                    "published": True, "published_at": now, "updated_at": now
+                }
+            ]
+            existing = {article.get("slug") for article in articles}
+            articles.extend(a for a in demo_articles if a["slug"] not in existing)
+            data["categories"] = categories
+            data["articles"] = articles
+            db.execute(text("""
+                UPDATE public.vvd_editorial
+                SET content=CAST(:content AS jsonb), version=version+1,
+                    demo_seeded=TRUE, updated_at=now()
+                WHERE id=1
+            """), {"content": json.dumps(data, ensure_ascii=False)})
 
 
 class EditorialCategory(BaseModel):
