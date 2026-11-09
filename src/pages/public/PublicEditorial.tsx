@@ -32,7 +32,7 @@ export const PublicEditorial:React.FC<Props>=({slug,onArticle,onBack,onMetadata}
   const [item,setItem]=useState<Article|null>(null);
   const [category,setCategory]=useState('all');
   const [query,setQuery]=useState('');
-  const [loading,setLoading]=useState(()=>!readCachedArticles());
+  const [loading,setLoading]=useState(()=>Boolean(slug)||!readCachedArticles());
   const [error,setError]=useState('');
   const [retry,setRetry]=useState(0);
   useEffect(()=>{
