@@ -2003,6 +2003,8 @@ app.include_router(info_content_router)
 
 from service_directory import router as service_directory_router
 app.include_router(service_directory_router)
+from editorial import router as editorial_router
+app.include_router(editorial_router)
 
 from web_auth import router as web_auth_router
 app.include_router(web_auth_router)
