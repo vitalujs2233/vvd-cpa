@@ -26,32 +26,60 @@ const rememberArticles=(data:PublicArticles)=>{
   articleCache={data,at:Date.now()};
   try{sessionStorage.setItem(ARTICLE_CACHE_KEY,JSON.stringify(articleCache));}catch{/* Optional cache. */}
 };
+const detailMemory=new Map<string,Article>();
 type Props={slug:string;onArticle:(slug:string)=>void;onBack:()=>void;onMetadata:(title:string,description:string,cover?:string,date?:string)=>void};
 export const PublicEditorial:React.FC<Props>=({slug,onArticle,onBack,onMetadata})=>{
   const [data,setData]=useState<PublicArticles>(()=>readCachedArticles()||{categories:[],articles:[]});
-  const [item,setItem]=useState<Article|null>(null);
+  const [item,setItem]=useState<Article|null>(()=>detailMemory.get(slug)||null);
   const [category,setCategory]=useState('all');
   const [query,setQuery]=useState('');
-  const [loading,setLoading]=useState(()=>Boolean(slug)||!readCachedArticles());
+  const [loading,setLoading]=useState(()=>slug?!detailMemory.has(slug):!readCachedArticles());
   const [error,setError]=useState('');
   const [retry,setRetry]=useState(0);
   useEffect(()=>{
-    let live=true;setLoading(slug?true:!readCachedArticles());setError('');
+    let mounted=true;
+    let liveAnswered=false;
+    setError('');
     if(slug){
-      setItem(null);
-      editorialApi.detail(slug).then(v=>{if(live){setItem(v.article);onMetadata(v.article.seo_title||v.article.title,v.article.seo_description||v.article.excerpt,v.article.cover_url,v.article.published_at);}})
-      .catch(()=>{if(live)setError('Статья не найдена или временно недоступна.');}).finally(()=>{if(live)setLoading(false);});
+      const cached=detailMemory.get(slug);
+      setItem(cached||null);
+      setLoading(!cached);
+      // Static first, then refresh from the backend when available.
+      void editorialApi.snapshot().then(v=>{
+        if(!mounted||liveAnswered)return;
+        const article=v.details[slug];
+        if(article){
+          detailMemory.set(slug,article);setItem(article);setLoading(false);
+          onMetadata(article.seo_title||article.title,article.seo_description||article.excerpt,article.cover_url,article.published_at);
+        }
+      }).catch(()=>{});
+      void editorialApi.detail(slug).then(v=>{
+        if(!mounted)return;
+        liveAnswered=true;
+        detailMemory.set(slug,v.article);setItem(v.article);setError('');setLoading(false);
+        onMetadata(v.article.seo_title||v.article.title,v.article.seo_description||v.article.excerpt,v.article.cover_url,v.article.published_at);
+      }).catch(()=>{
+        if(mounted&&!detailMemory.has(slug)){setError('Статья не найдена или временно недоступна.');setLoading(false);}
+      });
     }else{
       setItem(null);
       onMetadata('Статьи и кейсы — VVD CPA','Статьи, кейсы, обучение и полезные материалы для вебмастеров и арбитражников.');
-      // Never block the heading, search and filters while refreshing from the backend.
       const cached=readCachedArticles();
       if(cached)setData(cached);
-      editorialApi.list().then(v=>{if(live){rememberArticles(v);setData(v);}})
-        .catch(()=>{if(live&&!cached)setError('Не удалось загрузить статьи.');})
-      .finally(()=>{if(live)setLoading(false);});
+      setLoading(!cached);
+      void editorialApi.snapshot().then(v=>{
+        if(!mounted||liveAnswered)return;
+        const feed={categories:v.categories,articles:v.articles};
+        rememberArticles(feed);setData(feed);setLoading(false);
+      }).catch(()=>{});
+      void editorialApi.list().then(v=>{
+        if(!mounted)return;
+        liveAnswered=true;rememberArticles(v);setData(v);setError('');setLoading(false);
+      }).catch(()=>{
+        if(mounted&&!readCachedArticles()){setError('Не удалось загрузить статьи.');setLoading(false);}
+      });
     }
-    return()=>{live=false};
+    return()=>{mounted=false};
   },[slug,retry,onMetadata]);
   const results=useMemo(()=>data.articles.filter(a=>(category==='all'||a.category_id===category)&&
     [a.title,a.excerpt,...a.tags].join(' ').toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru').trim())),[data,category,query]);
