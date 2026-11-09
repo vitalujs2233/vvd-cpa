@@ -1,6 +1,6 @@
 import {apiRequest,API_BASE_URL} from '@/shared/lib/api';
 
-export type EditorialCategory={id:string;name:string;description:string;active:boolean;sort_order:number};
+export type EditorialCategory={id:string;name:string;description:string;image_url?:string;active:boolean;sort_order:number};
 export type ArticleBlock={type:'paragraph'|'heading'|'image'|'link'|'quote';text:string;url:string;alt:string};
 export type Article={slug:string;category_id:string;title:string;excerpt:string;cover_url:string;seo_title:string;seo_description:string;tags:string[];blocks:ArticleBlock[];published:boolean;published_at:string;updated_at:string};
 export type ArticleSummary=Omit<Article,'blocks'>;

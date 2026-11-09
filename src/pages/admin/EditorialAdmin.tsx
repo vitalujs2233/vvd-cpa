@@ -5,7 +5,7 @@ import {editorialApi,type Article,type ArticleBlock,type EditorialCategory,type 
 const input='w-full rounded-app-xs border border-white/15 bg-bgMain px-3 py-2.5 text-sm text-white outline-none focus:border-accentGold';
 const slugify=(value:string)=>value.toLowerCase().trim().replace(/[^a-z0-9-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,90);
 const newId=()=>crypto.randomUUID().replace(/-/g,'').slice(0,16);
-const emptyCategory=():EditorialCategory=>({id:'category-'+newId(),name:'',description:'',sort_order:100,active:true});
+const emptyCategory=():EditorialCategory=>({id:'category-'+newId(),name:'',description:'',image_url:'',sort_order:100,active:true});
 const emptyArticle=(categoryId:string):Article=>({slug:'article-'+newId(),title:'',category_id:categoryId,excerpt:'',cover_url:'',seo_title:'',seo_description:'',tags:[],blocks:[],published:false,published_at:'',updated_at:''});
 const emptyBlock=(type:ArticleBlock['type']):ArticleBlock=>({type,text:'',url:'',alt:''});
 const blockName:Record<ArticleBlock['type'],string>={paragraph:'Абзац',heading:'Заголовок',image:'Изображение',link:'Ссылка',quote:'Цитата'};
@@ -19,6 +19,7 @@ export const EditorialAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
   const [articleDirty,setArticleDirty]=useState(false);
   const [saving,setSaving]=useState(false);
   const [uploading,setUploading]=useState(false);
+  const [categoryUploading,setCategoryUploading]=useState(false);
   const [error,setError]=useState('');
   const [message,setMessage]=useState('');
   const [refresh,setRefresh]=useState(0);
@@ -30,6 +31,7 @@ export const EditorialAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
   };
   const applyCategory=()=>{
     if(!data||!category?.name.trim())return setError('Введите название категории.');
+    if(categoryUploading)return setError('Дождитесь окончания загрузки изображения.');
     setData({...data,categories:[...data.categories.filter(c=>c.id!==category.id),{...category,name:category.name.trim()}]});
     setCategory(null);setCategoryDirty(true);setMessage('Категория добавлена в список. Сохраните изменения.');setError('');
   };
@@ -46,7 +48,7 @@ export const EditorialAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
     setArticle(null);setEditingSlug(null);setArticleDirty(true);setError('');setMessage('Материал добавлен в список. Нажмите «Сохранить изменения».');
   };
   const save=async()=>{
-    if(!data||saving||uploading)return;
+    if(!data||saving||uploading||categoryUploading)return;
     if(article||category)return setError('Сначала нажмите «Применить» в редакторе.');
     setSaving(true);setMessage('');setError('');
     try{
@@ -55,6 +57,21 @@ export const EditorialAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
       setMessage('Сохранено! Опубликованные статьи доступны на сайте.');
     }catch(e){setError(e instanceof Error?e.message:'Ошибка сохранения');}
     finally{setSaving(false)}
+  };
+  const uploadCategoryImage=async(file:File|null)=>{
+    if(!file||!category||categoryUploading)return;
+    if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>5*1024*1024){
+      setError('Выберите JPG, PNG или WebP до 5 МБ.');return;
+    }
+    const id=category.id;
+    setCategoryUploading(true);setError('');setMessage('');
+    try{
+      const url=await editorialApi.upload('category-'+newId(),file);
+      setCategory(current=>current?.id===id?{...current,image_url:url}:current);
+      setMessage('Фото категории загружено. Нажмите «Применить», затем «Сохранить».');
+    }catch(e){
+      setError('Не удалось загрузить фото категории: '+String(e));
+    }finally{setCategoryUploading(false);}
   };
   const upload=async(file:File|null,mode:'cover'|'block',index=0)=>{
     if(!file||!article||uploading)return;
@@ -75,20 +92,41 @@ export const EditorialAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
     <div className="flex gap-2"><a href="https://vitalujs2233.github.io/vvd-cpa/?page=articles" target="_blank" rel="noopener noreferrer" className="text-xs text-accentBrightGold flex gap-1 items-center"><ExternalLink size={14}/> Посмотреть статьи на сайте</a></div>
     <div className="rounded-card border border-accentGold/25 bg-bgCard p-3 flex items-center justify-between gap-2">
       <div><b className="text-sm text-white">Изменения</b><p className="text-xs text-textSecondary">{articleDirty||categoryDirty?'Есть несохранённые изменения':'Всё сохранено'}</p></div>
-      <button disabled={saving||uploading} onClick={()=>void save()} className="rounded-lg bg-accentGold px-4 py-2 text-sm font-bold text-black flex gap-2"><Save size={16}/>{saving?'Сохраняем…':'Сохранить'}</button>
+      <button disabled={saving||uploading||categoryUploading} onClick={()=>void save()} className="rounded-lg bg-accentGold px-4 py-2 text-sm font-bold text-black flex gap-2"><Save size={16}/>{saving?'Сохраняем…':'Сохранить'}</button>
     </div>
     <section className="rounded-card border border-white/10 bg-bgCard p-3 space-y-3">
       <div className="flex justify-between items-center"><h2 className="font-bold text-white">Категории ({data.categories.length})</h2><button className="text-accentBrightGold text-xs flex gap-1" onClick={()=>{setCategory(emptyCategory());setArticle(null)}}><Plus size={15}/> Добавить</button></div>
-      {data.categories.map(c=><div key={c.id} className="flex items-center justify-between gap-2 border-t border-white/10 pt-2"><span className="text-sm text-white">{c.name} {!c.active&&<small className="text-textSecondary"> (скрыта)</small>}</span><div className="flex gap-2"><button className="text-accentBrightGold text-xs" onClick={()=>{setCategory({...c});setArticle(null)}}>Изменить</button><button aria-label="Удалить категорию" className="text-red-300" onClick={()=>{
+      {data.categories.map(c=><div key={c.id} className="flex items-center justify-between gap-2 border-t border-white/10 pt-2"><span className="flex min-w-0 items-center gap-3 text-sm text-white">
+          {c.image_url?<img src={c.image_url} alt="" className="h-12 w-16 shrink-0 rounded-lg object-cover border border-accentGold/20"/>:<span className="h-12 w-16 shrink-0 rounded-lg border border-accentGold/20 bg-black/40 flex items-center justify-center"><ImagePlus size={18} className="text-accentBrightGold"/></span>}
+          <span className="truncate">{c.name} {!c.active&&<small className="text-textSecondary"> (скрыта)</small>}</span>
+        </span><div className="flex gap-2"><button className="text-accentBrightGold text-xs" onClick={()=>{setCategory({...c});setArticle(null)}}>Изменить</button><button aria-label="Удалить категорию" className="text-red-300" onClick={()=>{
         if(data.articles.some(a=>a.category_id===c.id)){setError('Сначала перенесите или удалите статьи этой категории.');return}
         if(window.confirm('Удалить категорию?')){setData({...data,categories:data.categories.filter(x=>x.id!==c.id)});setCategoryDirty(true);}
       }}><Trash2 size={16}/></button></div></div>)}
       {category&&<div className="space-y-2 rounded-lg bg-black/40 p-3">
         <label className="text-xs text-textSecondary">Название<input className={input} value={category.name} maxLength={100} onChange={e=>setCategory({...category,name:e.target.value})}/></label>
         <label className="text-xs text-textSecondary">Описание<textarea className={input} rows={2} maxLength={300} value={category.description} onChange={e=>setCategory({...category,description:e.target.value})}/></label>
-        <label className="text-xs text-textSecondary">Порядок<input className={input} type="number" value={category.sort_order} onChange={e=>setCategory({...category,sort_order:Number(e.target.value)})}/></label>
+        <div className="space-y-2">
+          <label className="block text-xs text-textSecondary">Изображение категории (JPG, PNG, WebP до 5 МБ)
+            <input type="file" accept="image/jpeg,image/png,image/webp" disabled={categoryUploading}
+              className={input} onChange={e=>void uploadCategoryImage(e.target.files?.[0]||null)}/>
+          </label>
+          {categoryUploading&&<p className="text-xs text-accentBrightGold">Загружаем изображение…</p>}
+          {category.image_url&&<div className="space-y-2">
+            <img src={category.image_url} alt={'Обложка категории '+category.name} className="w-full max-h-52 rounded-lg object-cover border border-accentGold/30"/>
+            <button type="button" className="text-xs text-red-300" onClick={()=>setCategory({...category,image_url:''})}>Убрать изображение</button>
+          </div>}
+          <label className="block text-xs text-textSecondary">Или HTTPS-ссылка на изображение
+            <input className={input} inputMode="url" placeholder="https://..." value={category.image_url||''}
+              onChange={e=>setCategory({...category,image_url:e.target.value})}/>
+          </label>
+        </div>
+        <label className="block text-xs text-textSecondary">Порядок сортировки
+          <input className={input} type="number" min={-10000} max={10000} value={category.sort_order} onChange={e=>setCategory({...category,sort_order:Number(e.target.value)})}/>
+          <span className="block mt-1 text-[11px] text-textSecondary">Меньшее число показывается раньше. Например, 10 будет перед 100.</span>
+        </label>
         <label className="text-sm text-white flex gap-2"><input type="checkbox" checked={category.active} onChange={e=>setCategory({...category,active:e.target.checked})}/> Категория видна на сайте</label>
-        <div className="flex gap-2"><button className="rounded-lg bg-accentGold text-black px-3 py-2 text-sm" onClick={applyCategory}>Применить</button><button className="text-sm text-textSecondary" onClick={()=>setCategory(null)}>Отмена</button></div>
+        <div className="flex gap-2"><button disabled={categoryUploading} className="rounded-lg bg-accentGold text-black px-3 py-2 text-sm disabled:opacity-60" onClick={applyCategory}>Применить</button><button className="text-sm text-textSecondary" onClick={()=>setCategory(null)}>Отмена</button></div>
       </div>}
     </section>
     <section className="rounded-card border border-white/10 bg-bgCard p-3 space-y-3">
