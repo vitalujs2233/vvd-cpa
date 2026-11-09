@@ -56,8 +56,17 @@ writeFileSync('dist/editorial-snapshot.json',JSON.stringify(snapshot),'utf8');
 const html=readFileSync('dist/index.html','utf8');
 const safeJSON=JSON.stringify(snapshot).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
 const script='<script id="vvd-editorial-bootstrap">window.__VVD_EDITORIAL_BOOTSTRAP__='+safeJSON+';<\/script>';
+const preload=snapshot.articles.slice(0,2).map(article=>{
+  const raw=article.cover_url||'';
+  try{
+    const url=new URL(raw);
+    if(url.protocol!=='https:')return '';
+    return '<link rel="preload" as="image" href="'+xmlEscape(url.href)+'">';
+  }catch{return ''}
+}).join('');
+
 if(!html.includes('</head>'))throw new Error('HTML head not found');
-writeFileSync('dist/index.html',html.replace('</head>',script+'\n</head>'),'utf8');
+writeFileSync('dist/index.html',html.replace('</head>',preload+'\n'+script+'\n</head>'),'utf8');
 const xml='<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+
 entries.map(e=>'  <url><loc>'+xmlEscape(e.url)+'</loc>'+(e.lastmod?'<lastmod>'+xmlEscape(e.lastmod)+'</lastmod>':'')+'</url>').join('\n')+
 '\n</urlset>\n';
