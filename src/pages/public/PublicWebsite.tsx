@@ -418,8 +418,6 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
 
         <PublicHomeBanners/>
 
-        <PublicHomeInfo/>
-
         <section className="vvd-web-section vvd-web-feature-section" id="features" aria-labelledby="vvd-how-heading">
           <div className="vvd-web-section-heading"><div><span className="vvd-web-eyebrow">КАК УСТРОЕНА ПАРТНЁРСКАЯ СЕТЬ</span><h2 id="vvd-how-heading">Как зарабатывать с VVD CPA</h2><p>VVD CPA объединяет CPA-предложения и инструменты для партнёров в одном кабинете. Работа с офферами требует соблюдения условий рекламодателей и правил источников трафика.</p></div></div>
           <div className="vvd-web-steps">
@@ -434,6 +432,9 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
             <div className="vvd-web-feature"><span><LayoutDashboard size={24}/></span><h3>Кабинет и инструменты</h3><p>Баланс, история начислений, профиль и раздел инструментов VVD CPA.</p></div>
           </div>
         </section>
+
+        {/* Editorial information blocks follow the explanation, before the final signup CTA. */}
+        <PublicHomeInfo/>
 
         <section className="vvd-web-cta">
           <div><span className="vvd-web-eyebrow">ОДИН АККАУНТ · ДВА СПОСОБА ВХОДА</span><h2>Начни работу с VVD CPA</h2><p>Войди через Telegram, чтобы открыть партнёрский кабинет прямо в браузере. Те же разделы доступны и в Mini App.</p></div>
