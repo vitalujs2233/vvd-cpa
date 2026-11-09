@@ -514,3 +514,19 @@
   .vvd-web-workspace-copy .vvd-web-hero-points{gap:8px;margin:14px 0 16px}
   .vvd-web-workspace-copy .vvd-web-hero-points>span{min-height:52px;padding:9px;font-size:10.5px;gap:8px}
 }
+
+
+/* Soft breathing glow for the public Telegram sign-in CTA only. */
+@keyframes vvd-telegram-cta-glow{
+  0%,100%{box-shadow:0 6px 23px rgba(218,157,52,.18),0 0 0 0 rgba(248,196,85,.12)}
+  50%{box-shadow:0 8px 30px rgba(222,160,52,.32),0 0 19px 4px rgba(248,196,85,.23)}
+}
+.vvd-web-public-main .vvd-web-telegram-pulse{
+  animation:vvd-telegram-cta-glow 3.6s ease-in-out infinite;
+}
+@media(prefers-reduced-motion:reduce){
+  .vvd-web-public-main .vvd-web-telegram-pulse{
+    animation:none;
+    box-shadow:0 6px 23px rgba(218,157,52,.23);
+  }
+}
