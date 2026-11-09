@@ -169,7 +169,7 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
         self.assertFalse(mark_real_paid(engine,1)["success"])
 
     def test_01a_pre_activation_balance_and_history_api(self):
-        with patch("access_guard.verified_telegram_id",return_value=ADMIN):
+        with patch("access_guard.authenticated_user_id",return_value=ADMIN):
             client=TestClient(app)
             balance=client.get(f"/balance/{ADMIN}")
             self.assertEqual(balance.status_code,200)
@@ -335,7 +335,7 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
             self.assertEqual(real_withdrawable(c,ADMIN),Decimal("30.00"))
 
     def test_08_routes_use_gate_and_no_auto_pay(self):
-        with patch("access_guard.verified_telegram_id",return_value=ADMIN):
+        with patch("access_guard.authenticated_user_id",return_value=ADMIN):
             client=TestClient(app)
             response=client.post("/withdrawals",json={
                 "amount":833.48,"partner_code":USER_CODE,
@@ -536,7 +536,7 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
             """),{"cid":cid}).scalar_one(),0)
 
     def test_16_real_finance_balance_projection_when_active(self):
-        with patch("access_guard.verified_telegram_id",return_value=ADMIN):
+        with patch("access_guard.authenticated_user_id",return_value=ADMIN):
             client=TestClient(app)
             resp=client.get(f"/balance/{ADMIN}")
             self.assertEqual(resp.status_code,200)

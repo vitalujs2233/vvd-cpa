@@ -34,7 +34,8 @@ const allowedLink=(url:string)=>{
   try {return new URL(url).protocol==='https:'?url:'';} catch {return '';}
 };
 const readCategory=()=>new URLSearchParams(window.location.search).get('category')||'';
-const getSiteUrl=(category='')=>category?BASE_URL+'?category='+encodeURIComponent(category):BASE_URL;
+const getSiteUrl=(category='')=>BASE_URL+'?page=services'+(category?'&category='+encodeURIComponent(category):'');
+const isCatalogPage=()=>new URLSearchParams(window.location.search).get('page')==='services'||Boolean(readCategory());
 
 function setMetadata(title:string,description:string,category=''){
   document.title=title;
@@ -43,7 +44,7 @@ function setMetadata(title:string,description:string,category=''){
   meta.content=description;
   let canonical=document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
   if(!canonical){canonical=document.createElement('link');canonical.rel='canonical';document.head.appendChild(canonical);}
-  canonical.href=getSiteUrl(category);
+  canonical.href=category?getSiteUrl(category):new URLSearchParams(window.location.search).get('page')==='services'?getSiteUrl():BASE_URL;
 }
 
 const ServiceTile:React.FC<{service:DirectoryService}>=({service})=>{
@@ -186,6 +187,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
   const [error,setError]=useState(false);
   const [catalogAttempt,setCatalogAttempt]=useState(0);
   const [categoryId,setCategoryId]=useState(readCategory);
+  const [catalogView,setCatalogView]=useState(isCatalogPage);
   const [query,setQuery]=useState('');
   const [mobileMenu,setMobileMenu]=useState(false);
   const [accountView,setAccountView]=useState(()=>new URLSearchParams(window.location.search).has('account'));
@@ -209,29 +211,34 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
   },[catalogAttempt]);
 
   useEffect(()=>{
-    const onHistory=()=>{setCategoryId(readCategory());setAccountView(new URLSearchParams(window.location.search).has('account'));setQuery('');viewport.current?.scrollTo({top:0,behavior:'auto'});};
+    const onHistory=()=>{setCategoryId(readCategory());setCatalogView(isCatalogPage());setAccountView(new URLSearchParams(window.location.search).has('account'));setQuery('');viewport.current?.scrollTo({top:0,behavior:'auto'});};
     window.addEventListener('popstate',onHistory);
     return()=>window.removeEventListener('popstate',onHistory);
   },[]);
 
   const showCategory=useCallback((id:string)=>{
     window.history.pushState(null,'',getSiteUrl(id));
-    setCategoryId(id);setAccountView(false);setQuery('');setMobileMenu(false);
+    setCategoryId(id);setCatalogView(true);setAccountView(false);setQuery('');setMobileMenu(false);
     viewport.current?.scrollTo({top:0,behavior:'instant'});
   },[]);
+  const openCatalog=useCallback(()=>{
+    if(!catalogView||categoryId||accountView)window.history.pushState(null,'',getSiteUrl());
+    setCatalogView(true);setCategoryId('');setAccountView(false);setQuery('');setMobileMenu(false);
+    viewport.current?.scrollTo({top:0,behavior:'auto'});
+  },[catalogView,categoryId,accountView]);
   const openMain=useCallback(()=>{
-    if(categoryId||accountView){window.history.pushState(null,'',BASE_URL);setCategoryId('');setAccountView(false);setQuery('');}
-    setMobileMenu(false);
-    viewport.current?.scrollTo({top:0,behavior:'smooth'});
-  },[categoryId,accountView]);
+    if(catalogView||categoryId||accountView)window.history.pushState(null,'',BASE_URL);
+    setCatalogView(false);setCategoryId('');setAccountView(false);setQuery('');setMobileMenu(false);
+    viewport.current?.scrollTo({top:0,behavior:'auto'});
+  },[catalogView,categoryId,accountView]);
   const openAccount=()=>{
     if(auth.isLoggedIn){onOpenApp();return;}
     window.history.pushState(null,'',BASE_URL+'?account=1');
-    setCategoryId('');setAccountView(true);setMobileMenu(false);
+    setCategoryId('');setCatalogView(false);setAccountView(true);setMobileMenu(false);
     viewport.current?.scrollTo({top:0,behavior:'auto'});
   };
   const jumpTo=(id:string)=>{
-    if(categoryId||accountView){window.history.pushState(null,'',BASE_URL);setCategoryId('');setAccountView(false);}
+    if(catalogView||categoryId||accountView){window.history.pushState(null,'',BASE_URL);setCatalogView(false);setCategoryId('');setAccountView(false);}
     setMobileMenu(false);
     window.setTimeout(()=>document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'}),0);
   };
@@ -248,10 +255,12 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
       setMetadata('Личный кабинет — VVD CPA','Защищённый вход в личный кабинет VVD CPA через Telegram.');
     }else if(category){
       setMetadata(category.name+' — Каталог сервисов VVD CPA',category.description||'Каталог профессиональных сервисов для вебмастеров.',category.id);
+    }else if(catalogView){
+      setMetadata('Каталог сервисов — VVD CPA','Инструменты для вебмастеров и арбитражников: категории, описания и полезные сервисы.');
     }else{
       setMetadata('VVD CPA — CPA партнёрская сеть для арбитражников и вебмастеров','VVD CPA — CPA-партнёрская сеть: офферы, партнёрские ссылки, монетизация трафика, аналитика, баланс и инструменты для арбитражников и вебмастеров. Веб-кабинет и Telegram Mini App.');
     }
-  },[category,accountView]);
+  },[category,accountView,catalogView]);
 
   return <div className="vvd-web-portal" ref={viewport}>
     <div className="vvd-web-atmosphere" aria-hidden="true">
@@ -274,7 +283,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
         </button>
         <nav className={'vvd-web-nav '+(mobileMenu?'is-open':'')} aria-label="Основная навигация">
           <button type="button" onClick={openMain}>Главная</button>
-          <button type="button" onClick={()=>jumpTo('catalog')}>Каталог сервисов</button>
+          <button type="button" onClick={openCatalog}>Каталог сервисов</button>
           <button type="button" onClick={()=>jumpTo('features')}>Как работает</button>
           <button type="button" onClick={openAccount}>Личный кабинет</button>
         </nav>
@@ -285,57 +294,12 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
       </header>
 
       {accountView ? (auth.profile
-        ?<BrowserAccount profile={auth.profile} onCatalog={()=>jumpTo('catalog')} onLogout={()=>{void auth.logout();openMain();}}/>
+        ?<BrowserAccount profile={auth.profile} onCatalog={openCatalog} onLogout={()=>{void auth.logout();openMain();}}/>
         :<main className="vvd-web-account">
           <div className="vvd-web-account-heading"><span className="vvd-web-eyebrow">ЛИЧНЫЙ КАБИНЕТ</span><h1>{auth.restoring?'Проверяем сессию…':'Вход через Telegram'}</h1><p>Один аккаунт для сайта и Mini App. Войти и зарегистрироваться можно с помощью Telegram.</p></div>
           {!auth.restoring&&<button type="button" className="vvd-web-gold-button" onClick={()=>auth.setLoginOpen(true)}>Войти / Зарегистрироваться <ArrowRight size={17}/></button>}
         </main>
-      ) : categoryId ? <main className="vvd-web-category-view">
-        <button type="button" className="vvd-web-back" onClick={openMain}><ChevronLeft size={18}/> Все категории</button>
-        {category?<>
-          <div className="vvd-web-category-hero">
-            <div className="vvd-web-category-badge">
-              {React.createElement(directoryIcons[category.icon]||Layers,{size:34,strokeWidth:1.5})}
-            </div>
-            <div><span className="vvd-web-eyebrow">VVD CPA / КАТАЛОГ СЕРВИСОВ</span><h1>{category.name}</h1><p>{category.description}</p><span className="vvd-web-muted">{services.length?services.length+' предложений':'Предложения появятся после подключения партнёров'}</span></div>
-          </div>
-          {services.length>0?<div className="vvd-web-services-grid">{services.map(s=><ServiceTile key={s.id} service={s}/>)}</div>:
-          <div className="vvd-web-empty-service"><Layers size={30}/><h2>Сервисы скоро появятся</h2><p>Мы добавляем предложения по мере подключения партнёрских программ. Сейчас здесь нет опубликованных сервисов.</p><button type="button" onClick={openMain}>Смотреть другие категории <ArrowRight size={17}/></button></div>}
-        </>:<div className="vvd-web-empty-service"><h1>Раздел не найден</h1><p>Возможно, категория была переименована или скрыта.</p><button onClick={openMain}>Вернуться в каталог</button></div>}
-      </main> :
-      <main className="vvd-web-public-main">
-        <section className="vvd-web-workspace-intro" id="top" aria-labelledby="vvd-web-intro-title">
-          <div className="vvd-web-workspace-copy">
-            <span className="vvd-web-eyebrow"><span className="vvd-web-dot"/> CPA-ПАРТНЁРСКАЯ СЕТЬ · VVD CPA</span>
-            <h1 id="vvd-web-intro-title">Зарабатывай на своём трафике.<br/><em>VVD CPA — партнёрка.</em></h1>
-            <p>Монетизируй свой трафик через смартлинки разных вертикалей. <strong>Выплаты, аналитика и поддержка</strong> — в одной платформе.</p>
-            <div className="vvd-web-hero-points" aria-label="Преимущества VVD CPA">
-              <span><Link2 size={18} aria-hidden="true"/> Смартлинки</span>
-              <span><Layers size={18} aria-hidden="true"/> Мультивертикаль</span>
-              <span><Wallet size={18} aria-hidden="true"/> Выплаты по запросу</span>
-              <span><Zap size={18} aria-hidden="true"/> Быстрый холд</span>
-              <span><Headphones size={18} aria-hidden="true"/> Саппорт 24/7</span>
-              <span><Globe2 size={18} aria-hidden="true"/> Весь мир</span>
-            </div>
-            <div className="vvd-web-workspace-actions">
-              <button type="button" className={auth.isLoggedIn?'vvd-web-gold-button':'vvd-web-gold-button vvd-web-telegram-pulse'} onClick={()=>auth.isLoggedIn?openAccount():auth.setLoginOpen(true)}>{auth.isLoggedIn?'Открыть кабинет':'Начать через Telegram'} <ArrowRight size={16}/></button>
-              <button type="button" className="vvd-web-outline-button" onClick={()=>jumpTo('catalog')}>Каталог сервисов <ArrowRight size={16}/></button>
-            </div>
-          </div>
-          <div className="vvd-web-hero-panel" aria-label="Что есть внутри партнёрской платформы">
-            <div className="vvd-web-hero-panel-heading"><span className="vvd-web-panel-symbol"><Layers size={22}/></span><div><small>ОДНА ПЛАТФОРМА</small><strong>Смартлинки · Доход · Выплаты</strong></div></div>
-            <div className="vvd-web-hero-panel-grid">
-              <div><Link2 size={19}/><strong>Смартлинки</strong><span>Офферы разных вертикалей</span></div>
-              <div><Activity size={19}/><strong>Статистика</strong><span>Клики и конверсии</span></div>
-              <div><Wallet size={19}/><strong>Выплаты</strong><span>Баланс и история выплат</span></div>
-              <div><Wrench size={19}/><strong>Инструменты</strong><span>Сервисы для трафика</span></div>
-            </div>
-            <div className="vvd-web-hero-panel-footer"><ShieldCheck size={15}/> Один Telegram-аккаунт для сайта и Mini App</div>
-          </div>
-        </section>
-
-        <PublicHomeBanners/>
-
+      ) : catalogView && !categoryId ? <main className="vvd-web-public-main">
         <section className="vvd-web-section" id="catalog">
           <div className="vvd-web-section-heading">
             <div><span className="vvd-web-eyebrow">ИНСТРУМЕНТЫ ДЛЯ РАБОТЫ С ТРАФИКОМ</span><h2>Каталог сервисов</h2><p>Отдельный каталог полезных инструментов для арбитражников и вебмастеров: изучай категории, сравнивай предложения и переходи к нужному сервису. Каталог доступен без регистрации.</p></div>
@@ -362,6 +326,52 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
               })}
             </div>:<div className="vvd-web-notice">По вашему запросу разделов не найдено.</div>}
         </section>
+      </main>
+      : categoryId ? <main className="vvd-web-category-view">
+        <button type="button" className="vvd-web-back" onClick={openCatalog}><ChevronLeft size={18}/> Все категории</button>
+        {category?<>
+          <div className="vvd-web-category-hero">
+            <div className="vvd-web-category-badge">
+              {React.createElement(directoryIcons[category.icon]||Layers,{size:34,strokeWidth:1.5})}
+            </div>
+            <div><span className="vvd-web-eyebrow">VVD CPA / КАТАЛОГ СЕРВИСОВ</span><h1>{category.name}</h1><p>{category.description}</p><span className="vvd-web-muted">{services.length?services.length+' предложений':'Предложения появятся после подключения партнёров'}</span></div>
+          </div>
+          {services.length>0?<div className="vvd-web-services-grid">{services.map(s=><ServiceTile key={s.id} service={s}/>)}</div>:
+          <div className="vvd-web-empty-service"><Layers size={30}/><h2>Сервисы скоро появятся</h2><p>Мы добавляем предложения по мере подключения партнёрских программ. Сейчас здесь нет опубликованных сервисов.</p><button type="button" onClick={openCatalog}>Смотреть другие категории <ArrowRight size={17}/></button></div>}
+        </>:<div className="vvd-web-empty-service"><h1>Раздел не найден</h1><p>Возможно, категория была переименована или скрыта.</p><button onClick={openCatalog}>Вернуться в каталог</button></div>}
+      </main> :
+      <main className="vvd-web-public-main">
+        <section className="vvd-web-workspace-intro" id="top" aria-labelledby="vvd-web-intro-title">
+          <div className="vvd-web-workspace-copy">
+            <span className="vvd-web-eyebrow"><span className="vvd-web-dot"/> CPA-ПАРТНЁРСКАЯ СЕТЬ · VVD CPA</span>
+            <h1 id="vvd-web-intro-title">Зарабатывай на своём трафике.<br/><em>VVD CPA — партнёрка.</em></h1>
+            <p>Монетизируй свой трафик через смартлинки разных вертикалей. <strong>Выплаты, аналитика и поддержка</strong> — в одной платформе.</p>
+            <div className="vvd-web-hero-points" aria-label="Преимущества VVD CPA">
+              <span><Link2 size={18} aria-hidden="true"/> Смартлинки</span>
+              <span><Layers size={18} aria-hidden="true"/> Мультивертикаль</span>
+              <span><Wallet size={18} aria-hidden="true"/> Выплаты по запросу</span>
+              <span><Zap size={18} aria-hidden="true"/> Быстрый холд</span>
+              <span><Headphones size={18} aria-hidden="true"/> Саппорт 24/7</span>
+              <span><Globe2 size={18} aria-hidden="true"/> Весь мир</span>
+            </div>
+            <div className="vvd-web-workspace-actions">
+              <button type="button" className={auth.isLoggedIn?'vvd-web-gold-button':'vvd-web-gold-button vvd-web-telegram-pulse'} onClick={()=>auth.isLoggedIn?openAccount():auth.setLoginOpen(true)}>{auth.isLoggedIn?'Открыть кабинет':'Начать через Telegram'} <ArrowRight size={16}/></button>
+              <button type="button" className="vvd-web-outline-button" onClick={openCatalog}>Каталог сервисов <ArrowRight size={16}/></button>
+            </div>
+          </div>
+          <div className="vvd-web-hero-panel" aria-label="Что есть внутри партнёрской платформы">
+            <div className="vvd-web-hero-panel-heading"><span className="vvd-web-panel-symbol"><Layers size={22}/></span><div><small>ОДНА ПЛАТФОРМА</small><strong>Смартлинки · Доход · Выплаты</strong></div></div>
+            <div className="vvd-web-hero-panel-grid">
+              <div><Link2 size={19}/><strong>Смартлинки</strong><span>Офферы разных вертикалей</span></div>
+              <div><Activity size={19}/><strong>Статистика</strong><span>Клики и конверсии</span></div>
+              <div><Wallet size={19}/><strong>Выплаты</strong><span>Баланс и история выплат</span></div>
+              <div><Wrench size={19}/><strong>Инструменты</strong><span>Сервисы для трафика</span></div>
+            </div>
+            <div className="vvd-web-hero-panel-footer"><ShieldCheck size={15}/> Один Telegram-аккаунт для сайта и Mini App</div>
+          </div>
+        </section>
+
+        <PublicHomeBanners/>
 
         <PublicHomeInfo/>
 

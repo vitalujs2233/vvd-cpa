@@ -50,7 +50,7 @@ class ReferralTests(unittest.TestCase):
         self.assertEqual(referrals.summary(engine,INVITER)['earned'],0)
         paid=make('2000.00')
         client=TestClient(app)
-        with patch('access_guard.verified_telegram_id',return_value=ADMIN),patch('main._cpa_admin_actor',return_value=ADMIN),patch('main.send_partner_notification',new_callable=AsyncMock):
+        with patch('access_guard.authenticated_user_id',return_value=ADMIN),patch('main._cpa_admin_actor',return_value=ADMIN),patch('main.send_partner_notification',new_callable=AsyncMock):
             result=client.post(f"/admin/withdrawals/{paid['withdrawal_id']}/paid",json={'confirmed_manual':True}).json()
             self.assertTrue(result['success'],result)
             self.assertFalse(client.post(f"/admin/withdrawals/{paid['withdrawal_id']}/paid",json={'confirmed_manual':True}).json()['success'])
@@ -63,7 +63,7 @@ class ReferralTests(unittest.TestCase):
         self.assertFalse(referrals.create(engine,INVITER,'50','bad',str(uuid.uuid4()))['success'])
         key=str(uuid.uuid4())
         body={'amount':'60','wallet':WALLET,'request_id':key}
-        with patch('access_guard.verified_telegram_id',return_value=INVITER):
+        with patch('access_guard.authenticated_user_id',return_value=INVITER):
             result=client.post(f'/referral/{INVITER}/withdrawals',json=body).json()
             self.assertTrue(result['success'],result)
             self.assertTrue(client.post(f'/referral/{INVITER}/withdrawals',json=body).json()['duplicate'])
@@ -72,7 +72,7 @@ class ReferralTests(unittest.TestCase):
         self.assertEqual(referrals.summary(engine,INVITER)['balance'],40)
         self.assertFalse(referrals.create(engine,INVITER,'50',WALLET,str(uuid.uuid4()))['success'])
         self.assertFalse(referrals.create(engine,INVITER,'50',WALLET,key)['success'])
-        with patch('access_guard.verified_telegram_id',return_value=ADMIN),patch('main._cpa_admin_actor',return_value=ADMIN),patch('main.send_partner_notification',new_callable=AsyncMock) as notify:
+        with patch('access_guard.authenticated_user_id',return_value=ADMIN),patch('main._cpa_admin_actor',return_value=ADMIN),patch('main.send_partner_notification',new_callable=AsyncMock) as notify:
             rows=client.get('/admin/withdrawals').json()['withdrawals']
             self.assertTrue(any(r.get('source')=='referral' and r['id']==result['withdrawal_id'] for r in rows))
             url=f"/admin/referral-withdrawals/{result['withdrawal_id']}/reject"
@@ -95,7 +95,7 @@ class ReferralTests(unittest.TestCase):
             self.assertEqual(c.execute(text('SELECT balance FROM users WHERE telegram_id=:u'),{'u':INVITER}).scalar_one(),0)
             for table in ('referral_rewards','referral_withdrawals'):
                 self.assertFalse(c.execute(text("SELECT has_table_privilege('anon',:t,'SELECT')"),{'t':table}).scalar_one())
-        with patch('access_guard.verified_telegram_id',return_value=None):
+        with patch('access_guard.authenticated_user_id',return_value=None):
             self.assertIn(client.get(f'/referral/{INVITER}').status_code,(401,403))
 
 if __name__=='__main__':unittest.main()

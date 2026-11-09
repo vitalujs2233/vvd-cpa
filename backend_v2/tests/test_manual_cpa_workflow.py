@@ -97,7 +97,7 @@ class ManualWorkflowTests(unittest.TestCase):
         self.assertFalse(create_real_withdrawal(engine,**{**args,'request_id':str(uuid.uuid4())})['success'])
         wid=made['withdrawal_id']
         client=TestClient(app)
-        with patch('access_guard.verified_telegram_id',return_value=ADMIN), patch('main._cpa_admin_actor',return_value=ADMIN), patch('main.send_partner_notification',new_callable=AsyncMock) as notify:
+        with patch('access_guard.authenticated_user_id',return_value=ADMIN), patch('main._cpa_admin_actor',return_value=ADMIN), patch('main.send_partner_notification',new_callable=AsyncMock) as notify:
             wallet=client.get(f'/balance/{ADMIN}').json()
             self.assertEqual(wallet['available'],30.80)
             listed=client.get('/admin/withdrawals').json()['withdrawals']
@@ -118,7 +118,7 @@ class ManualWorkflowTests(unittest.TestCase):
             self.assertEqual(finance['service_income'],20.20)
             users=client.get('/admin/users').json()['users']
             self.assertEqual(next(u for u in users if u['telegram_id']==ADMIN)['income'],80.80)
-        with patch('access_guard.verified_telegram_id',return_value=fixture.OTHER):
+        with patch('access_guard.authenticated_user_id',return_value=fixture.OTHER):
             self.assertEqual(client.get('/admin/withdrawals').status_code,403)
             self.assertEqual(client.post(f'/admin/withdrawals/{wid}/paid',json={'confirmed_manual':True}).status_code,403)
         cid3,_=self.credit('100.00');self.release(cid3,'80.00')
