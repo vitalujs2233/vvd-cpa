@@ -564,3 +564,25 @@
 .vvd-article-tags span{display:flex;align-items:center;gap:5px;border:1px solid #584629;border-radius:20px;padding:7px 12px;font-size:12px;color:#dfc290}
 @media(max-width:950px){.vvd-article-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.vvd-web-articles{padding:28px 0 65px}.vvd-article-grid{grid-template-columns:1fr}.vvd-article-card>img,.vvd-article-placeholder{height:200px}.vvd-article-detail h1{font-size:31px}.vvd-article-body{font-size:15px}}
+
+
+/* Editorial content is progressive: keep the page shell visible during network loads. */
+.vvd-article-loading-title,.vvd-article-loading-line,.vvd-article-loading-cover,.vvd-article-loading-image{
+  background:linear-gradient(110deg,#241e16 8%,#393023 27%,#241e16 44%);
+  background-size:240% 100%;
+  animation:vvd-editorial-loading 1.9s ease-in-out infinite;
+  border-radius:10px;
+}
+.vvd-article-loading-title{height:44px;width:80%;margin:19px 0 20px}
+.vvd-article-loading-line{height:16px;width:90%}
+.vvd-article-loading-line.short{width:60%}
+.vvd-article-loading-cover{height:280px;width:100%;margin-top:32px}
+.vvd-article-loading-image{height:190px;border-radius:0}
+.vvd-article-loading-card{min-height:300px}
+@keyframes vvd-editorial-loading{
+  0%{background-position:100% 0}
+  100%{background-position:-100% 0}
+}
+@media(prefers-reduced-motion:reduce){
+  .vvd-article-loading-title,.vvd-article-loading-line,.vvd-article-loading-cover,.vvd-article-loading-image{animation:none}
+}
