@@ -8,6 +8,13 @@ export type EditorialData={version:number;categories:EditorialCategory[];article
 export type PublicArticles={categories:EditorialCategory[];articles:ArticleSummary[]};
 
 export type PublicEditorialSnapshot=PublicArticles & {details:Record<string,Article>};
+// Generated at deployment from the public API and embedded in index.html before React runs.
+// Never includes admin endpoints, drafts or private data.
+export const bootstrappedEditorial=():PublicEditorialSnapshot|null=>{
+  const value=(window as Window & {__VVD_EDITORIAL_BOOTSTRAP__?:PublicEditorialSnapshot}).__VVD_EDITORIAL_BOOTSTRAP__;
+  if(!value||!Array.isArray(value.categories)||!Array.isArray(value.articles)||!value.details)return null;
+  return value;
+};
 let snapshotPromise:Promise<PublicEditorialSnapshot>|null=null;
 const snapshot=():Promise<PublicEditorialSnapshot>=>{
   if(!snapshotPromise){

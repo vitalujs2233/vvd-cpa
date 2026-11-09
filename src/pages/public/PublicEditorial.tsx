@@ -1,6 +1,6 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {ArrowLeft,ArrowRight,BookOpen,CalendarDays,Search,Tag} from 'lucide-react';
-import {editorialApi,type Article,type ArticleSummary,type EditorialCategory,type PublicArticles} from './editorialApi';
+import {editorialApi,bootstrappedEditorial,type Article,type ArticleSummary,type PublicArticles} from './editorialApi';
 import {API_BASE_URL} from '@/shared/lib/api';
 
 const safeImage=(value:string)=>value.startsWith(API_BASE_URL+'/articles/images/')||/^https:\/\/[^\s]+$/i.test(value);
@@ -11,6 +11,9 @@ const CACHE_TTL=5*60*1000;
 let articleCache:{data:PublicArticles;at:number}|null=null;
 const readCachedArticles=():PublicArticles|null=>{
   if(articleCache && Date.now()-articleCache.at<CACHE_TTL)return articleCache.data;
+  // Synchronous deployment snapshot is available on the first render, before any fetch.
+  const initial=bootstrappedEditorial();
+  if(initial?.articles.length || initial?.categories.length)return {articles:initial.articles,categories:initial.categories};
   try{
     const raw=sessionStorage.getItem(ARTICLE_CACHE_KEY);
     if(!raw)return null;
@@ -27,13 +30,15 @@ const rememberArticles=(data:PublicArticles)=>{
   try{sessionStorage.setItem(ARTICLE_CACHE_KEY,JSON.stringify(articleCache));}catch{/* Optional cache. */}
 };
 const detailMemory=new Map<string,Article>();
+const readCachedDetail=(slug:string):Article|null=>
+  detailMemory.get(slug)||bootstrappedEditorial()?.details?.[slug]||null;
 type Props={slug:string;onArticle:(slug:string)=>void;onBack:()=>void;onMetadata:(title:string,description:string,cover?:string,date?:string)=>void};
 export const PublicEditorial:React.FC<Props>=({slug,onArticle,onBack,onMetadata})=>{
   const [data,setData]=useState<PublicArticles>(()=>readCachedArticles()||{categories:[],articles:[]});
-  const [item,setItem]=useState<Article|null>(()=>detailMemory.get(slug)||null);
+  const [item,setItem]=useState<Article|null>(()=>readCachedDetail(slug));
   const [category,setCategory]=useState('all');
   const [query,setQuery]=useState('');
-  const [loading,setLoading]=useState(()=>slug?!detailMemory.has(slug):!readCachedArticles());
+  const [loading,setLoading]=useState(()=>slug?!readCachedDetail(slug):!readCachedArticles());
   const [error,setError]=useState('');
   const [retry,setRetry]=useState(0);
   useEffect(()=>{
@@ -41,11 +46,12 @@ export const PublicEditorial:React.FC<Props>=({slug,onArticle,onBack,onMetadata}
     let liveAnswered=false;
     setError('');
     if(slug){
-      const cached=detailMemory.get(slug);
+      const cached=readCachedDetail(slug);
       setItem(cached||null);
       setLoading(!cached);
+      if(cached)onMetadata(cached.seo_title||cached.title,cached.seo_description||cached.excerpt,cached.cover_url,cached.published_at);
       // Static first, then refresh from the backend when available.
-      void editorialApi.snapshot().then(v=>{
+      if(!bootstrappedEditorial())void editorialApi.snapshot().then(v=>{
         if(!mounted||liveAnswered)return;
         const article=v.details[slug];
         if(article){
@@ -59,7 +65,7 @@ export const PublicEditorial:React.FC<Props>=({slug,onArticle,onBack,onMetadata}
         detailMemory.set(slug,v.article);setItem(v.article);setError('');setLoading(false);
         onMetadata(v.article.seo_title||v.article.title,v.article.seo_description||v.article.excerpt,v.article.cover_url,v.article.published_at);
       }).catch(()=>{
-        if(mounted&&!detailMemory.has(slug)){setError('Статья не найдена или временно недоступна.');setLoading(false);}
+        if(mounted&&!readCachedDetail(slug)){setError('Статья не найдена или временно недоступна.');setLoading(false);}
       });
     }else{
       setItem(null);
@@ -67,14 +73,17 @@ export const PublicEditorial:React.FC<Props>=({slug,onArticle,onBack,onMetadata}
       const cached=readCachedArticles();
       if(cached)setData(cached);
       setLoading(!cached);
-      void editorialApi.snapshot().then(v=>{
+      if(!bootstrappedEditorial())void editorialApi.snapshot().then(v=>{
         if(!mounted||liveAnswered)return;
         const feed={categories:v.categories,articles:v.articles};
         rememberArticles(feed);setData(feed);setLoading(false);
       }).catch(()=>{});
       void editorialApi.list().then(v=>{
         if(!mounted)return;
-        liveAnswered=true;rememberArticles(v);setData(v);setError('');setLoading(false);
+        liveAnswered=true;rememberArticles(v);
+        // No needless re-render if server matches the already visible HTML snapshot.
+        setData(previous=>JSON.stringify(previous)===JSON.stringify(v)?previous:v);
+        setError('');setLoading(false);
       }).catch(()=>{
         if(mounted&&!readCachedArticles()){setError('Не удалось загрузить статьи.');setLoading(false);}
       });
@@ -123,7 +132,7 @@ export const PublicEditorial:React.FC<Props>=({slug,onArticle,onBack,onMetadata}
           <div className="vvd-editorial-category-grid" aria-label="Категории статей">
             {data.categories.filter(c=>c.image_url&&safeImage(c.image_url)).map(c=>
               <button type="button" key={c.id} className="vvd-editorial-category-card" onClick={()=>setCategory(c.id)}>
-                <img src={c.image_url} alt="" loading="lazy"/>
+                <img src={c.image_url} alt="" loading="eager" decoding="async"/>
                 <span className="vvd-editorial-category-overlay">
                   <strong>{c.name}</strong>
                   {c.description&&<small>{c.description}</small>}
@@ -132,7 +141,7 @@ export const PublicEditorial:React.FC<Props>=({slug,onArticle,onBack,onMetadata}
             )}
           </div>}
         {error?<div className="vvd-web-notice" role="alert">{error} <button type="button" className="vvd-web-outline-button" onClick={()=>setRetry(v=>v+1)}>Повторить</button></div>:
-        results.length?<div className="vvd-article-grid">{results.map(a=><ArticleCard key={a.slug} article={a} categoryName={categories.get(a.category_id)?.name||''} categoryCover={categories.get(a.category_id)?.image_url||''} onClick={()=>onArticle(a.slug)}/>)}</div>:
+        results.length?<div className="vvd-article-grid">{results.map((a,i)=><ArticleCard key={a.slug} priority={i<2} article={a} categoryName={categories.get(a.category_id)?.name||''} categoryCover={categories.get(a.category_id)?.image_url||''} onClick={()=>onArticle(a.slug)}/>)}</div>:
         loading?<div className="vvd-article-grid" aria-label="Загружаем статьи" aria-busy="true">
           {[0,1,2].map(i=><div className="vvd-article-card vvd-article-loading-card" key={i} aria-hidden="true">
             <div className="vvd-article-loading-image"/><div className="vvd-article-card-copy"><div className="vvd-article-loading-line"/><div className="vvd-article-loading-line short"/></div>
@@ -144,9 +153,9 @@ export const PublicEditorial:React.FC<Props>=({slug,onArticle,onBack,onMetadata}
   </main>;
 };
 
-const ArticleCard:React.FC<{article:ArticleSummary;categoryName:string;categoryCover:string;onClick:()=>void}>=({article:a,categoryName,categoryCover,onClick})=>
+const ArticleCard:React.FC<{article:ArticleSummary;categoryName:string;categoryCover:string;priority:boolean;onClick:()=>void}>=({article:a,categoryName,categoryCover,priority,onClick})=>
   <button type="button" className="vvd-article-card" onClick={onClick}>
-    {(a.cover_url&&safeImage(a.cover_url)?a.cover_url:(categoryCover&&safeImage(categoryCover)?categoryCover:""))?<img src={a.cover_url&&safeImage(a.cover_url)?a.cover_url:categoryCover} alt="" loading="lazy"/>:<div className="vvd-article-placeholder"><BookOpen size={36}/></div>}
+    {(a.cover_url&&safeImage(a.cover_url)?a.cover_url:(categoryCover&&safeImage(categoryCover)?categoryCover:""))?<img src={a.cover_url&&safeImage(a.cover_url)?a.cover_url:categoryCover} alt="" loading={priority?"eager":"lazy"} fetchPriority={priority?"high":"auto"} decoding="async"/>:<div className="vvd-article-placeholder"><BookOpen size={36}/></div>}
     <div className="vvd-article-card-copy">
       <span className="vvd-web-eyebrow">{categoryName}</span>
       <h2>{a.title}</h2>
