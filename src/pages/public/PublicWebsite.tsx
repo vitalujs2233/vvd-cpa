@@ -327,7 +327,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
             </div>:<div className="vvd-web-notice">По вашему запросу разделов не найдено.</div>}
         </section>
       </main>
-      ) : categoryId ? <main className="vvd-web-category-view">
+      : categoryId ? <main className="vvd-web-category-view">
         <button type="button" className="vvd-web-back" onClick={openCatalog}><ChevronLeft size={18}/> Все категории</button>
         {category?<>
           <div className="vvd-web-category-hero">
