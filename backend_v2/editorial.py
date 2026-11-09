@@ -52,8 +52,19 @@ class EditorialCategory(BaseModel):
     id: str = Field(min_length=1, max_length=64, pattern=SLUG)
     name: str = Field(min_length=1, max_length=100)
     description: str = Field(default="", max_length=300)
+    image_url: str = Field(default="", max_length=2048)
     active: bool = True
     sort_order: int = Field(default=100, ge=-10000, le=10000)
+
+
+    @field_validator("image_url")
+    @classmethod
+    def valid_image_url(cls, value: str) -> str:
+        if value:
+            parsed = urlsplit(value)
+            if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+                raise ValueError("Фото категории должно иметь HTTPS-ссылку")
+        return value
 
 
 class ArticleBlock(BaseModel):
