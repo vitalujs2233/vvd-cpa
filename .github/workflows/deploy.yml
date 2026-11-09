@@ -6,6 +6,7 @@ on:
     paths:
       - "src/**"
       - "public/**"
+      - "scripts/build-sitemap.mjs"
       - "index.html"
       - "package.json"
       - "package-lock.json"
@@ -47,6 +48,9 @@ jobs:
 
       - name: Build project
         run: npm run build
+
+      - name: Generate article sitemap
+        run: node scripts/build-sitemap.mjs
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
