@@ -318,7 +318,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
               <span><Globe2 size={18} aria-hidden="true"/> Весь мир</span>
             </div>
             <div className="vvd-web-workspace-actions">
-              <button type="button" className="vvd-web-gold-button" onClick={()=>auth.isLoggedIn?openAccount():auth.setLoginOpen(true)}>{auth.isLoggedIn?'Открыть кабинет':'Начать через Telegram'} <ArrowRight size={16}/></button>
+              <button type="button" className={auth.isLoggedIn?'vvd-web-gold-button':'vvd-web-gold-button vvd-web-telegram-pulse'} onClick={()=>auth.isLoggedIn?openAccount():auth.setLoginOpen(true)}>{auth.isLoggedIn?'Открыть кабинет':'Начать через Telegram'} <ArrowRight size={16}/></button>
               <button type="button" className="vvd-web-outline-button" onClick={()=>jumpTo('catalog')}>Каталог сервисов <ArrowRight size={16}/></button>
             </div>
           </div>
