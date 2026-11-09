@@ -3,6 +3,7 @@ import { authorizedFetch } from '@/shared/lib/api';
 import { CPAManager } from './CPAManager';
 import { InfoAdmin } from './InfoAdmin';
 import { ServiceDirectoryAdmin } from './ServiceDirectoryAdmin';
+import { EditorialAdmin } from './EditorialAdmin';
 import { HomeAdsAdmin } from './HomeAdsAdmin';
 import { HomeTickerAdmin } from './HomeTickerAdmin';
 import { HomeInfoAdmin } from './HomeInfoAdmin';
@@ -96,7 +97,7 @@ export const Admin: React.FC = () => {
   'chatBans' |
   'toolsBalance' |
   'supportTickets' |
-  'cpa' | 'information' | 'homeAds' | 'homeTicker' | 'homeInfo' | 'directory'
+  'cpa' | 'information' | 'homeAds' | 'homeTicker' | 'homeInfo' | 'directory' | 'editorial'
 >('menu');
   const [searchQuery, setSearchQuery] = useState('');
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>(()=>readApiSnapshot('/admin/users')?.users||[]);
@@ -378,6 +379,7 @@ const saveChatBanner = async () => {
     | 'homeTicker'
     | 'homeInfo'
     | 'directory'
+    | 'editorial'
 ) => {
   triggerHaptic.lightImpact();
   setSubView(view);
@@ -466,6 +468,7 @@ const saveChatBanner = async () => {
           <button type="button" onClick={()=>handleSubViewChange('homeAds')} className="w-full rounded-card border border-accentGold/30 bg-bgCard p-4 text-left text-accentGoldBright font-bold">Рекламные баннеры →</button>
           <button type="button" onClick={()=>handleSubViewChange('information')} className="w-full rounded-card border border-accentGold/30 bg-bgCard p-4 text-left text-accentGoldBright font-bold">Управление информацией →</button>
           <button type="button" onClick={()=>handleSubViewChange('directory')} className="w-full rounded-card border border-accentGold/30 bg-bgCard p-4 text-left text-accentGoldBright font-bold">Каталог сервисов → Категории · Предложения</button>
+          <button type="button" onClick={()=>handleSubViewChange('editorial')} className="w-full rounded-card border border-accentGold/30 bg-bgCard p-4 text-left text-accentGoldBright font-bold">Статьи и кейсы → Категории · Редактор · SEO</button>
           {/* Шапка админ-панели */}
           <div className="flex items-center gap-3 text-left">
             <button 
@@ -1102,6 +1105,7 @@ const saveChatBanner = async () => {
       {subView === 'homeAds' && <HomeAdsAdmin onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'information' && <InfoAdmin onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'directory' && <ServiceDirectoryAdmin onBack={() => handleSubViewChange('menu')}/>}
+      {subView === 'editorial' && <EditorialAdmin onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'cpa' && <CPAManager onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'chatBans' && (
   <div className="flex flex-col gap-4 animate-fade-in">

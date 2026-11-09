@@ -6,6 +6,7 @@ on:
     paths:
       - "src/**"
       - "public/**"
+      - "scripts/build-sitemap.mjs"
       - "index.html"
       - "package.json"
       - "package-lock.json"
@@ -16,6 +17,8 @@ on:
       - ".github/workflows/deploy.yml"
 
   workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * *' # Refresh published articles in sitemap daily
 
 permissions:
   contents: read
@@ -47,6 +50,9 @@ jobs:
 
       - name: Build project
         run: npm run build
+
+      - name: Generate article sitemap
+        run: node scripts/build-sitemap.mjs
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
