@@ -11,7 +11,7 @@ export type PublicEditorialSnapshot=PublicArticles & {details:Record<string,Arti
 let snapshotPromise:Promise<PublicEditorialSnapshot>|null=null;
 const snapshot=():Promise<PublicEditorialSnapshot>=>{
   if(!snapshotPromise){
-    snapshotPromise=fetch(import.meta.env.BASE_URL+'editorial-snapshot.json')
+    snapshotPromise=fetch('/vvd-cpa/editorial-snapshot.json')
       .then(response=>{if(!response.ok)throw new Error('Snapshot unavailable');return response.json();})
       .then((value:PublicEditorialSnapshot)=>{
         if(!Array.isArray(value.categories)||!Array.isArray(value.articles)||!value.details)
