@@ -7,7 +7,23 @@ export type ArticleSummary=Omit<Article,'blocks'>;
 export type EditorialData={version:number;categories:EditorialCategory[];articles:Article[]};
 export type PublicArticles={categories:EditorialCategory[];articles:ArticleSummary[]};
 
+export type PublicEditorialSnapshot=PublicArticles & {details:Record<string,Article>};
+let snapshotPromise:Promise<PublicEditorialSnapshot>|null=null;
+const snapshot=():Promise<PublicEditorialSnapshot>=>{
+  if(!snapshotPromise){
+    snapshotPromise=fetch(import.meta.env.BASE_URL+'editorial-snapshot.json')
+      .then(response=>{if(!response.ok)throw new Error('Snapshot unavailable');return response.json();})
+      .then((value:PublicEditorialSnapshot)=>{
+        if(!Array.isArray(value.categories)||!Array.isArray(value.articles)||!value.details)
+          throw new Error('Invalid snapshot');
+        return value;
+      }).catch(error=>{snapshotPromise=null;throw error;});
+  }
+  return snapshotPromise;
+};
+
 export const editorialApi={
+  snapshot,
   list:()=>apiRequest<PublicArticles>('/articles'),
   detail:(slug:string)=>apiRequest<{article:Article}>('/articles/'+encodeURIComponent(slug)),
   admin:()=>apiRequest<EditorialData>('/articles/admin'),
