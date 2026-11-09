@@ -23,6 +23,7 @@ import type {AuthResponse} from '@/shared/lib/api';
 import { Profile } from '@/pages/profile/Profile';
 import { Referral } from '@/pages/Referral';
 import { Admin } from '@/pages/admin/Admin';
+import {MaintenanceScreen,useMiniAppMaintenance} from '@/pages/maintenance/Maintenance';
 // Импортируем наш личный тикет-чат как SupportChat
 import { Chat as SupportChat } from '@/pages/chat/Chat';
 import { Loader } from '@/shared/ui/Loader';
@@ -196,6 +197,8 @@ const AppLayout = ({webMode=false}:{webMode?:boolean}) => {
 const MiniApp = ({webUser}:{webUser?:AuthResponse['user']}) => {
   const [authState, setAuthState] = useState<'loading'|'ready'|'error'|'data-error'|'connection-error'>('loading');
   const [authMessage, setAuthMessage] = useState('');
+  const [verifiedAdmin,setVerifiedAdmin]=useState(false);
+  const {status:maintenance,checked:maintenanceChecked,refresh:refreshMaintenance}=useMiniAppMaintenance();
   const [startupAttempt,setStartupAttempt]=useState(0);
 
   useEffect(() => {
@@ -207,6 +210,7 @@ const MiniApp = ({webUser}:{webUser?:AuthResponse['user']}) => {
     let active = true;
     const authenticate = async () => {
       setAuthState('loading');
+      setVerifiedAdmin(false);
       try {
         if (!webUser && !window.Telegram?.WebApp?.initData) {
           throw new Error('Откройте VVD CPA через Telegram или авторизуйтесь на сайте.');
@@ -216,6 +220,8 @@ const MiniApp = ({webUser}:{webUser?:AuthResponse['user']}) => {
         }
         const response = webUser ? {user:webUser} : await loginViaTelegramApi();
         if (active) {
+          // Server-verified authentication is required before administrator bypass.
+          setVerifiedAdmin(response.user.role==='admin'||response.user.telegram_id===232682307);
           localStorage.setItem('vvd_cpa_user_data', JSON.stringify(response.user));
           saveSnapshot(`account:${response.user.telegram_id}`,response.user);
           await preloadStartupData(response.user.telegram_id,response.user.partner_code,response.user.role);
@@ -250,7 +256,10 @@ const MiniApp = ({webUser}:{webUser?:AuthResponse['user']}) => {
     return () => { active = false; };
   }, [startupAttempt, webUser?.telegram_id]);
 
-  if (authState === 'loading') return <Loader />;
+  // The notice takes precedence over normal authentication and Mini App pages.
+  // Verified administrators retain the dashboard to turn this mode off.
+  if(maintenance?.enabled && !verifiedAdmin)return <MaintenanceScreen settings={maintenance} onRefresh={refreshMaintenance}/>;
+  if(!maintenanceChecked || authState === 'loading') return <Loader />;
   if (authState === 'error' || authState === 'data-error' || authState === 'connection-error') {
     return <div role="alert" className="min-h-[100dvh] flex items-center justify-center bg-bgMain p-6 text-center text-sm text-textSecondary">
       <div className="max-w-xs rounded-card border border-accentGold/25 bg-bgCard p-5">
