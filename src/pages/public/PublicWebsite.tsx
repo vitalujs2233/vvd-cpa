@@ -46,9 +46,20 @@ function setMetadata(title:string,description:string,category=''){
   let meta=document.querySelector<HTMLMetaElement>('meta[name="description"]');
   if(!meta){meta=document.createElement('meta');meta.name='description';document.head.appendChild(meta);}
   meta.content=description;
+  for(const [selector,value] of [
+    ['meta[property="og:title"]',title],['meta[property="og:description"]',description],
+    ['meta[name="twitter:title"]',title],['meta[name="twitter:description"]',description]
+  ] as const){
+    const node=document.querySelector<HTMLMetaElement>(selector);
+    if(node)node.content=value;
+  }
   let canonical=document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
   if(!canonical){canonical=document.createElement('link');canonical.rel='canonical';document.head.appendChild(canonical);}
   canonical.href=category?getSiteUrl(category):isArticlePage()?articleUrl(readArticle()):isCatalogPage()?getSiteUrl():BASE_URL;
+  const ogUrl=document.querySelector<HTMLMetaElement>('meta[property="og:url"]');
+  if(ogUrl)ogUrl.content=canonical.href;
+  const ogType=document.querySelector<HTMLMetaElement>('meta[property="og:type"]');
+  if(ogType)ogType.content=isArticlePage()&&!!readArticle()?'article':'website';
 }
 
 const ServiceTile:React.FC<{service:DirectoryService}>=({service})=>{
