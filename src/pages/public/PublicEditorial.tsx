@@ -1,6 +1,6 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {ArrowLeft,ArrowRight,BookOpen,CalendarDays,Search,Tag} from 'lucide-react';
-import {editorialApi,type Article,type ArticleSummary,type PublicArticles} from './editorialApi';
+import {editorialApi,type Article,type ArticleSummary,type EditorialCategory,type PublicArticles} from './editorialApi';
 import {API_BASE_URL} from '@/shared/lib/api';
 
 const safeImage=(value:string)=>value.startsWith(API_BASE_URL+'/articles/images/')||/^https:\/\/[^\s]+$/i.test(value);
@@ -83,7 +83,7 @@ export const PublicEditorial:React.FC<Props>=({slug,onArticle,onBack,onMetadata}
   },[slug,retry,onMetadata]);
   const results=useMemo(()=>data.articles.filter(a=>(category==='all'||a.category_id===category)&&
     [a.title,a.excerpt,...a.tags].join(' ').toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru').trim())),[data,category,query]);
-  const categories=new Map(data.categories.map(c=>[c.id,c.name]));
+  const categories=new Map(data.categories.map(c=>[c.id,c]));
   return <main className="vvd-web-articles">
     {slug?<button className="vvd-web-back" onClick={onBack}><ArrowLeft size={18}/> Все статьи и кейсы</button>:null}
     {slug ? (loading && !item ? <div className="vvd-article-detail">
@@ -119,8 +119,20 @@ export const PublicEditorial:React.FC<Props>=({slug,onArticle,onBack,onMetadata}
           <button type="button" className={category==='all'?'selected':''} onClick={()=>setCategory('all')}>Все</button>
           {data.categories.map(c=><button type="button" key={c.id} className={category===c.id?'selected':''} onClick={()=>setCategory(c.id)}>{c.name}</button>)}
         </div>
+        {category==='all'&&data.categories.some(c=>c.image_url&&safeImage(c.image_url))&&
+          <div className="vvd-editorial-category-grid" aria-label="Категории статей">
+            {data.categories.filter(c=>c.image_url&&safeImage(c.image_url)).map(c=>
+              <button type="button" key={c.id} className="vvd-editorial-category-card" onClick={()=>setCategory(c.id)}>
+                <img src={c.image_url} alt="" loading="lazy"/>
+                <span className="vvd-editorial-category-overlay">
+                  <strong>{c.name}</strong>
+                  {c.description&&<small>{c.description}</small>}
+                </span>
+              </button>
+            )}
+          </div>}
         {error?<div className="vvd-web-notice" role="alert">{error} <button type="button" className="vvd-web-outline-button" onClick={()=>setRetry(v=>v+1)}>Повторить</button></div>:
-        results.length?<div className="vvd-article-grid">{results.map(a=><ArticleCard key={a.slug} article={a} categoryName={categories.get(a.category_id)||''} onClick={()=>onArticle(a.slug)}/>)}</div>:
+        results.length?<div className="vvd-article-grid">{results.map(a=><ArticleCard key={a.slug} article={a} categoryName={categories.get(a.category_id)?.name||''} categoryCover={categories.get(a.category_id)?.image_url||''} onClick={()=>onArticle(a.slug)}/>)}</div>:
         loading?<div className="vvd-article-grid" aria-label="Загружаем статьи" aria-busy="true">
           {[0,1,2].map(i=><div className="vvd-article-card vvd-article-loading-card" key={i} aria-hidden="true">
             <div className="vvd-article-loading-image"/><div className="vvd-article-card-copy"><div className="vvd-article-loading-line"/><div className="vvd-article-loading-line short"/></div>
@@ -132,9 +144,9 @@ export const PublicEditorial:React.FC<Props>=({slug,onArticle,onBack,onMetadata}
   </main>;
 };
 
-const ArticleCard:React.FC<{article:ArticleSummary;categoryName:string;onClick:()=>void}>=({article:a,categoryName,onClick})=>
+const ArticleCard:React.FC<{article:ArticleSummary;categoryName:string;categoryCover:string;onClick:()=>void}>=({article:a,categoryName,categoryCover,onClick})=>
   <button type="button" className="vvd-article-card" onClick={onClick}>
-    {a.cover_url&&safeImage(a.cover_url)?<img src={a.cover_url} alt="" loading="lazy"/>:<div className="vvd-article-placeholder"><BookOpen size={36}/></div>}
+    {(a.cover_url&&safeImage(a.cover_url)?a.cover_url:(categoryCover&&safeImage(categoryCover)?categoryCover:""))?<img src={a.cover_url&&safeImage(a.cover_url)?a.cover_url:categoryCover} alt="" loading="lazy"/>:<div className="vvd-article-placeholder"><BookOpen size={36}/></div>}
     <div className="vvd-article-card-copy">
       <span className="vvd-web-eyebrow">{categoryName}</span>
       <h2>{a.title}</h2>
