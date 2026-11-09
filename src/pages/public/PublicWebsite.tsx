@@ -4,6 +4,7 @@ import {API_BASE_URL} from '@/shared/lib/api';
 import {directoryIcons,type DirectoryData,type DirectoryService} from '@/pages/tools/serviceDirectoryApi';
 import {BrowserAccount, TelegramBrowserLogin, type useBrowserSession} from './WebAuth';
 import './PublicWebsite.css';
+import {PublicEditorial} from './PublicEditorial';
 
 const BOT_URL='https://t.me/vvd_cpa_bot';
 const BASE_URL='https://vitalujs2233.github.io/vvd-cpa/';
@@ -36,6 +37,9 @@ const allowedLink=(url:string)=>{
 const readCategory=()=>new URLSearchParams(window.location.search).get('category')||'';
 const getSiteUrl=(category='')=>BASE_URL+'?page=services'+(category?'&category='+encodeURIComponent(category):'');
 const isCatalogPage=()=>new URLSearchParams(window.location.search).get('page')==='services'||Boolean(readCategory());
+const isArticlePage=()=>new URLSearchParams(window.location.search).get('page')==='articles';
+const readArticle=()=>new URLSearchParams(window.location.search).get('article')||'';
+const articleUrl=(slug='')=>BASE_URL+'?page=articles'+(slug?'&article='+encodeURIComponent(slug):'');
 
 function setMetadata(title:string,description:string,category=''){
   document.title=title;
@@ -44,7 +48,7 @@ function setMetadata(title:string,description:string,category=''){
   meta.content=description;
   let canonical=document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
   if(!canonical){canonical=document.createElement('link');canonical.rel='canonical';document.head.appendChild(canonical);}
-  canonical.href=category?getSiteUrl(category):new URLSearchParams(window.location.search).get('page')==='services'?getSiteUrl():BASE_URL;
+  canonical.href=category?getSiteUrl(category):isArticlePage()?articleUrl(readArticle()):isCatalogPage()?getSiteUrl():BASE_URL;
 }
 
 const ServiceTile:React.FC<{service:DirectoryService}>=({service})=>{
@@ -188,6 +192,8 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
   const [catalogAttempt,setCatalogAttempt]=useState(0);
   const [categoryId,setCategoryId]=useState(readCategory);
   const [catalogView,setCatalogView]=useState(isCatalogPage);
+  const [articlesView,setArticlesView]=useState(isArticlePage);
+  const [articleSlug,setArticleSlug]=useState(readArticle);
   const [query,setQuery]=useState('');
   const [mobileMenu,setMobileMenu]=useState(false);
   const [accountView,setAccountView]=useState(()=>new URLSearchParams(window.location.search).has('account'));
@@ -211,34 +217,52 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
   },[catalogAttempt]);
 
   useEffect(()=>{
-    const onHistory=()=>{setCategoryId(readCategory());setCatalogView(isCatalogPage());setAccountView(new URLSearchParams(window.location.search).has('account'));setQuery('');viewport.current?.scrollTo({top:0,behavior:'auto'});};
+    const onHistory=()=>{setCategoryId(readCategory());setCatalogView(isCatalogPage());setArticlesView(isArticlePage());setArticleSlug(readArticle());setAccountView(new URLSearchParams(window.location.search).has('account'));setQuery('');viewport.current?.scrollTo({top:0,behavior:'auto'});};
     window.addEventListener('popstate',onHistory);
     return()=>window.removeEventListener('popstate',onHistory);
   },[]);
 
   const showCategory=useCallback((id:string)=>{
     window.history.pushState(null,'',getSiteUrl(id));
-    setCategoryId(id);setCatalogView(true);setAccountView(false);setQuery('');setMobileMenu(false);
+    setCategoryId(id);setCatalogView(true);setArticlesView(false);setArticleSlug('');setAccountView(false);setQuery('');setMobileMenu(false);
     viewport.current?.scrollTo({top:0,behavior:'instant'});
   },[]);
   const openCatalog=useCallback(()=>{
     if(!catalogView||categoryId||accountView)window.history.pushState(null,'',getSiteUrl());
-    setCatalogView(true);setCategoryId('');setAccountView(false);setQuery('');setMobileMenu(false);
+    setCatalogView(true);setArticlesView(false);setArticleSlug('');setCategoryId('');setAccountView(false);setQuery('');setMobileMenu(false);
     viewport.current?.scrollTo({top:0,behavior:'auto'});
-  },[catalogView,categoryId,accountView]);
+  },[catalogView,articlesView,categoryId,accountView]);
+  const openArticles=useCallback((slug='')=>{
+    window.history.pushState(null,'',articleUrl(slug));
+    setArticlesView(true);setArticleSlug(slug);setCatalogView(false);setCategoryId('');setAccountView(false);setMobileMenu(false);
+    viewport.current?.scrollTo({top:0,behavior:'auto'});
+  },[]);
+  const onArticleMetadata=useCallback((title:string,description:string,cover?:string,date?:string)=>{
+    setMetadata(title+' — VVD CPA',description);
+    let imageMeta=document.querySelector<HTMLMetaElement>('meta[property="og:image"]');
+    if(!imageMeta){imageMeta=document.createElement('meta');imageMeta.setAttribute('property','og:image');document.head.appendChild(imageMeta);}
+    imageMeta.content=cover||'';
+    let script=document.querySelector<HTMLScriptElement>('#vvd-editorial-jsonld');
+    if(script)script.remove();
+    if(date&&readArticle()){
+      script=document.createElement('script');script.id='vvd-editorial-jsonld';script.type='application/ld+json';
+      script.textContent=JSON.stringify({'@context':'https://schema.org','@type':'Article',headline:title,description,datePublished:date,image:cover||undefined,mainEntityOfPage:articleUrl(readArticle()),publisher:{'@type':'Organization',name:'VVD CPA'}});
+      document.head.appendChild(script);
+    }
+  },[]);
   const openMain=useCallback(()=>{
-    if(catalogView||categoryId||accountView)window.history.pushState(null,'',BASE_URL);
-    setCatalogView(false);setCategoryId('');setAccountView(false);setQuery('');setMobileMenu(false);
+    if(catalogView||articlesView||categoryId||accountView)window.history.pushState(null,'',BASE_URL);
+    setCatalogView(false);setArticlesView(false);setArticleSlug('');setCategoryId('');setAccountView(false);setQuery('');setMobileMenu(false);
     viewport.current?.scrollTo({top:0,behavior:'auto'});
   },[catalogView,categoryId,accountView]);
   const openAccount=()=>{
     if(auth.isLoggedIn){onOpenApp();return;}
     window.history.pushState(null,'',BASE_URL+'?account=1');
-    setCategoryId('');setCatalogView(false);setAccountView(true);setMobileMenu(false);
+    setCategoryId('');setCatalogView(false);setArticlesView(false);setArticleSlug('');setAccountView(true);setMobileMenu(false);
     viewport.current?.scrollTo({top:0,behavior:'auto'});
   };
   const jumpTo=(id:string)=>{
-    if(catalogView||categoryId||accountView){window.history.pushState(null,'',BASE_URL);setCatalogView(false);setCategoryId('');setAccountView(false);}
+    if(catalogView||articlesView||categoryId||accountView){window.history.pushState(null,'',BASE_URL);setCatalogView(false);setArticlesView(false);setArticleSlug('');setCategoryId('');setAccountView(false);}
     setMobileMenu(false);
     window.setTimeout(()=>document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'}),0);
   };
@@ -257,10 +281,12 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
       setMetadata(category.name+' — Каталог сервисов VVD CPA',category.description||'Каталог профессиональных сервисов для вебмастеров.',category.id);
     }else if(catalogView){
       setMetadata('Каталог сервисов — VVD CPA','Инструменты для вебмастеров и арбитражников: категории, описания и полезные сервисы.');
+    }else if(articlesView){
+      if(!articleSlug)setMetadata('Статьи и кейсы — VVD CPA','Полезные статьи, кейсы и обучение для вебмастеров.');
     }else{
       setMetadata('VVD CPA — CPA партнёрская сеть для арбитражников и вебмастеров','VVD CPA — CPA-партнёрская сеть: офферы, партнёрские ссылки, монетизация трафика, аналитика, баланс и инструменты для арбитражников и вебмастеров. Веб-кабинет и Telegram Mini App.');
     }
-  },[category,accountView,catalogView]);
+  },[category,accountView,catalogView,articlesView,articleSlug]);
 
   return <div className="vvd-web-portal" ref={viewport}>
     <div className="vvd-web-atmosphere" aria-hidden="true">
@@ -284,6 +310,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
         <nav className={'vvd-web-nav '+(mobileMenu?'is-open':'')} aria-label="Основная навигация">
           <button type="button" onClick={openMain}>Главная</button>
           <button type="button" onClick={openCatalog}>Каталог сервисов</button>
+          <button type="button" onClick={()=>openArticles()}>Статьи и кейсы</button>
           <button type="button" onClick={()=>jumpTo('features')}>Как работает</button>
           <button type="button" onClick={openAccount}>Личный кабинет</button>
         </nav>
@@ -299,7 +326,8 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
           <div className="vvd-web-account-heading"><span className="vvd-web-eyebrow">ЛИЧНЫЙ КАБИНЕТ</span><h1>{auth.restoring?'Проверяем сессию…':'Вход через Telegram'}</h1><p>Один аккаунт для сайта и Mini App. Войти и зарегистрироваться можно с помощью Telegram.</p></div>
           {!auth.restoring&&<button type="button" className="vvd-web-gold-button" onClick={()=>auth.setLoginOpen(true)}>Войти / Зарегистрироваться <ArrowRight size={17}/></button>}
         </main>
-      ) : catalogView && !categoryId ? <main className="vvd-web-public-main">
+      ) : articlesView ? <PublicEditorial slug={articleSlug} onArticle={openArticles} onBack={()=>openArticles()} onMetadata={onArticleMetadata}/>
+      : catalogView && !categoryId ? <main className="vvd-web-public-main">
         <section className="vvd-web-section" id="catalog">
           <div className="vvd-web-section-heading">
             <div><span className="vvd-web-eyebrow">ИНСТРУМЕНТЫ ДЛЯ РАБОТЫ С ТРАФИКОМ</span><h2>Каталог сервисов</h2><p>Отдельный каталог полезных инструментов для арбитражников и вебмастеров: изучай категории, сравнивай предложения и переходи к нужному сервису. Каталог доступен без регистрации.</p></div>
