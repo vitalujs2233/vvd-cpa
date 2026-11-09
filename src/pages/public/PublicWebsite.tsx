@@ -44,7 +44,7 @@ function setMetadata(title:string,description:string,category=''){
   meta.content=description;
   let canonical=document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
   if(!canonical){canonical=document.createElement('link');canonical.rel='canonical';document.head.appendChild(canonical);}
-  canonical.href=getSiteUrl(category);
+  canonical.href=category?getSiteUrl(category):new URLSearchParams(window.location.search).get('page')==='services'?getSiteUrl():BASE_URL;
 }
 
 const ServiceTile:React.FC<{service:DirectoryService}>=({service})=>{
