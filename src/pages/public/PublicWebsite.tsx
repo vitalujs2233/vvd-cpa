@@ -250,6 +250,12 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
       document.head.appendChild(script);
     }
   },[]);
+  useEffect(()=>{
+    if(articlesView&&articleSlug)return;
+    document.querySelector('#vvd-editorial-jsonld')?.remove();
+    const imageMeta=document.querySelector<HTMLMetaElement>('meta[property="og:image"]');
+    if(imageMeta)imageMeta.content='';
+  },[articlesView,articleSlug]);
   const openMain=useCallback(()=>{
     if(catalogView||articlesView||categoryId||accountView)window.history.pushState(null,'',BASE_URL);
     setCatalogView(false);setArticlesView(false);setArticleSlug('');setCategoryId('');setAccountView(false);setQuery('');setMobileMenu(false);
