@@ -10,10 +10,10 @@ const ARTICLE_CACHE_KEY='vvd_public_articles_v1';
 const CACHE_TTL=5*60*1000;
 let articleCache:{data:PublicArticles;at:number}|null=null;
 const readCachedArticles=():PublicArticles|null=>{
-  // HTML bootstrap is synchronous and wins over older sessionStorage data.
+  if(articleCache && Date.now()-articleCache.at<CACHE_TTL)return articleCache.data;
+  // Synchronous deployment snapshot is available on the first render, before any fetch.
   const initial=bootstrappedEditorial();
   if(initial?.articles.length || initial?.categories.length)return {articles:initial.articles,categories:initial.categories};
-  if(articleCache && Date.now()-articleCache.at<CACHE_TTL)return articleCache.data;
   try{
     const raw=sessionStorage.getItem(ARTICLE_CACHE_KEY);
     if(!raw)return null;
@@ -49,6 +49,7 @@ export const PublicEditorial:React.FC<Props>=({slug,onArticle,onBack,onMetadata}
       const cached=readCachedDetail(slug);
       setItem(cached||null);
       setLoading(!cached);
+      if(cached)onMetadata(cached.seo_title||cached.title,cached.seo_description||cached.excerpt,cached.cover_url,cached.published_at);
       // Static first, then refresh from the backend when available.
       if(!bootstrappedEditorial())void editorialApi.snapshot().then(v=>{
         if(!mounted||liveAnswered)return;
@@ -64,7 +65,7 @@ export const PublicEditorial:React.FC<Props>=({slug,onArticle,onBack,onMetadata}
         detailMemory.set(slug,v.article);setItem(v.article);setError('');setLoading(false);
         onMetadata(v.article.seo_title||v.article.title,v.article.seo_description||v.article.excerpt,v.article.cover_url,v.article.published_at);
       }).catch(()=>{
-        if(mounted&&!detailMemory.has(slug)){setError('Статья не найдена или временно недоступна.');setLoading(false);}
+        if(mounted&&!readCachedDetail(slug)){setError('Статья не найдена или временно недоступна.');setLoading(false);}
       });
     }else{
       setItem(null);
