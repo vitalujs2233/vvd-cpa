@@ -12,7 +12,7 @@ type Props={
   imageUrl?:string;
   href?:string;
   to?:string;
-  onClick?:()=>void;
+  onClick?:(event:React.MouseEvent<HTMLElement>)=>void;
   className?:string;
 };
 export const UnifiedCategoryCard:React.FC<Props>=({
