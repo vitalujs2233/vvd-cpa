@@ -1,5 +1,6 @@
 """Public articles/cases and a protected editorial dashboard. Financial routes are untouched."""
 import json
+import threading
 import re
 from datetime import datetime, timezone
 from typing import Optional, Literal
@@ -17,6 +18,20 @@ from home_ads import sanitize
 router = APIRouter(prefix="/articles", tags=["Editorial"])
 SLUG = r"^[a-z0-9][a-z0-9-]*$"
 
+# Curated VVD CPA knowledge-base taxonomy. Additive one-time seed: existing
+# categories, demo materials and manually edited content are never overwritten.
+DEFAULT_ARTICLE_CATEGORIES = [["ubt-traffic","УБТ-трафик","Условно-бесплатный трафик: TikTok, Shorts, Reels и другие источники."],
+    ["services-tools","Сервисы и инструменты","Обзоры сервисов, инструкции по использованию, сравнения и настройки."],
+    ["cpa-partners","CPA и партнёрки","Партнёрские программы, офферы, смартлинки и основы CPA."],
+    ["paid-traffic","Платный трафик","Рекламные площадки, запуск кампаний и работа с бюджетами."],
+    ["seo-traffic","SEO-трафик","Продвижение сайтов, поисковые системы, индексация и ключевые слова."],
+    ["analytics","Аналитика","Статистика, клики, конверсии, трекеры и анализ трафика."],
+    ["creatives-content","Креативы и контент","Создание рекламных материалов, видео, изображений и текстов."],
+    ["telegram-traffic","Telegram-трафик","Telegram-каналы, боты, Mini Apps и привлечение аудитории."],
+    ["ai-automation","AI и автоматизация","Нейросети, AI-инструменты и автоматизация рабочих процессов."],
+    ["cases-reviews","Кейсы и разборы","Реальные примеры, эксперименты, результаты, ошибки и выводы."]]
+
+
 
 def admin_auth(header: Optional[str]):
     uid = require_telegram_id(header)
@@ -24,7 +39,23 @@ def admin_auth(header: Optional[str]):
         raise HTTPException(403, "Только для администратора")
 
 
+_editorial_schema_ready = False
+_editorial_schema_lock = threading.Lock()
+
+
 def ensure_schema():
+    """Initialize/seed editorial data once per process, without concurrent DDL."""
+    global _editorial_schema_ready
+    if _editorial_schema_ready:
+        return
+    with _editorial_schema_lock:
+        if _editorial_schema_ready:
+            return
+        _ensure_schema_locked()
+        _editorial_schema_ready = True
+
+
+def _ensure_schema_locked():
     # Dedicated editorial storage: does not change existing CPA/finance tables.
     with engine.begin() as db:
         db.execute(text("""
@@ -52,6 +83,12 @@ def ensure_schema():
             ALTER TABLE public.vvd_editorial
             ADD COLUMN IF NOT EXISTS demo_seeded BOOLEAN NOT NULL DEFAULT FALSE
         """))
+        db.execute(text("""
+            ALTER TABLE public.vvd_editorial
+            ADD COLUMN IF NOT EXISTS main_categories_seeded BOOLEAN NOT NULL DEFAULT FALSE
+        """))
+        # Use a single row lock for category bootstrap and demo bootstrap.
+        # A separate flag means edits and intentional removals are never reset.
         # One-time, additive demo content. Never overwrite categories or existing posts.
         row = db.execute(text("""
             SELECT content, demo_seeded FROM public.vvd_editorial
@@ -120,6 +157,45 @@ def ensure_schema():
                 WHERE id=1
             """), {"content": json.dumps(data, ensure_ascii=False)})
 
+        seed_row=db.execute(text("""
+            SELECT content, main_categories_seeded FROM public.vvd_editorial
+            WHERE id=1 FOR UPDATE
+        """)).mappings().one()
+        if not seed_row["main_categories_seeded"]:
+            content=dict(seed_row["content"])
+            existing=list(content.get("categories",[]))
+            used_ids={c.get("id") for c in existing}
+            used_names={str(c.get("name","")).casefold().strip() for c in existing}
+            for idx,(category_id,name,description) in enumerate(DEFAULT_ARTICLE_CATEGORIES):
+                if category_id in used_ids or name.casefold() in used_names:
+                    continue
+                existing.append({
+                    "id":category_id, "name":name,
+                    "description":description, "image_url":"",
+                    "active":True, "show_on_web":True,
+                    "show_in_mini_app":True,"sort_order":(idx+1)*10
+                })
+                used_ids.add(category_id)
+                used_names.add(name.casefold())
+            # Keep the published demo articles, but file them under the new
+            # topical categories instead of leaving an extra demo category.
+            # Preserve all manually created categories and all other articles.
+            demo_destinations={"demo-cpa-basics":"cpa-partners",
+                               "demo-cpa-analytics":"analytics"}
+            articles=[dict(a) for a in content.get("articles",[])]
+            for article in articles:
+                if (article.get("category_id")=="vvd-demo"
+                        and article.get("slug") in demo_destinations):
+                    article["category_id"]=demo_destinations[article["slug"]]
+            if not any(a.get("category_id")=="vvd-demo" for a in articles):
+                existing=[c for c in existing if c.get("id")!="vvd-demo"]
+            content["categories"]=existing
+            content["articles"]=articles
+            db.execute(text("""
+                UPDATE public.vvd_editorial
+                SET content=CAST(:content AS jsonb),version=version+1,
+                    main_categories_seeded=TRUE,updated_at=now() WHERE id=1
+            """),{"content":json.dumps(content,ensure_ascii=False)})
 
 class EditorialCategory(BaseModel):
     id: str = Field(min_length=1, max_length=64, pattern=SLUG)

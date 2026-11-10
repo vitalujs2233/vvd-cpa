@@ -18,8 +18,8 @@ const api={
    method:'PUT',body:JSON.stringify({enabled:settings.enabled,version:settings.version,
      article_category_id:settings.article_category_id,suggest_categories:settings.suggest_categories})
  }),
- run:(kind:Kind,source_service_id:string,category_id:string)=>apiRequest<{id:string;kind:Kind}>('/ai-editor/admin/run',{
-   method:'POST',body:JSON.stringify({kind,source_service_id,category_id})
+ run:(kind:Kind,source_service_id:string,category_id:string,topic:string)=>apiRequest<{id:string;kind:Kind}>('/ai-editor/admin/run',{
+   method:'POST',body:JSON.stringify({kind,source_service_id,category_id,topic})
  }),
  discard:(id:string)=>apiRequest<{success:boolean}>('/ai-editor/admin/drafts/'+encodeURIComponent(id)+'/discard',{method:'POST'}),
  applyArticle:(id:string)=>apiRequest<{success:boolean;slug:string}>('/ai-editor/admin/drafts/'+encodeURIComponent(id)+'/article',{method:'POST'}),
@@ -56,6 +56,7 @@ export const AIEditorAdmin:React.FC<{
   const [kind,setKind]=useState<Kind>('article');
   const [source,setSource]=useState('');
   const [categoryId,setCategoryId]=useState('');
+  const [topic,setTopic]=useState('');
   const [editing,setEditing]=useState<string|null>(null);
   const [serviceEdit,setServiceEdit]=useState<ServiceEdit|null>(null);
   useEffect(()=>{
@@ -82,7 +83,7 @@ export const AIEditorAdmin:React.FC<{
     const enabled=!data.settings.enabled;
     changeSettings({enabled},enabled?'Авторедактор включён. Черновики готовятся без публикации.':'Авторедактор выключен. Черновики сохранены.');
   };
-  const startRun=()=>{void action(()=>api.run(kind,kind==='category'?'':source,kind==='article'?categoryId:''),
+  const startRun=()=>{void action(()=>api.run(kind,kind==='category'?'':source,kind==='article'?categoryId:'',kind==='article'?topic.trim():''),
     'Gemini подготовил предложение. Проверь его ниже.')};
   const openService=(draft:Draft)=>{
     if(editing===draft.id){setEditing(null);return;}
@@ -125,7 +126,7 @@ export const AIEditorAdmin:React.FC<{
         <label className="block text-xs text-textSecondary">Категория автоматических статей
           <select className={input} disabled={busy} value={data.settings.article_category_id||''}
             onChange={e=>changeSettings({article_category_id:e.target.value},'Категория для авторедактора сохранена.')}>
-            <option value="">Автоматически выбирать тему (AI-черновики)</option>
+            <option value="">Автоматически выбирать наименее заполненную категорию</option>
             {data.categories.map(c=><option key={c.id} value={c.id}>{c.name}{!c.active?' (скрыта)':''}</option>)}
           </select>
         </label>
@@ -148,9 +149,15 @@ export const AIEditorAdmin:React.FC<{
         </div>
         {kind==='article'&&<label className="block text-xs text-textSecondary">Для какой категории создать статью?
           <select className={input} value={categoryId} onChange={e=>setCategoryId(e.target.value)}>
-            <option value="">Без выбора — AI-черновики</option>
+            <option value="">Выбери категорию из списка</option>
             {data.categories.map(c=><option key={c.id} value={c.id}>{c.name}{!c.active?' (скрыта)':''}</option>)}
           </select>
+        </label>}
+        {kind==='article'&&<label className="block text-xs text-textSecondary">Конкретная тема или задание для Gemini (необязательно)
+          <textarea className={input} rows={3} maxLength={300} value={topic}
+            placeholder="Например: УБТ в TikTok для новичков — первые шаги и типичные ошибки"
+            onChange={e=>setTopic(e.target.value)}/>
+          <span className="mt-1 block text-[11px] text-textSecondary">AI будет писать по этой теме внутри выбранной категории. Факты и кейсы нужно проверить перед публикацией.</span>
         </label>}
         {kind!=='category'&&<label className="block text-xs text-textSecondary">Исходный сервис из каталога
           <select className={input} value={source} onChange={e=>setSource(e.target.value)}>
@@ -160,7 +167,7 @@ export const AIEditorAdmin:React.FC<{
         </label>}
         {kind==='category'&&<p className="text-xs text-textSecondary">Gemini предложит название и описание категории. Ты решаешь, добавлять ли её.</p>}
         {kind==='service'&&<p className="text-xs leading-5 text-textSecondary">Gemini улучшит описание выбранного существующего сервиса. Скидка переносится только из каталога, ссылки и промокоды не генерируются.</p>}
-        <button type="button" disabled={busy||(kind==='service'&&!data.services.length)} onClick={startRun}
+        <button type="button" disabled={busy||(kind==='service'&&!data.services.length)||(kind==='article'&&!categoryId)} onClick={startRun}
           className="flex w-full items-center justify-center gap-2 rounded-app-xs border border-accentGold/35 bg-accentGold/10 px-4 py-3 text-sm font-bold text-accentBrightGold disabled:opacity-50">
           <Sparkles size={18}/>{busy?'Выполняем действие…':'Подготовить черновик'}
         </button>
