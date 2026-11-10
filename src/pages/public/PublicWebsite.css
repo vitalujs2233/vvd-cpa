@@ -853,3 +853,9 @@
   .vvd-web-categories-grid,.vvd-editorial-category-grid{gap:10px}
   .vvd-web-portal :is(.vvd-web-feature,.vvd-web-steps article,.vvd-web-workspace-copy){padding:18px}
 }
+
+
+/* Consistent gold page titles for the two public knowledge directories. */
+.vvd-web-portal .vvd-web-catalog-section .vvd-web-section-heading h2{
+  color:#f5d38c;
+}
