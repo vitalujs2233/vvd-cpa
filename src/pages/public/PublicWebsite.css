@@ -859,3 +859,11 @@
 .vvd-web-portal .vvd-web-catalog-section .vvd-web-section-heading h2{
   color:#f5d38c;
 }
+
+
+/* Shared views: one subtle eye count on article details and listing cards. */
+.vvd-article-meta{flex-wrap:wrap;gap:9px 16px}
+.vvd-article-meta>span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.vvd-article-card-bottom .vvd-article-card-views{display:inline-flex;align-items:center;gap:5px;margin-left:auto;color:#c7b89f}
+.vvd-article-card-bottom>span:last-child{flex-shrink:0}
+@media(max-width:480px){.vvd-article-card-bottom{gap:8px}.vvd-article-card-bottom .vvd-article-card-views{font-size:11px}}
