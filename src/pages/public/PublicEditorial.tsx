@@ -155,7 +155,7 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
         <p className="vvd-articles-subtitle">Кейсы, разборы, обучение и инструменты для работы с трафиком.</p>
         <label className="vvd-web-search"><Search size={20}/><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Поиск категорий, статей и ключевых слов…"/></label>
         {category==='all'?<>
-          <div className="vvd-editorial-category-heading"><h2>{searchTerms.length?'Найденные категории':'Выберите категорию'}</h2><p>{searchTerms.length?'Категории по запросу и материалы внутри них.':'Все темы собраны по разделам, чтобы быстро найти нужные статьи и кейсы.'}</p></div>
+          <div className="vvd-editorial-category-heading"><h2>{searchTerms.length?'Найденные категории':'Выберите категорию'}</h2></div>
           <div className="vvd-editorial-category-grid" aria-label="Категории статей">
             {filteredCategories.map(c=>{
               const amount=data.articles.filter(a=>a.category_id===c.id).length;

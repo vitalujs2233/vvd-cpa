@@ -367,7 +367,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
       : catalogView && !categoryId ? <main className="vvd-web-public-main">
         <section className="vvd-web-section vvd-web-catalog-section" id="catalog">
           <div className="vvd-web-section-heading">
-            <div><span className="vvd-web-eyebrow">ИНСТРУМЕНТЫ ДЛЯ РАБОТЫ С ТРАФИКОМ</span><h2>Каталог сервисов</h2><p>Отдельный каталог полезных инструментов для арбитражников и вебмастеров: изучай категории, сравнивай предложения и переходи к нужному сервису. Каталог доступен без регистрации.</p></div>
+            <div><span className="vvd-web-eyebrow">ИНСТРУМЕНТЫ ДЛЯ РАБОТЫ С ТРАФИКОМ</span><h2>Каталог сервисов</h2><p>Отдельный каталог полезных инструментов для арбитражников и вебмастеров</p></div>
             <div className="vvd-web-catalog-count">{loading?'Загрузка каталога':data.categories.length+' категорий'}</div>
           </div>
           <label className="vvd-web-search"><Search size={21}/><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Найти категорию или сервис..." aria-label="Поиск по каталогу"/></label>
