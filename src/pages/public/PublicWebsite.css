@@ -669,3 +669,23 @@
   .vvd-web-footer-legal{order:2;width:100%}
   .vvd-web-footer-legal p{order:initial;width:auto}
 }
+
+
+/* VVD knowledge-base category landing: shared desktop, mobile and Telegram UI. */
+.vvd-editorial-category-heading{margin:24px 0 16px}
+.vvd-editorial-category-heading h2{color:#f3d4a1;font-size:23px;font-weight:750;line-height:1.2;margin:0 0 7px}
+.vvd-editorial-category-heading p{font-size:13px;color:#b7aa94;line-height:1.55;margin:0}
+.vvd-editorial-category-card{background:radial-gradient(circle at 80% 5%,rgba(219,172,84,.20),transparent 57%),linear-gradient(140deg,#292014,#14110d 60%);transition:border-color .2s,transform .2s}
+.vvd-editorial-category-card:hover{border-color:#f0c677;transform:translateY(-2px)}
+.vvd-editorial-category-symbol{position:absolute;top:18px;left:18px;width:50px;height:50px;display:grid;place-items:center;border-radius:14px;border:1px solid rgba(239,198,119,.22);color:#ebbe6b;background:rgba(15,12,8,.65)}
+.vvd-editorial-category-count{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#e9be6f;margin-top:5px}
+.vvd-editorial-selected-category{margin:16px 0 26px}
+.vvd-editorial-selected-category .vvd-web-back{margin-bottom:16px}
+.vvd-editorial-selected-category h2{font-size:clamp(24px,4vw,34px);margin:0 0 10px;color:#f3d4a1}
+.vvd-editorial-selected-category p{margin:0;line-height:1.7;color:#b6aea0;font-size:14px}
+@media(max-width:480px){
+ .vvd-editorial-category-heading h2{font-size:20px}
+ .vvd-editorial-category-symbol{top:11px;left:11px;width:38px;height:38px}
+ .vvd-editorial-category-symbol svg{width:22px;height:22px}
+ .vvd-editorial-category-count{font-size:10px}
+}
