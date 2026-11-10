@@ -5,8 +5,8 @@ import {editorialApi,type Article,type ArticleBlock,type EditorialCategory,type 
 const input='w-full rounded-app-xs border border-white/15 bg-bgMain px-3 py-2.5 text-sm text-white outline-none focus:border-accentGold';
 const slugify=(value:string)=>value.toLowerCase().trim().replace(/[^a-z0-9-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,90);
 const newId=()=>crypto.randomUUID().replace(/-/g,'').slice(0,16);
-const emptyCategory=():EditorialCategory=>({id:'category-'+newId(),name:'',description:'',image_url:'',sort_order:100,active:true});
-const emptyArticle=(categoryId:string):Article=>({slug:'article-'+newId(),title:'',category_id:categoryId,excerpt:'',cover_url:'',seo_title:'',seo_description:'',tags:[],blocks:[],published:false,published_at:'',updated_at:''});
+const emptyCategory=():EditorialCategory=>({id:'category-'+newId(),name:'',description:'',image_url:'',sort_order:100,active:true,show_on_web:true,show_in_mini_app:true});
+const emptyArticle=(categoryId:string):Article=>({slug:'article-'+newId(),title:'',category_id:categoryId,excerpt:'',cover_url:'',seo_title:'',seo_description:'',tags:[],blocks:[],published:false,show_on_web:true,show_in_mini_app:true,published_at:'',updated_at:''});
 const emptyBlock=(type:ArticleBlock['type']):ArticleBlock=>({type,text:'',url:'',alt:''});
 const blockName:Record<ArticleBlock['type'],string>={paragraph:'Абзац',heading:'Заголовок',image:'Изображение',link:'Ссылка',quote:'Цитата'};
 
@@ -39,6 +39,7 @@ export const EditorialAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
     if(!data||!article?.title.trim())return setError('Введите заголовок статьи.');
     if(!article.category_id)return setError('Выберите категорию.');
     if(!/^[a-z0-9][a-z0-9-]*$/.test(article.slug))return setError('Адрес статьи: только латинские буквы, цифры и дефисы.');
+    if(article.published&&article.show_on_web===false&&article.show_in_mini_app===false)return setError('Выберите хотя бы одно место публикации.');
     if(article.published&&!article.blocks.some(b=>b.text.trim()||b.url))return setError('Добавьте содержание статьи перед публикацией.');
     if(data.articles.some(a=>a.slug===article.slug&&a.slug!==editingSlug))return setError('Такой адрес статьи уже занят.');
     const other=data.articles.filter(a=>a.slug!==(editingSlug||article.slug));
@@ -54,7 +55,7 @@ export const EditorialAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
     try{
       const result=await editorialApi.save(data);
       setData({...data,version:result.version});setArticleDirty(false);setCategoryDirty(false);
-      setMessage('Сохранено! Опубликованные статьи доступны на сайте.');
+      setMessage('Сохранено! Опубликованные материалы доступны на выбранных площадках: сайте и/или Telegram Mini App.');
     }catch(e){setError(e instanceof Error?e.message:'Ошибка сохранения');}
     finally{setSaving(false)}
   };
@@ -125,13 +126,19 @@ export const EditorialAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
           <input className={input} type="number" min={-10000} max={10000} value={category.sort_order} onChange={e=>setCategory({...category,sort_order:Number(e.target.value)})}/>
           <span className="block mt-1 text-[11px] text-textSecondary">Меньшее число показывается раньше. Например, 10 будет перед 100.</span>
         </label>
-        <label className="text-sm text-white flex gap-2"><input type="checkbox" checked={category.active} onChange={e=>setCategory({...category,active:e.target.checked})}/> Категория видна на сайте</label>
+        <label className="text-sm text-white flex gap-2"><input type="checkbox" checked={category.active} onChange={e=>setCategory({...category,active:e.target.checked})}/> Категория активна</label>
+        <div className="rounded-lg border border-accentGold/20 bg-accentGold/[0.05] p-3 space-y-2">
+          <b className="text-sm text-white">Где показывать категорию</b>
+          <label className="flex items-center gap-2 text-sm text-white"><input type="checkbox" checked={category.show_on_web!==false} onChange={e=>setCategory({...category,show_on_web:e.target.checked})}/> На сайте</label>
+          <label className="flex items-center gap-2 text-sm text-white"><input type="checkbox" checked={category.show_in_mini_app!==false} onChange={e=>setCategory({...category,show_in_mini_app:e.target.checked})}/> В Telegram Mini App</label>
+          <p className="text-xs text-textSecondary">Отключённая категория скрывает свои публикации на выбранной площадке.</p>
+        </div>
         <div className="flex gap-2"><button disabled={categoryUploading} className="rounded-lg bg-accentGold text-black px-3 py-2 text-sm disabled:opacity-60" onClick={applyCategory}>Применить</button><button className="text-sm text-textSecondary" onClick={()=>setCategory(null)}>Отмена</button></div>
       </div>}
     </section>
     <section className="rounded-card border border-white/10 bg-bgCard p-3 space-y-3">
       <div className="flex justify-between items-center"><h2 className="font-bold text-white">Публикации ({data.articles.length})</h2><button disabled={!data.categories.length} className="text-accentBrightGold text-xs flex gap-1" onClick={()=>{setArticle(emptyArticle(data.categories[0]?.id||''));setEditingSlug(null);setCategory(null)}}><Plus size={15}/> Новая статья</button></div>
-      {data.articles.map(a=><div key={a.slug} className="flex justify-between items-center gap-2 border-t border-white/10 pt-2"><div><b className="text-sm text-white">{a.title}</b><p className="text-xs text-textSecondary">{a.published?'Опубликовано':'Черновик'} · {data.categories.find(c=>c.id===a.category_id)?.name||'Без категории'}</p></div><div className="flex gap-2"><button className="text-accentBrightGold text-xs" onClick={()=>{setArticle({...a,blocks:a.blocks.map(b=>({...b}))});setEditingSlug(a.slug);setCategory(null)}}>Изменить</button><button className="text-red-300" aria-label="Удалить статью" onClick={()=>{if(window.confirm('Удалить эту статью?')){setData({...data,articles:data.articles.filter(x=>x.slug!==a.slug)});setArticleDirty(true)}}}><Trash2 size={16}/></button></div></div>)}
+      {data.articles.map(a=><div key={a.slug} className="flex justify-between items-center gap-2 border-t border-white/10 pt-2"><div><b className="text-sm text-white">{a.title}</b><p className="text-xs text-textSecondary">{a.published?'Опубликовано: '+(a.show_on_web!==false&&a.show_in_mini_app!==false?'сайт и Mini App':a.show_on_web!==false?'сайт':a.show_in_mini_app!==false?'Mini App':'не выбрана площадка'):'Черновик'} · {data.categories.find(c=>c.id===a.category_id)?.name||'Без категории'}</p></div><div className="flex gap-2"><button className="text-accentBrightGold text-xs" onClick={()=>{setArticle({...a,blocks:a.blocks.map(b=>({...b}))});setEditingSlug(a.slug);setCategory(null)}}>Изменить</button><button className="text-red-300" aria-label="Удалить статью" onClick={()=>{if(window.confirm('Удалить эту статью?')){setData({...data,articles:data.articles.filter(x=>x.slug!==a.slug)});setArticleDirty(true)}}}><Trash2 size={16}/></button></div></div>)}
       {article&&<div className="space-y-3 border-t border-accentGold/30 pt-3">
         <h3 className="font-bold text-white">Редактор статьи</h3>
         <label className="block text-xs text-textSecondary">Заголовок<input className={input} maxLength={180} value={article.title} onChange={e=>updateArticle({title:e.target.value})}/></label>
@@ -165,7 +172,14 @@ export const EditorialAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
           <label className="block text-xs text-textSecondary">SEO title<input className={input} maxLength={180} value={article.seo_title} onChange={e=>updateArticle({seo_title:e.target.value})}/></label>
           <label className="block text-xs text-textSecondary">Meta description<textarea className={input} rows={2} maxLength={300} value={article.seo_description} onChange={e=>updateArticle({seo_description:e.target.value})}/></label>
         </div>
-        <label className="flex gap-2 text-sm text-white items-center"><input type="checkbox" checked={article.published} onChange={e=>updateArticle({published:e.target.checked})}/> Опубликовать на сайте</label>
+        <div className="rounded-lg border border-accentGold/30 bg-accentGold/[0.05] p-3 space-y-3">
+          <h4 className="font-bold text-white text-sm">Публикация</h4>
+          <label className="flex gap-2 text-sm text-white items-center"><input type="checkbox" checked={article.published} onChange={e=>updateArticle({published:e.target.checked})}/> Опубликовать (снять галочку — сохранить черновиком)</label>
+          <p className="text-xs text-textSecondary">Выбери, где статья будет доступна после публикации:</p>
+          <label className="flex gap-2 text-sm text-white items-center"><input type="checkbox" checked={article.show_on_web!==false} onChange={e=>updateArticle({show_on_web:e.target.checked})}/> На сайте VVD CPA</label>
+          <label className="flex gap-2 text-sm text-white items-center"><input type="checkbox" checked={article.show_in_mini_app!==false} onChange={e=>updateArticle({show_in_mini_app:e.target.checked})}/> В Telegram Mini App</label>
+          <p className="text-xs text-accentBrightGold">Обе галочки — публикация сразу в двух местах. Изменения вступят в силу после «Применить статью» и «Сохранить».</p>
+        </div>
         <div className="flex gap-2"><button disabled={uploading} className="rounded-lg bg-accentGold text-black px-4 py-2 text-sm font-bold" onClick={applyArticle}>Применить статью</button><button className="text-textSecondary text-sm" onClick={()=>{setArticle(null);setEditingSlug(null);}}>Отмена</button></div>
       </div>}
     </section>
