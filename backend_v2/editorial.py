@@ -160,7 +160,20 @@ def ensure_schema():
                 })
                 used_ids.add(category_id)
                 used_names.add(name.casefold())
+            # Keep the published demo articles, but file them under the new
+            # topical categories instead of leaving an extra demo category.
+            # Preserve all manually created categories and all other articles.
+            demo_destinations={"demo-cpa-basics":"cpa-partners",
+                               "demo-cpa-analytics":"analytics"}
+            articles=[dict(a) for a in content.get("articles",[])]
+            for article in articles:
+                if (article.get("category_id")=="vvd-demo"
+                        and article.get("slug") in demo_destinations):
+                    article["category_id"]=demo_destinations[article["slug"]]
+            if not any(a.get("category_id")=="vvd-demo" for a in articles):
+                existing=[c for c in existing if c.get("id")!="vvd-demo"]
             content["categories"]=existing
+            content["articles"]=articles
             db.execute(text("""
                 UPDATE public.vvd_editorial
                 SET content=CAST(:content AS jsonb),version=version+1,
