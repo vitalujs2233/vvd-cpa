@@ -6,7 +6,7 @@ import {readSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wallet, History, Sparkles, Flame, Crown, Brain, Sparkles as InfoSparkles, ChevronRight } from 'lucide-react';
+import { Wallet, History, Sparkles, Flame, Crown, Brain, Sparkles as InfoSparkles, ChevronRight, BookOpen, ArrowRight } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
@@ -192,6 +192,20 @@ export const Home: React.FC = () => {
         </button>
       </Card>
       <HomeAdCarousel/>
+      {/* Useful editorial navigation separates the wide ad slider from large home info banners. */}
+      <section aria-label="Полезные материалы VVD CPA" className="home-editorial-bridge">
+        <div className="home-editorial-bridge-icon" aria-hidden="true"><BookOpen size={25} strokeWidth={1.8}/></div>
+        <div className="home-editorial-bridge-copy">
+          <span className="home-editorial-bridge-eyebrow">БАЗА ЗНАНИЙ VVD CPA</span>
+          <h2>Статьи и кейсы</h2>
+          <p>Обучение, полезные разборы и советы для вебмастеров</p>
+        </div>
+        <button type="button" className="home-editorial-bridge-action"
+          aria-label="Открыть статьи и кейсы"
+          onClick={()=>{triggerHaptic.lightImpact();navigate('/tools/articles');}}>
+          <ArrowRight size={21}/>
+        </button>
+      </section>
       <HomeInfoBlocks/>
 
     </div>
