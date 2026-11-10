@@ -4,6 +4,7 @@ import { CPAManager } from './CPAManager';
 import { InfoAdmin } from './InfoAdmin';
 import { ServiceDirectoryAdmin } from './ServiceDirectoryAdmin';
 import { EditorialAdmin } from './EditorialAdmin';
+import { AIEditorAdmin } from './AIEditorAdmin';
 import { MaintenanceAdmin } from './MaintenanceAdmin';
 import { HomeAdsAdmin } from './HomeAdsAdmin';
 import { HomeTickerAdmin } from './HomeTickerAdmin';
@@ -98,7 +99,7 @@ export const Admin: React.FC = () => {
   'chatBans' |
   'toolsBalance' |
   'supportTickets' |
-  'cpa' | 'information' | 'homeAds' | 'homeTicker' | 'homeInfo' | 'directory' | 'editorial' | 'maintenance'
+  'cpa' | 'information' | 'homeAds' | 'homeTicker' | 'homeInfo' | 'directory' | 'editorial' | 'aiEditor' | 'maintenance'
 >('menu');
   const [searchQuery, setSearchQuery] = useState('');
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>(()=>readApiSnapshot('/admin/users')?.users||[]);
@@ -471,6 +472,7 @@ const saveChatBanner = async () => {
           <button type="button" onClick={()=>handleSubViewChange('information')} className="w-full rounded-card border border-accentGold/30 bg-bgCard p-4 text-left text-accentGoldBright font-bold">Управление информацией →</button>
           <button type="button" onClick={()=>handleSubViewChange('directory')} className="w-full rounded-card border border-accentGold/30 bg-bgCard p-4 text-left text-accentGoldBright font-bold">Каталог сервисов → Категории · Предложения</button>
           <button type="button" onClick={()=>handleSubViewChange('editorial')} className="w-full rounded-card border border-accentGold/30 bg-bgCard p-4 text-left text-accentGoldBright font-bold">Статьи и кейсы → Категории · Редактор · SEO</button>
+          <button type="button" onClick={()=>handleSubViewChange('aiEditor')} className="w-full rounded-card border border-accentGold/30 bg-bgCard p-4 text-left text-accentGoldBright font-bold">AI-редактор → Черновики статей и сервисов · Автоматизация</button>
           <button type="button" onClick={()=>handleSubViewChange('maintenance')} className="w-full rounded-card border border-amber-400/40 bg-amber-400/10 p-4 text-left text-amber-200 font-bold">Технические работы → Включить · Текст · Поддержка</button>
           {/* Шапка админ-панели */}
           <div className="flex items-center gap-3 text-left">
@@ -1109,6 +1111,7 @@ const saveChatBanner = async () => {
       {subView === 'information' && <InfoAdmin onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'directory' && <ServiceDirectoryAdmin onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'editorial' && <EditorialAdmin onBack={() => handleSubViewChange('menu')}/>}
+      {subView === 'aiEditor' && <AIEditorAdmin onBack={() => handleSubViewChange('menu')} openArticles={() => handleSubViewChange('editorial')} openServices={() => handleSubViewChange('directory')}/>}
       {subView === 'maintenance' && <MaintenanceAdmin onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'cpa' && <CPAManager onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'chatBans' && (
