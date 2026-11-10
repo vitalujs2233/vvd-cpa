@@ -636,3 +636,36 @@
 .vvd-miniapp-editorial .vvd-article-card-copy{padding:16px}
 .vvd-miniapp-editorial .vvd-articles-title{font-size:28px}
 .vvd-miniapp-editorial .vvd-article-detail h1{font-size:clamp(26px,7vw,32px)}
+
+
+/* Legal information: inherit the established VVD CPA black/gold website design. */
+.vvd-web-footer-legal{display:flex;flex:1;min-width:210px;flex-direction:column;gap:12px}
+.vvd-web-footer-legal nav{display:flex;flex-wrap:wrap;gap:10px 22px}
+.vvd-web-footer-legal nav a{font-size:11px;color:#b6a78e;white-space:normal;line-height:1.5;transition:color .2s}
+.vvd-web-footer-legal nav a:hover{color:#f0c677}
+.vvd-web-footer-legal p{order:initial;max-width:550px}
+.vvd-web-policy{padding:44px 0 88px;max-width:860px;margin:0 auto}
+.vvd-web-policy-intro{padding:28px 0 30px;border-bottom:1px solid var(--vvd-card-border)}
+.vvd-web-policy-intro .vvd-web-eyebrow{display:inline-flex;align-items:center}
+.vvd-web-policy-intro h1{font-size:clamp(28px,4vw,45px);line-height:1.2;color:#f7f3eb;letter-spacing:-.035em;margin:16px 0}
+.vvd-web-policy-intro p{font-size:15px;line-height:1.75;color:#b6aea4;max-width:700px}
+.vvd-web-policy-intro small{display:block;margin-top:14px;color:#a48e70;font-size:11px}
+.vvd-web-policy-body{display:flex;flex-direction:column;gap:12px;margin-top:25px}
+.vvd-web-policy-body section{padding:23px 26px;border:1px solid var(--vvd-card-border);border-radius:var(--vvd-card-radius);background:var(--vvd-card-bg)}
+.vvd-web-policy-body h2{color:#ecd1a4;font-size:18px;line-height:1.35;margin:0 0 11px}
+.vvd-web-policy-body p,.vvd-web-policy-body li{color:#c0b7a9;font-size:14px;line-height:1.8;margin:0 0 10px}
+.vvd-web-policy-body p:last-child{margin-bottom:0}
+.vvd-web-policy-body ul{margin:0 0 0 19px;padding:0;list-style:disc}
+.vvd-web-policy-body li{padding-left:4px;margin:0 0 7px}
+.vvd-web-policy-body a{color:#e6bc70;display:inline-flex;gap:6px;align-items:center;text-decoration:underline;text-underline-offset:3px}
+.vvd-web-policy-notice{border-left:2px solid rgba(210,171,86,.35);padding:12px 18px;margin-top:20px;background:rgba(201,166,91,.045)}
+.vvd-web-policy-notice strong{color:#c5b496;font-size:12px}
+.vvd-web-policy-notice p{font-size:11px;line-height:1.7;color:#9a9288;margin:7px 0 0}
+@media(max-width:720px){
+  .vvd-web-policy{padding:26px 0 62px}
+  .vvd-web-policy-body section{padding:20px 17px}
+  .vvd-web-policy-body h2{font-size:16px}
+  .vvd-web-policy-body p,.vvd-web-policy-body li{font-size:13px}
+  .vvd-web-footer-legal{order:2;width:100%}
+  .vvd-web-footer-legal p{order:initial;width:auto}
+}
