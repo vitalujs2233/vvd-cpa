@@ -295,7 +295,7 @@ def _prompt(kind,source,catalog,category=None,existing_categories=None):
         task=("Write a useful ORIGINAL Russian educational article strictly for the "
               "specified target_category if supplied. Make title, structure and all "
               "blocks fit that category. If no category is selected, use safe CPA "
-              "analytics, marketing tools, or the actual supplied service. ""
+              "analytics, marketing tools, or the actual supplied service. "
               "Use 5-10 well developed "
               "blocks: heading, paragraph or quote; at least 1600 characters of content. "
               "Return JSON title,excerpt,seo_title,seo_description,tags,blocks "
