@@ -5,7 +5,7 @@ import {directoryIcons,type DirectoryData,type DirectoryService} from '@/pages/t
 import {BrowserAccount, TelegramBrowserLogin, type useBrowserSession} from './WebAuth';
 import './PublicWebsite.css';
 import {PublicEditorial} from './PublicEditorial';
-import {UnifiedCategoryCard} from '@/shared/ui/UnifiedCategoryCard';
+import {UnifiedCategoryCard,serviceCountLabel} from '@/shared/ui/UnifiedCategoryCard';
 import {PublicPolicy} from './PublicPolicy';
 
 const BOT_URL='https://t.me/vvd_cpa_bot';
@@ -387,7 +387,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
                 icon={directoryIcons[c.icon]||Layers}
                 title={c.name}
                 description={c.description}
-                status={(()=>{const n=data.services.filter(service=>service.category_id===c.id).length;return n?n+' предложений':'Сервисы скоро появятся';})()}
+                status={(()=>{const n=data.services.filter(service=>service.category_id===c.id).length;return n?serviceCountLabel(n):'Сервисы скоро появятся';})()}
               />)}
             </div>:<div className="vvd-web-notice">По вашему запросу разделов не найдено.</div>}
         </section>
