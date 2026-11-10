@@ -3,6 +3,8 @@ import {ArrowRight,BookOpen} from 'lucide-react';
 import {Link} from 'react-router-dom';
 import './UnifiedCategoryCard.css';
 
+export const serviceCountLabel=(n:number)=>n+' '+(n%10===1&&n%100!==11?'предложение':n%10>=2&&n%10<=4&&(n%100<12||n%100>14)?'предложения':'предложений');
+
 /** One visual category card shared by the website and Telegram Mini App. */
 type Props={
   title:string;
