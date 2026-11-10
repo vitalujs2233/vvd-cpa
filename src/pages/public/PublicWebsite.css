@@ -808,3 +808,48 @@
   }
   .vvd-web-nav-icon svg{width:17px;height:17px}
 }
+
+
+/* VVD unified visual language for website home, service directory and articles.
+   Shared category card internals live in UnifiedCategoryCard.css. */
+.vvd-web-categories-grid,
+.vvd-editorial-category-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:14px;
+  align-items:stretch;
+}
+.vvd-web-categories-grid>.vvd-unified-category-card,
+.vvd-editorial-category-grid>.vvd-unified-category-card{width:100%}
+.vvd-web-portal :is(.vvd-web-feature,.vvd-web-steps article,.vvd-web-hero-panel,.vvd-web-hero-panel-grid>div,
+  .vvd-web-workspace-copy,.vvd-web-service-card,.vvd-article-card,.vvd-web-public-info-card,
+  .vvd-web-category-hero,.vvd-web-cta){
+  border:1px solid var(--vvd-card-border);
+  border-radius:var(--vvd-card-radius);
+  background:var(--vvd-card-bg);
+  box-shadow:var(--vvd-card-shadow);
+}
+.vvd-web-portal :is(.vvd-web-feature>span,.vvd-web-service-graphic,.vvd-web-category-badge,
+  .vvd-web-panel-symbol){
+  border-color:var(--vvd-card-icon-border);
+  background:var(--vvd-card-icon-bg);
+  color:#e6b866;
+}
+.vvd-web-portal :is(.vvd-web-feature h3,.vvd-web-service-card h3,.vvd-web-steps h3,
+  .vvd-article-card-copy h2){color:var(--vvd-card-title)}
+.vvd-web-portal :is(.vvd-web-feature p,.vvd-web-service-card p,.vvd-web-steps p,
+  .vvd-article-card-copy p){color:var(--vvd-card-muted)}
+.vvd-web-portal :is(.vvd-web-service-card,.vvd-article-card):hover{
+  border-color:rgba(245,197,99,.60);
+}
+.vvd-miniapp-editorial .vvd-editorial-category-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+@media(max-width:850px){
+  .vvd-web-categories-grid,.vvd-editorial-category-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+}
+@media(max-width:520px){
+  .vvd-web-categories-grid,.vvd-editorial-category-grid{gap:10px}
+  .vvd-web-portal :is(.vvd-web-feature,.vvd-web-steps article,.vvd-web-workspace-copy){padding:18px}
+}
