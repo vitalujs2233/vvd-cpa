@@ -6,7 +6,7 @@ import {readSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wallet, History, Sparkles, Flame, Crown, Brain, Sparkles as InfoSparkles, ChevronRight, BookOpen, ArrowRight } from 'lucide-react';
+import { Wallet, History, Sparkles, Flame, Crown, Brain, Sparkles as InfoSparkles, BookOpen, ArrowRight } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
@@ -184,28 +184,26 @@ export const Home: React.FC = () => {
           </Button>
         </div>
       </Card>
-      <Card variant="default" padding="md" className="border border-accentGold/20 transition-all duration-300 hover:border-accentGold/40">
-        <button type="button" onClick={()=>{triggerHaptic.lightImpact();navigate("/why-vvd")}} className="flex items-center gap-3 w-full text-left">
-          <span className="home-why-icon relative flex h-10 w-12 shrink-0 self-center items-center justify-center text-accentGoldBright" aria-hidden="true"><InfoSparkles size={60} strokeWidth={1.5} className="absolute max-w-none"/></span>
-          <span className="flex-1"><strong className="block text-white">Почему VVD CPA?</strong><span className="text-xs text-textSecondary">Узнай о нашей платформе, преимуществах, выплатах и условиях сотрудничества.</span></span>
-          <ChevronRight size={18} className="text-accentGoldBright"/>
-        </button>
-      </Card>
+      <button type="button" className="home-editorial-bridge home-nav-card" onClick={()=>{triggerHaptic.lightImpact();navigate('/why-vvd');}}>
+        <span className="home-editorial-bridge-icon" aria-hidden="true"><InfoSparkles size={26} strokeWidth={1.8}/></span>
+        <span className="home-editorial-bridge-copy">
+          <span className="home-editorial-bridge-eyebrow">О ПЛАТФОРМЕ VVD CPA</span>
+          <strong className="home-nav-card-title">Почему VVD CPA?</strong>
+          <span className="home-nav-card-description">Преимущества, выплаты и условия сотрудничества</span>
+        </span>
+        <span className="home-editorial-bridge-action" aria-hidden="true"><ArrowRight size={21}/></span>
+      </button>
       <HomeAdCarousel/>
       {/* Useful editorial navigation separates the wide ad slider from large home info banners. */}
-      <section aria-label="Полезные материалы VVD CPA" className="home-editorial-bridge">
-        <div className="home-editorial-bridge-icon" aria-hidden="true"><BookOpen size={25} strokeWidth={1.8}/></div>
-        <div className="home-editorial-bridge-copy">
+      <button type="button" className="home-editorial-bridge home-nav-card" onClick={()=>{triggerHaptic.lightImpact();navigate('/tools/articles');}}>
+        <span className="home-editorial-bridge-icon" aria-hidden="true"><BookOpen size={26} strokeWidth={1.8}/></span>
+        <span className="home-editorial-bridge-copy">
           <span className="home-editorial-bridge-eyebrow">БАЗА ЗНАНИЙ VVD CPA</span>
-          <h2>Статьи и кейсы</h2>
-          <p>Обучение, полезные разборы и советы для вебмастеров</p>
-        </div>
-        <button type="button" className="home-editorial-bridge-action"
-          aria-label="Открыть статьи и кейсы"
-          onClick={()=>{triggerHaptic.lightImpact();navigate('/tools/articles');}}>
-          <ArrowRight size={21}/>
-        </button>
-      </section>
+          <strong className="home-nav-card-title">Статьи и кейсы</strong>
+          <span className="home-nav-card-description">Обучение, полезные разборы и советы для вебмастеров</span>
+        </span>
+        <span className="home-editorial-bridge-action" aria-hidden="true"><ArrowRight size={21}/></span>
+      </button>
       <HomeInfoBlocks/>
 
     </div>
