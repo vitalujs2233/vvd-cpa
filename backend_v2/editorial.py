@@ -2,6 +2,7 @@
 import json
 import threading
 import re
+from pathlib import Path
 from datetime import datetime, timezone
 from typing import Optional, Literal
 from urllib.parse import urlsplit
@@ -86,6 +87,10 @@ def _ensure_schema_locked():
         db.execute(text("""
             ALTER TABLE public.vvd_editorial
             ADD COLUMN IF NOT EXISTS main_categories_seeded BOOLEAN NOT NULL DEFAULT FALSE
+        """))
+        db.execute(text("""
+            ALTER TABLE public.vvd_editorial
+            ADD COLUMN IF NOT EXISTS editorial_articles_2026_11_seeded BOOLEAN NOT NULL DEFAULT FALSE
         """))
         # Use a single row lock for category bootstrap and demo bootstrap.
         # A separate flag means edits and intentional removals are never reset.
@@ -196,6 +201,41 @@ def _ensure_schema_locked():
                 SET content=CAST(:content AS jsonb),version=version+1,
                     main_categories_seeded=TRUE,updated_at=now() WHERE id=1
             """),{"content":json.dumps(content,ensure_ascii=False)})
+
+        # First curated editorial batch: original articles with stock-photo covers,
+        # one in each of the ten approved categories. One-time, additive and safe:
+        # existing admin-made articles, unpublished drafts and edits are preserved.
+        article_row=db.execute(text("""
+            SELECT content,editorial_articles_2026_11_seeded
+            FROM public.vvd_editorial WHERE id=1 FOR UPDATE
+        """)).mappings().one()
+        if not article_row["editorial_articles_2026_11_seeded"]:
+            current=dict(article_row["content"])
+            articles=list(current.get("articles",[]))
+            existing_slugs={str(a.get("slug","")) for a in articles}
+            category_ids={str(c.get("id","")) for c in current.get("categories",[])}
+            published_at=datetime.now(timezone.utc).isoformat()
+            for filename in ("editorial_seed_batch_a.json","editorial_seed_batch_b.json"):
+                source=Path(__file__).with_name(filename)
+                items=json.loads(source.read_text(encoding="utf-8"))
+                for item in items:
+                    if item["slug"] in existing_slugs or item["category_id"] not in category_ids:
+                        continue
+                    article=dict(item)
+                    article["published_at"]=published_at
+                    article["updated_at"]=published_at
+                    # Validate before the transaction changes persisted content.
+                    Article.model_validate(article)
+                    articles.append(article)
+                    existing_slugs.add(article["slug"])
+            current["articles"]=articles
+            EditorialContent.model_validate(current)
+            db.execute(text("""
+                UPDATE public.vvd_editorial
+                SET content=CAST(:content AS jsonb),version=version+1,
+                    editorial_articles_2026_11_seeded=TRUE,updated_at=now()
+                WHERE id=1
+            """),{"content":json.dumps(current,ensure_ascii=False)})
 
 class EditorialCategory(BaseModel):
     id: str = Field(min_length=1, max_length=64, pattern=SLUG)
