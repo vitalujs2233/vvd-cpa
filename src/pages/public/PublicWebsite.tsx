@@ -1,5 +1,5 @@
 import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import {ArrowRight,ArrowUpRight,BarChart3,Check,ChevronLeft,ChevronRight,Globe2,Layers,Menu,Search,ShieldCheck,Users,Wrench,Target,MousePointerClick,Wallet,Link2,Activity,LayoutDashboard,X,Zap,Headphones} from 'lucide-react';
+import {ArrowRight,ArrowUpRight,BarChart3,BookOpen,Check,ChevronLeft,ChevronRight,Globe2,Home,Layers,LayoutGrid,Menu,Search,ShieldCheck,Users,UserRound,Wrench,Target,MousePointerClick,Wallet,Link2,Activity,LayoutDashboard,X,Zap,Headphones} from 'lucide-react';
 import {API_BASE_URL} from '@/shared/lib/api';
 import {directoryIcons,type DirectoryData,type DirectoryService} from '@/pages/tools/serviceDirectoryApi';
 import {BrowserAccount, TelegramBrowserLogin, type useBrowserSession} from './WebAuth';
@@ -292,11 +292,6 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
     setCategoryId('');setCatalogView(false);setArticlesView(false);setPolicyPage(null);setArticleSlug('');setAccountView(true);setMobileMenu(false);
     viewport.current?.scrollTo({top:0,behavior:'auto'});
   };
-  const jumpTo=(id:string)=>{
-    if(catalogView||articlesView||categoryId||accountView||policyPage){window.history.pushState(null,'',BASE_URL);setCatalogView(false);setArticlesView(false);setPolicyPage(null);setArticleSlug('');setCategoryId('');setAccountView(false);}
-    setMobileMenu(false);
-    window.setTimeout(()=>document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'}),0);
-  };
   const category=data.categories.find(c=>c.id===categoryId);
   const filtered=useMemo(()=>{
     const s=query.trim().toLocaleLowerCase('ru');
@@ -349,11 +344,10 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
           <span className="vvd-web-brand-copy"><strong>VVD CPA</strong><small>PREMIUM NETWORK</small></span>
         </button>
         <nav className={'vvd-web-nav '+(mobileMenu?'is-open':'')} aria-label="Основная навигация">
-          <button type="button" onClick={openMain}>Главная</button>
-          <button type="button" onClick={openCatalog}>Каталог сервисов</button>
-          <button type="button" onClick={()=>openArticles()}>Статьи и кейсы</button>
-          <button type="button" onClick={()=>jumpTo('features')}>Как работает</button>
-          <button type="button" onClick={openAccount}>Личный кабинет</button>
+          <button type="button" onClick={openMain}><span className="vvd-web-nav-icon"><Home size={17}/></span><span>Главная</span></button>
+          <button type="button" onClick={openCatalog}><span className="vvd-web-nav-icon"><LayoutGrid size={17}/></span><span>Каталог сервисов</span></button>
+          <button type="button" onClick={()=>openArticles()}><span className="vvd-web-nav-icon"><BookOpen size={17}/></span><span>Статьи и кейсы</span></button>
+          <button type="button" onClick={openAccount}><span className="vvd-web-nav-icon"><UserRound size={17}/></span><span>Личный кабинет</span></button>
         </nav>
         {auth.isLoggedIn
           ?<button type="button" className="vvd-web-header-action" onClick={openAccount}><ShieldCheck size={17}/> Кабинет <ArrowRight size={15}/></button>
