@@ -6,39 +6,42 @@ import {API_BASE_URL} from '@/shared/lib/api';
 const safeImage=(value:string)=>value.startsWith(API_BASE_URL+'/articles/images/')||/^https:\/\/[^\s]+$/i.test(value);
 const formatDate=(date:string)=>date?new Date(date).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}):'';
 // Keep the last successful response available when navigating back from an article.
-const ARTICLE_CACHE_KEY='vvd_public_articles_v1';
 const CACHE_TTL=5*60*1000;
-let articleCache:{data:PublicArticles;at:number}|null=null;
-const readCachedArticles=():PublicArticles|null=>{
-  if(articleCache && Date.now()-articleCache.at<CACHE_TTL)return articleCache.data;
-  // Synchronous deployment snapshot is available on the first render, before any fetch.
-  const initial=bootstrappedEditorial();
-  if(initial?.articles.length || initial?.categories.length)return {articles:initial.articles,categories:initial.categories};
+type Surface='web'|'mini';
+const articleCache=new Map<Surface,{data:PublicArticles;at:number}>();
+const readCachedArticles=(surface:Surface):PublicArticles|null=>{
+  const recent=articleCache.get(surface);
+  if(recent&&Date.now()-recent.at<CACHE_TTL)return recent.data;
+  if(surface==='web'){
+    const initial=bootstrappedEditorial();
+    if(initial?.articles.length||initial?.categories.length)return {articles:initial.articles,categories:initial.categories};
+  }
   try{
-    const raw=sessionStorage.getItem(ARTICLE_CACHE_KEY);
+    const raw=sessionStorage.getItem('vvd_public_articles_'+surface+'_v2');
     if(!raw)return null;
     const saved=JSON.parse(raw) as {data:PublicArticles;at:number};
-    if(Number.isFinite(saved.at) && Date.now()-saved.at<CACHE_TTL &&
-       Array.isArray(saved.data?.categories) && Array.isArray(saved.data?.articles)){
-      articleCache=saved;return saved.data;
+    if(Number.isFinite(saved.at)&&Date.now()-saved.at<CACHE_TTL&&
+      Array.isArray(saved.data?.categories)&&Array.isArray(saved.data?.articles)){
+      articleCache.set(surface,saved);return saved.data;
     }
-  }catch{/* Browsers may disable session storage. */}
+  }catch{/* Optional cache. */}
   return null;
 };
-const rememberArticles=(data:PublicArticles)=>{
-  articleCache={data,at:Date.now()};
-  try{sessionStorage.setItem(ARTICLE_CACHE_KEY,JSON.stringify(articleCache));}catch{/* Optional cache. */}
+const rememberArticles=(surface:Surface,data:PublicArticles)=>{
+  const value={data,at:Date.now()};
+  articleCache.set(surface,value);
+  try{sessionStorage.setItem('vvd_public_articles_'+surface+'_v2',JSON.stringify(value));}catch{}
 };
 const detailMemory=new Map<string,Article>();
-const readCachedDetail=(slug:string):Article|null=>
-  detailMemory.get(slug)||bootstrappedEditorial()?.details?.[slug]||null;
-type Props={slug:string;onArticle:(slug:string)=>void;onBack:()=>void;onMetadata:(title:string,description:string,cover?:string,date?:string)=>void};
-export const PublicEditorial:React.FC<Props>=({slug,onArticle,onBack,onMetadata})=>{
-  const [data,setData]=useState<PublicArticles>(()=>readCachedArticles()||{categories:[],articles:[]});
-  const [item,setItem]=useState<Article|null>(()=>readCachedDetail(slug));
+const readCachedDetail=(slug:string,surface:Surface):Article|null=>
+  detailMemory.get(surface+':'+slug)||(surface==='web'?bootstrappedEditorial()?.details?.[slug]:null)||null;
+type Props={slug:string;surface?:Surface;onArticle:(slug:string)=>void;onBack:()=>void;onMetadata:(title:string,description:string,cover?:string,date?:string)=>void};
+export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBack,onMetadata})=>{
+  const [data,setData]=useState<PublicArticles>(()=>readCachedArticles(surface)||{categories:[],articles:[]});
+  const [item,setItem]=useState<Article|null>(()=>readCachedDetail(slug,surface));
   const [category,setCategory]=useState('all');
   const [query,setQuery]=useState('');
-  const [loading,setLoading]=useState(()=>slug?!readCachedDetail(slug):!readCachedArticles());
+  const [loading,setLoading]=useState(()=>slug?!readCachedDetail(slug,surface):!readCachedArticles(surface));
   const [error,setError]=useState('');
   const [retry,setRetry]=useState(0);
   useEffect(()=>{
@@ -46,50 +49,50 @@ export const PublicEditorial:React.FC<Props>=({slug,onArticle,onBack,onMetadata}
     let liveAnswered=false;
     setError('');
     if(slug){
-      const cached=readCachedDetail(slug);
+      const cached=readCachedDetail(slug,surface);
       setItem(cached||null);
       setLoading(!cached);
       if(cached)onMetadata(cached.seo_title||cached.title,cached.seo_description||cached.excerpt,cached.cover_url,cached.published_at);
       // Static first, then refresh from the backend when available.
-      if(!bootstrappedEditorial())void editorialApi.snapshot().then(v=>{
+      if(surface==='web'&&!bootstrappedEditorial())void editorialApi.snapshot().then(v=>{
         if(!mounted||liveAnswered)return;
         const article=v.details[slug];
         if(article){
-          detailMemory.set(slug,article);setItem(article);setLoading(false);
+          detailMemory.set(surface+':'+slug,article);setItem(article);setLoading(false);
           onMetadata(article.seo_title||article.title,article.seo_description||article.excerpt,article.cover_url,article.published_at);
         }
       }).catch(()=>{});
-      void editorialApi.detail(slug).then(v=>{
+      void editorialApi.detail(slug,surface).then(v=>{
         if(!mounted)return;
         liveAnswered=true;
-        detailMemory.set(slug,v.article);setItem(v.article);setError('');setLoading(false);
+        detailMemory.set(surface+':'+slug,v.article);setItem(v.article);setError('');setLoading(false);
         onMetadata(v.article.seo_title||v.article.title,v.article.seo_description||v.article.excerpt,v.article.cover_url,v.article.published_at);
       }).catch(()=>{
-        if(mounted&&!readCachedDetail(slug)){setError('Статья не найдена или временно недоступна.');setLoading(false);}
+        if(mounted&&!readCachedDetail(slug,surface)){setError('Статья не найдена или временно недоступна.');setLoading(false);}
       });
     }else{
       setItem(null);
       onMetadata('Статьи и кейсы — VVD CPA','Статьи, кейсы, обучение и полезные материалы для вебмастеров и арбитражников.');
-      const cached=readCachedArticles();
+      const cached=readCachedArticles(surface);
       if(cached)setData(cached);
       setLoading(!cached);
-      if(!bootstrappedEditorial())void editorialApi.snapshot().then(v=>{
+      if(surface==='web'&&!bootstrappedEditorial())void editorialApi.snapshot().then(v=>{
         if(!mounted||liveAnswered)return;
         const feed={categories:v.categories,articles:v.articles};
-        rememberArticles(feed);setData(feed);setLoading(false);
+        rememberArticles(surface,feed);setData(feed);setLoading(false);
       }).catch(()=>{});
-      void editorialApi.list().then(v=>{
+      void editorialApi.list(surface).then(v=>{
         if(!mounted)return;
-        liveAnswered=true;rememberArticles(v);
+        liveAnswered=true;rememberArticles(surface,v);
         // No needless re-render if server matches the already visible HTML snapshot.
         setData(previous=>JSON.stringify(previous)===JSON.stringify(v)?previous:v);
         setError('');setLoading(false);
       }).catch(()=>{
-        if(mounted&&!readCachedArticles()){setError('Не удалось загрузить статьи.');setLoading(false);}
+        if(mounted&&!readCachedArticles(surface)){setError('Не удалось загрузить статьи.');setLoading(false);}
       });
     }
     return()=>{mounted=false};
-  },[slug,retry,onMetadata]);
+  },[slug,surface,retry,onMetadata]);
   const results=useMemo(()=>data.articles.filter(a=>(category==='all'||a.category_id===category)&&
     [a.title,a.excerpt,...a.tags].join(' ').toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru').trim())),[data,category,query]);
   const categories=new Map(data.categories.map(c=>[c.id,c]));
