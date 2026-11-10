@@ -2,7 +2,7 @@ import {apiRequest,API_BASE_URL} from '@/shared/lib/api';
 
 export type EditorialCategory={id:string;name:string;description:string;image_url?:string;active:boolean;show_on_web?:boolean;show_in_mini_app?:boolean;sort_order:number};
 export type ArticleBlock={type:'paragraph'|'heading'|'image'|'link'|'quote';text:string;url:string;alt:string};
-export type Article={slug:string;category_id:string;title:string;excerpt:string;cover_url:string;seo_title:string;seo_description:string;tags:string[];blocks:ArticleBlock[];published:boolean;show_on_web?:boolean;show_in_mini_app?:boolean;published_at:string;updated_at:string};
+export type Article={slug:string;category_id:string;title:string;excerpt:string;cover_url:string;seo_title:string;seo_description:string;tags:string[];blocks:ArticleBlock[];published:boolean;show_on_web?:boolean;show_in_mini_app?:boolean;published_at:string;updated_at:string;view_count?:number};
 export type ArticleSummary=Omit<Article,'blocks'>;
 export type EditorialData={version:number;categories:EditorialCategory[];articles:Article[]};
 export type PublicArticles={categories:EditorialCategory[];articles:ArticleSummary[]};
@@ -33,6 +33,7 @@ export const editorialApi={
   snapshot,
   list:(surface:'web'|'mini'='web')=>apiRequest<PublicArticles>('/articles?surface='+surface),
   detail:(slug:string,surface:'web'|'mini'='web')=>apiRequest<{article:Article}>('/articles/'+encodeURIComponent(slug)+'?surface='+surface),
+  recordView:(slug:string,surface:'web'|'mini',sessionId:string)=>apiRequest<{views:number}>('/articles/'+encodeURIComponent(slug)+'/view?surface='+surface,{method:'POST',body:JSON.stringify({session_id:sessionId})}),
   admin:()=>apiRequest<EditorialData>('/articles/admin'),
   save:(value:EditorialData)=>apiRequest<{success:boolean;version:number}>('/articles/admin',{method:'PUT',body:JSON.stringify(value)}),
   upload:async(id:string,file:File):Promise<string>=>{
