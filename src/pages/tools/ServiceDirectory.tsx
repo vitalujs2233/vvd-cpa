@@ -4,7 +4,7 @@ import { ArrowLeft, Check, ChevronRight, Copy, ExternalLink, Gift, Search, Layer
 import { triggerHaptic } from '@/shared/lib/telegram';
 import { directoryApi, directoryIcons, type DirectoryData, type DirectoryCategory, type DirectoryService } from './serviceDirectoryApi';
 import './ServiceDirectory.css';
-import { ServiceNavigationCard } from './ServiceNavigationCard';
+import { UnifiedCategoryCard } from '@/shared/ui/UnifiedCategoryCard';
 
 const initial: DirectoryData = { version:0, categories:[], services:[] };
 
@@ -54,9 +54,9 @@ const conciseDescription = (description:string) => ({
 }[description] || description);
 
 const CategoryTile:React.FC<{category:DirectoryCategory;count:number}> = ({category,count}) => (
-  <ServiceNavigationCard to={'/tools/directory/'+category.id} icon={directoryIcons[category.icon]||Layers}
+  <UnifiedCategoryCard to={'/tools/directory/'+category.id} icon={directoryIcons[category.icon]||Layers}
     title={category.name} description={conciseDescription(category.description)}
-    status={count ? 'Предложений: '+count : 'Нет предложений'}/>
+    status={count ? count+' предложений' : 'Сервисы скоро появятся'}/>
 );
 
 export const ServiceDirectoryPage:React.FC=()=>{
@@ -90,7 +90,7 @@ export const ServiceDirectoryPage:React.FC=()=>{
     {error&&<p role="alert" className="rounded-card border border-red-400/30 bg-red-400/5 p-3 text-xs text-textSecondary">{error}</p>}
     {matching.length===0?
         <div className="vvd-directory-category p-6 text-center text-sm text-textSecondary">По запросу ничего не найдено.</div>:
-        <div className="flex flex-col gap-2">
+        <div className="vvd-mini-directory-category-grid">
           {matching.map(category=> <CategoryTile key={category.id} category={category} count={data.services.filter(s=>s.category_id===category.id).length}/>)}
         </div>
     }
