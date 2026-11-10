@@ -1,5 +1,6 @@
 """Public articles/cases and a protected editorial dashboard. Financial routes are untouched."""
 import json
+import threading
 import re
 from datetime import datetime, timezone
 from typing import Optional, Literal
@@ -38,7 +39,23 @@ def admin_auth(header: Optional[str]):
         raise HTTPException(403, "Только для администратора")
 
 
+_editorial_schema_ready = False
+_editorial_schema_lock = threading.Lock()
+
+
 def ensure_schema():
+    """Initialize/seed editorial data once per process, without concurrent DDL."""
+    global _editorial_schema_ready
+    if _editorial_schema_ready:
+        return
+    with _editorial_schema_lock:
+        if _editorial_schema_ready:
+            return
+        _ensure_schema_locked()
+        _editorial_schema_ready = True
+
+
+def _ensure_schema_locked():
     # Dedicated editorial storage: does not change existing CPA/finance tables.
     with engine.begin() as db:
         db.execute(text("""
