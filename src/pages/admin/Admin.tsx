@@ -382,6 +382,7 @@ const saveChatBanner = async () => {
     | 'homeInfo'
     | 'directory'
     | 'editorial'
+    | 'aiEditor'
     | 'maintenance'
 ) => {
   triggerHaptic.lightImpact();
