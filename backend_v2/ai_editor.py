@@ -74,14 +74,28 @@ def ensure_schema():
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
             )
         """))
+        # Upgrade the legacy article/service-only check once, without dropping
+        # and recreating constraints on every admin read or scheduled tick.
         db.execute(text("""
-            ALTER TABLE public.vvd_ai_editor_drafts
-            DROP CONSTRAINT IF EXISTS vvd_ai_editor_drafts_kind_check
-        """))
-        db.execute(text("""
-            ALTER TABLE public.vvd_ai_editor_drafts
-            ADD CONSTRAINT vvd_ai_editor_drafts_kind_check
-            CHECK (kind IN ('article','service','category'))
+            DO $
+            DECLARE old_definition TEXT;
+            BEGIN
+              SELECT pg_get_constraintdef(oid) INTO old_definition
+              FROM pg_constraint
+              WHERE conrelid='public.vvd_ai_editor_drafts'::regclass
+                AND conname='vvd_ai_editor_drafts_kind_check';
+              IF old_definition IS NOT NULL AND
+                 old_definition NOT LIKE '%category%' THEN
+                ALTER TABLE public.vvd_ai_editor_drafts
+                  DROP CONSTRAINT vvd_ai_editor_drafts_kind_check;
+                old_definition := NULL;
+              END IF;
+              IF old_definition IS NULL THEN
+                ALTER TABLE public.vvd_ai_editor_drafts
+                  ADD CONSTRAINT vvd_ai_editor_drafts_kind_check
+                  CHECK (kind IN ('article','service','category'));
+              END IF;
+            END $;
         """))
 
 
@@ -413,7 +427,13 @@ async def auto_tick():
                         WHERE kind='article' AND status IN ('pending','applied')
                     """)).scalar_one()
                 if count>0 and count%5==0:
-                    kind="category"
+                    with engine.connect() as db:
+                        suggestions=db.execute(text("""
+                            SELECT count(*) FROM public.vvd_ai_editor_drafts
+                            WHERE kind='category' AND status IN ('pending','applied')
+                        """)).scalar_one()
+                    if suggestions<count//5:
+                        kind="category"
         await _run(kind,category_id=category_id if kind=="article" else "",automated=True)
     except HTTPException as exc:
         if exc.status_code not in (409,422):
