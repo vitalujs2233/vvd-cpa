@@ -1,0 +1,32 @@
+name: Validate AI Editorial Drafts
+
+on:
+  pull_request:
+    paths:
+      - "backend_v2/ai_editor.py"
+      - "backend_v2/main.py"
+      - "src/pages/admin/AIEditorAdmin.tsx"
+      - "src/pages/admin/Admin.tsx"
+      - ".github/workflows/validate-ai-editor.yml"
+  push:
+    branches: ["main"]
+    paths:
+      - "backend_v2/ai_editor.py"
+      - "backend_v2/main.py"
+      - "src/pages/admin/AIEditorAdmin.tsx"
+      - "src/pages/admin/Admin.tsx"
+
+jobs:
+  syntax-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python syntax
+        run: python -m py_compile backend_v2/ai_editor.py backend_v2/main.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install frontend
+        run: npm install
+      - name: Check TypeScript and bundle
+        run: npm run build

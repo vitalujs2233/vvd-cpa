@@ -77,10 +77,19 @@ async def startup_bot():
     app.state.bot_task = asyncio.create_task(start_bot())
     from tools_stars import reconciliation_loop
     app.state.tools_stars_task = asyncio.create_task(reconciliation_loop(bot))
+    from ai_editor import auto_editor_loop
+    app.state.ai_editor_task = asyncio.create_task(auto_editor_loop())
 
 
 @app.on_event("shutdown")
 async def shutdown_bot():
+    ai_task = getattr(app.state, "ai_editor_task", None)
+    if ai_task:
+        ai_task.cancel()
+        try:
+            await ai_task
+        except asyncio.CancelledError:
+            pass
     tools_task = getattr(app.state, "tools_stars_task", None)
     if tools_task:
         tools_task.cancel()
@@ -2005,6 +2014,8 @@ from service_directory import router as service_directory_router
 app.include_router(service_directory_router)
 from editorial import router as editorial_router
 app.include_router(editorial_router)
+from ai_editor import router as ai_editor_router
+app.include_router(ai_editor_router)
 from miniapp_maintenance import router as miniapp_maintenance_router
 app.include_router(miniapp_maintenance_router)
 
