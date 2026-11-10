@@ -5,9 +5,9 @@
   flex-direction:column;
   align-items:stretch;
   min-width:0;
-  min-height:195px;
-  padding:15px;
-  gap:8px;
+  min-height:168px;
+  padding:13px;
+  gap:7px;
   border:1px solid var(--vvd-card-border);
   border-radius:var(--vvd-card-radius);
   background:radial-gradient(circle at 90% 0%,rgba(192,143,51,.13),transparent 65%),var(--vvd-card-bg);
@@ -24,9 +24,9 @@
 .vvd-unified-category-icon{
   display:grid;
   place-items:center;
-  flex:0 0 42px;
-  width:42px;
-  height:42px;
+  flex:0 0 40px;
+  width:40px;
+  height:40px;
   overflow:hidden;
   border:1px solid var(--vvd-card-icon-border);
   border-radius:12px;
@@ -43,17 +43,6 @@
   overflow-wrap:anywhere;
   hyphens:auto;
 }
-.vvd-unified-category-description{
-  display:-webkit-box;
-  overflow:hidden;
-  -webkit-box-orient:vertical;
-  -webkit-line-clamp:2;
-  line-clamp:2;
-  color:var(--vvd-card-muted);
-  font-size:12px;
-  line-height:1.5;
-  overflow-wrap:anywhere;
-}
 .vvd-unified-category-footer{
   display:flex;
   align-items:center;
@@ -68,8 +57,8 @@
 }
 .vvd-unified-category-footer svg{flex-shrink:0}
 @media(max-width:720px){
-  .vvd-unified-category-card{min-height:177px;padding:12px;gap:7px}
-  .vvd-unified-category-icon{flex-basis:37px;width:37px;height:37px;border-radius:10px}
+  .vvd-unified-category-card{min-height:145px;padding:11px;gap:7px}
+  .vvd-unified-category-icon{flex-basis:35px;width:35px;height:35px;border-radius:10px}
   .vvd-unified-category-icon svg{width:22px;height:22px}
   .vvd-unified-category-title{font-size:14px;line-height:1.22}
   .vvd-unified-category-description{font-size:11px}
