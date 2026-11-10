@@ -1,12 +1,13 @@
 import { ProxyOrders } from './ProxyOrders';
 import { directoryApi } from './serviceDirectoryApi';
+import { editorialApi } from '@/pages/public/editorialApi';
 import { ServiceNavigationCard } from './ServiceNavigationCard';
 import './ServiceDirectory.css';
 import { ApiError } from '@/shared/lib/api';
 import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Bot, Check, ChevronRight, Clock, Copy, CreditCard, FileClock, Globe2, History, Package, Phone, Plus, Server, Layers, ShieldCheck, Wallet, Wrench } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Bot, Check, ChevronRight, Clock, Copy, CreditCard, FileClock, Globe2, History, Package, Phone, Plus, Server, Layers, ShieldCheck, Wallet, Wrench, Newspaper } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { triggerHaptic } from '@/shared/lib/telegram';
@@ -45,7 +46,7 @@ export const Tools:React.FC=()=>{
   const navigate=useNavigate();
   const [openingDirectory,setOpeningDirectory]=useState(false);
   // Warm the shared catalog before the user taps the directory card.
-  useEffect(()=>{void directoryApi.published().catch(()=>{});},[]);
+  useEffect(()=>{void directoryApi.published().catch(()=>{});void editorialApi.snapshot().catch(()=>{});},[]);
   const openDirectory=async(event:React.MouseEvent<HTMLAnchorElement>)=>{
     if(directoryApi.snapshot())return;
     event.preventDefault();
@@ -80,6 +81,9 @@ export const Tools:React.FC=()=>{
         description="Реклама, аналитика и другие сервисы"
         status={openingDirectory?'Загрузка…':undefined} aria-busy={openingDirectory}
         onClick={openDirectory} onPointerEnter={()=>{void directoryApi.published().catch(()=>{});}}/>
+      <ServiceNavigationCard to="/tools/articles" icon={Newspaper} title="Статьи и кейсы"
+        description="Обучение, разборы и полезные материалы"
+        onPointerEnter={()=>{void editorialApi.snapshot().catch(()=>{});}}/>
     </div>
   </Shell>;
 };
