@@ -47,13 +47,13 @@
 .home-native-card-icon{
   display:flex;align-items:center;justify-content:center;flex:0 0 44px;
   width:44px;height:44px;border-radius:12px;
-  border:1px solid rgba(180,149,92,.16);background:rgba(180,149,92,.055);
-  color:#9a8059;
+  border:1px solid var(--vvd-card-icon-border);background:var(--vvd-card-icon-bg);
+  color:var(--vvd-card-icon-text);
 }
 .home-native-card-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:5px}
-.home-native-card-copy strong{font-size:14px;font-weight:700;line-height:1.35;color:#f2f0eb}
-.home-native-card-copy span{font-size:11px;line-height:1.5;color:#a4a2ac}
-.home-native-card-chevron{flex:none;color:#777883}
+.home-native-card-copy strong{font-size:14px;font-weight:700;line-height:1.35;color:var(--vvd-card-title)}
+.home-native-card-copy span{font-size:11px;line-height:1.5;color:var(--vvd-card-muted)}
+.home-native-card-chevron{flex:none;color:var(--vvd-card-chevron)}
 .home-native-card-button:focus-visible{outline:2px solid rgba(184,150,91,.58);outline-offset:2px;border-radius:8px}
 @media(max-width:360px){
   .home-native-card-button{gap:10px}
