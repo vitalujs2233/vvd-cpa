@@ -1,4 +1,4 @@
-import React,{useEffect,useMemo,useState} from 'react';
+import React,{useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {ArrowLeft,ArrowRight,BookOpen,CalendarDays,Search,Tag,TrendingUp,Wrench,Link2,Megaphone,BarChart3,Palette,Send,Bot,ClipboardList} from 'lucide-react';
 import {editorialApi,bootstrappedEditorial,type Article,type ArticleSummary,type PublicArticles} from './editorialApi';
 import {API_BASE_URL} from '@/shared/lib/api';
@@ -51,6 +51,7 @@ const readCachedDetail=(slug:string,surface:Surface):Article|null=>
   detailMemory.get(surface+':'+slug)||(surface==='web'?bootstrappedEditorial()?.details?.[slug]:null)||null;
 type Props={slug:string;surface?:Surface;onArticle:(slug:string)=>void;onBack:()=>void;onMetadata:(title:string,description:string,cover?:string,date?:string)=>void};
 export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBack,onMetadata})=>{
+  const articleRoot=useRef<HTMLElement>(null);
   const [data,setData]=useState<PublicArticles>(()=>readCachedArticles(surface)||{categories:[],articles:[]});
   const [item,setItem]=useState<Article|null>(()=>readCachedDetail(slug,surface));
   const [category,setCategory]=useState('all');
@@ -120,10 +121,18 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
       parent?.name||'',parent?.description||'');
   }),[data.articles,category,categories,searchTerms]);
   const selectedCategory=categories.get(category);
+  // The website scrolls inside .vvd-web-portal while the Mini App scrolls
+  // inside .scrollable-container. Reset the right viewport after React has
+  // rendered a new article/list/category, before it is painted on screen.
+  useLayoutEffect(()=>{
+    const scroller=articleRoot.current?.closest<HTMLElement>('.vvd-web-portal, .scrollable-container');
+    if(scroller)scroller.scrollTo({top:0,behavior:'auto'});
+    else window.scrollTo({top:0,behavior:'auto'});
+  },[slug,category,surface]);
   const chooseCategory=(id:string)=>{
     setCategory(id);setQuery('');
   };
-  return <main className="vvd-web-articles">
+  return <main className="vvd-web-articles" ref={articleRoot}>
     {slug?<button className="vvd-web-back" onClick={onBack}><ArrowLeft size={18}/> Все статьи и кейсы</button>:null}
     {slug ? (loading && !item ? <div className="vvd-article-detail">
         <span className="vvd-web-eyebrow">VVD CPA / СТАТЬИ И КЕЙСЫ</span>
