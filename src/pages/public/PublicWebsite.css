@@ -698,9 +698,9 @@
   flex-direction:column;
   align-items:stretch;
   justify-content:flex-start;
-  gap:14px;
-  padding:18px;
-  min-height:245px;
+  gap:10px;
+  padding:14px;
+  min-height:195px;
   aspect-ratio:auto;
   box-sizing:border-box;
 }
@@ -740,17 +740,23 @@
 .vvd-editorial-category-card.is-icon-card .vvd-editorial-category-count svg{flex-shrink:0}
 @media(max-width:480px){
   .vvd-editorial-category-card.is-icon-card{
-    padding:12px;
-    gap:13px;
-    min-height:245px;
+    padding:11px;
+    gap:8px;
+    min-height:175px;
   }
   .vvd-editorial-category-card.is-icon-card .vvd-editorial-category-symbol{
-    flex-basis:38px;
-    width:38px;
-    height:38px;
+    flex-basis:35px;
+    width:35px;
+    height:35px;
   }
   .vvd-editorial-category-card.is-icon-card .vvd-editorial-category-overlay strong{
-    font-size:16px;
-    line-height:1.22;
+    font-size:15px;
+    line-height:1.18;
+  }
+  .vvd-editorial-category-card.is-icon-card .vvd-editorial-category-overlay{
+    gap:4px;
+  }
+  .vvd-editorial-category-card.is-icon-card .vvd-editorial-category-count{
+    margin-top:auto;
   }
 }
