@@ -355,6 +355,16 @@ def _find_draft(identifier):
     return dict(result)
 
 
+def _lock_pending(db,identifier,kind):
+    row=db.execute(text("""
+        SELECT id,kind,source_service_id,payload,status
+        FROM public.vvd_ai_editor_drafts WHERE id=:id FOR UPDATE
+    """),{"id":identifier}).mappings().first()
+    if not row or row["status"]!="pending" or row["kind"]!=kind:
+        raise HTTPException(409,"Черновик уже обработан или изменён")
+    return dict(row)
+
+
 def _mark(identifier,status):
     with engine.begin() as db:
         updated=db.execute(text("""
@@ -375,14 +385,12 @@ def discard_draft(identifier:str,x_telegram_init_data:Optional[str]=Header(None)
 @router.post("/admin/drafts/{identifier}/article")
 def move_article_to_drafts(identifier:str,x_telegram_init_data:Optional[str]=Header(None)):
     admin_auth(x_telegram_init_data)
-    draft=_find_draft(identifier)
-    if draft["status"]!="pending" or draft["kind"]!="article":
-        raise HTTPException(409,"Ожидался новый черновик статьи")
     from editorial import ensure_schema as ensure_editorial, Article, EditorialContent
     ensure_editorial()
-    p=draft["payload"]
     slug="ai-"+uuid.uuid4().hex[:20]
     with engine.begin() as db:
+        draft=_lock_pending(db,identifier,"article")
+        p=draft["payload"]
         row=db.execute(text("""
             SELECT content FROM public.vvd_editorial WHERE id=1 FOR UPDATE
         """)).mappings().one()
@@ -461,11 +469,9 @@ def publish_service(identifier:str,payload:ServicePublishInput,
     admin_auth(x_telegram_init_data)
     if not (payload.show_on_web or payload.show_in_mini_app):
         raise HTTPException(422,"Выберите сайт или Mini App")
-    draft=_find_draft(identifier)
-    if draft["status"]!="pending" or draft["kind"]!="service":
-        raise HTTPException(409,"Ожидался черновик сервиса")
     from service_directory import DirectoryContent, DirectoryService
     with engine.begin() as db:
+        draft=_lock_pending(db,identifier,"service")
         row=db.execute(text("""
             SELECT content FROM public.vvd_service_directory WHERE id=1 FOR UPDATE
         """)).mappings().one()
