@@ -18,13 +18,16 @@ type Props={
   className?:string;
 };
 export const UnifiedCategoryCard:React.FC<Props>=({
-  title,status,icon:Icon=BookOpen,imageUrl,href,to,onClick,className=''
+  title,description,status,icon:Icon=BookOpen,imageUrl,href,to,onClick,className=''
 })=>{
   const content=<>
-    <span className="vvd-unified-category-icon" aria-hidden="true">
-      {imageUrl?<img src={imageUrl} alt="" loading="lazy" decoding="async"/>:<Icon size={24} strokeWidth={1.65}/>}
+    <span className="vvd-unified-category-heading">
+      <span className="vvd-unified-category-icon" aria-hidden="true">
+        {imageUrl?<img src={imageUrl} alt="" loading="lazy" decoding="async"/>:<Icon size={24} strokeWidth={1.65}/>}
+      </span>
+      <span className="vvd-unified-category-title">{title}</span>
     </span>
-    <span className="vvd-unified-category-title">{title}</span>
+    {description.trim()&&<span className="vvd-unified-category-description">{description}</span>}
     <span className="vvd-unified-category-footer">
       <span>{status}</span><ArrowRight size={17} aria-hidden="true"/>
     </span>
