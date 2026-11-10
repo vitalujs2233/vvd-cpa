@@ -59,3 +59,20 @@
   .home-native-card-button{gap:10px}
   .home-native-card-icon{flex-basis:40px;width:40px;height:40px}
 }
+
+
+/* Mini App homepage navigation cards use the same surfaces and icon accents
+   as article/category/service cards on both VVD interfaces. */
+.home-native-card{
+  background:var(--vvd-card-bg);
+  border:1px solid var(--vvd-card-border);
+  border-radius:var(--vvd-card-radius);
+  box-shadow:var(--vvd-card-shadow);
+}
+.home-native-card .home-native-card-icon{
+  background:var(--vvd-card-icon-bg);
+  border-color:var(--vvd-card-icon-border);
+  color:#e6b866;
+}
+.home-native-card-copy strong{color:var(--vvd-card-title)}
+.home-native-card-copy span{color:var(--vvd-card-muted)}
