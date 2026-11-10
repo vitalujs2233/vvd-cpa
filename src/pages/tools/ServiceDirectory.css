@@ -91,3 +91,19 @@
 @media(min-width:650px){
   .vvd-mini-directory-category-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 }
+
+
+/* Shared VVD premium surfaces also apply to Mini App service details. */
+.vvd-directory-feature,
+.vvd-directory-category,
+.vvd-directory-service{
+  border-color:var(--vvd-card-border);
+  border-radius:var(--vvd-card-radius);
+  background:var(--vvd-card-bg);
+  box-shadow:var(--vvd-card-shadow);
+}
+.vvd-directory-feature::before,.vvd-directory-feature::after{display:none}
+.vvd-directory-feature .text-accentBrightGold,
+.vvd-directory-service .text-accentBrightGold{color:#e6be70}
+.vvd-directory-service h2{color:var(--vvd-card-title)}
+.vvd-directory-service p{line-height:1.65}
