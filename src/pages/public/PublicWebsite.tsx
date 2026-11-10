@@ -5,6 +5,7 @@ import {directoryIcons,type DirectoryData,type DirectoryService} from '@/pages/t
 import {BrowserAccount, TelegramBrowserLogin, type useBrowserSession} from './WebAuth';
 import './PublicWebsite.css';
 import {PublicEditorial} from './PublicEditorial';
+import {UnifiedCategoryCard,serviceCountLabel} from '@/shared/ui/UnifiedCategoryCard';
 import {PublicPolicy} from './PublicPolicy';
 
 const BOT_URL='https://t.me/vvd_cpa_bot';
@@ -380,14 +381,14 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
           </div>}
           {loading?<div className="vvd-web-categories-grid" aria-busy="true">{[0,1,2,3,4,5].map(n=><div key={n} className="vvd-web-placeholder"/>)}</div>:
             filtered.length>0?<div className="vvd-web-categories-grid">
-              {filtered.map(c=>{
-                const Icon=directoryIcons[c.icon]||Layers;
-                return <a key={c.id} href={getSiteUrl(c.id)} onClick={event=>{event.preventDefault();showCategory(c.id);}} className="vvd-web-category-card">
-                  <div className="vvd-web-category-icon"><Icon size={26} strokeWidth={1.6}/></div>
-                  <ChevronRight className="vvd-web-card-arrow" size={20}/>
-                  <h3>{c.name}</h3><p>{c.description}</p>
-                </a>;
-              })}
+              {filtered.map(c=><UnifiedCategoryCard key={c.id}
+                href={getSiteUrl(c.id)}
+                onClick={event=>{event.preventDefault();showCategory(c.id);}}
+                icon={directoryIcons[c.icon]||Layers}
+                title={c.name}
+                description={c.description}
+                status={(()=>{const n=data.services.filter(service=>service.category_id===c.id).length;return n?serviceCountLabel(n):'Сервисы скоро появятся';})()}
+              />)}
             </div>:<div className="vvd-web-notice">По вашему запросу разделов не найдено.</div>}
         </section>
       </main>
