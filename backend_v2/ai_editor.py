@@ -572,7 +572,8 @@ def approve_category(identifier: str,
             raise HTTPException(409,"Такая категория уже существует. Отклоните предложение.")
         category_id="ai-category-"+uuid.uuid4().hex[:12]
         category={"id":category_id,"name":p["name"],"description":p["description"],
-                  "image_url":"","active":False,"show_on_web":True,
+                  "image_url":BASE+"/ai-editor/art/"+draft["id"]+"?variant=0",
+                  "active":False,"show_on_web":True,
                   "show_in_mini_app":True,"sort_order":100}
         data["categories"]=[*categories,category]
         EditorialContent.model_validate(data)
@@ -654,9 +655,10 @@ def draft_artwork(identifier:str,variant:int=Query(0,ge=0,le=2)):
     if not re.fullmatch(r"ai-[a-f0-9]{20}",identifier):
         raise HTTPException(404,"Иллюстрация не найдена")
     draft=_find_draft(identifier)
-    if draft["kind"]!="article":
+    if draft["kind"] not in ("article","category"):
         raise HTTPException(404,"Иллюстрация не найдена")
-    title=html.escape(str(draft["payload"].get("title") or "VVD CPA")[:72])
+    title=html.escape(str(draft["payload"].get("title") or
+                          draft["payload"].get("name") or "VVD CPA")[:72])
     bg=("#14110d","#10161b","#15110c")[variant]
     shapes=(
         '<circle cx="970" cy="310" r="180" fill="none" stroke="#c6a568" stroke-width="4"/>'
