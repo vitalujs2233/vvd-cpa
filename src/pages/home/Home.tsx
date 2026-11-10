@@ -6,7 +6,7 @@ import {readSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wallet, History, Sparkles, Flame, Crown, Brain, Sparkles as InfoSparkles, BookOpen, ArrowRight } from 'lucide-react';
+import { Wallet, History, Sparkles, Flame, Crown, Brain, Sparkles as InfoSparkles, BookOpen, ChevronRight } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
@@ -184,26 +184,28 @@ export const Home: React.FC = () => {
           </Button>
         </div>
       </Card>
-      <button type="button" className="home-editorial-bridge home-nav-card" onClick={()=>{triggerHaptic.lightImpact();navigate('/why-vvd');}}>
-        <span className="home-editorial-bridge-icon" aria-hidden="true"><InfoSparkles size={26} strokeWidth={1.8}/></span>
-        <span className="home-editorial-bridge-copy">
-          <span className="home-editorial-bridge-eyebrow">О ПЛАТФОРМЕ VVD CPA</span>
-          <strong className="home-nav-card-title">Почему VVD CPA?</strong>
-          <span className="home-nav-card-description">Преимущества, выплаты и условия сотрудничества</span>
-        </span>
-        <span className="home-editorial-bridge-action" aria-hidden="true"><ArrowRight size={21}/></span>
-      </button>
+      <Card variant="default" padding="sm" className="home-native-card">
+        <button type="button" className="home-native-card-button" onClick={()=>{triggerHaptic.lightImpact();navigate('/why-vvd');}}>
+          <span className="home-native-card-icon" aria-hidden="true"><InfoSparkles size={21} strokeWidth={1.8}/></span>
+          <span className="home-native-card-copy">
+            <strong>Почему VVD CPA?</strong>
+            <span>Преимущества, выплаты и условия сотрудничества</span>
+          </span>
+          <ChevronRight size={18} className="home-native-card-chevron" aria-hidden="true"/>
+        </button>
+      </Card>
       <HomeAdCarousel/>
-      {/* Useful editorial navigation separates the wide ad slider from large home info banners. */}
-      <button type="button" className="home-editorial-bridge home-nav-card" onClick={()=>{triggerHaptic.lightImpact();navigate('/tools/articles');}}>
-        <span className="home-editorial-bridge-icon" aria-hidden="true"><BookOpen size={26} strokeWidth={1.8}/></span>
-        <span className="home-editorial-bridge-copy">
-          <span className="home-editorial-bridge-eyebrow">БАЗА ЗНАНИЙ VVD CPA</span>
-          <strong className="home-nav-card-title">Статьи и кейсы</strong>
-          <span className="home-nav-card-description">Обучение, полезные разборы и советы для вебмастеров</span>
-        </span>
-        <span className="home-editorial-bridge-action" aria-hidden="true"><ArrowRight size={21}/></span>
-      </button>
+      {/* Existing dark VVD CPA card design separates the two banner formats. */}
+      <Card variant="default" padding="sm" className="home-native-card">
+        <button type="button" className="home-native-card-button" onClick={()=>{triggerHaptic.lightImpact();navigate('/tools/articles');}}>
+          <span className="home-native-card-icon" aria-hidden="true"><BookOpen size={21} strokeWidth={1.8}/></span>
+          <span className="home-native-card-copy">
+            <strong>Статьи и кейсы</strong>
+            <span>Обучение, полезные разборы и советы для вебмастеров</span>
+          </span>
+          <ChevronRight size={18} className="home-native-card-chevron" aria-hidden="true"/>
+        </button>
+      </Card>
       <HomeInfoBlocks/>
 
     </div>
