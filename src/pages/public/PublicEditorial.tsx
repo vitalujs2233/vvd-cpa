@@ -2,6 +2,7 @@ import React,{useEffect,useMemo,useState} from 'react';
 import {ArrowLeft,ArrowRight,BookOpen,CalendarDays,Search,Tag,TrendingUp,Wrench,Link2,Megaphone,BarChart3,Palette,Send,Bot,ClipboardList} from 'lucide-react';
 import {editorialApi,bootstrappedEditorial,type Article,type ArticleSummary,type PublicArticles} from './editorialApi';
 import {API_BASE_URL} from '@/shared/lib/api';
+import {UnifiedCategoryCard} from '@/shared/ui/UnifiedCategoryCard';
 
 const safeImage=(value:string)=>value.startsWith(API_BASE_URL+'/articles/images/')||/^https:\/\/[^\s]+$/i.test(value);
 const formatDate=(date:string)=>date?new Date(date).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}):'';
@@ -157,18 +158,12 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
           <div className="vvd-editorial-category-heading"><h2>{searchTerms.length?'Найденные категории':'Выберите категорию'}</h2><p>{searchTerms.length?'Категории по запросу и материалы внутри них.':'Все темы собраны по разделам, чтобы быстро найти нужные статьи и кейсы.'}</p></div>
           <div className="vvd-editorial-category-grid" aria-label="Категории статей">
             {filteredCategories.map(c=>{
-              const Icon=categoryIcons[c.id]||BookOpen;
               const amount=data.articles.filter(a=>a.category_id===c.id).length;
-              return <button type="button" key={c.id} className={'vvd-editorial-category-card '+(c.image_url&&safeImage(c.image_url)?'is-photo-card':'is-icon-card')} onClick={()=>chooseCategory(c.id)}
-                  aria-label={c.name+' — открыть статьи'}>
-                {c.image_url&&safeImage(c.image_url)?<img src={c.image_url} alt="" loading="lazy" decoding="async"/>:
-                  <span className="vvd-editorial-category-symbol"><Icon size={32} strokeWidth={1.5}/></span>}
-                <span className="vvd-editorial-category-overlay">
-                  <strong>{c.name}</strong>
-                  {c.description&&<small>{c.description}</small>}
-                  <span className="vvd-editorial-category-count">{amount?materialCount(amount):'Материалы готовятся'} <ArrowRight size={14}/></span>
-                </span>
-              </button>;
+              return <UnifiedCategoryCard key={c.id} onClick={()=>chooseCategory(c.id)}
+                icon={categoryIcons[c.id]||BookOpen}
+                imageUrl={c.image_url&&safeImage(c.image_url)?c.image_url:undefined}
+                title={c.name} description={c.description}
+                status={amount?materialCount(amount):'Материалы готовятся'}/>;
             })}
           </div>
           {searchTerms.length&&filteredCategories.length===0&&!loading&&!error&&<div className="vvd-web-notice">Категории по запросу не найдены.</div>}
