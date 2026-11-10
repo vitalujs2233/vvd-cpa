@@ -398,6 +398,17 @@ def move_article_to_drafts(identifier:str,x_telegram_init_data:Optional[str]=Hea
                 category["id"]="ai-drafts-"+uuid.uuid4().hex[:6]
             categories.append(category)
         blocks=list(p["blocks"])
+        # Reuse a catalog photo only when it was uploaded to our own service-image
+        # endpoint. No random internet photo or copyright-unclear hotlinking.
+        related=next((item for item in _service_sources()
+                      if item["id"]==draft["source_service_id"]),None)
+        if related:
+            photo=str(related.get("image_url") or "")
+            if photo.startswith("/service-directory/images/"):
+                photo=BASE+photo
+            if photo.startswith(BASE+"/service-directory/images/"):
+                blocks.insert(2,{"type":"image","text":"","url":photo,
+                                 "alt":"Изображение сервиса из каталога VVD CPA"})
         for i,url in enumerate(p.get("image_urls",[])[1:3]):
             at=min(len(blocks),3+i*4)
             blocks.insert(at,{"type":"image","text":"","url":url,
