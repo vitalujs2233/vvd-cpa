@@ -2,7 +2,7 @@
 import json
 import re
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Literal
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, File, Header, HTTPException, UploadFile
@@ -127,6 +127,8 @@ class EditorialCategory(BaseModel):
     description: str = Field(default="", max_length=300)
     image_url: str = Field(default="", max_length=2048)
     active: bool = True
+    show_on_web: bool = True
+    show_in_mini_app: bool = True
     sort_order: int = Field(default=100, ge=-10000, le=10000)
 
 
@@ -167,6 +169,8 @@ class Article(BaseModel):
     tags: list[str] = Field(default_factory=list, max_length=20)
     blocks: list[ArticleBlock] = Field(default_factory=list, max_length=150)
     published: bool = False
+    show_on_web: bool = True
+    show_in_mini_app: bool = True
     published_at: str = Field(default="", max_length=40)
     updated_at: str = Field(default="", max_length=40)
 
@@ -211,16 +215,23 @@ def load():
     return {"version": row["version"], **row["content"]}
 
 
+def visible_on_surface(entry: dict, surface: Literal["web", "mini"]) -> bool:
+    # Legacy entries created before the surface selector remain visible on both.
+    key = "show_on_web" if surface == "web" else "show_in_mini_app"
+    return entry.get(key, True) is not False
+
+
 @router.get("")
-def public_articles():
+def public_articles(surface: Literal["web", "mini"] = "web"):
     content = load()
-    categories = sorted((c for c in content["categories"] if c.get("active", True)),
+    categories = sorted((c for c in content["categories"]
+                         if c.get("active", True) and visible_on_surface(c, surface)),
                         key=lambda c: (c.get("sort_order",100), c["name"]))
     valid_ids = {c["id"] for c in categories}
     articles = sorted((a for a in content["articles"]
-                       if a.get("published") and a["category_id"] in valid_ids),
+                       if a.get("published") and a["category_id"] in valid_ids
+                       and visible_on_surface(a, surface)),
                       key=lambda a: a.get("published_at", ""), reverse=True)
-    # The listing does not expose the full editorial body; detail endpoint handles it.
     summaries = [{k:v for k,v in a.items() if k != "blocks"} for a in articles]
     return {"categories": categories, "articles": summaries}
 
@@ -280,13 +291,15 @@ async def upload_image(image_id: str, image:UploadFile=File(...),
 
 
 @router.get("/{slug}")
-def public_article(slug:str):
+def public_article(slug:str, surface: Literal["web", "mini"] = "web"):
     if not re.fullmatch(SLUG,slug) or len(slug)>100:
         raise HTTPException(404,"Статья не найдена")
     content=load()
-    visible={c["id"] for c in content["categories"] if c.get("active",True)}
+    visible={c["id"] for c in content["categories"]
+             if c.get("active",True) and visible_on_surface(c, surface)}
     article=next((a for a in content["articles"]
-                  if a["slug"]==slug and a.get("published") and a["category_id"] in visible),None)
+                  if a["slug"]==slug and a.get("published")
+                  and a["category_id"] in visible and visible_on_surface(a, surface)),None)
     if article is None:
         raise HTTPException(404,"Статья не найдена")
     return {"article":article}
