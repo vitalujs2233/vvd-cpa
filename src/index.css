@@ -18,6 +18,19 @@
   --accent-gold: #D4AF37;      /* Основная золотая рамка */
   --accent-gold-bright: #F6C453; /* Яркое свечение (кнопки, акценты) */
   --accent-gold-light: #FFE08A;  /* Светлый золотой блик */
+
+  /* Shared VVD CPA surfaces: same visual tokens on the website and in Mini App.
+     Decorative hero banners and the balance glow intentionally use their own styles. */
+  --vvd-card-bg: linear-gradient(145deg, rgba(255,228,160,.048), rgba(255,255,255,.014) 38%, rgba(0,0,0,.08)), rgba(17,16,15,.82);
+  --vvd-card-border: rgba(218,174,82,.22);
+  --vvd-card-shadow: 0 15px 38px -19px rgba(0,0,0,.88), inset 0 1px 0 rgba(255,241,205,.11);
+  --vvd-card-radius: 24px;
+  --vvd-card-icon-bg: rgba(180,149,92,.055);
+  --vvd-card-icon-border: rgba(180,149,92,.16);
+  --vvd-card-icon-text: #9a8059;
+  --vvd-card-title: #f2f0eb;
+  --vvd-card-muted: #b2aba0;
+  --vvd-card-chevron: #8b8680;
 }
 
 /* Настройки монолитного полноэкранного Premium-интерфейса */
@@ -311,7 +324,11 @@ button:disabled,[aria-disabled="true"] { cursor: not-allowed; opacity: .45; }
     inset 0 1px 0 rgba(255, 241, 205, .11);
 }
 .glass-card {
-  border-color: rgba(218, 174, 82, .22);
+  /* Ordinary cards use the exact same tokens as public site and tools. */
+  background: var(--vvd-card-bg);
+  border-color: var(--vvd-card-border);
+  border-radius: var(--vvd-card-radius);
+  box-shadow: var(--vvd-card-shadow);
 }
 .glass-card-glow {
   border-color: rgba(246, 196, 83, .35);
