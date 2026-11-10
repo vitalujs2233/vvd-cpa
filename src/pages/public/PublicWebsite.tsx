@@ -250,7 +250,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
     if(!catalogView||categoryId||accountView)window.history.pushState(null,'',getSiteUrl());
     setCatalogView(true);setArticlesView(false);setPolicyPage(null);setArticleSlug('');setCategoryId('');setAccountView(false);setQuery('');setMobileMenu(false);
     viewport.current?.scrollTo({top:0,behavior:'auto'});
-  },[catalogView,articlesView,categoryId,accountView]);
+  },[catalogView,articlesView,categoryId,accountView,policyPage]);
   const openArticles=useCallback((slug='')=>{
     window.history.pushState(null,'',articleUrl(slug));
     setArticlesView(true);setArticleSlug(slug);setPolicyPage(null);setCatalogView(false);setCategoryId('');setAccountView(false);setMobileMenu(false);
@@ -279,7 +279,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
     if(catalogView||articlesView||categoryId||accountView||policyPage)window.history.pushState(null,'',BASE_URL);
     setCatalogView(false);setArticlesView(false);setPolicyPage(null);setArticleSlug('');setCategoryId('');setAccountView(false);setQuery('');setMobileMenu(false);
     viewport.current?.scrollTo({top:0,behavior:'auto'});
-  },[catalogView,categoryId,accountView]);
+  },[catalogView,articlesView,categoryId,accountView,policyPage]);
   const openPolicy=(page:PolicyPage)=>{
     if(policyPage!==page)window.history.pushState(null,'',policyUrl(page));
     setPolicyPage(page);setCategoryId('');setCatalogView(false);setArticlesView(false);
