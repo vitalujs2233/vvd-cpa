@@ -2,25 +2,28 @@ import React,{useEffect,useMemo,useState} from 'react';
 import {ArrowLeft,BookOpen,CheckCircle2,ExternalLink,FileClock,RefreshCw,Save,ShieldCheck,Sparkles,Trash2} from 'lucide-react';
 import {apiRequest} from '@/shared/lib/api';
 
-type Kind='article'|'service';
-type Settings={enabled:boolean;version:number;last_attempt:string|null;last_success:string|null;last_kind:Kind;last_error:string};
+type Kind='article'|'service'|'category';
+type Settings={enabled:boolean;version:number;last_attempt:string|null;last_success:string|null;last_kind:Kind;last_error:string;article_category_id:string;suggest_categories:boolean};
 type ArticleBlock={type:'heading'|'paragraph'|'quote';text:string;url:string;alt:string};
-type ArticleDraft={title:string;excerpt:string;seo_title:string;seo_description:string;tags:string[];blocks:ArticleBlock[];image_urls:string[];source_service_id:string};
+type ArticleDraft={title:string;excerpt:string;seo_title:string;seo_description:string;tags:string[];blocks:ArticleBlock[];image_urls:string[];source_service_id:string;category_id?:string};
+type CategoryDraft={name:string;description:string};
 type ServiceDraft={name:string;description:string;benefits:string;discount_text:string;promo_code:string;website_url:string;image_url:string;source_name:string};
-type Draft={id:string;kind:Kind;source_service_id:string|null;payload:ArticleDraft|ServiceDraft;status:'pending'|'applied';created_at:string;updated_at:string};
-type Data={settings:Settings;drafts:Draft[];services:{id:string;name:string;category_id:string}[]};
+type Draft={id:string;kind:Kind;source_service_id:string|null;payload:ArticleDraft|ServiceDraft|CategoryDraft;status:'pending'|'applied';created_at:string;updated_at:string};
+type Data={settings:Settings;drafts:Draft[];services:{id:string;name:string;category_id:string}[];categories:{id:string;name:string;active:boolean;show_on_web:boolean;show_in_mini_app:boolean}[]};
 type ServiceEdit={name:string;description:string;benefits:string;discount_text:string;website_url:string;promo_code:string;show_on_web:boolean;show_in_mini_app:boolean};
 
 const api={
  load:()=>apiRequest<Data>('/ai-editor/admin'),
- toggle:(enabled:boolean,version:number)=>apiRequest<{enabled:boolean;version:number}>('/ai-editor/admin',{
-   method:'PUT',body:JSON.stringify({enabled,version})
+ settings:(settings:Settings)=>apiRequest<{enabled:boolean;version:number}>('/ai-editor/admin',{
+   method:'PUT',body:JSON.stringify({enabled:settings.enabled,version:settings.version,
+     article_category_id:settings.article_category_id,suggest_categories:settings.suggest_categories})
  }),
- run:(kind:Kind,source_service_id:string)=>apiRequest<{id:string;kind:Kind}>('/ai-editor/admin/run',{
-   method:'POST',body:JSON.stringify({kind,source_service_id})
+ run:(kind:Kind,source_service_id:string,category_id:string)=>apiRequest<{id:string;kind:Kind}>('/ai-editor/admin/run',{
+   method:'POST',body:JSON.stringify({kind,source_service_id,category_id})
  }),
  discard:(id:string)=>apiRequest<{success:boolean}>('/ai-editor/admin/drafts/'+encodeURIComponent(id)+'/discard',{method:'POST'}),
  applyArticle:(id:string)=>apiRequest<{success:boolean;slug:string}>('/ai-editor/admin/drafts/'+encodeURIComponent(id)+'/article',{method:'POST'}),
+ approveCategory:(id:string)=>apiRequest<{success:boolean;category_id:string}>('/ai-editor/admin/drafts/'+encodeURIComponent(id)+'/category',{method:'POST'}),
  publishService:(id:string,data:ServiceEdit)=>apiRequest<{success:boolean;service_id:string}>('/ai-editor/admin/drafts/'+encodeURIComponent(id)+'/publish-service',{
    method:'POST',body:JSON.stringify(data)
  })
@@ -52,6 +55,7 @@ export const AIEditorAdmin:React.FC<{
   const [notice,setNotice]=useState('');
   const [kind,setKind]=useState<Kind>('article');
   const [source,setSource]=useState('');
+  const [categoryId,setCategoryId]=useState('');
   const [editing,setEditing]=useState<string|null>(null);
   const [serviceEdit,setServiceEdit]=useState<ServiceEdit|null>(null);
   useEffect(()=>{
@@ -69,10 +73,17 @@ export const AIEditorAdmin:React.FC<{
     try{await job();setNotice(message);update();}
     catch(e){setError(errText(e));}finally{setBusy(false);}
   };
-  const toggle=()=>{if(!data)return;void action(()=>api.toggle(!data.settings.enabled,data.settings.version),
-    !data.settings.enabled?'Авторедактор включён: черновики создаются автоматически, публикации по-прежнему вручную.':'Авторедактор выключен. Уже созданные черновики сохранены.')};
-  const startRun=()=>{void action(()=>api.run(kind,source),
-    'Gemini подготовил черновик. Проверьте его ниже перед публикацией.')};
+  const changeSettings=(changes:Partial<Settings>,message:string)=>{
+    if(!data)return;
+    void action(()=>api.settings({...data.settings,...changes}),message);
+  };
+  const toggle=()=>{
+    if(!data)return;
+    const enabled=!data.settings.enabled;
+    changeSettings({enabled},enabled?'Авторедактор включён. Черновики готовятся без публикации.':'Авторедактор выключен. Черновики сохранены.');
+  };
+  const startRun=()=>{void action(()=>api.run(kind,kind==='category'?'':source,kind==='article'?categoryId:''),
+    'Gemini подготовил предложение. Проверь его ниже.')};
   const openService=(draft:Draft)=>{
     if(editing===draft.id){setEditing(null);return;}
     setEditing(draft.id);setServiceEdit(forService(draft.payload as ServiceDraft));
@@ -111,6 +122,19 @@ export const AIEditorAdmin:React.FC<{
             {data.settings.enabled?'Вкл.':'Выкл.'}
           </label>
         </div>
+        <label className="block text-xs text-textSecondary">Категория автоматических статей
+          <select className={input} disabled={busy} value={data.settings.article_category_id||''}
+            onChange={e=>changeSettings({article_category_id:e.target.value},'Категория для авторедактора сохранена.')}>
+            <option value="">Автоматически выбирать тему (AI-черновики)</option>
+            {data.categories.map(c=><option key={c.id} value={c.id}>{c.name}{!c.active?' (скрыта)':''}</option>)}
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-xs text-white">
+          <input type="checkbox" disabled={busy} checked={data.settings.suggest_categories}
+            onChange={e=>changeSettings({suggest_categories:e.target.checked},'Предложения категорий настроены.')}/>
+          Предлагать новые категории автоматически
+        </label>
+        <p className="text-xs text-textSecondary">Новые категории — только предложения. Ты проверяешь их, а затем включаешь в обычном редакторе.</p>
         <p className="text-xs text-textSecondary">Последний успешный запуск: {formatDate(data.settings.last_success)}</p>
         {data.settings.last_error&&<p className="text-xs text-amber-200">Последняя попытка: {data.settings.last_error}</p>}
         <p className="text-xs text-textSecondary">Бесплатные лимиты Gemini общие с AI-моделями. При превышении лимита генерация пропускается, списаний внутри VVD CPA нет.</p>
@@ -120,13 +144,21 @@ export const AIEditorAdmin:React.FC<{
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={()=>setKind('article')} className={'rounded-lg border px-3 py-2 text-xs '+(kind==='article'?'border-accentGold/60 text-accentBrightGold':'border-white/15 text-textSecondary')}>Статья / кейс</button>
           <button type="button" onClick={()=>setKind('service')} className={'rounded-lg border px-3 py-2 text-xs '+(kind==='service'?'border-accentGold/60 text-accentBrightGold':'border-white/15 text-textSecondary')}>Каталог сервисов</button>
+          <button type="button" onClick={()=>setKind('category')} className={'rounded-lg border px-3 py-2 text-xs '+(kind==='category'?'border-accentGold/60 text-accentBrightGold':'border-white/15 text-textSecondary')}>Новая категория</button>
         </div>
-        <label className="block text-xs text-textSecondary">Исходный сервис из каталога
+        {kind==='article'&&<label className="block text-xs text-textSecondary">Для какой категории создать статью?
+          <select className={input} value={categoryId} onChange={e=>setCategoryId(e.target.value)}>
+            <option value="">Без выбора — AI-черновики</option>
+            {data.categories.map(c=><option key={c.id} value={c.id}>{c.name}{!c.active?' (скрыта)':''}</option>)}
+          </select>
+        </label>}
+        {kind!=='category'&&<label className="block text-xs text-textSecondary">Исходный сервис из каталога
           <select className={input} value={source} onChange={e=>setSource(e.target.value)}>
             <option value="">Автоматически выбрать</option>
             {data.services.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-        </label>
+        </label>}
+        {kind==='category'&&<p className="text-xs text-textSecondary">Gemini предложит название и описание категории. Ты решаешь, добавлять ли её.</p>}
         {kind==='service'&&<p className="text-xs leading-5 text-textSecondary">Gemini улучшит описание выбранного существующего сервиса. Скидка переносится только из каталога, ссылки и промокоды не генерируются.</p>}
         <button type="button" disabled={busy||(kind==='service'&&!data.services.length)} onClick={startRun}
           className="flex w-full items-center justify-center gap-2 rounded-app-xs border border-accentGold/35 bg-accentGold/10 px-4 py-3 text-sm font-bold text-accentBrightGold disabled:opacity-50">
@@ -141,16 +173,27 @@ export const AIEditorAdmin:React.FC<{
       {pending.map(d=><section key={d.id} className="rounded-card border border-accentGold/20 bg-bgCard p-4 space-y-3">
         <div className="flex justify-between items-start gap-3">
           <div className="min-w-0">
-            <p className="mb-1 text-[11px] text-accentBrightGold">{d.kind==='article'?'СТАТЬЯ · ЧЕРНОВИК':'СЕРВИС · ЧЕРНОВИК'}</p>
-            <h3 className="font-bold text-white">{d.kind==='service'?(d.payload as ServiceDraft).name:(d.payload as ArticleDraft).title}</h3>
+            <p className="mb-1 text-[11px] text-accentBrightGold">{d.kind==='article'?'СТАТЬЯ · ЧЕРНОВИК':d.kind==='category'?'КАТЕГОРИЯ · ПРЕДЛОЖЕНИЕ':'СЕРВИС · ЧЕРНОВИК'}</p>
+            <h3 className="font-bold text-white">{d.kind==='service'?(d.payload as ServiceDraft).name:d.kind==='category'?(d.payload as CategoryDraft).name:(d.payload as ArticleDraft).title}</h3>
             <p className="mt-1 text-xs text-textSecondary">{formatDate(d.created_at)}</p>
           </div>
           <FileClock size={20} className="shrink-0 text-textSecondary"/>
         </div>
-        {d.kind==='article'?(()=>{
+        {d.kind==='category'?(()=>{
+          const p=d.payload as CategoryDraft;
+          return <>
+            <p className="text-sm text-textSecondary">{p.description}</p>
+            <button type="button" disabled={busy} className="flex w-full justify-center gap-2 rounded-lg border border-accentGold/30 px-3 py-2.5 text-sm text-accentBrightGold disabled:opacity-50"
+              onClick={()=>void action(()=>api.approveCategory(d.id),'Категория сохранена скрытой. Добавь фото и включи её в редакторе статей.')}>
+              <CheckCircle2 size={17}/> Добавить категорию в редактор
+            </button>
+          </>;
+        })():d.kind==='article'?(()=>{
           const p=d.payload as ArticleDraft;
           return <>
             {p.image_urls?.[0]&&<img src={p.image_urls[0]} alt="" loading="lazy" className="aspect-video w-full rounded-lg object-cover"/>}
+            <p className="text-xs text-accentBrightGold">Категория: {data.categories.find(c=>c.id===p.category_id)?.name||'AI-черновики'}</p>
+            <p className="text-xs text-textSecondary">В редактор статья попадёт неопубликованной. При публикации доступны сайт и Mini App.</p>
             <p className="text-xs leading-5 text-textSecondary">{p.excerpt}</p>
             <details className="text-sm text-textSecondary">
               <summary className="cursor-pointer text-accentBrightGold">Прочитать подготовленный текст</summary>
