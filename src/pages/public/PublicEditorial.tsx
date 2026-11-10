@@ -1,5 +1,5 @@
 import React,{useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
-import {ArrowLeft,ArrowRight,BookOpen,CalendarDays,Search,Tag,TrendingUp,Wrench,Link2,Megaphone,BarChart3,Palette,Send,Bot,ClipboardList} from 'lucide-react';
+import {ArrowLeft,ArrowRight,BookOpen,CalendarDays,Eye,Search,Tag,TrendingUp,Wrench,Link2,Megaphone,BarChart3,Palette,Send,Bot,ClipboardList} from 'lucide-react';
 import {editorialApi,bootstrappedEditorial,type Article,type ArticleSummary,type PublicArticles} from './editorialApi';
 import {API_BASE_URL} from '@/shared/lib/api';
 import {UnifiedCategoryCard} from '@/shared/ui/UnifiedCategoryCard';
@@ -47,6 +47,18 @@ const rememberArticles=(surface:Surface,data:PublicArticles)=>{
   try{sessionStorage.setItem('vvd_public_articles_'+surface+'_v2',JSON.stringify(value));}catch{}
 };
 const detailMemory=new Map<string,Article>();
+const anonymousViewSession=():string=>{
+  const key='vvd_article_view_session_v1';
+  try{
+    const stored=sessionStorage.getItem(key);
+    if(stored&&/^[0-9a-f-]{36}$/i.test(stored))return stored;
+    const created=crypto.randomUUID();
+    sessionStorage.setItem(key,created);
+    return created;
+  }catch{
+    return crypto.randomUUID();
+  }
+};
 const readCachedDetail=(slug:string,surface:Surface):Article|null=>
   detailMemory.get(surface+':'+slug)||(surface==='web'?bootstrappedEditorial()?.details?.[slug]:null)||null;
 type Props={slug:string;surface?:Surface;onArticle:(slug:string)=>void;onBack:()=>void;onMetadata:(title:string,description:string,cover?:string,date?:string)=>void};
@@ -59,6 +71,7 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
   const [loading,setLoading]=useState(()=>slug?!readCachedDetail(slug,surface):!readCachedArticles(surface));
   const [error,setError]=useState('');
   const [retry,setRetry]=useState(0);
+  const [liveViews,setLiveViews]=useState<Record<string,number>>({});
   useEffect(()=>{
     let mounted=true;
     let liveAnswered=false;
@@ -108,6 +121,24 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
     }
     return()=>{mounted=false};
   },[slug,surface,retry,onMetadata]);
+  // Recording happens once when the reader opens an article. Reaching the
+  // bottom never adds another view. The server deduplicates repeat opens
+  // from this anonymous session for thirty minutes.
+  useEffect(()=>{
+    if(!slug)return;
+    let active=true;
+    void editorialApi.recordView(slug,surface,anonymousViewSession()).then(result=>{
+      if(!active)return;
+      setLiveViews(prev=>({...prev,[slug]:result.views}));
+      const key=surface+':'+slug;
+      const cached=detailMemory.get(key);
+      if(cached)detailMemory.set(key,{...cached,view_count:result.views});
+      setItem(current=>current?.slug===slug?{...current,view_count:result.views}:current);
+      setData(previous=>({...previous,articles:previous.articles.map(a=>
+        a.slug===slug?{...a,view_count:result.views}:a)}));
+    }).catch(()=>{/* View analytics must never block reading an article. */});
+    return()=>{active=false};
+  },[slug,surface]);
   const searchTerms=useMemo(()=>searchWords(query),[query]);
   const categories=useMemo(()=>new Map(data.categories.map(c=>[c.id,c])),[data.categories]);
   const filteredCategories=useMemo(()=>data.categories.filter(c=>
@@ -144,7 +175,11 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
         <div className="vvd-web-eyebrow">VVD CPA / СТАТЬИ И КЕЙСЫ</div>
         <h1>{item.title}</h1>
         <p className="vvd-article-lead">{item.excerpt}</p>
-        <div className="vvd-article-meta"><CalendarDays size={16}/> {formatDate(item.published_at)} <BookOpen size={16}/> VVD CPA</div>
+        <div className="vvd-article-meta">
+          <span><CalendarDays size={16}/> {formatDate(item.published_at)}</span>
+          <span><BookOpen size={16}/> VVD CPA</span>
+          <span aria-label={'Просмотров: '+(liveViews[slug]??item.view_count??0)}><Eye size={16}/> {(liveViews[slug]??item.view_count??0).toLocaleString('ru-RU')}</span>
+        </div>
         {item.cover_url&&safeImage(item.cover_url)&&<img className="vvd-article-cover" src={item.cover_url} alt={item.title}/>}
         <div className="vvd-article-body">
           {item.blocks.map((block,index)=>{
@@ -183,7 +218,7 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
           {selectedCategory?.description&&<p>{selectedCategory.description}</p>}
         </div>}
         {error?<div className="vvd-web-notice" role="alert">{error} <button type="button" className="vvd-web-outline-button" onClick={()=>setRetry(v=>v+1)}>Повторить</button></div>:
-        results.length?<div className="vvd-article-grid">{results.map((a,i)=><ArticleCard key={a.slug} priority={i<2} article={a} categoryName={categories.get(a.category_id)?.name||''} categoryCover={categories.get(a.category_id)?.image_url||''} onClick={()=>onArticle(a.slug)}/>)}</div>:
+        results.length?<div className="vvd-article-grid">{results.map((a,i)=><ArticleCard key={a.slug} priority={i<2} article={a} categoryName={categories.get(a.category_id)?.name||''} categoryCover={categories.get(a.category_id)?.image_url||''} onClick={()=>onArticle(a.slug)} viewCount={liveViews[a.slug]??a.view_count??0}/>)}</div>:
         loading?<div className="vvd-article-grid" aria-label="Загружаем статьи" aria-busy="true">
           {[0,1,2].map(i=><div className="vvd-article-card vvd-article-loading-card" key={i} aria-hidden="true">
             <div className="vvd-article-loading-image"/><div className="vvd-article-card-copy"><div className="vvd-article-loading-line"/><div className="vvd-article-loading-line short"/></div>
@@ -195,13 +230,13 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
   </main>;
 };
 
-const ArticleCard:React.FC<{article:ArticleSummary;categoryName:string;categoryCover:string;priority:boolean;onClick:()=>void}>=({article:a,categoryName,categoryCover,priority,onClick})=>
+const ArticleCard:React.FC<{article:ArticleSummary;categoryName:string;categoryCover:string;priority:boolean;onClick:()=>void;viewCount:number}>=({article:a,categoryName,categoryCover,priority,onClick,viewCount})=>
   <button type="button" className="vvd-article-card" onClick={onClick}>
     {(a.cover_url&&safeImage(a.cover_url)?a.cover_url:(categoryCover&&safeImage(categoryCover)?categoryCover:""))?<img src={a.cover_url&&safeImage(a.cover_url)?a.cover_url:categoryCover} alt="" loading={priority?"eager":"lazy"} fetchPriority={priority?"high":"auto"} decoding="async"/>:<div className="vvd-article-placeholder"><BookOpen size={36}/></div>}
     <div className="vvd-article-card-copy">
       <span className="vvd-web-eyebrow">{categoryName}</span>
       <h2>{a.title}</h2>
       <p>{a.excerpt}</p>
-      <div className="vvd-article-card-bottom"><small>{formatDate(a.published_at)}</small><span>Читать <ArrowRight size={16}/></span></div>
+      <div className="vvd-article-card-bottom"><small>{formatDate(a.published_at)}</small><span className="vvd-article-card-views" aria-label={'Просмотров: '+viewCount}><Eye size={14}/> {viewCount.toLocaleString('ru-RU')}</span><span>Читать <ArrowRight size={16}/></span></div>
     </div>
   </button>;
