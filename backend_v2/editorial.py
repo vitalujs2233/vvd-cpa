@@ -1,10 +1,12 @@
 """Public articles/cases and a protected editorial dashboard. Financial routes are untouched."""
 import json
+import hashlib
 import threading
 import re
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Optional, Literal
+from uuid import UUID
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, File, Header, HTTPException, UploadFile
@@ -77,6 +79,22 @@ def _ensure_schema_locked():
                 image_id VARCHAR(64) PRIMARY KEY,
                 image_data BYTEA NOT NULL,
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            )
+        """))
+        # View analytics lives independently from editor-managed JSON content,
+        # so saving an article never resets its counter.
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS public.vvd_editorial_view_counts (
+                slug VARCHAR(100) PRIMARY KEY,
+                views BIGINT NOT NULL DEFAULT 0
+            )
+        """))
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS public.vvd_editorial_view_sessions (
+                slug VARCHAR(100) NOT NULL,
+                anonymous_hash CHAR(64) NOT NULL,
+                counted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                PRIMARY KEY (slug, anonymous_hash)
             )
         """))
 
@@ -333,6 +351,60 @@ def load():
     return {"version": row["version"], **row["content"]}
 
 
+def _views_for(slugs: list[str]) -> dict[str,int]:
+    if not slugs:
+        return {}
+    ensure_schema()
+    with engine.connect() as db:
+        rows=db.execute(text("""
+            SELECT slug,views FROM public.vvd_editorial_view_counts
+            WHERE slug = ANY(:slugs)
+        """), {"slugs":slugs}).mappings().all()
+    return {row["slug"]:int(row["views"]) for row in rows}
+
+
+class EditorialView(BaseModel):
+    # An ephemeral anonymous session nonce, not Telegram identity or an IP.
+    session_id: UUID
+
+
+@router.post("/{slug}/view")
+def count_view(slug: str, payload: EditorialView,
+               surface: Literal["web","mini"]="web"):
+    if not re.fullmatch(SLUG,slug) or len(slug)>100:
+        raise HTTPException(404,"Статья не найдена")
+    content=load()
+    valid_categories={c["id"] for c in content["categories"]
+                      if c.get("active",True) and visible_on_surface(c,surface)}
+    if not any(a["slug"]==slug and a.get("published")
+               and a["category_id"] in valid_categories
+               and visible_on_surface(a,surface) for a in content["articles"]):
+        raise HTTPException(404,"Статья не найдена")
+    anonymous_hash=hashlib.sha256((slug+":"+str(payload.session_id)).encode()).hexdigest()
+    with engine.begin() as db:
+        # One view per anonymous session and article in a 30-minute window.
+        # Atomic upsert avoids race-condition double counting.
+        updated=db.execute(text("""
+            INSERT INTO public.vvd_editorial_view_sessions(slug,anonymous_hash,counted_at)
+            VALUES (:slug,:token,now())
+            ON CONFLICT (slug,anonymous_hash) DO UPDATE
+            SET counted_at=EXCLUDED.counted_at
+            WHERE vvd_editorial_view_sessions.counted_at < now()-interval '30 minutes'
+            RETURNING slug
+        """),{"slug":slug,"token":anonymous_hash}).scalar_one_or_none()
+        if updated:
+            db.execute(text("""
+                INSERT INTO public.vvd_editorial_view_counts(slug,views)
+                VALUES(:slug,1)
+                ON CONFLICT(slug) DO UPDATE SET views=vvd_editorial_view_counts.views+1
+            """),{"slug":slug})
+        # No IP addresses, fingerprints, Telegram IDs or reading progress stored.
+        views=db.execute(text("""
+            SELECT views FROM public.vvd_editorial_view_counts WHERE slug=:slug
+        """),{"slug":slug}).scalar_one_or_none()
+    return {"views":int(views or 0)}
+
+
 def visible_on_surface(entry: dict, surface: Literal["web", "mini"]) -> bool:
     # Legacy entries created before the surface selector remain visible on both.
     key = "show_on_web" if surface == "web" else "show_in_mini_app"
@@ -350,7 +422,9 @@ def public_articles(surface: Literal["web", "mini"] = "web"):
                        if a.get("published") and a["category_id"] in valid_ids
                        and visible_on_surface(a, surface)),
                       key=lambda a: a.get("published_at", ""), reverse=True)
-    summaries = [{k:v for k,v in a.items() if k != "blocks"} for a in articles]
+    counts=_views_for([a["slug"] for a in articles])
+    summaries = [{**{k:v for k,v in a.items() if k != "blocks"},
+                  "view_count":counts.get(a["slug"],0)} for a in articles]
     return {"categories": categories, "articles": summaries}
 
 
@@ -371,7 +445,11 @@ def image(image_id: str):
 @router.get("/admin")
 def admin_articles(x_telegram_init_data: Optional[str]=Header(None)):
     admin_auth(x_telegram_init_data)
-    return load()
+    content=load()
+    counts=_views_for([a["slug"] for a in content["articles"]])
+    content["articles"]=[{**a,"view_count":counts.get(a["slug"],0)}
+                         for a in content["articles"]]
+    return content
 
 
 @router.put("/admin")
@@ -420,4 +498,4 @@ def public_article(slug:str, surface: Literal["web", "mini"] = "web"):
                   and a["category_id"] in visible and visible_on_surface(a, surface)),None)
     if article is None:
         raise HTTPException(404,"Статья не найдена")
-    return {"article":article}
+    return {"article":{**article,"view_count":_views_for([slug]).get(slug,0)}}
