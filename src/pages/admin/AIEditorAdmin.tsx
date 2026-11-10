@@ -158,7 +158,7 @@ export const AIEditorAdmin:React.FC<{
             {data.services.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </label>}
-        {kind==='category'&&<p className="text-xs text-textSecondary">Gemini предложит название и описание категории. Ты решаешь, добавлять ли её.</p>
+        {kind==='category'&&<p className="text-xs text-textSecondary">Gemini предложит название и описание категории. Ты решаешь, добавлять ли её.</p>}
         {kind==='service'&&<p className="text-xs leading-5 text-textSecondary">Gemini улучшит описание выбранного существующего сервиса. Скидка переносится только из каталога, ссылки и промокоды не генерируются.</p>}
         <button type="button" disabled={busy||(kind==='service'&&!data.services.length)} onClick={startRun}
           className="flex w-full items-center justify-center gap-2 rounded-app-xs border border-accentGold/35 bg-accentGold/10 px-4 py-3 text-sm font-bold text-accentBrightGold disabled:opacity-50">
