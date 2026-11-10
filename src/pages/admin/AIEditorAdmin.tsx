@@ -142,7 +142,7 @@ export const AIEditorAdmin:React.FC<{
         <div className="flex justify-between items-start gap-3">
           <div className="min-w-0">
             <p className="mb-1 text-[11px] text-accentBrightGold">{d.kind==='article'?'СТАТЬЯ · ЧЕРНОВИК':'СЕРВИС · ЧЕРНОВИК'}</p>
-            <h3 className="font-bold text-white">{d.payload.name||d.payload.title}</h3>
+            <h3 className="font-bold text-white">{d.kind==='service'?(d.payload as ServiceDraft).name:(d.payload as ArticleDraft).title}</h3>
             <p className="mt-1 text-xs text-textSecondary">{formatDate(d.created_at)}</p>
           </div>
           <FileClock size={20} className="shrink-0 text-textSecondary"/>
