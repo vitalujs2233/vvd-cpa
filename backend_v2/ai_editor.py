@@ -346,7 +346,7 @@ async def _generate(kind:str,source_id:str="",category_id:str=""):
             source = next((s for s in sources if s["id"] not in pending),None)
         if not source:
             raise HTTPException(422,"В каталоге нет сервисов без ожидающего AI-черновика")
-    if kind=="article" and not source and sources:
+    if kind=="article" and not category and not source and sources:
         source = sources[datetime.now(timezone.utc).timetuple().tm_yday % len(sources)]
     prompt = _prompt(kind,source,catalog,category,_editorial_categories() if kind=="category" else None)
     generated,usage = await completion(prompt,max_tokens=2800,structured=True)
