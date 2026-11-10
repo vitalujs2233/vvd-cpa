@@ -202,6 +202,7 @@ class RunInput(BaseModel):
     kind: Literal["article","service","category"]
     source_service_id: str = Field(default="", max_length=64)
     category_id: str = Field(default="", max_length=64)
+    topic: str = Field(default="", max_length=300)
 
 
 def _claim(*, automated:bool):
@@ -286,7 +287,7 @@ def _normalize(raw,kind,source=None):
             "tags":tags,"blocks":blocks}
 
 
-def _prompt(kind,source,catalog,category=None,existing_categories=None):
+def _prompt(kind,source,catalog,category=None,existing_categories=None,topic=""):
     categories={c["id"]:c["name"] for c in catalog["categories"]}
     if kind=="category":
         factual={"existing_categories":[{"name":c["name"],"description":c.get("description","")}
@@ -311,6 +312,8 @@ def _prompt(kind,source,catalog,category=None,existing_categories=None):
         factual={"available_services":[{"name":s.get("name"),"description":s.get("description"),
                                         "benefits":s.get("benefits")}
                     for s in catalog["services"][:12]]}
+        if topic:
+            factual["requested_topic"]=topic
         if category:
             factual["target_category"]={"name":category["name"],
                                         "description":category.get("description","")}
@@ -320,7 +323,9 @@ def _prompt(kind,source,catalog,category=None,existing_categories=None):
                                        "benefits":source.get("benefits")}
         task=("Write a useful ORIGINAL Russian educational article strictly for the "
               "specified target_category if supplied. Make title, structure and all "
-              "blocks fit that category. If no category is selected, use safe CPA "
+              "blocks fit that category. When requested_topic is supplied, focus on "
+              "it only within the selected category and confirmed source facts. "
+              "If no category is selected, use safe CPA "
               "analytics, marketing tools, or the actual supplied service. "
               "Use 5-10 well developed "
               "blocks: heading, paragraph or quote; at least 1600 characters of content. "
@@ -340,7 +345,7 @@ def _prompt(kind,source,catalog,category=None,existing_categories=None):
     ]
 
 
-async def _generate(kind:str,source_id:str="",category_id:str=""):
+async def _generate(kind:str,source_id:str="",category_id:str="",topic:str=""):
     from editorial import ensure_schema as ensure_editorial
     catalog = _catalog()
     category = _selected_category(category_id) if kind=="article" else None
@@ -360,7 +365,8 @@ async def _generate(kind:str,source_id:str="",category_id:str=""):
             raise HTTPException(422,"В каталоге нет сервисов без ожидающего AI-черновика")
     if kind=="article" and not category and not source and sources:
         source = sources[datetime.now(timezone.utc).timetuple().tm_yday % len(sources)]
-    prompt = _prompt(kind,source,catalog,category,_editorial_categories() if kind=="category" else None)
+    prompt = _prompt(kind,source,catalog,category,
+                     _editorial_categories() if kind=="category" else None,topic)
     generated,usage = await completion(prompt,max_tokens=2800,structured=True)
     payload = _normalize(generated,kind,source)
     if kind=="article":
@@ -384,13 +390,13 @@ async def _generate(kind:str,source_id:str="",category_id:str=""):
     return {"id":ident,"kind":kind,"usage":usage}
 
 
-async def _run(kind:str,source_id:str="",category_id:str="",automated:bool=False):
+async def _run(kind:str,source_id:str="",category_id:str="",topic:str="",automated:bool=False):
     if not _claim(automated=automated):
         return None
     success=False
     error=""
     try:
-        result=await _generate(kind,source_id,category_id)
+        result=await _generate(kind,source_id,category_id,topic)
         success=True
         return result
     except HTTPException as exc:
@@ -409,7 +415,11 @@ async def run_manually(payload:RunInput,x_telegram_init_data:Optional[str]=Heade
     admin_auth(x_telegram_init_data)
     if payload.kind!="article" and payload.category_id:
         raise HTTPException(422,"Категория указывается только для статьи")
-    return await _run(payload.kind,payload.source_service_id,payload.category_id)
+    if payload.kind!="article" and payload.topic.strip():
+        raise HTTPException(422,"Задание по теме доступно только для статей")
+    if payload.kind=="article" and not payload.category_id:
+        raise HTTPException(422,"Выберите категорию перед созданием статьи")
+    return await _run(payload.kind,payload.source_service_id,payload.category_id,payload.topic.strip())
 
 
 def _automatic_due_kind():
@@ -426,6 +436,19 @@ async def auto_tick():
             return
         kind=_automatic_due_kind()
         category_id=current["article_category_id"] if kind=="article" else ""
+        if kind=="article" and not category_id:
+            # Auto-pick a currently active editorial category with the fewest
+            # existing articles. Avoid the retired demo and AI-holding areas.
+            from editorial import load as load_editorial
+            editorial=await asyncio.to_thread(load_editorial)
+            candidates=[c for c in editorial["categories"]
+                        if c.get("active",True) and c["id"] not in ("ai-drafts","vvd-demo")]
+            if candidates:
+                counts={c["id"]:0 for c in candidates}
+                for article in editorial["articles"]:
+                    if article.get("category_id") in counts:
+                        counts[article["category_id"]]+=1
+                category_id=min(candidates,key=lambda c:(counts[c["id"]],c.get("sort_order",100)))["id"]
         if kind=="article" and current["suggest_categories"]:
             categories=_editorial_categories()
             if not categories:
