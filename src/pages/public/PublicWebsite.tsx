@@ -365,7 +365,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
         </main>
       ) : articlesView ? <PublicEditorial slug={articleSlug} onArticle={openArticles} onBack={()=>openArticles()} onMetadata={onArticleMetadata}/>
       : catalogView && !categoryId ? <main className="vvd-web-public-main">
-        <section className="vvd-web-section" id="catalog">
+        <section className="vvd-web-section vvd-web-catalog-section" id="catalog">
           <div className="vvd-web-section-heading">
             <div><span className="vvd-web-eyebrow">ИНСТРУМЕНТЫ ДЛЯ РАБОТЫ С ТРАФИКОМ</span><h2>Каталог сервисов</h2><p>Отдельный каталог полезных инструментов для арбитражников и вебмастеров: изучай категории, сравнивай предложения и переходи к нужному сервису. Каталог доступен без регистрации.</p></div>
             <div className="vvd-web-catalog-count">{loading?'Загрузка каталога':data.categories.length+' категорий'}</div>
