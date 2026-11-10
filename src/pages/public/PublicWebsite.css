@@ -540,7 +540,7 @@
 .vvd-article-filters button{border:1px solid rgba(210,171,86,.30);border-radius:28px;padding:10px 18px;background:#16130f;color:#e8dbbe;font-size:13px}
 .vvd-article-filters button.selected{background:#eecb78;color:#1a1309;font-weight:700}
 .vvd-article-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:21px}
-.vvd-article-card{display:flex;flex-direction:column;text-align:left;border:1px solid rgba(210,171,86,.25);border-radius:18px;overflow:hidden;background:linear-gradient(165deg,#211b13,#121110);color:#fff;min-width:0;transition:transform .2s,border-color .2s}
+.vvd-article-card{display:flex;flex-direction:column;text-align:left;border:1px solid var(--vvd-card-border);border-radius:var(--vvd-card-radius);overflow:hidden;background:var(--vvd-card-bg);box-shadow:var(--vvd-card-shadow);color:var(--vvd-card-title);min-width:0;transition:transform .2s,border-color .2s}
 .vvd-article-card:hover{transform:translateY(-3px);border-color:rgba(245,200,107,.7)}
 .vvd-article-card>img,.vvd-article-placeholder{height:190px;width:100%;object-fit:cover;background:#282014}
 .vvd-article-placeholder{display:grid;place-items:center;color:#c49a56}
@@ -599,3 +599,40 @@
 .vvd-editorial-category-card:focus-visible{outline:2px solid #f7d393;outline-offset:3px}
 @media(max-width:850px){.vvd-editorial-category-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){.vvd-editorial-category-grid{grid-template-columns:1fr 1fr;gap:10px}.vvd-editorial-category-card{min-height:145px;aspect-ratio:1.15}.vvd-editorial-category-overlay{padding:12px}.vvd-editorial-category-overlay strong{font-size:16px}.vvd-editorial-category-overlay small{font-size:11px}}
+
+
+/* Consistent VVD CPA card surfaces across the browser and Telegram Mini App.
+   The landing hero, ad banners, balance, primary CTA and layout remain distinct. */
+.vvd-web-portal .vvd-web-category-card,
+.vvd-web-portal .vvd-web-feature,
+.vvd-web-portal .vvd-web-service-card,
+.vvd-article-card{
+  background:var(--vvd-card-bg);
+  border-color:var(--vvd-card-border);
+  border-radius:var(--vvd-card-radius);
+  box-shadow:var(--vvd-card-shadow);
+}
+.vvd-web-portal .vvd-web-category-card p,
+.vvd-web-portal .vvd-web-feature p,
+.vvd-web-portal .vvd-web-service-card p,
+.vvd-article-card-copy p{color:var(--vvd-card-muted)}
+.vvd-web-portal .vvd-web-category-card h3,
+.vvd-web-portal .vvd-web-feature h3,
+.vvd-web-portal .vvd-web-service-card h3,
+.vvd-article-card-copy h2{color:var(--vvd-card-title)}
+.vvd-web-portal .vvd-web-category-icon,
+.vvd-web-portal .vvd-web-feature>span{
+  background:var(--vvd-card-icon-bg);
+  border-color:var(--vvd-card-icon-border);
+  color:var(--vvd-card-icon-text);
+}
+/* Preserve photo overlays while matching the ordinary category-card outline. */
+.vvd-editorial-category-card{
+  border-color:var(--vvd-card-border);
+  border-radius:var(--vvd-card-radius);
+}
+.vvd-miniapp-editorial .vvd-web-articles{padding:12px 0 16px;min-height:0}
+.vvd-miniapp-editorial .vvd-article-grid{grid-template-columns:1fr;gap:12px}
+.vvd-miniapp-editorial .vvd-article-card-copy{padding:16px}
+.vvd-miniapp-editorial .vvd-articles-title{font-size:28px}
+.vvd-miniapp-editorial .vvd-article-detail h1{font-size:clamp(26px,7vw,32px)}
