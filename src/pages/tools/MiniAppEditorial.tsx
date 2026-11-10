@@ -31,6 +31,6 @@ export const MiniAppEditorial:React.FC=()=>{
         </div>
       </div>
     </div>
-    <PublicEditorial slug={slug} onArticle={openArticle} onBack={openList} onMetadata={noopMetadata}/>
+    <PublicEditorial slug={slug} surface="mini" onArticle={openArticle} onBack={openList} onMetadata={noopMetadata}/>
   </main>;
 };
