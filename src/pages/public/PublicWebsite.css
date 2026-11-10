@@ -760,3 +760,42 @@
     margin-top:auto;
   }
 }
+
+
+/* Four clear navigation destinations; keep icons consistent with VVD gold UI. */
+.vvd-web-nav button{display:inline-flex;align-items:center;gap:8px}
+.vvd-web-nav-icon{display:inline-grid;place-items:center;flex-shrink:0;width:23px;height:23px;color:#e7bc67}
+.vvd-web-nav-icon svg{width:17px;height:17px;stroke-width:1.85}
+@media(max-width:1000px) and (min-width:721px){
+  .vvd-web-nav{gap:10px}
+  .vvd-web-nav button{gap:5px;font-size:12px}
+  .vvd-web-nav-icon{width:19px;height:19px}
+  .vvd-web-nav-icon svg{width:15px;height:15px}
+}
+@media(max-width:720px){
+  .vvd-web-nav.is-open{gap:7px}
+  .vvd-web-nav button{
+    width:100%;
+    display:flex;
+    align-items:center;
+    gap:13px;
+    border-radius:11px;
+    padding:10px 12px;
+    color:#eee1cd;
+    font-size:14px;
+    font-weight:650;
+    transition:background .2s,color .2s;
+  }
+  .vvd-web-nav button:hover,.vvd-web-nav button:focus-visible{
+    background:rgba(210,166,78,.10);
+    color:#f6d28d;
+  }
+  .vvd-web-nav-icon{
+    width:37px;
+    height:37px;
+    border:1px solid rgba(229,184,95,.27);
+    border-radius:10px;
+    background:linear-gradient(145deg,rgba(205,151,53,.14),rgba(14,11,7,.55));
+  }
+  .vvd-web-nav-icon svg{width:18px;height:18px}
+}
