@@ -201,6 +201,8 @@ class EditorialContent(BaseModel):
             raise ValueError("Повторяющийся ID категории или адрес статьи")
         if any(a.category_id not in category_ids for a in self.articles):
             raise ValueError("Каждая статья должна иметь существующую категорию")
+        if any(a.published and not (a.show_on_web or a.show_in_mini_app) for a in self.articles):
+            raise ValueError("Для опубликованной статьи выберите сайт или Mini App")
         return self
 
 
