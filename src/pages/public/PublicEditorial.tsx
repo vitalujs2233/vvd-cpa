@@ -1,5 +1,5 @@
 import React,{useEffect,useMemo,useState} from 'react';
-import {ArrowLeft,ArrowRight,BookOpen,CalendarDays,Search,Tag} from 'lucide-react';
+import {ArrowLeft,ArrowRight,BookOpen,CalendarDays,Search,Tag,TrendingUp,Wrench,Link2,Megaphone,BarChart3,Palette,Send,Bot,ClipboardList} from 'lucide-react';
 import {editorialApi,bootstrappedEditorial,type Article,type ArticleSummary,type PublicArticles} from './editorialApi';
 import {API_BASE_URL} from '@/shared/lib/api';
 
@@ -8,6 +8,12 @@ const formatDate=(date:string)=>date?new Date(date).toLocaleDateString('ru-RU',{
 // Keep the last successful response available when navigating back from an article.
 const CACHE_TTL=5*60*1000;
 type Surface='web'|'mini';
+const categoryIcons:Record<string,React.ElementType>={
+  'ubt-traffic':TrendingUp,'services-tools':Wrench,'cpa-partners':Link2,
+  'paid-traffic':Megaphone,'seo-traffic':Search,'analytics':BarChart3,
+  'creatives-content':Palette,'telegram-traffic':Send,
+  'ai-automation':Bot,'cases-reviews':ClipboardList
+};
 const articleCache=new Map<Surface,{data:PublicArticles;at:number}>();
 const readCachedArticles=(surface:Surface):PublicArticles|null=>{
   const recent=articleCache.get(surface);
@@ -96,6 +102,10 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
   const results=useMemo(()=>data.articles.filter(a=>(category==='all'||a.category_id===category)&&
     [a.title,a.excerpt,...a.tags].join(' ').toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru').trim())),[data,category,query]);
   const categories=new Map(data.categories.map(c=>[c.id,c]));
+  const selectedCategory=categories.get(category);
+  const chooseCategory=(id:string)=>{
+    setCategory(id);setQuery('');
+  };
   return <main className="vvd-web-articles">
     {slug?<button className="vvd-web-back" onClick={onBack}><ArrowLeft size={18}/> Все статьи и кейсы</button>:null}
     {slug ? (loading && !item ? <div className="vvd-article-detail">
@@ -127,22 +137,30 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
         <h1 className="vvd-articles-title">Статьи и кейсы</h1>
         <p className="vvd-articles-subtitle">Кейсы, разборы, обучение и инструменты для работы с трафиком.</p>
         <label className="vvd-web-search"><Search size={20}/><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Поиск по статьям и тегам…"/></label>
-        <div className="vvd-article-filters">
-          <button type="button" className={category==='all'?'selected':''} onClick={()=>setCategory('all')}>Все</button>
-          {data.categories.map(c=><button type="button" key={c.id} className={category===c.id?'selected':''} onClick={()=>setCategory(c.id)}>{c.name}</button>)}
-        </div>
-        {category==='all'&&data.categories.some(c=>c.image_url&&safeImage(c.image_url))&&
+        {category==='all'?<>
+          <div className="vvd-editorial-category-heading"><h2>Выберите категорию</h2><p>Все темы собраны по разделам, чтобы быстро найти нужные статьи и кейсы.</p></div>
           <div className="vvd-editorial-category-grid" aria-label="Категории статей">
-            {data.categories.filter(c=>c.image_url&&safeImage(c.image_url)).map(c=>
-              <button type="button" key={c.id} className="vvd-editorial-category-card" onClick={()=>setCategory(c.id)}>
-                <img src={c.image_url} alt="" loading="eager" decoding="async"/>
+            {data.categories.map(c=>{
+              const Icon=categoryIcons[c.id]||BookOpen;
+              const amount=data.articles.filter(a=>a.category_id===c.id).length;
+              return <button type="button" key={c.id} className="vvd-editorial-category-card" onClick={()=>chooseCategory(c.id)}
+                  aria-label={c.name+' — открыть статьи'}>
+                {c.image_url&&safeImage(c.image_url)?<img src={c.image_url} alt="" loading="lazy" decoding="async"/>:
+                  <span className="vvd-editorial-category-symbol"><Icon size={32} strokeWidth={1.5}/></span>}
                 <span className="vvd-editorial-category-overlay">
                   <strong>{c.name}</strong>
                   {c.description&&<small>{c.description}</small>}
+                  <span className="vvd-editorial-category-count">{amount?amount+' материалов':'Материалы готовятся'} <ArrowRight size={14}/></span>
                 </span>
-              </button>
-            )}
-          </div>}
+              </button>;
+            })}
+          </div>
+          <div className="vvd-editorial-category-heading"><h2>Последние публикации</h2></div>
+        </>:<div className="vvd-editorial-selected-category">
+          <button type="button" className="vvd-web-back" onClick={()=>chooseCategory('all')}><ArrowLeft size={17}/> Все категории</button>
+          <h2>{selectedCategory?.name||'Статьи'}</h2>
+          {selectedCategory?.description&&<p>{selectedCategory.description}</p>}
+        </div>}
         {error?<div className="vvd-web-notice" role="alert">{error} <button type="button" className="vvd-web-outline-button" onClick={()=>setRetry(v=>v+1)}>Повторить</button></div>:
         results.length?<div className="vvd-article-grid">{results.map((a,i)=><ArticleCard key={a.slug} priority={i<2} article={a} categoryName={categories.get(a.category_id)?.name||''} categoryCover={categories.get(a.category_id)?.image_url||''} onClick={()=>onArticle(a.slug)}/>)}</div>:
         loading?<div className="vvd-article-grid" aria-label="Загружаем статьи" aria-busy="true">
@@ -150,7 +168,7 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
             <div className="vvd-article-loading-image"/><div className="vvd-article-card-copy"><div className="vvd-article-loading-line"/><div className="vvd-article-loading-line short"/></div>
           </div>)}
         </div>:
-        <div className="vvd-web-notice">{data.articles.length?'По этому запросу публикаций нет.':'Здесь появятся первые статьи и кейсы VVD CPA.'}</div>}
+        <div className="vvd-web-notice">{data.articles.length?'В этой категории пока нет опубликованных материалов.':'Здесь появятся первые статьи и кейсы VVD CPA.'}</div>}
       </section>
     }
   </main>;
