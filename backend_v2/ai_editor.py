@@ -46,8 +46,18 @@ def ensure_schema():
                 last_success TIMESTAMPTZ,
                 last_kind VARCHAR(16) NOT NULL DEFAULT 'service',
                 lease_until TIMESTAMPTZ,
-                last_error VARCHAR(250) NOT NULL DEFAULT ''
+                last_error VARCHAR(250) NOT NULL DEFAULT '',
+                article_category_id VARCHAR(64) NOT NULL DEFAULT '',
+                suggest_categories BOOLEAN NOT NULL DEFAULT FALSE
             )
+        """))
+        db.execute(text("""
+            ALTER TABLE public.vvd_ai_editor_settings
+              ADD COLUMN IF NOT EXISTS article_category_id VARCHAR(64) NOT NULL DEFAULT ''
+        """))
+        db.execute(text("""
+            ALTER TABLE public.vvd_ai_editor_settings
+              ADD COLUMN IF NOT EXISTS suggest_categories BOOLEAN NOT NULL DEFAULT FALSE
         """))
         db.execute(text("""
             INSERT INTO public.vvd_ai_editor_settings(id,enabled)
@@ -56,7 +66,7 @@ def ensure_schema():
         db.execute(text("""
             CREATE TABLE IF NOT EXISTS public.vvd_ai_editor_drafts (
                 id VARCHAR(64) PRIMARY KEY,
-                kind VARCHAR(16) NOT NULL CHECK (kind IN ('article','service')),
+                kind VARCHAR(16) NOT NULL CHECK (kind IN ('article','service','category')),
                 source_service_id VARCHAR(64),
                 payload JSONB NOT NULL,
                 status VARCHAR(20) NOT NULL DEFAULT 'pending',
@@ -64,13 +74,22 @@ def ensure_schema():
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
             )
         """))
+        db.execute(text("""
+            ALTER TABLE public.vvd_ai_editor_drafts
+            DROP CONSTRAINT IF EXISTS vvd_ai_editor_drafts_kind_check
+        """))
+        db.execute(text("""
+            ALTER TABLE public.vvd_ai_editor_drafts
+            ADD CONSTRAINT vvd_ai_editor_drafts_kind_check
+            CHECK (kind IN ('article','service','category'))
+        """))
 
 
 def _setting():
     ensure_schema()
     with engine.connect() as db:
         row = db.execute(text("""
-            SELECT enabled,version,last_attempt,last_success,last_kind,lease_until,last_error
+            SELECT enabled,version,last_attempt,last_success,last_kind,lease_until,last_error,article_category_id,suggest_categories
             FROM public.vvd_ai_editor_settings WHERE id=1
         """)).mappings().one()
     return {k: v.isoformat() if isinstance(v, datetime) else v for k, v in row.items()}
@@ -92,6 +111,20 @@ def _catalog():
     return _load()
 
 
+def _editorial_categories():
+    from editorial import load
+    return load()["categories"]
+
+
+def _selected_category(category_id: str):
+    if not category_id:
+        return None
+    category = next((c for c in _editorial_categories() if c["id"] == category_id), None)
+    if not category:
+        raise HTTPException(422, "Категория статьи не найдена. Обновите настройки.")
+    return category
+
+
 def _service_sources():
     catalog = _catalog()
     valid_ids = {c["id"] for c in catalog["categories"]}
@@ -103,6 +136,10 @@ def _service_sources():
 def admin_status(x_telegram_init_data:Optional[str]=Header(None)):
     admin_auth(x_telegram_init_data)
     return {"settings":_setting(), "drafts":_drafts(),
+            "categories": [{"id":c["id"], "name":c["name"], "active":c.get("active",True),
+                             "show_on_web":c.get("show_on_web",True),
+                             "show_in_mini_app":c.get("show_in_mini_app",True)}
+                            for c in _editorial_categories()],
             "services":[{"id":s["id"],"name":s["name"],
                          "category_id":s["category_id"]} for s in _service_sources()]}
 
@@ -110,26 +147,35 @@ def admin_status(x_telegram_init_data:Optional[str]=Header(None)):
 class SettingsInput(BaseModel):
     enabled: bool
     version: int = Field(ge=1)
+    article_category_id: str = Field(default="", max_length=64)
+    suggest_categories: bool = False
 
 
 @router.put("/admin")
 def save_settings(payload:SettingsInput, x_telegram_init_data:Optional[str]=Header(None)):
     admin_auth(x_telegram_init_data)
     ensure_schema()
+    _selected_category(payload.article_category_id)
     with engine.begin() as db:
         version = db.execute(text("""
             UPDATE public.vvd_ai_editor_settings
-            SET enabled=:enabled,version=version+1
+            SET enabled=:enabled,article_category_id=:category_id,
+                suggest_categories=:suggest_categories,version=version+1
             WHERE id=1 AND version=:version RETURNING version
-        """), {"enabled":payload.enabled,"version":payload.version}).scalar_one_or_none()
+        """), {"enabled":payload.enabled,"version":payload.version,
+                "category_id":payload.article_category_id,
+                "suggest_categories":payload.suggest_categories}).scalar_one_or_none()
     if version is None:
         raise HTTPException(409,"Настройки уже изменены, обновите панель")
-    return {"enabled":payload.enabled,"version":version}
+    return {"enabled":payload.enabled,"version":version,
+            "article_category_id":payload.article_category_id,
+            "suggest_categories":payload.suggest_categories}
 
 
 class RunInput(BaseModel):
-    kind: Literal["article","service"]
+    kind: Literal["article","service","category"]
     source_service_id: str = Field(default="", max_length=64)
+    category_id: str = Field(default="", max_length=64)
 
 
 def _claim(*, automated:bool):
@@ -172,6 +218,12 @@ def _normalize(raw,kind,source=None):
     if not isinstance(raw, dict):
         raise HTTPException(502,"AI вернул материал в неподходящем формате")
     clean = lambda k,n: str(raw.get(k) or "").strip()[:n]
+    if kind=="category":
+        title=clean("name",100)
+        description=clean("description",300)
+        if not title or not description:
+            raise HTTPException(502,"AI не подготовил название и описание категории")
+        return {"name":title,"description":description}
     if kind=="service":
         # Promotions are never invented. Existing content is the only source.
         if source is None:
@@ -208,9 +260,18 @@ def _normalize(raw,kind,source=None):
             "tags":tags,"blocks":blocks}
 
 
-def _prompt(kind,source,catalog):
+def _prompt(kind,source,catalog,category=None,existing_categories=None):
     categories={c["id"]:c["name"] for c in catalog["categories"]}
-    if kind=="service":
+    if kind=="category":
+        factual={"existing_categories":[{"name":c["name"],"description":c.get("description","")}
+                        for c in (existing_categories or [])],
+                 "available_services":[{"name":x.get("name"),"description":x.get("description")}
+                        for x in catalog["services"][:12]]}
+        task=("Suggest ONE distinct useful Russian category for educational articles, "
+              "not a service listing. Return JSON name,description. Do not duplicate "
+              "existing categories or promise earnings. The category is a proposal "
+              "for admin approval, not an immediate public publication.")
+    elif kind=="service":
         factual={k:source.get(k) for k in
                  ("name","description","benefits","discount_text","category_id")}
         factual["category_name"]=categories.get(source["category_id"],"")
@@ -224,12 +285,18 @@ def _prompt(kind,source,catalog):
         factual={"available_services":[{"name":s.get("name"),"description":s.get("description"),
                                         "benefits":s.get("benefits")}
                     for s in catalog["services"][:12]]}
+        if category:
+            factual["target_category"]={"name":category["name"],
+                                        "description":category.get("description","")}
         if source:
             factual["focus_service"]={"name":source.get("name"),
                                        "description":source.get("description"),
                                        "benefits":source.get("benefits")}
-        task=("Write a useful ORIGINAL Russian educational article about safe CPA analytics, "
-              "marketing tools or the actual supplied service. Use 5-10 well developed "
+        task=("Write a useful ORIGINAL Russian educational article strictly for the "
+              "specified target_category if supplied. Make title, structure and all "
+              "blocks fit that category. If no category is selected, use safe CPA "
+              "analytics, marketing tools, or the actual supplied service. ""
+              "Use 5-10 well developed "
               "blocks: heading, paragraph or quote; at least 1600 characters of content. "
               "Return JSON title,excerpt,seo_title,seo_description,tags,blocks "
               "where each block has type and text. No imaginary earning results, "
@@ -247,9 +314,10 @@ def _prompt(kind,source,catalog):
     ]
 
 
-async def _generate(kind:str,source_id:str=""):
+async def _generate(kind:str,source_id:str="",category_id:str=""):
     from editorial import ensure_schema as ensure_editorial
     catalog = _catalog()
+    category = _selected_category(category_id) if kind=="article" else None
     sources = _service_sources()
     source = next((s for s in sources if s["id"]==source_id),None) if source_id else None
     if source_id and source is None:
@@ -266,13 +334,14 @@ async def _generate(kind:str,source_id:str=""):
             raise HTTPException(422,"В каталоге нет сервисов без ожидающего AI-черновика")
     if kind=="article" and not source and sources:
         source = sources[datetime.now(timezone.utc).timetuple().tm_yday % len(sources)]
-    prompt = _prompt(kind,source,catalog)
+    prompt = _prompt(kind,source,catalog,category,_editorial_categories() if kind=="category" else None)
     generated,usage = await completion(prompt,max_tokens=2800,structured=True)
     payload = _normalize(generated,kind,source)
     if kind=="article":
         ensure_editorial()
     ident="ai-"+uuid.uuid4().hex[:20]
     if kind=="article":
+        payload["category_id"]=category_id
         payload["image_urls"]=[BASE+"/ai-editor/art/"+ident+"?variant="+str(n) for n in range(3)]
         payload["source_service_id"]=source["id"] if source else ""
     with engine.begin() as db:
@@ -289,13 +358,13 @@ async def _generate(kind:str,source_id:str=""):
     return {"id":ident,"kind":kind,"usage":usage}
 
 
-async def _run(kind:str,source_id:str="",automated:bool=False):
+async def _run(kind:str,source_id:str="",category_id:str="",automated:bool=False):
     if not _claim(automated=automated):
         return None
     success=False
     error=""
     try:
-        result=await _generate(kind,source_id)
+        result=await _generate(kind,source_id,category_id)
         success=True
         return result
     except HTTPException as exc:
@@ -312,7 +381,9 @@ async def _run(kind:str,source_id:str="",automated:bool=False):
 @router.post("/admin/run")
 async def run_manually(payload:RunInput,x_telegram_init_data:Optional[str]=Header(None)):
     admin_auth(x_telegram_init_data)
-    return await _run(payload.kind,payload.source_service_id)
+    if payload.kind!="article" and payload.category_id:
+        raise HTTPException(422,"Категория указывается только для статьи")
+    return await _run(payload.kind,payload.source_service_id,payload.category_id)
 
 
 def _automatic_due_kind():
@@ -328,7 +399,22 @@ async def auto_tick():
         if not current["enabled"]:
             return
         kind=_automatic_due_kind()
-        await _run(kind,automated=True)
+        category_id=current["article_category_id"] if kind=="article" else ""
+        if kind=="article" and current["suggest_categories"]:
+            categories=_editorial_categories()
+            if not categories:
+                kind="category"
+            elif not category_id:
+                # Every fifth article suggestion can propose a category; all proposals
+                # require approval and are never automatically published.
+                with engine.connect() as db:
+                    count=db.execute(text("""
+                        SELECT count(*) FROM public.vvd_ai_editor_drafts
+                        WHERE kind='article' AND status IN ('pending','applied')
+                    """)).scalar_one()
+                if count>0 and count%5==0:
+                    kind="category"
+        await _run(kind,category_id=category_id if kind=="article" else "",automated=True)
     except HTTPException as exc:
         if exc.status_code not in (409,422):
             log.warning("AI editor scheduled draft failed (%s)",exc.status_code)
@@ -396,7 +482,11 @@ def move_article_to_drafts(identifier:str,x_telegram_init_data:Optional[str]=Hea
         """)).mappings().one()
         data=dict(row["content"])
         categories=list(data.get("categories",[]))
-        category=next((c for c in categories if c.get("name")=="AI-черновики"),None)
+        category=next((c for c in categories if c["id"]==p.get("category_id")),None) if p.get("category_id") else None
+        if p.get("category_id") and not category:
+            raise HTTPException(409,"Категория удалена. Создайте новую статью для другой категории.")
+        if category is None:
+            category=next((c for c in categories if c.get("name")=="AI-черновики"),None)
         if category is None:
             category={"id":"ai-drafts","name":"AI-черновики",
                       "description":"Подготовленные AI материалы для проверки",
@@ -442,6 +532,39 @@ def move_article_to_drafts(identifier:str,x_telegram_init_data:Optional[str]=Hea
             WHERE id=:id AND status='pending'
         """),{"id":identifier})
     return {"success":True,"slug":slug}
+
+
+@router.post("/admin/drafts/{identifier}/category")
+def approve_category(identifier: str,
+                     x_telegram_init_data:Optional[str]=Header(None)):
+    admin_auth(x_telegram_init_data)
+    from editorial import ensure_schema as ensure_editorial, EditorialContent
+    ensure_editorial()
+    with engine.begin() as db:
+        draft=_lock_pending(db,identifier,"category")
+        p=draft["payload"]
+        row=db.execute(text("""
+            SELECT content FROM public.vvd_editorial WHERE id=1 FOR UPDATE
+        """)).mappings().one()
+        data=dict(row["content"])
+        categories=list(data.get("categories",[]))
+        if any(c["name"].strip().casefold()==p["name"].strip().casefold() for c in categories):
+            raise HTTPException(409,"Такая категория уже существует. Отклоните предложение.")
+        category_id="ai-category-"+uuid.uuid4().hex[:12]
+        category={"id":category_id,"name":p["name"],"description":p["description"],
+                  "image_url":"","active":False,"show_on_web":True,
+                  "show_in_mini_app":True,"sort_order":100}
+        data["categories"]=[*categories,category]
+        EditorialContent.model_validate(data)
+        db.execute(text("""
+            UPDATE public.vvd_editorial SET content=CAST(:body AS jsonb),
+                version=version+1,updated_at=now() WHERE id=1
+        """),{"body":json.dumps(data,ensure_ascii=False)})
+        db.execute(text("""
+            UPDATE public.vvd_ai_editor_drafts SET status='applied',updated_at=now()
+            WHERE id=:id AND status='pending'
+        """),{"id":identifier})
+    return {"success":True,"category_id":category_id}
 
 
 class ServicePublishInput(BaseModel):
