@@ -15,6 +15,7 @@ import { IQPlay } from '@/pages/iq-play/IQPlay';
 import { Tools,ToolsTopupPage,ToolsHistory,ToolsPurchases,ToolsNumbers,MyNumbers,ToolsProxy,MyProxies } from '@/pages/tools/MarketplacePages';
 import { AIModelsPage,AIEditor } from '@/pages/tools/AIStudio';
 import {ServiceDirectoryPage,ServiceCategoryPage} from '@/pages/tools/ServiceDirectory';
+import {MiniAppEditorial} from '@/pages/tools/MiniAppEditorial';
 import { PublicAIPage } from '@/pages/tools/PublicAIChat';
 import { PublicWebsite } from '@/pages/public/PublicWebsite';
 import { useBrowserSession } from '@/pages/public/WebAuth';
@@ -295,6 +296,8 @@ const MiniApp = ({webUser}:{webUser?:AuthResponse['user']}) => {
               <Route path="purchases" element={<ToolsPurchases />} />
               <Route path="directory" element={<ServiceDirectoryPage />} />
               <Route path="directory/:categoryId" element={<ServiceCategoryPage />} />
+              <Route path="articles" element={<MiniAppEditorial />} />
+              <Route path="articles/:slug" element={<MiniAppEditorial />} />
               <Route path="numbers" element={<ToolsNumbers />} />
               <Route path="numbers/my" element={<MyNumbers />} />
               <Route path="proxy" element={<ToolsProxy />} />
