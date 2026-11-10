@@ -4,7 +4,7 @@ import { ArrowLeft, Check, ChevronRight, Copy, ExternalLink, Gift, Search, Layer
 import { triggerHaptic } from '@/shared/lib/telegram';
 import { directoryApi, directoryIcons, type DirectoryData, type DirectoryCategory, type DirectoryService } from './serviceDirectoryApi';
 import './ServiceDirectory.css';
-import { UnifiedCategoryCard } from '@/shared/ui/UnifiedCategoryCard';
+import { UnifiedCategoryCard,serviceCountLabel } from '@/shared/ui/UnifiedCategoryCard';
 
 const initial: DirectoryData = { version:0, categories:[], services:[] };
 
@@ -56,7 +56,7 @@ const conciseDescription = (description:string) => ({
 const CategoryTile:React.FC<{category:DirectoryCategory;count:number}> = ({category,count}) => (
   <UnifiedCategoryCard to={'/tools/directory/'+category.id} icon={directoryIcons[category.icon]||Layers}
     title={category.name} description={conciseDescription(category.description)}
-    status={count ? count+' предложений' : 'Сервисы скоро появятся'}/>
+    status={count ? serviceCountLabel(count) : 'Сервисы скоро появятся'}/>
 );
 
 export const ServiceDirectoryPage:React.FC=()=>{
