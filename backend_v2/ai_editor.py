@@ -6,6 +6,7 @@ human action, and the shared AI provider key is kept on the server.
 import asyncio
 import html
 import json
+import threading
 import logging
 import re
 import uuid
@@ -35,69 +36,80 @@ def admin_auth(raw: Optional[str]):
         raise HTTPException(403, "Доступ только администратору")
 
 
-def ensure_schema():
-    with engine.begin() as db:
-        db.execute(text("""
-            CREATE TABLE IF NOT EXISTS public.vvd_ai_editor_settings (
-                id INTEGER PRIMARY KEY CHECK (id=1),
-                enabled BOOLEAN NOT NULL DEFAULT FALSE,
-                version INTEGER NOT NULL DEFAULT 1,
-                last_attempt TIMESTAMPTZ,
-                last_success TIMESTAMPTZ,
-                last_kind VARCHAR(16) NOT NULL DEFAULT 'service',
-                lease_until TIMESTAMPTZ,
-                last_error VARCHAR(250) NOT NULL DEFAULT '',
-                article_category_id VARCHAR(64) NOT NULL DEFAULT '',
-                suggest_categories BOOLEAN NOT NULL DEFAULT FALSE
-            )
-        """))
-        db.execute(text("""
-            ALTER TABLE public.vvd_ai_editor_settings
-              ADD COLUMN IF NOT EXISTS article_category_id VARCHAR(64) NOT NULL DEFAULT ''
-        """))
-        db.execute(text("""
-            ALTER TABLE public.vvd_ai_editor_settings
-              ADD COLUMN IF NOT EXISTS suggest_categories BOOLEAN NOT NULL DEFAULT FALSE
-        """))
-        db.execute(text("""
-            INSERT INTO public.vvd_ai_editor_settings(id,enabled)
-            VALUES (1,FALSE) ON CONFLICT(id) DO NOTHING
-        """))
-        db.execute(text("""
-            CREATE TABLE IF NOT EXISTS public.vvd_ai_editor_drafts (
-                id VARCHAR(64) PRIMARY KEY,
-                kind VARCHAR(16) NOT NULL CHECK (kind IN ('article','service','category')),
-                source_service_id VARCHAR(64),
-                payload JSONB NOT NULL,
-                status VARCHAR(20) NOT NULL DEFAULT 'pending',
-                created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-                updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-            )
-        """))
-        # Upgrade the legacy article/service-only check once, without dropping
-        # and recreating constraints on every admin read or scheduled tick.
-        db.execute(text("""
-            DO $
-            DECLARE old_definition TEXT;
-            BEGIN
-              SELECT pg_get_constraintdef(oid) INTO old_definition
-              FROM pg_constraint
-              WHERE conrelid='public.vvd_ai_editor_drafts'::regclass
-                AND conname='vvd_ai_editor_drafts_kind_check';
-              IF old_definition IS NOT NULL AND
-                 old_definition NOT LIKE '%category%' THEN
-                ALTER TABLE public.vvd_ai_editor_drafts
-                  DROP CONSTRAINT vvd_ai_editor_drafts_kind_check;
-                old_definition := NULL;
-              END IF;
-              IF old_definition IS NULL THEN
-                ALTER TABLE public.vvd_ai_editor_drafts
-                  ADD CONSTRAINT vvd_ai_editor_drafts_kind_check
-                  CHECK (kind IN ('article','service','category'));
-              END IF;
-            END $;
-        """))
+_schema_ready = False
+_schema_lock = threading.Lock()
 
+
+def ensure_schema():
+    """Create/upgrade only the isolated AI-editor tables.
+
+    On an existing PostgreSQL database, migrate the old draft kind check
+    without a dynamic SQL DO block. A per-process lock and transaction-scoped
+    advisory lock prevent repeated concurrent ALTER TABLE operations.
+    """
+    global _schema_ready
+    if _schema_ready:
+        return
+    with _schema_lock:
+        if _schema_ready:
+            return
+        with engine.begin() as db:
+            db.execute(text("SELECT pg_advisory_xact_lock(441328013)"))
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS public.vvd_ai_editor_settings (
+                    id INTEGER PRIMARY KEY CHECK (id=1),
+                    enabled BOOLEAN NOT NULL DEFAULT FALSE,
+                    version INTEGER NOT NULL DEFAULT 1,
+                    last_attempt TIMESTAMPTZ,
+                    last_success TIMESTAMPTZ,
+                    last_kind VARCHAR(16) NOT NULL DEFAULT 'service',
+                    lease_until TIMESTAMPTZ,
+                    last_error VARCHAR(250) NOT NULL DEFAULT '',
+                    article_category_id VARCHAR(64) NOT NULL DEFAULT '',
+                    suggest_categories BOOLEAN NOT NULL DEFAULT FALSE
+                )
+            """))
+            db.execute(text("""
+                ALTER TABLE public.vvd_ai_editor_settings
+                  ADD COLUMN IF NOT EXISTS article_category_id VARCHAR(64) NOT NULL DEFAULT ''
+            """))
+            db.execute(text("""
+                ALTER TABLE public.vvd_ai_editor_settings
+                  ADD COLUMN IF NOT EXISTS suggest_categories BOOLEAN NOT NULL DEFAULT FALSE
+            """))
+            db.execute(text("""
+                INSERT INTO public.vvd_ai_editor_settings(id,enabled)
+                VALUES (1,FALSE) ON CONFLICT(id) DO NOTHING
+            """))
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS public.vvd_ai_editor_drafts (
+                    id VARCHAR(64) PRIMARY KEY,
+                    kind VARCHAR(16) NOT NULL CHECK (kind IN ('article','service','category')),
+                    source_service_id VARCHAR(64),
+                    payload JSONB NOT NULL,
+                    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                )
+            """))
+            definition = db.execute(text("""
+                SELECT pg_get_constraintdef(oid)
+                FROM pg_constraint
+                WHERE conrelid=to_regclass('public.vvd_ai_editor_drafts')
+                  AND conname='vvd_ai_editor_drafts_kind_check'
+            """)).scalar_one_or_none()
+            if definition is None or "category" not in definition:
+                if definition is not None:
+                    db.execute(text("""
+                        ALTER TABLE public.vvd_ai_editor_drafts
+                        DROP CONSTRAINT vvd_ai_editor_drafts_kind_check
+                    """))
+                db.execute(text("""
+                    ALTER TABLE public.vvd_ai_editor_drafts
+                    ADD CONSTRAINT vvd_ai_editor_drafts_kind_check
+                    CHECK (kind IN ('article','service','category'))
+                """))
+        _schema_ready = True
 
 def _setting():
     ensure_schema()
