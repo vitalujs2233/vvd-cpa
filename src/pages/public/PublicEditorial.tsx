@@ -175,7 +175,7 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
                 status={amount?materialCount(amount):'Материалы готовятся'}/>;
             })}
           </div>
-          {searchTerms.length&&filteredCategories.length===0&&!loading&&!error&&<div className="vvd-web-notice">Категории по запросу не найдены.</div>}
+          {searchTerms.length>0&&filteredCategories.length===0&&!loading&&!error&&<div className="vvd-web-notice">Категории по запросу не найдены.</div>}
           <div className="vvd-editorial-category-heading"><h2>{searchTerms.length?'Найденные статьи':'Последние публикации'}</h2></div>
         </>:<div className="vvd-editorial-selected-category">
           <button type="button" className="vvd-web-back" onClick={()=>chooseCategory('all')}><ArrowLeft size={17}/> Все категории</button>
