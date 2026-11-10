@@ -5,6 +5,13 @@ import {API_BASE_URL} from '@/shared/lib/api';
 
 const safeImage=(value:string)=>value.startsWith(API_BASE_URL+'/articles/images/')||/^https:\/\/[^\s]+$/i.test(value);
 const formatDate=(date:string)=>date?new Date(date).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}):'';
+const materialCount=(count:number)=>count+' '+(count%10===1&&count%100!==11?'материал':count%10>=2&&count%10<=4&&(count%100<12||count%100>14)?'материала':'материалов');
+const searchWords=(value:string)=>value.toLocaleLowerCase('ru').trim().split(/\s+/).filter(Boolean);
+const matchesWords=(words:string[],...fields:string[])=>{
+  if(!words.length)return true;
+  const text=fields.join(' ').toLocaleLowerCase('ru');
+  return words.every(word=>text.includes(word));
+};
 // Keep the last successful response available when navigating back from an article.
 const CACHE_TTL=5*60*1000;
 type Surface='web'|'mini';
@@ -99,9 +106,18 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
     }
     return()=>{mounted=false};
   },[slug,surface,retry,onMetadata]);
-  const results=useMemo(()=>data.articles.filter(a=>(category==='all'||a.category_id===category)&&
-    [a.title,a.excerpt,...a.tags].join(' ').toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru').trim())),[data,category,query]);
-  const categories=new Map(data.categories.map(c=>[c.id,c]));
+  const searchTerms=useMemo(()=>searchWords(query),[query]);
+  const categories=useMemo(()=>new Map(data.categories.map(c=>[c.id,c])),[data.categories]);
+  const filteredCategories=useMemo(()=>data.categories.filter(c=>
+    matchesWords(searchTerms,c.name,c.description)||
+    data.articles.some(a=>a.category_id===c.id&&matchesWords(searchTerms,a.title,a.excerpt,a.seo_title,a.seo_description,...a.tags))
+  ),[data,searchTerms]);
+  const results=useMemo(()=>data.articles.filter(a=>{
+    if(category!=='all'&&a.category_id!==category)return false;
+    const parent=categories.get(a.category_id);
+    return matchesWords(searchTerms,a.title,a.excerpt,a.seo_title,a.seo_description,...a.tags,
+      parent?.name||'',parent?.description||'');
+  }),[data.articles,category,categories,searchTerms]);
   const selectedCategory=categories.get(category);
   const chooseCategory=(id:string)=>{
     setCategory(id);setQuery('');
@@ -136,26 +152,27 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
         <span className="vvd-web-eyebrow">БАЗА ЗНАНИЙ VVD CPA</span>
         <h1 className="vvd-articles-title">Статьи и кейсы</h1>
         <p className="vvd-articles-subtitle">Кейсы, разборы, обучение и инструменты для работы с трафиком.</p>
-        <label className="vvd-web-search"><Search size={20}/><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Поиск по статьям и тегам…"/></label>
+        <label className="vvd-web-search"><Search size={20}/><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Поиск категорий, статей и ключевых слов…"/></label>
         {category==='all'?<>
-          <div className="vvd-editorial-category-heading"><h2>Выберите категорию</h2><p>Все темы собраны по разделам, чтобы быстро найти нужные статьи и кейсы.</p></div>
+          <div className="vvd-editorial-category-heading"><h2>{searchTerms.length?'Найденные категории':'Выберите категорию'}</h2><p>{searchTerms.length?'Категории по запросу и материалы внутри них.':'Все темы собраны по разделам, чтобы быстро найти нужные статьи и кейсы.'}</p></div>
           <div className="vvd-editorial-category-grid" aria-label="Категории статей">
-            {data.categories.map(c=>{
+            {filteredCategories.map(c=>{
               const Icon=categoryIcons[c.id]||BookOpen;
               const amount=data.articles.filter(a=>a.category_id===c.id).length;
-              return <button type="button" key={c.id} className="vvd-editorial-category-card" onClick={()=>chooseCategory(c.id)}
+              return <button type="button" key={c.id} className={'vvd-editorial-category-card '+(c.image_url&&safeImage(c.image_url)?'is-photo-card':'is-icon-card')} onClick={()=>chooseCategory(c.id)}
                   aria-label={c.name+' — открыть статьи'}>
                 {c.image_url&&safeImage(c.image_url)?<img src={c.image_url} alt="" loading="lazy" decoding="async"/>:
                   <span className="vvd-editorial-category-symbol"><Icon size={32} strokeWidth={1.5}/></span>}
                 <span className="vvd-editorial-category-overlay">
                   <strong>{c.name}</strong>
                   {c.description&&<small>{c.description}</small>}
-                  <span className="vvd-editorial-category-count">{amount?amount+' материалов':'Материалы готовятся'} <ArrowRight size={14}/></span>
+                  <span className="vvd-editorial-category-count">{amount?materialCount(amount):'Материалы готовятся'} <ArrowRight size={14}/></span>
                 </span>
               </button>;
             })}
           </div>
-          <div className="vvd-editorial-category-heading"><h2>Последние публикации</h2></div>
+          {searchTerms.length&&filteredCategories.length===0&&!loading&&!error&&<div className="vvd-web-notice">Категории по запросу не найдены.</div>}
+          <div className="vvd-editorial-category-heading"><h2>{searchTerms.length?'Найденные статьи':'Последние публикации'}</h2></div>
         </>:<div className="vvd-editorial-selected-category">
           <button type="button" className="vvd-web-back" onClick={()=>chooseCategory('all')}><ArrowLeft size={17}/> Все категории</button>
           <h2>{selectedCategory?.name||'Статьи'}</h2>
@@ -168,7 +185,7 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
             <div className="vvd-article-loading-image"/><div className="vvd-article-card-copy"><div className="vvd-article-loading-line"/><div className="vvd-article-loading-line short"/></div>
           </div>)}
         </div>:
-        <div className="vvd-web-notice">{data.articles.length?'В этой категории пока нет опубликованных материалов.':'Здесь появятся первые статьи и кейсы VVD CPA.'}</div>}
+        <div className="vvd-web-notice">{searchTerms.length?'По запросу ничего не найдено. Попробуй другое слово.':category!=='all'?'В этой категории пока нет опубликованных материалов.':'Здесь появятся первые статьи и кейсы VVD CPA.'}</div>}
       </section>
     }
   </main>;
