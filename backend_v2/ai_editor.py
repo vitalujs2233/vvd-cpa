@@ -212,7 +212,7 @@ def _prompt(kind,source,catalog):
     categories={c["id"]:c["name"] for c in catalog["categories"]}
     if kind=="service":
         factual={k:source.get(k) for k in
-                 ("name","description","benefits","discount_text","promo_code","category_id")}
+                 ("name","description","benefits","discount_text","category_id")}
         factual["category_name"]=categories.get(source["category_id"],"")
         task=("Create better, original, factual Russian editorial copy ONLY for the specified "
               "existing service. JSON keys: name,description,benefits. Benefits must be "
