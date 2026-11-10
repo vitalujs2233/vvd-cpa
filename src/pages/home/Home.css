@@ -38,9 +38,8 @@
   }
 }
 
-/* Home navigation uses the same glass-card component as offers and account cards.
-   No separate gold surface, gold outline or oversized gold action button. */
-.home-native-card{border-color:rgba(255,255,255,.09)!important;background-color:rgba(16,15,14,.78)}
+/* Use the native .glass-card surface, gold-tinted border and shadows from
+   index.css exactly as used by existing VVD CPA cards. Never override them here. */
 .home-native-card-button{
   display:flex;align-items:center;gap:12px;width:100%;min-height:72px;
   text-align:left;cursor:pointer;color:inherit;border:0;background:transparent;
