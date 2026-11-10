@@ -5,6 +5,7 @@ import {directoryIcons,type DirectoryData,type DirectoryService} from '@/pages/t
 import {BrowserAccount, TelegramBrowserLogin, type useBrowserSession} from './WebAuth';
 import './PublicWebsite.css';
 import {PublicEditorial} from './PublicEditorial';
+import {PublicPolicy} from './PublicPolicy';
 
 const BOT_URL='https://t.me/vvd_cpa_bot';
 const BASE_URL='https://vitalujs2233.github.io/vvd-cpa/';
@@ -39,6 +40,12 @@ const getSiteUrl=(category='')=>BASE_URL+'?page=services'+(category?'&category='
 const isCatalogPage=()=>new URLSearchParams(window.location.search).get('page')==='services'||Boolean(readCategory());
 const isArticlePage=()=>new URLSearchParams(window.location.search).get('page')==='articles';
 const readArticle=()=>new URLSearchParams(window.location.search).get('article')||'';
+type PolicyPage='privacy'|'cookies';
+const readPolicy=():PolicyPage|null=>{
+  const page=new URLSearchParams(window.location.search).get('page');
+  return page==='privacy'||page==='cookies'?page:null;
+};
+const policyUrl=(page:PolicyPage)=>BASE_URL+'?page='+page;
 const articleUrl=(slug='')=>BASE_URL+'?page=articles'+(slug?'&article='+encodeURIComponent(slug):'');
 
 function setMetadata(title:string,description:string,category=''){
@@ -205,6 +212,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
   const [catalogView,setCatalogView]=useState(isCatalogPage);
   const [articlesView,setArticlesView]=useState(isArticlePage);
   const [articleSlug,setArticleSlug]=useState(readArticle);
+  const [policyPage,setPolicyPage]=useState<PolicyPage|null>(readPolicy);
   const [query,setQuery]=useState('');
   const [mobileMenu,setMobileMenu]=useState(false);
   const [accountView,setAccountView]=useState(()=>new URLSearchParams(window.location.search).has('account'));
@@ -228,24 +236,24 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
   },[catalogAttempt]);
 
   useEffect(()=>{
-    const onHistory=()=>{setCategoryId(readCategory());setCatalogView(isCatalogPage());setArticlesView(isArticlePage());setArticleSlug(readArticle());setAccountView(new URLSearchParams(window.location.search).has('account'));setQuery('');viewport.current?.scrollTo({top:0,behavior:'auto'});};
+    const onHistory=()=>{setCategoryId(readCategory());setCatalogView(isCatalogPage());setArticlesView(isArticlePage());setArticleSlug(readArticle());setPolicyPage(readPolicy());setAccountView(new URLSearchParams(window.location.search).has('account'));setQuery('');viewport.current?.scrollTo({top:0,behavior:'auto'});};
     window.addEventListener('popstate',onHistory);
     return()=>window.removeEventListener('popstate',onHistory);
   },[]);
 
   const showCategory=useCallback((id:string)=>{
     window.history.pushState(null,'',getSiteUrl(id));
-    setCategoryId(id);setCatalogView(true);setArticlesView(false);setArticleSlug('');setAccountView(false);setQuery('');setMobileMenu(false);
+    setCategoryId(id);setCatalogView(true);setArticlesView(false);setPolicyPage(null);setArticleSlug('');setAccountView(false);setQuery('');setMobileMenu(false);
     viewport.current?.scrollTo({top:0,behavior:'instant'});
   },[]);
   const openCatalog=useCallback(()=>{
     if(!catalogView||categoryId||accountView)window.history.pushState(null,'',getSiteUrl());
-    setCatalogView(true);setArticlesView(false);setArticleSlug('');setCategoryId('');setAccountView(false);setQuery('');setMobileMenu(false);
+    setCatalogView(true);setArticlesView(false);setPolicyPage(null);setArticleSlug('');setCategoryId('');setAccountView(false);setQuery('');setMobileMenu(false);
     viewport.current?.scrollTo({top:0,behavior:'auto'});
   },[catalogView,articlesView,categoryId,accountView]);
   const openArticles=useCallback((slug='')=>{
     window.history.pushState(null,'',articleUrl(slug));
-    setArticlesView(true);setArticleSlug(slug);setCatalogView(false);setCategoryId('');setAccountView(false);setMobileMenu(false);
+    setArticlesView(true);setArticleSlug(slug);setPolicyPage(null);setCatalogView(false);setCategoryId('');setAccountView(false);setMobileMenu(false);
     viewport.current?.scrollTo({top:0,behavior:'auto'});
   },[]);
   const onArticleMetadata=useCallback((title:string,description:string,cover?:string,date?:string)=>{
@@ -268,18 +276,24 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
     if(imageMeta)imageMeta.content='';
   },[articlesView,articleSlug]);
   const openMain=useCallback(()=>{
-    if(catalogView||articlesView||categoryId||accountView)window.history.pushState(null,'',BASE_URL);
-    setCatalogView(false);setArticlesView(false);setArticleSlug('');setCategoryId('');setAccountView(false);setQuery('');setMobileMenu(false);
+    if(catalogView||articlesView||categoryId||accountView||policyPage)window.history.pushState(null,'',BASE_URL);
+    setCatalogView(false);setArticlesView(false);setPolicyPage(null);setArticleSlug('');setCategoryId('');setAccountView(false);setQuery('');setMobileMenu(false);
     viewport.current?.scrollTo({top:0,behavior:'auto'});
   },[catalogView,categoryId,accountView]);
+  const openPolicy=(page:PolicyPage)=>{
+    if(policyPage!==page)window.history.pushState(null,'',policyUrl(page));
+    setPolicyPage(page);setCategoryId('');setCatalogView(false);setArticlesView(false);
+    setArticleSlug('');setAccountView(false);setMobileMenu(false);
+    viewport.current?.scrollTo({top:0,behavior:'auto'});
+  };
   const openAccount=()=>{
     if(auth.isLoggedIn){onOpenApp();return;}
     window.history.pushState(null,'',BASE_URL+'?account=1');
-    setCategoryId('');setCatalogView(false);setArticlesView(false);setArticleSlug('');setAccountView(true);setMobileMenu(false);
+    setCategoryId('');setCatalogView(false);setArticlesView(false);setPolicyPage(null);setArticleSlug('');setAccountView(true);setMobileMenu(false);
     viewport.current?.scrollTo({top:0,behavior:'auto'});
   };
   const jumpTo=(id:string)=>{
-    if(catalogView||articlesView||categoryId||accountView){window.history.pushState(null,'',BASE_URL);setCatalogView(false);setArticlesView(false);setArticleSlug('');setCategoryId('');setAccountView(false);}
+    if(catalogView||articlesView||categoryId||accountView||policyPage){window.history.pushState(null,'',BASE_URL);setCatalogView(false);setArticlesView(false);setPolicyPage(null);setArticleSlug('');setCategoryId('');setAccountView(false);}
     setMobileMenu(false);
     window.setTimeout(()=>document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'}),0);
   };
@@ -292,7 +306,17 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
   const services=data.services.filter(s=>s.category_id===categoryId);
 
   useEffect(()=>{
-    if(accountView){
+    if(policyPage){
+      setMetadata(
+        (policyPage==='privacy'?'Политика конфиденциальности':'Политика файлов cookie')+' — VVD CPA',
+        policyPage==='privacy'?'Информация об обработке персональных данных VVD CPA.':'Информация о cookie и хранении данных браузера VVD CPA.'
+      );
+      let canonical=document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+      if(!canonical){canonical=document.createElement('link');canonical.rel='canonical';document.head.appendChild(canonical);}
+      canonical.href=policyUrl(policyPage);
+      const ogUrl=document.querySelector<HTMLMetaElement>('meta[property="og:url"]');
+      if(ogUrl)ogUrl.content=canonical.href;
+    }else if(accountView){
       setMetadata('Личный кабинет — VVD CPA','Защищённый вход в личный кабинет VVD CPA через Telegram.');
     }else if(category){
       setMetadata(category.name+' — Каталог сервисов VVD CPA',category.description||'Каталог профессиональных сервисов для вебмастеров.',category.id);
@@ -303,7 +327,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
     }else{
       setMetadata('VVD CPA — CPA партнёрская сеть для арбитражников и вебмастеров','VVD CPA — CPA-партнёрская сеть: офферы, партнёрские ссылки, монетизация трафика, аналитика, баланс и инструменты для арбитражников и вебмастеров. Веб-кабинет и Telegram Mini App.');
     }
-  },[category,accountView,catalogView,articlesView,articleSlug]);
+  },[category,accountView,catalogView,articlesView,articleSlug,policyPage]);
 
   return <div className="vvd-web-portal" ref={viewport}>
     <div className="vvd-web-atmosphere" aria-hidden="true">
@@ -337,7 +361,8 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
         <button type="button" onClick={()=>setMobileMenu(v=>!v)} className="vvd-web-mobile-menu" aria-label={mobileMenu?'Закрыть меню':'Открыть меню'} aria-expanded={mobileMenu}>{mobileMenu?<X size={23}/>:<Menu size={23}/>}</button>
       </header>
 
-      {accountView ? (auth.profile
+      {policyPage ? <PublicPolicy kind={policyPage} onBack={openMain}/>
+       : accountView ? (auth.profile
         ?<BrowserAccount profile={auth.profile} onCatalog={openCatalog} onLogout={()=>{void auth.logout();openMain();}}/>
         :<main className="vvd-web-account">
           <div className="vvd-web-account-heading"><span className="vvd-web-eyebrow">ЛИЧНЫЙ КАБИНЕТ</span><h1>{auth.restoring?'Проверяем сессию…':'Вход через Telegram'}</h1><p>Один аккаунт для сайта и Mini App. Войти и зарегистрироваться можно с помощью Telegram.</p></div>
@@ -446,7 +471,13 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
       </main>}
       <footer className="vvd-web-footer">
         <div className="vvd-web-footer-brand"><div className="vvd-web-monogram">V</div><div><b>VVD CPA</b><small>ПЛАТФОРМА ДЛЯ ВЕБМАСТЕРОВ</small></div></div>
-        <p>© {new Date().getFullYear()} VVD CPA. Условия сторонних сервисов действуют на их сайтах. Некоторые ссылки могут быть партнёрскими.</p>
+        <div className="vvd-web-footer-legal">
+           <nav aria-label="Правовая информация">
+             <a href={policyUrl('privacy')} onClick={event=>{event.preventDefault();openPolicy('privacy');}}>Политика конфиденциальности</a>
+             <a href={policyUrl('cookies')} onClick={event=>{event.preventDefault();openPolicy('cookies');}}>Политика файлов cookie</a>
+           </nav>
+           <p>© {new Date().getFullYear()} VVD CPA. Условия сторонних сервисов действуют на их сайтах. Некоторые ссылки могут быть партнёрскими.</p>
+         </div>
         <a href={BOT_URL} target="_blank" rel="noopener noreferrer">Наш Telegram <ArrowUpRight size={14}/></a>
       </footer>
     </div>
