@@ -99,7 +99,8 @@ export const Profile: React.FC = () => {
       </span>
 
       <span className="text-xl font-extrabold text-accentGoldBright mt-1">
-        {referralBalance===null?'—':'
+        {referralBalance===null?'—':String.fromCharCode(36)+referralBalance.toFixed(2)}
+      </span>
 
       <span className="text-[11px] text-textSecondary mt-2">
         Зарабатывайте 5% от дохода приглашённых партнёров
