@@ -1,5 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import {ArrowLeft,ImagePlus,Plus,Send,Trash2} from 'lucide-react';
+import {ContributionImage} from './ContributionImage';
 import {editorialApi,type ArticleBlock,type ContributionContent,type CommunitySubmission,type EditorialCategory} from './editorialApi';
 
 const emptyBlock=(type:ArticleBlock['type']):ArticleBlock=>({type,text:'',url:'',alt:''});
@@ -87,7 +88,7 @@ export const EditorialContributions:React.FC<Props>=({categories,authenticated,o
         <label className="vvd-community-upload"><ImagePlus size={18}/> Фотообложка (JPG, PNG, WebP до 5 МБ)
           <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={e=>void upload(e.target.files?.[0]||null)}/>
         </label>
-        {form.cover_url&&<div className="vvd-community-preview"><img src={form.cover_url} alt="Фотообложка статьи"/><button type="button" onClick={()=>update({cover_url:''})}>Убрать обложку</button></div>}
+        {form.cover_url&&<div className="vvd-community-preview"><ContributionImage src={form.cover_url} alt="Фотообложка статьи"/><button type="button" onClick={()=>update({cover_url:''})}>Убрать обложку</button></div>}
         {revisionId&&<button type="button" className="vvd-web-outline-button" onClick={()=>{setRevisionId(null);setForm({rights_confirmed:true,author_name:'',category_id:categories[0]?.id||'',title:'',excerpt:'',cover_url:'',blocks:[emptyBlock('paragraph')]})}}>Отменить доработку</button>}
         <h3>Содержание статьи</h3>
         <p className="vvd-community-hint">Добавляйте заголовки, абзацы, фотографии и ссылки. Не размещайте чужие материалы без разрешения, скрытую рекламу или личные контакты.</p>
@@ -99,7 +100,7 @@ export const EditorialContributions:React.FC<Props>=({categories,authenticated,o
           {block.type==='link'&&<><input className={inputClass} maxLength={12000} value={block.text} onChange={e=>blockUpdate(index,{text:e.target.value})} placeholder="Название ссылки"/><input className={inputClass} value={block.url} onChange={e=>blockUpdate(index,{url:e.target.value})} placeholder="https://…"/></>}
           {block.type==='image'&&<>
             <label className="vvd-community-upload"><ImagePlus size={16}/> Загрузить фотографию<input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={e=>void upload(e.target.files?.[0]||null,index)}/></label>
-            {block.url&&<img className="vvd-community-inline-image" src={block.url} alt="Загруженное изображение"/>}
+            {block.url&&<ContributionImage className="vvd-community-inline-image" src={block.url} alt="Загруженное изображение"/>}
             <input className={inputClass} maxLength={200} value={block.alt} onChange={e=>blockUpdate(index,{alt:e.target.value})} placeholder="Описание фотографии"/>
             <input className={inputClass} maxLength={12000} value={block.text} onChange={e=>blockUpdate(index,{text:e.target.value})} placeholder="Подпись (необязательно)"/>
           </>}
