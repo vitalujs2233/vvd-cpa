@@ -50,18 +50,18 @@ export function preloadStartupData(id:number,partnerCode='',role='user'):Promise
       if(!request.valid(data)||currentSignedSession()!==session)throw new StartupDataError();
       saveSnapshot(request.key,request.select(data));
     };
-    const essential=requests.slice(0,4);
+    const essential=requests.slice(0,6);
     // Keep initial concurrency bounded; only balance, CPA catalog and wallet
     // are required. Other public catalog failures can retry on their pages.
     const results=await Promise.allSettled(essential.map(fetchOne));
-    if(results.some(result=>result.status==='rejected'))
+    if(results.slice(0,4).some(result=>result.status==='rejected'))
       throw new StartupDataError('Не удалось загрузить данные. Проверьте соединение и нажмите «Повторить».');
     if(currentSignedSession()!==session)throw new StartupDataError('Сессия изменилась. Откройте приложение заново.');
     // Prioritize the visible home: secondary preloads must not compete with its feeds/images.
     await warmHomeContent();
     // Warm other screens only after the home is ready; do not block initial navigation.
     if(currentSignedSession()===session){
-      void Promise.allSettled(requests.slice(4).map(fetchOne));
+      void Promise.allSettled(requests.slice(6).map(fetchOne));
       void preloadPages(id,partnerCode,role).catch(()=>{});
     }
   })().finally(()=>{if(pending?.promise===promise)pending=undefined;});
