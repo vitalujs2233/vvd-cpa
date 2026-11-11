@@ -56,18 +56,19 @@ export function preloadStartupData(id:number,partnerCode='',role='user'):Promise
     const primaryResults=await Promise.allSettled(primary.map(fetchOne));
     if(primaryResults.slice(0,4).some(result=>result.status==='rejected'))
       throw new StartupDataError('Не удалось загрузить основные данные. Проверьте соединение и нажмите «Повторить».');
-    // Statistics belong to a main tab and should not progressively fill after navigation.
-    // Failures are non-fatal: the Stats screen has its own retry/error state.
-    const statResults=await Promise.allSettled(requests.slice(7).map(fetchOne));
-    void statResults;
     if(currentSignedSession()!==session)throw new StartupDataError('Сессия изменилась. Откройте приложение заново.');
-    // Prioritize the visible home: secondary preloads must not compete with its feeds/images.
+    // Keep the visible home complete, but never block it on optional image decoding.
     await warmHomeContent();
-    // Warm other screens only after the home is ready; do not block initial navigation.
-    if(currentSignedSession()===session){
-      void Promise.allSettled(requests.slice(6,7).map(fetchOne));
-      void preloadPages(id,partnerCode,role).catch(()=>{});
-    }
+    if(currentSignedSession()!==session)throw new StartupDataError('Сессия изменилась. Откройте приложение заново.');
+    // Statistics and deeper screens are refreshed after launch. Their own screens
+    // already support snapshots and retry; a slow stats endpoint must not keep
+    // the entire Mini App behind the startup loader.
+    void Promise.allSettled(requests.slice(7).map(fetchOne));
+    void Promise.allSettled(requests.slice(6,7).map(fetchOne));
+    // Defer the broader warmup so the initial screen gets the browser's attention.
+    window.setTimeout(()=>{
+      if(currentSignedSession()===session)void preloadPages(id,partnerCode,role).catch(()=>{});
+    },700);
   })().finally(()=>{if(pending?.promise===promise)pending=undefined;});
   pending={session,id,promise};
   return promise;

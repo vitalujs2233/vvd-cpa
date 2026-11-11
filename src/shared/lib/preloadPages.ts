@@ -1,5 +1,5 @@
 import {apiRequest} from './api';
-import {readSnapshot,saveSnapshot} from './viewSnapshot';
+import {readApiSnapshot,readSnapshot,saveSnapshot} from './viewSnapshot';
 import {currentSignedSession} from './browserSession';
 
 // Limit parallel reads: warming pages must not flood the database connection pool.
@@ -22,7 +22,12 @@ export async function preloadPages(id:number,partnerCode:string,role:string) {
   const admin=role==='admin'||id===232682307;
   if(admin)paths.push('/admin/chat/banner','/admin/users','/admin/finance','/admin/withdrawals','/admin/chat/bans',
     '/cpa/admin/networks','/cpa/admin/verticals','/cpa/admin/offers');
-  const primaryWarmup=parallel(paths,async p=>{await read(p,p.startsWith('/withdrawals/'));});
+  // Startup already fetched some of these within this signed session.
+  // Reuse them instead of fetching the same wallet/catalog again immediately.
+  const primaryWarmup=parallel(paths,async p=>{
+    if(readApiSnapshot(p)!==undefined)return;
+    await read(p,p.startsWith('/withdrawals/'));
+  });
   const catalog=readSnapshot<any[]>('catalog')||[];
   const linkPaths:string[]=[];
   const catalogWarmup=parallel(catalog,async v=>{

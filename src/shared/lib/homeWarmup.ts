@@ -34,6 +34,8 @@ export async function warmHomeContent():Promise<void>{
   if(key==='home:ads')urls.push(...(data.items||[]).slice(0,2).filter(x=>x.image_url).map(imageUrl));
   if(key==='home:info')urls.push(...(data.items||[]).filter(x=>x.image_url).map(imageUrl));
  }
- await Promise.race([Promise.allSettled(urls.map(preloadImage)),new Promise<void>(resolve=>setTimeout(resolve,4500))]);
+ // Images can be preloaded in parallel, but they must never delay opening the app.
+ // The browser renders them in already-sized cards when they become available.
+ void Promise.allSettled(urls.slice(0,3).map(preloadImage));
 }
 export const cachedHomeFeed=<T>(key:string):T|undefined=>readSnapshot<T>(key);
