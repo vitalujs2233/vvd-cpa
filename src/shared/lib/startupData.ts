@@ -28,6 +28,17 @@ export function preloadStartupData(id:number,partnerCode='',role='user'):Promise
   const requests=[
     {url:`${API_BASE_URL}/balance/${id}`,key:`balance:${id}`,valid:(d:any)=>['available','hold','paid'].every(k=>typeof d[k]==='number'&&Number.isFinite(d[k])),select:(d:any)=>d},
     {url:`${API_BASE_URL}/cpa/catalog`,key:'catalog',valid:(d:any)=>Array.isArray(d.verticals),select:(d:any)=>d.verticals},
+    // These screens are visible immediately after navigation. Prepare them
+    // before revealing the app rather than showing an empty wallet/catalog.
+    {url:`${API_BASE_URL}/tools-market/wallet`,key:'api:/tools-market/wallet',
+      valid:(d:any)=>d&&typeof d.available==='string'&&typeof d.reserved==='string',
+      select:(d:any)=>d},
+    {url:`${API_BASE_URL}/tools-market/catalog`,key:'api:/tools-market/catalog',
+      valid:(d:any)=>Array.isArray(d.services),select:(d:any)=>d},
+    {url:`${API_BASE_URL}/service-directory?surface=mini`,key:'api:/service-directory?surface=mini',
+      valid:(d:any)=>Array.isArray(d.categories)&&Array.isArray(d.services),select:(d:any)=>d},
+    {url:`${API_BASE_URL}/articles?surface=mini`,key:'api:/articles?surface=mini',
+      valid:(d:any)=>Array.isArray(d.categories)&&Array.isArray(d.articles),select:(d:any)=>d},
     {url:`${API_BASE_URL}/chat/messages`,key:CHAT_SNAPSHOT_KEY,valid:(d:any)=>d.success===true&&Array.isArray(d.messages),select:normalizeChatMessages},
     ...stats.map((url,i)=>({url,key:statisticsSnapshotKey(url),valid:(d:any)=>d.success===true&&(i===0?!!d.summary&&Array.isArray(d.statistics):Array.isArray(d[['','countries','offers','clicks'][i]])),select:(d:any)=>d}))
   ];
@@ -39,15 +50,22 @@ export function preloadStartupData(id:number,partnerCode='',role='user'):Promise
       if(!request.valid(data)||currentSignedSession()!==session)throw new StartupDataError();
       saveSnapshot(request.key,request.select(data));
     };
-    const results=await Promise.allSettled(requests.slice(0,2).map(fetchOne));
-    if(results.some(result=>result.status==='rejected'))
-      throw new StartupDataError('Не удалось загрузить данные. Проверьте соединение и нажмите «Повторить».');
+    // Warm every main tab before the app is displayed, in bounded batches.
+    // Chat and deeper screens remain background-only to avoid API overload.
+    const primary=requests.slice(0,6);
+    const primaryResults=await Promise.allSettled(primary.map(fetchOne));
+    if(primaryResults.slice(0,4).some(result=>result.status==='rejected'))
+      throw new StartupDataError('Не удалось загрузить основные данные. Проверьте соединение и нажмите «Повторить».');
+    // Statistics belong to a main tab and should not progressively fill after navigation.
+    // Failures are non-fatal: the Stats screen has its own retry/error state.
+    const statResults=await Promise.allSettled(requests.slice(7).map(fetchOne));
+    void statResults;
     if(currentSignedSession()!==session)throw new StartupDataError('Сессия изменилась. Откройте приложение заново.');
     // Prioritize the visible home: secondary preloads must not compete with its feeds/images.
     await warmHomeContent();
     // Warm other screens only after the home is ready; do not block initial navigation.
     if(currentSignedSession()===session){
-      void Promise.allSettled(requests.slice(2).map(fetchOne));
+      void Promise.allSettled(requests.slice(6,7).map(fetchOne));
       void preloadPages(id,partnerCode,role).catch(()=>{});
     }
   })().finally(()=>{if(pending?.promise===promise)pending=undefined;});

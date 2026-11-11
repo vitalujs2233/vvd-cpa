@@ -30,9 +30,16 @@ const useRemote = <T,>(load:()=>Promise<T>, fallback:T) => {
   const path=load===readWallet?'/wallet':load===readCatalog?'/catalog':load===readTransactions?'/transactions':load===readOrders?'/orders':'/ai';
   const cached=()=>readApiSnapshot<T>('/tools-market'+path);
   const [value,setValue]=useState<T>(()=>cached()??fallback),[loading,setLoading]=useState(!cached()),[error,setError]=useState('');
-  const refresh=useCallback(async()=>{setLoading(!cached());setError('');try{setValue(await load());}catch(e){setError(toText(e));}finally{setLoading(false);}},[load]);
+  const [hasData,setHasData]=useState(()=>cached()!==undefined);
+  const refresh=useCallback(async()=>{
+    // A failed request must never turn an unknown financial balance into $0.
+    setLoading(!cached());setError('');
+    try{const next=await load();setValue(next);setHasData(true);}
+    catch(e){setError(toText(e));}
+    finally{setLoading(false);}
+  },[load]);
   useEffect(()=>{void refresh();},[refresh]);
-  return {value,loading,error,refresh};
+  return {value,loading,error,refresh,hasData};
 };
 const readWallet=()=>marketApi.wallet(),readCatalog=()=>marketApi.catalog(),readTransactions=()=>marketApi.transactions(),readOrders=()=>marketApi.orders(),readModels=()=>marketApi.models();
 const iconById={ai:Bot,numbers:Phone,proxy:Globe2};
@@ -60,7 +67,7 @@ export const Tools:React.FC=()=>{
     <div><h1 className="text-2xl font-bold">Инструменты</h1><p className="mt-1 text-xs text-textSecondary">Все сервисы для работы в одном месте</p></div>
     <Card variant="glow" padding="lg" className="flex flex-col gap-3">
       <p className="text-xs font-semibold text-textSecondary">Баланс инструментов</p>
-      <strong className="text-3xl font-bold text-white">{usd(w.value.available)}</strong>
+      <strong className="text-3xl font-bold text-white">{w.hasData?usd(w.value.available):"—"}</strong>
       <p className="text-xs text-textSecondary">Для оплаты сервисов и инструментов</p>
       <div className="flex gap-2">
         <Link to="/tools/topup" className="flex flex-1 items-center justify-center gap-2 rounded-app-xs bg-gold-gradient px-3 py-3 text-sm font-bold text-bgMain"><Plus size={17}/> Пополнить</Link>

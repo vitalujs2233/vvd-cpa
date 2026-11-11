@@ -5,6 +5,7 @@ import {API_BASE_URL} from '@/shared/lib/api';
 import {UnifiedCategoryCard} from '@/shared/ui/UnifiedCategoryCard';
 import {EditorialContributions} from './EditorialContributions';
 import {currentSignedSession} from '@/shared/lib/browserSession';
+import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
 
 const safeImage=(value:string)=>value.startsWith(API_BASE_URL+'/articles/images/')||/^https:\/\/[^\s]+$/i.test(value);
 const formatDate=(date:string)=>date?new Date(date).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}):'';
@@ -47,6 +48,12 @@ const cachedValue=(raw:string|null,ttl:number):{data:PublicArticles;at:number}|n
 const readCachedArticles=(surface:Surface):PublicArticles|null=>{
   const recent=articleCache.get(surface);
   if(recent&&Date.now()-recent.at<PERSISTED_CACHE_TTL)return recent.data;
+  // Authenticated app startup already fetched the current published feed.
+  const warmed=readApiSnapshot<PublicArticles>('/articles?surface='+surface);
+  if(warmed&&Array.isArray(warmed.categories)&&Array.isArray(warmed.articles)){
+    rememberArticles(surface,warmed);
+    return warmed;
+  }
   // The HTML snapshot is available synchronously on a cold start, including
   // inside Telegram. Respect each surface's publication visibility flags.
   const initial=staticArticles(surface);
