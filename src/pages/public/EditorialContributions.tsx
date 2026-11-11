@@ -9,7 +9,7 @@ const statusTime=(value:string)=>new Date(value).toLocaleDateString('ru-RU');
 type Props={categories:EditorialCategory[];authenticated:boolean;onLogin:()=>void;onClose:()=>void};
 export const EditorialContributions:React.FC<Props>=({categories,authenticated,onLogin,onClose})=>{
   const [form,setForm]=useState<ContributionContent>(()=>({
-    author_name:'',category_id:categories[0]?.id||'',title:'',excerpt:'',cover_url:'',
+    rights_confirmed:true,author_name:'',category_id:categories[0]?.id||'',title:'',excerpt:'',cover_url:'',
     blocks:[emptyBlock('paragraph')]
   }));
   const [submissions,setSubmissions]=useState<CommunitySubmission[]>([]);
@@ -60,7 +60,7 @@ export const EditorialContributions:React.FC<Props>=({categories,authenticated,o
       else await editorialApi.contributionSubmit(form);
       const response=await editorialApi.contributionsMine();
       setSubmissions(response.submissions);
-      setForm({author_name:form.author_name,category_id:form.category_id,
+      setForm({rights_confirmed:true,author_name:form.author_name,category_id:form.category_id,
         title:'',excerpt:'',cover_url:'',blocks:[emptyBlock('paragraph')]});
       setConsent(false);
       setRevisionId(null);
@@ -88,7 +88,7 @@ export const EditorialContributions:React.FC<Props>=({categories,authenticated,o
           <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={e=>void upload(e.target.files?.[0]||null)}/>
         </label>
         {form.cover_url&&<div className="vvd-community-preview"><img src={form.cover_url} alt="Фотообложка статьи"/><button type="button" onClick={()=>update({cover_url:''})}>Убрать обложку</button></div>}
-        {revisionId&&<button type="button" className="vvd-web-outline-button" onClick={()=>{setRevisionId(null);setForm({author_name:'',category_id:categories[0]?.id||'',title:'',excerpt:'',cover_url:'',blocks:[emptyBlock('paragraph')]})}}>Отменить доработку</button>}
+        {revisionId&&<button type="button" className="vvd-web-outline-button" onClick={()=>{setRevisionId(null);setForm({rights_confirmed:true,author_name:'',category_id:categories[0]?.id||'',title:'',excerpt:'',cover_url:'',blocks:[emptyBlock('paragraph')]})}}>Отменить доработку</button>}
         <h3>Содержание статьи</h3>
         <p className="vvd-community-hint">Добавляйте заголовки, абзацы, фотографии и ссылки. Не размещайте чужие материалы без разрешения, скрытую рекламу или личные контакты.</p>
         {form.blocks.map((block,index)=><div className="vvd-community-block" key={index}>
