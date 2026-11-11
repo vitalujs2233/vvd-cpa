@@ -296,6 +296,7 @@ class Article(BaseModel):
     slug: str = Field(min_length=1, max_length=100, pattern=SLUG)
     category_id: str = Field(min_length=1, max_length=64)
     title: str = Field(min_length=1, max_length=180)
+    author_name: str = Field(default="VVD CPA", max_length=60)
     excerpt: str = Field(default="", max_length=500)
     cover_url: str = Field(default="", max_length=2048)
     seo_title: str = Field(default="", max_length=180)

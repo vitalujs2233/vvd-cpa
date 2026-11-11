@@ -2014,6 +2014,8 @@ from service_directory import router as service_directory_router
 app.include_router(service_directory_router)
 from editorial import router as editorial_router
 app.include_router(editorial_router)
+from editorial_submissions import router as community_articles_router
+app.include_router(community_articles_router)
 from ai_editor import router as ai_editor_router
 app.include_router(ai_editor_router)
 from miniapp_maintenance import router as miniapp_maintenance_router

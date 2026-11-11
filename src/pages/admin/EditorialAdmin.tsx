@@ -1,12 +1,13 @@
 import React,{useEffect,useState} from 'react';
 import {ArrowLeft,ArrowDown,ArrowUp,ExternalLink,Eye,ImagePlus,Plus,Save,Trash2} from 'lucide-react';
 import {editorialApi,type Article,type ArticleBlock,type EditorialCategory,type EditorialData} from '@/pages/public/editorialApi';
+import {EditorialSubmissionAdmin} from './EditorialSubmissionAdmin';
 
 const input='w-full rounded-app-xs border border-white/15 bg-bgMain px-3 py-2.5 text-sm text-white outline-none focus:border-accentGold';
 const slugify=(value:string)=>value.toLowerCase().trim().replace(/[^a-z0-9-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,90);
 const newId=()=>crypto.randomUUID().replace(/-/g,'').slice(0,16);
 const emptyCategory=():EditorialCategory=>({id:'category-'+newId(),name:'',description:'',image_url:'',sort_order:100,active:true,show_on_web:true,show_in_mini_app:true});
-const emptyArticle=(categoryId:string):Article=>({slug:'article-'+newId(),title:'',category_id:categoryId,excerpt:'',cover_url:'',seo_title:'',seo_description:'',tags:[],blocks:[],published:false,show_on_web:true,show_in_mini_app:true,published_at:'',updated_at:''});
+const emptyArticle=(categoryId:string):Article=>({author_name:'VVD CPA',slug:'article-'+newId(),title:'',category_id:categoryId,excerpt:'',cover_url:'',seo_title:'',seo_description:'',tags:[],blocks:[],published:false,show_on_web:true,show_in_mini_app:true,published_at:'',updated_at:''});
 const emptyBlock=(type:ArticleBlock['type']):ArticleBlock=>({type,text:'',url:'',alt:''});
 const blockName:Record<ArticleBlock['type'],string>={paragraph:'Абзац',heading:'Заголовок',image:'Изображение',link:'Ссылка',quote:'Цитата'};
 
@@ -95,6 +96,7 @@ export const EditorialAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
       <div><b className="text-sm text-white">Изменения</b><p className="text-xs text-textSecondary">{articleDirty||categoryDirty?'Есть несохранённые изменения':'Всё сохранено'}</p></div>
       <button disabled={saving||uploading||categoryUploading} onClick={()=>void save()} className="rounded-lg bg-accentGold px-4 py-2 text-sm font-bold text-black flex gap-2"><Save size={16}/>{saving?'Сохраняем…':'Сохранить'}</button>
     </div>
+    <EditorialSubmissionAdmin categories={data.categories} onPublished={()=>setRefresh(v=>v+1)}/>
     <section className="rounded-card border border-white/10 bg-bgCard p-3 space-y-3">
       <div className="flex justify-between items-center"><h2 className="font-bold text-white">Категории ({data.categories.length})</h2><button className="text-accentBrightGold text-xs flex gap-1" onClick={()=>{setCategory(emptyCategory());setArticle(null)}}><Plus size={15}/> Добавить</button></div>
       {data.categories.map(c=><div key={c.id} className="flex items-center justify-between gap-2 border-t border-white/10 pt-2"><span className="flex min-w-0 items-center gap-3 text-sm text-white">
@@ -141,6 +143,7 @@ export const EditorialAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
       {data.articles.map(a=><div key={a.slug} className="flex justify-between items-center gap-2 border-t border-white/10 pt-2"><div><b className="text-sm text-white">{a.title}</b><p className="text-xs text-textSecondary">{a.published?'Опубликовано: '+(a.show_on_web!==false&&a.show_in_mini_app!==false?'сайт и Mini App':a.show_on_web!==false?'сайт':a.show_in_mini_app!==false?'Mini App':'не выбрана площадка'):'Черновик'} · {data.categories.find(c=>c.id===a.category_id)?.name||'Без категории'} · <Eye size={13} className="inline-block align-middle"/> {(a.view_count??0).toLocaleString('ru-RU')} просмотров</p></div><div className="flex gap-2"><button className="text-accentBrightGold text-xs" onClick={()=>{setArticle({...a,blocks:a.blocks.map(b=>({...b}))});setEditingSlug(a.slug);setCategory(null)}}>Изменить</button><button className="text-red-300" aria-label="Удалить статью" onClick={()=>{if(window.confirm('Удалить эту статью?')){setData({...data,articles:data.articles.filter(x=>x.slug!==a.slug)});setArticleDirty(true)}}}><Trash2 size={16}/></button></div></div>)}
       {article&&<div className="space-y-3 border-t border-accentGold/30 pt-3">
         <h3 className="font-bold text-white">Редактор статьи</h3>
+        <label className="block text-xs text-textSecondary">Имя автора (показывается читателям)<input className={input} maxLength={60} value={article.author_name||'VVD CPA'} onChange={e=>updateArticle({author_name:e.target.value})}/></label>
         <label className="block text-xs text-textSecondary">Заголовок<input className={input} maxLength={180} value={article.title} onChange={e=>updateArticle({title:e.target.value})}/></label>
         <label className="block text-xs text-textSecondary">Адрес статьи (латиница, без пробелов)<div className="flex gap-2"><input className={input} value={article.slug} maxLength={100} onChange={e=>updateArticle({slug:slugify(e.target.value)})}/><button className="text-accentBrightGold text-xs" onClick={()=>updateArticle({slug:slugify(article.title)||article.slug})}>Из заголовка</button></div></label>
         <label className="block text-xs text-textSecondary">Категория<select className={input} value={article.category_id} onChange={e=>updateArticle({category_id:e.target.value})}>{data.categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>

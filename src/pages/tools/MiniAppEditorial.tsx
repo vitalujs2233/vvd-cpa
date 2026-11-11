@@ -4,6 +4,7 @@ import {ArrowLeft, Newspaper} from 'lucide-react';
 import {PublicEditorial} from '@/pages/public/PublicEditorial';
 import '@/pages/public/PublicWebsite.css';
 import {triggerHaptic} from '@/shared/lib/telegram';
+import {currentSignedSession} from '@/shared/lib/browserSession';
 
 // The Mini App reuses the same published article feed, cards and complete articles
 // as the public website. Drafts remain hidden by the existing editorial API.
@@ -31,6 +32,6 @@ export const MiniAppEditorial:React.FC=()=>{
         </div>
       </div>
     </div>
-    <PublicEditorial slug={slug} surface="mini" onArticle={openArticle} onBack={openList} onMetadata={noopMetadata}/>
+    <PublicEditorial slug={slug} surface="mini" onArticle={openArticle} onBack={openList} onMetadata={noopMetadata} contributionAuthenticated={Boolean(currentSignedSession())} onContributionLogin={()=>window.alert('Откройте VVD CPA через Telegram и войдите в свой аккаунт.')}/>
   </main>;
 };
