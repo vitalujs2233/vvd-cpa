@@ -16,7 +16,9 @@ const matchesWords=(words:string[],...fields:string[])=>{
   return words.every(word=>text.includes(word));
 };
 // Keep the last successful response available when navigating back from an article.
-const CACHE_TTL=5*60*1000;
+// Show the last public catalog immediately, then always refresh it from the API.
+// Keep a bounded persistent cache so reopening Telegram does not show empty cards.
+const PERSISTED_CACHE_TTL=24*60*60*1000;
 type Surface='web'|'mini';
 const categoryIcons:Record<string,React.ElementType>={
   'ubt-traffic':TrendingUp,'services-tools':Wrench,'cpa-partners':Link2,
@@ -25,28 +27,43 @@ const categoryIcons:Record<string,React.ElementType>={
   'ai-automation':Bot,'cases-reviews':ClipboardList
 };
 const articleCache=new Map<Surface,{data:PublicArticles;at:number}>();
+const staticArticles=(surface:Surface):PublicArticles|null=>{
+  const initial=bootstrappedEditorial();
+  if(!initial)return null;
+  const key:'show_on_web'|'show_in_mini_app'=surface==='web'?'show_on_web':'show_in_mini_app';
+  const categories=initial.categories.filter(c=>c.active!==false&&c[key]!==false);
+  const ids=new Set(categories.map(c=>c.id));
+  const articles=initial.articles.filter(a=>a.published&&a[key]!==false&&ids.has(a.category_id));
+  return categories.length||articles.length?{categories,articles}:null;
+};
+const cachedValue=(raw:string|null,ttl:number):{data:PublicArticles;at:number}|null=>{
+  if(!raw)return null;
+  try{
+    const saved=JSON.parse(raw) as {data:PublicArticles;at:number};
+    return Number.isFinite(saved.at)&&Date.now()-saved.at<ttl&&
+      Array.isArray(saved.data?.categories)&&Array.isArray(saved.data?.articles)?saved:null;
+  }catch{return null;}
+};
 const readCachedArticles=(surface:Surface):PublicArticles|null=>{
   const recent=articleCache.get(surface);
-  if(recent&&Date.now()-recent.at<CACHE_TTL)return recent.data;
-  if(surface==='web'){
-    const initial=bootstrappedEditorial();
-    if(initial?.articles.length||initial?.categories.length)return {articles:initial.articles,categories:initial.categories};
-  }
+  if(recent&&Date.now()-recent.at<PERSISTED_CACHE_TTL)return recent.data;
+  // The HTML snapshot is available synchronously on a cold start, including
+  // inside Telegram. Respect each surface's publication visibility flags.
+  const initial=staticArticles(surface);
+  if(initial)return initial;
   try{
-    const raw=sessionStorage.getItem('vvd_public_articles_'+surface+'_v2');
-    if(!raw)return null;
-    const saved=JSON.parse(raw) as {data:PublicArticles;at:number};
-    if(Number.isFinite(saved.at)&&Date.now()-saved.at<CACHE_TTL&&
-      Array.isArray(saved.data?.categories)&&Array.isArray(saved.data?.articles)){
-      articleCache.set(surface,saved);return saved.data;
-    }
-  }catch{/* Optional cache. */}
+    const session=cachedValue(sessionStorage.getItem('vvd_public_articles_'+surface+'_v2'),PERSISTED_CACHE_TTL);
+    const persisted=cachedValue(localStorage.getItem('vvd_public_articles_'+surface+'_v3'),PERSISTED_CACHE_TTL);
+    const saved=(!session||persisted&&persisted.at>session.at)?persisted:session;
+    if(saved){articleCache.set(surface,saved);return saved.data;}
+  }catch{/* Optional cache: continue to network loading. */}
   return null;
 };
 const rememberArticles=(surface:Surface,data:PublicArticles)=>{
   const value={data,at:Date.now()};
   articleCache.set(surface,value);
   try{sessionStorage.setItem('vvd_public_articles_'+surface+'_v2',JSON.stringify(value));}catch{}
+  try{localStorage.setItem('vvd_public_articles_'+surface+'_v3',JSON.stringify(value));}catch{}
 };
 const detailMemory=new Map<string,Article>();
 const anonymousViewSession=():string=>{
@@ -61,8 +78,12 @@ const anonymousViewSession=():string=>{
     return crypto.randomUUID();
   }
 };
-const readCachedDetail=(slug:string,surface:Surface):Article|null=>
-  detailMemory.get(surface+':'+slug)||(surface==='web'?bootstrappedEditorial()?.details?.[slug]:null)||null;
+const readCachedDetail=(slug:string,surface:Surface):Article|null=>{
+  const existing=detailMemory.get(surface+':'+slug);
+  if(existing)return existing;
+  const article=bootstrappedEditorial()?.details?.[slug];
+  return article?.published&&article[surface==='web'?'show_on_web':'show_in_mini_app']!==false?article:null;
+};
 type Props={slug:string;surface?:Surface;onArticle:(slug:string)=>void;onBack:()=>void;onMetadata:(title:string,description:string,cover?:string,date?:string)=>void;contributionAuthenticated?:boolean;onContributionLogin?:()=>void};
 export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBack,onMetadata,contributionAuthenticated,onContributionLogin})=>{
   const articleRoot=useRef<HTMLElement>(null);
@@ -85,7 +106,7 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
       setLoading(!cached);
       if(cached)onMetadata(cached.seo_title||cached.title,cached.seo_description||cached.excerpt,cached.cover_url,cached.published_at);
       // Static first, then refresh from the backend when available.
-      if(surface==='web'&&!bootstrappedEditorial())void editorialApi.snapshot().then(v=>{
+      if(!bootstrappedEditorial())void editorialApi.snapshot().then(v=>{
         if(!mounted||liveAnswered)return;
         const article=v.details[slug];
         if(article){
@@ -107,10 +128,15 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
       const cached=readCachedArticles(surface);
       if(cached)setData(cached);
       setLoading(!cached);
-      if(surface==='web'&&!bootstrappedEditorial())void editorialApi.snapshot().then(v=>{
+      if(!bootstrappedEditorial())void editorialApi.snapshot().then(v=>{
         if(!mounted||liveAnswered)return;
-        const feed={categories:v.categories,articles:v.articles};
-        rememberArticles(surface,feed);setData(feed);setLoading(false);
+        const key:'show_on_web'|'show_in_mini_app'=surface==='web'?'show_on_web':'show_in_mini_app';
+        const categories=v.categories.filter(c=>c.active!==false&&c[key]!==false);
+        const ids=new Set(categories.map(c=>c.id));
+        const feed={categories,articles:v.articles.filter(a=>a.published&&a[key]!==false&&ids.has(a.category_id))};
+        if(feed.categories.length||feed.articles.length){
+          rememberArticles(surface,feed);setData(feed);setLoading(false);
+        }
       }).catch(()=>{});
       void editorialApi.list(surface).then(v=>{
         if(!mounted)return;
