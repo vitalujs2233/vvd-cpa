@@ -17,6 +17,7 @@ export const EditorialContributions:React.FC<Props>=({categories,authenticated,o
   const [busy,setBusy]=useState(false);
   const [uploading,setUploading]=useState(false);
   const [consent,setConsent]=useState(false);
+  const [revisionId,setRevisionId]=useState<string|null>(null);
   const [error,setError]=useState('');
   const [message,setMessage]=useState('');
   useEffect(()=>{
@@ -55,12 +56,14 @@ export const EditorialContributions:React.FC<Props>=({categories,authenticated,o
     if(!consent){setError('Подтвердите право использовать материалы.');return;}
     setBusy(true);
     try{
-      await editorialApi.contributionSubmit(form);
+      if(revisionId)await editorialApi.contributionRevise(revisionId,form);
+      else await editorialApi.contributionSubmit(form);
       const response=await editorialApi.contributionsMine();
       setSubmissions(response.submissions);
       setForm({author_name:form.author_name,category_id:form.category_id,
         title:'',excerpt:'',cover_url:'',blocks:[emptyBlock('paragraph')]});
       setConsent(false);
+      setRevisionId(null);
       setMessage('Статья отправлена администратору. До одобрения она не видна читателям.');
     }catch(e){setError('Не удалось отправить статью: '+String(e));}
     finally{setBusy(false);}
@@ -68,7 +71,7 @@ export const EditorialContributions:React.FC<Props>=({categories,authenticated,o
   return <section className="vvd-community">
     <button type="button" className="vvd-web-back" onClick={onClose}><ArrowLeft size={17}/> К статьям и категориям</button>
     <span className="vvd-web-eyebrow">АВТОРСКИЕ ПУБЛИКАЦИИ</span>
-    <h2>Предложить статью</h2>
+    <h2>{revisionId?'Доработать статью':'Предложить статью'}</h2>
     <p className="vvd-community-hint">Поделитесь полезной инструкцией, обзором или разбором. Все материалы сначала проверяет и при необходимости редактирует администратор VVD CPA. До его одобрения статья не публикуется.</p>
     {!authenticated?<div className="vvd-community-panel">
       <p>Чтобы предложить статью или увидеть статус своих материалов, войдите в аккаунт через Telegram.</p>
@@ -85,6 +88,7 @@ export const EditorialContributions:React.FC<Props>=({categories,authenticated,o
           <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={e=>void upload(e.target.files?.[0]||null)}/>
         </label>
         {form.cover_url&&<div className="vvd-community-preview"><img src={form.cover_url} alt="Фотообложка статьи"/><button type="button" onClick={()=>update({cover_url:''})}>Убрать обложку</button></div>}
+        {revisionId&&<button type="button" className="vvd-web-outline-button" onClick={()=>{setRevisionId(null);setForm({author_name:'',category_id:categories[0]?.id||'',title:'',excerpt:'',cover_url:'',blocks:[emptyBlock('paragraph')]})}}>Отменить доработку</button>}
         <h3>Содержание статьи</h3>
         <p className="vvd-community-hint">Добавляйте заголовки, абзацы, фотографии и ссылки. Не размещайте чужие материалы без разрешения, скрытую рекламу или личные контакты.</p>
         {form.blocks.map((block,index)=><div className="vvd-community-block" key={index}>
@@ -104,7 +108,7 @@ export const EditorialContributions:React.FC<Props>=({categories,authenticated,o
           {(['paragraph','heading','image','link','quote'] as ArticleBlock['type'][]).map(type=><button type="button" key={type} disabled={form.blocks.length>=24||uploading||(type==='image'&&form.blocks.filter(b=>b.type==='image').length>=8)} onClick={()=>update({blocks:[...form.blocks,emptyBlock(type)]})}><Plus size={14}/> {({paragraph:'Абзац',heading:'Заголовок',image:'Фото',link:'Ссылка',quote:'Цитата'} as Record<string,string>)[type]}</button>)}
         </div>
         <label className="vvd-community-consent"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/><span>Подтверждаю, что текст и изображения мои либо я имею право их использовать. Согласен, что администратор может полностью отредактировать, отклонить или опубликовать материал с указанным авторством.</span></label>
-        <button type="button" className="vvd-web-gold-button" disabled={busy||uploading||!consent||form.author_name.trim().length<2||form.title.trim().length<8||form.excerpt.trim().length<20||!form.blocks.some(b=>b.type==='paragraph'&&b.text.trim().length>=100)} onClick={()=>void submit()}><Send size={16}/> {busy?'Отправляем…':'Отправить на проверку'}</button>
+        <button type="button" className="vvd-web-gold-button" disabled={busy||uploading||!consent||form.author_name.trim().length<2||form.title.trim().length<8||form.excerpt.trim().length<20||!form.blocks.some(b=>b.type==='paragraph'&&b.text.trim().length>=100)} onClick={()=>void submit()}><Send size={16}/> {busy?'Отправляем…':revisionId?'Отправить исправленную статью':'Отправить на проверку'}</button>
         <p className="vvd-community-hint">До трёх предложений за 24 часа. Отправка не гарантирует публикацию.</p>
       </div>
       <div className="vvd-community-panel">
@@ -114,6 +118,7 @@ export const EditorialContributions:React.FC<Props>=({categories,authenticated,o
           <span className="vvd-community-status">{statusLabel[s.status]||s.status}</span>
           <small>{statusTime(s.created_at)}</small>
           {s.moderator_note&&<p>Комментарий администратора: {s.moderator_note}</p>}
+          {s.status==='revision'&&<button type="button" className="vvd-web-outline-button" onClick={()=>{setForm(structuredClone(s.original));setRevisionId(s.id);setConsent(false);setError('');setMessage('Внесите правки и повторно отправьте материал на проверку.');const scroller=document.querySelector('.vvd-web-portal, .scrollable-container');scroller?.scrollTo({top:0,behavior:'smooth'});}}>Исправить и отправить повторно</button>}
           {s.status==='published'&&s.article_slug&&<p className="vvd-community-hint">Статья опубликована в разделе «Статьи и кейсы».</p>}
         </div>)}
       </div>
