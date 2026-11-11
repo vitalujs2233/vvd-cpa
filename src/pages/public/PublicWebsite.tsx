@@ -478,7 +478,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
     </div>
     {auth.loginOpen&&<TelegramBrowserLogin
       onClose={()=>auth.setLoginOpen(false)}
-      onLogin={session=>{auth.login(session);onOpenApp();}}
+      onLogin={session=>{auth.login(session);if(!articlesView)onOpenApp();}}
     />}
   </div>;
 };
