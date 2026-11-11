@@ -6,6 +6,7 @@ Financial and account-storage schemas are not changed.
 import json
 import threading
 from datetime import datetime, timezone
+from typing import Literal
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, File, Header, HTTPException, UploadFile
@@ -72,6 +73,7 @@ def registered_uid(header: str | None) -> int:
 
 
 class ContributionContent(BaseModel):
+    rights_confirmed: Literal[True]
     author_name: str = Field(min_length=2, max_length=60)
     category_id: str = Field(min_length=1, max_length=64)
     title: str = Field(min_length=8, max_length=180)
@@ -286,7 +288,7 @@ def review_submission(
                 raise HTTPException(409,"Такой адрес статьи уже существует")
             stamp = datetime.now(timezone.utc).isoformat()
             public_article = Article.model_validate({
-                **payload.content.model_dump(exclude={"author_name"}),
+                **payload.content.model_dump(exclude={"author_name","rights_confirmed"}),
                 "author_name": payload.content.author_name,
                 "slug": article_slug, "seo_title": payload.content.title,
                 "seo_description": payload.content.excerpt[:300],
