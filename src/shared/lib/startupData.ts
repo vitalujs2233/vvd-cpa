@@ -50,18 +50,22 @@ export function preloadStartupData(id:number,partnerCode='',role='user'):Promise
       if(!request.valid(data)||currentSignedSession()!==session)throw new StartupDataError();
       saveSnapshot(request.key,request.select(data));
     };
-    const essential=requests.slice(0,6);
-    // Keep initial concurrency bounded; only balance, CPA catalog and wallet
-    // are required. Other public catalog failures can retry on their pages.
-    const results=await Promise.allSettled(essential.map(fetchOne));
-    if(results.slice(0,4).some(result=>result.status==='rejected'))
-      throw new StartupDataError('Не удалось загрузить данные. Проверьте соединение и нажмите «Повторить».');
+    // Warm every main tab before the app is displayed, in bounded batches.
+    // Chat and deeper screens remain background-only to avoid API overload.
+    const primary=requests.slice(0,6);
+    const primaryResults=await Promise.allSettled(primary.map(fetchOne));
+    if(primaryResults.slice(0,4).some(result=>result.status==='rejected'))
+      throw new StartupDataError('Не удалось загрузить основные данные. Проверьте соединение и нажмите «Повторить».');
+    // Statistics belong to a main tab and should not progressively fill after navigation.
+    // Failures are non-fatal: the Stats screen has its own retry/error state.
+    const statResults=await Promise.allSettled(requests.slice(7).map(fetchOne));
+    void statResults;
     if(currentSignedSession()!==session)throw new StartupDataError('Сессия изменилась. Откройте приложение заново.');
     // Prioritize the visible home: secondary preloads must not compete with its feeds/images.
     await warmHomeContent();
     // Warm other screens only after the home is ready; do not block initial navigation.
     if(currentSignedSession()===session){
-      void Promise.allSettled(requests.slice(6).map(fetchOne));
+      void Promise.allSettled(requests.slice(6,7).map(fetchOne));
       void preloadPages(id,partnerCode,role).catch(()=>{});
     }
   })().finally(()=>{if(pending?.promise===promise)pending=undefined;});
