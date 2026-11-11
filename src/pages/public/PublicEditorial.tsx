@@ -3,6 +3,8 @@ import {ArrowLeft,ArrowRight,BookOpen,CalendarDays,Eye,Search,Tag,TrendingUp,Wre
 import {editorialApi,bootstrappedEditorial,type Article,type ArticleSummary,type PublicArticles} from './editorialApi';
 import {API_BASE_URL} from '@/shared/lib/api';
 import {UnifiedCategoryCard} from '@/shared/ui/UnifiedCategoryCard';
+import {EditorialContributions} from './EditorialContributions';
+import {currentSignedSession} from '@/shared/lib/browserSession';
 
 const safeImage=(value:string)=>value.startsWith(API_BASE_URL+'/articles/images/')||/^https:\/\/[^\s]+$/i.test(value);
 const formatDate=(date:string)=>date?new Date(date).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}):'';
@@ -61,13 +63,14 @@ const anonymousViewSession=():string=>{
 };
 const readCachedDetail=(slug:string,surface:Surface):Article|null=>
   detailMemory.get(surface+':'+slug)||(surface==='web'?bootstrappedEditorial()?.details?.[slug]:null)||null;
-type Props={slug:string;surface?:Surface;onArticle:(slug:string)=>void;onBack:()=>void;onMetadata:(title:string,description:string,cover?:string,date?:string)=>void};
-export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBack,onMetadata})=>{
+type Props={slug:string;surface?:Surface;onArticle:(slug:string)=>void;onBack:()=>void;onMetadata:(title:string,description:string,cover?:string,date?:string)=>void;contributionAuthenticated?:boolean;onContributionLogin?:()=>void};
+export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBack,onMetadata,contributionAuthenticated,onContributionLogin})=>{
   const articleRoot=useRef<HTMLElement>(null);
   const [data,setData]=useState<PublicArticles>(()=>readCachedArticles(surface)||{categories:[],articles:[]});
   const [item,setItem]=useState<Article|null>(()=>readCachedDetail(slug,surface));
   const [category,setCategory]=useState('all');
   const [query,setQuery]=useState('');
+  const [contributionOpen,setContributionOpen]=useState(false);
   const [loading,setLoading]=useState(()=>slug?!readCachedDetail(slug,surface):!readCachedArticles(surface));
   const [error,setError]=useState('');
   const [retry,setRetry]=useState(0);
@@ -159,11 +162,12 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
     const scroller=articleRoot.current?.closest<HTMLElement>('.vvd-web-portal, .scrollable-container');
     if(scroller)scroller.scrollTo({top:0,behavior:'auto'});
     else window.scrollTo({top:0,behavior:'auto'});
-  },[slug,category,surface]);
+  },[slug,category,surface,contributionOpen]);
   const chooseCategory=(id:string)=>{
     setCategory(id);setQuery('');
   };
   return <main className="vvd-web-articles" ref={articleRoot}>
+    {!slug&&contributionOpen?<EditorialContributions categories={data.categories} authenticated={contributionAuthenticated??Boolean(currentSignedSession())} onLogin={onContributionLogin||(()=>{})} onClose={()=>setContributionOpen(false)}/> : <>
     {slug?<button className="vvd-web-back" onClick={onBack}><ArrowLeft size={18}/> Все статьи и кейсы</button>:null}
     {slug ? (loading && !item ? <div className="vvd-article-detail">
         <span className="vvd-web-eyebrow">VVD CPA / СТАТЬИ И КЕЙСЫ</span>
@@ -177,7 +181,7 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
         <p className="vvd-article-lead">{item.excerpt}</p>
         <div className="vvd-article-meta">
           <span><CalendarDays size={16}/> {formatDate(item.published_at)}</span>
-          <span><BookOpen size={16}/> VVD CPA</span>
+          <span><BookOpen size={16}/> {item.author_name||'VVD CPA'}</span>
           <span aria-label={'Просмотров: '+(liveViews[slug]??item.view_count??0)}><Eye size={16}/> {(liveViews[slug]??item.view_count??0).toLocaleString('ru-RU')}</span>
         </div>
         {item.cover_url&&safeImage(item.cover_url)&&<img className="vvd-article-cover" src={item.cover_url} alt={item.title}/>}
@@ -197,6 +201,7 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
         <span className="vvd-web-eyebrow">БАЗА ЗНАНИЙ VVD CPA</span>
         <h1 className="vvd-articles-title">Статьи и кейсы</h1>
         <p className="vvd-articles-subtitle">Кейсы, разборы, обучение и инструменты для работы с трафиком.</p>
+        <button type="button" className="vvd-web-outline-button vvd-community-entry" onClick={()=>{setContributionOpen(true);setCategory('all');setQuery('')}}>✍ Предложить свою статью</button>
         <label className="vvd-web-search"><Search size={20}/><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Поиск категорий, статей и ключевых слов…"/></label>
         {category==='all'?<>
           <div className="vvd-editorial-category-heading"><h2>{searchTerms.length?'Найденные категории':'Выберите категорию'}</h2></div>
@@ -227,6 +232,7 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
         <div className="vvd-web-notice">{searchTerms.length?'По запросу ничего не найдено. Попробуй другое слово.':category!=='all'?'В этой категории пока нет опубликованных материалов.':'Здесь появятся первые статьи и кейсы VVD CPA.'}</div>}
       </section>
     }
+    </>}
   </main>;
 };
 
