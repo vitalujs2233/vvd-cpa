@@ -167,6 +167,33 @@ def submit_article(payload: ContributionContent,
     return {"id": str(submission_id), "status": "pending"}
 
 
+@router.post("/{submission_id}/revise")
+def revise_submission(submission_id: UUID, payload: ContributionContent,
+                      x_telegram_init_data: str | None = Header(None)):
+    uid = registered_uid(x_telegram_init_data)
+    check_category(payload.category_id)
+    ensure_contributions()
+    with engine.begin() as db:
+        row = db.execute(text("""
+            SELECT author_uid,status FROM public.vvd_article_contributions
+            WHERE id=CAST(:id AS uuid) FOR UPDATE
+        """), {"id": str(submission_id)}).mappings().first()
+        if not row or row["author_uid"] != uid:
+            raise HTTPException(404, "Материал не найден")
+        if row["status"] != "revision":
+            raise HTTPException(409, "Материал сейчас не ожидает доработки")
+        # The initial original is immutable; the revised version becomes the
+        # new moderated copy, and cannot go live without fresh approval.
+        db.execute(text("""
+            UPDATE public.vvd_article_contributions
+            SET edited=CAST(:body AS jsonb),status='pending',
+                moderator_note='',updated_at=now()
+            WHERE id=CAST(:id AS uuid)
+        """), {"id": str(submission_id),
+               "body": json.dumps(payload.model_dump(),ensure_ascii=False)})
+    return {"success": True, "status": "pending"}
+
+
 @router.post("/images")
 async def upload_contribution_image(
     image: UploadFile = File(...),
