@@ -81,6 +81,30 @@ export const EditorialSubmissionAdmin:React.FC<{categories:EditorialCategory[];o
             </div>)}
           </div>
         </details>
+        {!!item.history?.length&&<details className="text-sm text-textSecondary">
+          <summary className="cursor-pointer text-accentBrightGold">История изменений ({item.history.length})</summary>
+          <div className="mt-3 space-y-3">
+            {item.history.map((change,index)=><details key={index} className="rounded-lg border border-white/10 p-3">
+              <summary className="cursor-pointer">
+                {new Date(change.created_at).toLocaleString('ru-RU')} ·
+                {({save:'Правки администратора',approve:'Одобрение',reject:'Отклонение',revision:'Возврат на доработку',author_revision:'Исправления автора'} as Record<string,string>)[change.action]||change.action}
+              </summary>
+              <div className="mt-2 space-y-2 break-words">
+                <p><b>Автор:</b> {change.content.author_name}</p>
+                <p><b>Название:</b> {change.content.title}</p>
+                <p><b>Категория:</b> {categories.find(category=>category.id===change.content.category_id)?.name||change.content.category_id}</p>
+                <p><b>Описание:</b> {change.content.excerpt}</p>
+                {change.content.cover_url&&<ContributionImage className="max-h-48 rounded-lg" src={change.content.cover_url} alt="Предыдущая обложка"/>}
+                {change.content.blocks.map((b,i)=><div key={i} className="rounded-md border border-white/10 p-2">
+                  <small>{blocks[b.type]}</small>
+                  {b.text&&<p className="whitespace-pre-wrap">{b.text}</p>}
+                  {b.url&&<p className="break-all">{b.url}</p>}
+                  {b.type==='image'&&b.url&&<ContributionImage src={b.url} alt={b.alt||'Предыдущее изображение'} className="max-h-40 rounded-lg"/>}
+                </div>)}
+              </div>
+            </details>)}
+          </div>
+        </details>}
         <h3 className="font-bold text-white">Редактирование перед публикацией</h3>
         <label className="block text-xs text-textSecondary">Публичное имя автора<input className={input} maxLength={60} value={content.author_name} onChange={e=>update({author_name:e.target.value})}/></label>
         <label className="block text-xs text-textSecondary">Название<input className={input} maxLength={180} value={content.title} onChange={e=>update({title:e.target.value})}/></label>
