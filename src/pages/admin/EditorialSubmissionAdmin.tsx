@@ -1,5 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import {ArrowDown,ArrowUp,Check,ImagePlus,RefreshCw,Save,ShieldCheck,Trash2,X} from 'lucide-react';
+import {ContributionImage} from '@/pages/public/ContributionImage';
 import {editorialApi,type ArticleBlock,type ContributionContent,type CommunitySubmission,type EditorialCategory} from '@/pages/public/editorialApi';
 
 const input='w-full rounded-app-xs border border-white/15 bg-bgMain px-3 py-2.5 text-sm text-white outline-none focus:border-accentGold';
@@ -71,15 +72,39 @@ export const EditorialSubmissionAdmin:React.FC<{categories:EditorialCategory[];o
         <details className="text-sm text-textSecondary"><summary className="cursor-pointer text-accentBrightGold">Оригинал, присланный автором (не изменяется)</summary>
           <div className="mt-3 space-y-2">
             <p><b>Автор:</b> {item.original.author_name}</p><p><b>Заголовок:</b> {item.original.title}</p><p><b>Описание:</b> {item.original.excerpt}</p>
-            {item.original.cover_url&&<img className="max-h-48 rounded-lg" src={item.original.cover_url} alt="Оригинальная обложка"/>}
+            {item.original.cover_url&&<ContributionImage className="max-h-48 rounded-lg" src={item.original.cover_url} alt="Оригинальная обложка"/>}
             {item.original.blocks.map((b,i)=><div key={i} className="rounded-md border border-white/10 p-2 break-words">
               <small>{blocks[b.type]}</small>
               {b.text&&<p className="whitespace-pre-wrap">{b.text}</p>}
               {b.url&&<p className="break-all">{b.url}</p>}
-              {b.type==='image'&&b.url&&<img src={b.url} alt={b.alt||'Иллюстрация автора'} className="max-h-40 rounded-lg"/>}
+              {b.type==='image'&&b.url&&<ContributionImage src={b.url} alt={b.alt||'Иллюстрация автора'} className="max-h-40 rounded-lg"/>}
             </div>)}
           </div>
         </details>
+        {!!item.history?.length&&<details className="text-sm text-textSecondary">
+          <summary className="cursor-pointer text-accentBrightGold">История изменений ({item.history.length})</summary>
+          <div className="mt-3 space-y-3">
+            {item.history.map((change,index)=><details key={index} className="rounded-lg border border-white/10 p-3">
+              <summary className="cursor-pointer">
+                {new Date(change.created_at).toLocaleString('ru-RU')} ·
+                {({save:'Правки администратора',approve:'Одобрение',reject:'Отклонение',revision:'Возврат на доработку',author_revision:'Исправления автора'} as Record<string,string>)[change.action]||change.action}
+              </summary>
+              <div className="mt-2 space-y-2 break-words">
+                <p><b>Автор:</b> {change.content.author_name}</p>
+                <p><b>Название:</b> {change.content.title}</p>
+                <p><b>Категория:</b> {categories.find(category=>category.id===change.content.category_id)?.name||change.content.category_id}</p>
+                <p><b>Описание:</b> {change.content.excerpt}</p>
+                {change.content.cover_url&&<ContributionImage className="max-h-48 rounded-lg" src={change.content.cover_url} alt="Предыдущая обложка"/>}
+                {change.content.blocks.map((b,i)=><div key={i} className="rounded-md border border-white/10 p-2">
+                  <small>{blocks[b.type]}</small>
+                  {b.text&&<p className="whitespace-pre-wrap">{b.text}</p>}
+                  {b.url&&<p className="break-all">{b.url}</p>}
+                  {b.type==='image'&&b.url&&<ContributionImage src={b.url} alt={b.alt||'Предыдущее изображение'} className="max-h-40 rounded-lg"/>}
+                </div>)}
+              </div>
+            </details>)}
+          </div>
+        </details>}
         <h3 className="font-bold text-white">Редактирование перед публикацией</h3>
         <label className="block text-xs text-textSecondary">Публичное имя автора<input className={input} maxLength={60} value={content.author_name} onChange={e=>update({author_name:e.target.value})}/></label>
         <label className="block text-xs text-textSecondary">Название<input className={input} maxLength={180} value={content.title} onChange={e=>update({title:e.target.value})}/></label>
@@ -87,7 +112,7 @@ export const EditorialSubmissionAdmin:React.FC<{categories:EditorialCategory[];o
         <label className="block text-xs text-textSecondary">Описание<textarea className={input} rows={3} maxLength={500} value={content.excerpt} onChange={e=>update({excerpt:e.target.value})}/></label>
         <label className="block text-xs text-textSecondary">HTTPS обложка<input className={input} value={content.cover_url} onChange={e=>update({cover_url:e.target.value})}/></label>
         <label className="block text-xs text-accentBrightGold">Заменить обложку<input className={input} type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={e=>void upload(e.target.files?.[0]||null)}/></label>
-        {content.cover_url&&<img className="max-h-48 rounded-lg" src={content.cover_url} alt="Обложка после модерации"/>}
+        {content.cover_url&&<ContributionImage className="max-h-48 rounded-lg" src={content.cover_url} alt="Обложка после модерации"/>}
         <h4 className="text-sm font-bold text-white">Содержание</h4>
         {content.blocks.map((b,i)=><div key={i} className="rounded-lg border border-white/10 p-2 space-y-2">
           <div className="flex justify-between items-center">
