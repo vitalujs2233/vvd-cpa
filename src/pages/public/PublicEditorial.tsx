@@ -16,7 +16,6 @@ const matchesWords=(words:string[],...fields:string[])=>{
   return words.every(word=>text.includes(word));
 };
 // Keep the last successful response available when navigating back from an article.
-const CACHE_TTL=5*60*1000;
 // Show the last public catalog immediately, then always refresh it from the API.
 // Keep a bounded persistent cache so reopening Telegram does not show empty cards.
 const PERSISTED_CACHE_TTL=24*60*60*1000;
@@ -31,7 +30,7 @@ const articleCache=new Map<Surface,{data:PublicArticles;at:number}>();
 const staticArticles=(surface:Surface):PublicArticles|null=>{
   const initial=bootstrappedEditorial();
   if(!initial)return null;
-  const key=surface==='web'?'show_on_web':'show_in_mini_app';
+  const key:'show_on_web'|'show_in_mini_app'=surface==='web'?'show_on_web':'show_in_mini_app';
   const categories=initial.categories.filter(c=>c.active!==false&&c[key]!==false);
   const ids=new Set(categories.map(c=>c.id));
   const articles=initial.articles.filter(a=>a.published&&a[key]!==false&&ids.has(a.category_id));
@@ -131,7 +130,7 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
       setLoading(!cached);
       if(!bootstrappedEditorial())void editorialApi.snapshot().then(v=>{
         if(!mounted||liveAnswered)return;
-        const key=surface==='web'?'show_on_web':'show_in_mini_app';
+        const key:'show_on_web'|'show_in_mini_app'=surface==='web'?'show_on_web':'show_in_mini_app';
         const categories=v.categories.filter(c=>c.active!==false&&c[key]!==false);
         const ids=new Set(categories.map(c=>c.id));
         const feed={categories,articles:v.articles.filter(a=>a.published&&a[key]!==false&&ids.has(a.category_id))};
