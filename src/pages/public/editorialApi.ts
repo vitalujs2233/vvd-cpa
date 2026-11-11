@@ -2,7 +2,7 @@ import {apiRequest,API_BASE_URL} from '@/shared/lib/api';
 
 export type EditorialCategory={id:string;name:string;description:string;image_url?:string;active:boolean;show_on_web?:boolean;show_in_mini_app?:boolean;sort_order:number};
 export type ArticleBlock={type:'paragraph'|'heading'|'image'|'link'|'quote';text:string;url:string;alt:string};
-export type Article={slug:string;category_id:string;title:string;excerpt:string;cover_url:string;seo_title:string;seo_description:string;tags:string[];blocks:ArticleBlock[];published:boolean;show_on_web?:boolean;show_in_mini_app?:boolean;published_at:string;updated_at:string;view_count?:number};
+export type Article={slug:string;category_id:string;title:string;author_name?:string;excerpt:string;cover_url:string;seo_title:string;seo_description:string;tags:string[];blocks:ArticleBlock[];published:boolean;show_on_web?:boolean;show_in_mini_app?:boolean;published_at:string;updated_at:string;view_count?:number};
 export type ContributionContent={author_name:string;category_id:string;title:string;excerpt:string;cover_url:string;blocks:ArticleBlock[]};
 export type CommunitySubmission={id:string;status:'pending'|'revision'|'rejected'|'published';created_at:string;updated_at:string;moderator_note:string;article_slug:string|null;original:ContributionContent;edited?:ContributionContent;author_uid?:number};
 export type ArticleSummary=Omit<Article,'blocks'>;
