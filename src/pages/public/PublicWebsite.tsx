@@ -363,7 +363,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
           <div className="vvd-web-account-heading"><span className="vvd-web-eyebrow">ЛИЧНЫЙ КАБИНЕТ</span><h1>{auth.restoring?'Проверяем сессию…':'Вход через Telegram'}</h1><p>Один аккаунт для сайта и Mini App. Войти и зарегистрироваться можно с помощью Telegram.</p></div>
           {!auth.restoring&&<button type="button" className="vvd-web-gold-button" onClick={()=>auth.setLoginOpen(true)}>Войти / Зарегистрироваться <ArrowRight size={17}/></button>}
         </main>
-      ) : articlesView ? <PublicEditorial slug={articleSlug} onArticle={openArticles} onBack={()=>openArticles()} onMetadata={onArticleMetadata}/>
+      ) : articlesView ? <PublicEditorial slug={articleSlug} onArticle={openArticles} onBack={()=>openArticles()} onMetadata={onArticleMetadata} contributionAuthenticated={Boolean(auth.profile)} onContributionLogin={()=>auth.setLoginOpen(true)}/>
       : catalogView && !categoryId ? <main className="vvd-web-public-main">
         <section className="vvd-web-section vvd-web-catalog-section" id="catalog">
           <div className="vvd-web-section-heading">
