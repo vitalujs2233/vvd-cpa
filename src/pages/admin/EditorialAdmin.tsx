@@ -96,6 +96,7 @@ export const EditorialAdmin:React.FC<{onBack:()=>void}>=({onBack})=>{
       <div><b className="text-sm text-white">Изменения</b><p className="text-xs text-textSecondary">{articleDirty||categoryDirty?'Есть несохранённые изменения':'Всё сохранено'}</p></div>
       <button disabled={saving||uploading||categoryUploading} onClick={()=>void save()} className="rounded-lg bg-accentGold px-4 py-2 text-sm font-bold text-black flex gap-2"><Save size={16}/>{saving?'Сохраняем…':'Сохранить'}</button>
     </div>
+    <EditorialSubmissionAdmin categories={data.categories} onPublished={()=>setRefresh(v=>v+1)}/>
     <section className="rounded-card border border-white/10 bg-bgCard p-3 space-y-3">
       <div className="flex justify-between items-center"><h2 className="font-bold text-white">Категории ({data.categories.length})</h2><button className="text-accentBrightGold text-xs flex gap-1" onClick={()=>{setCategory(emptyCategory());setArticle(null)}}><Plus size={15}/> Добавить</button></div>
       {data.categories.map(c=><div key={c.id} className="flex items-center justify-between gap-2 border-t border-white/10 pt-2"><span className="flex min-w-0 items-center gap-3 text-sm text-white">
