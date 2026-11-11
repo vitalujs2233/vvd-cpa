@@ -18,6 +18,7 @@ from database import engine
 from editorial import Article, ArticleBlock, EditorialContent, admin_auth, load
 from home_ads import sanitize
 from stars_payments import require_telegram_id
+from access_guard import authorized_admin
 
 router = APIRouter(prefix="/article-contributions", tags=["Community editorial"])
 _schema_lock = threading.Lock()
@@ -57,6 +58,25 @@ def ensure_contributions():
                   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
                 )
             """))
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS public.vvd_contribution_revisions (
+                  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                  submission_id UUID NOT NULL REFERENCES public.vvd_article_contributions(id),
+                  editor_uid BIGINT NOT NULL,
+                  action VARCHAR(24) NOT NULL,
+                  content JSONB NOT NULL,
+                  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                )
+            """))
+            db.execute(text("""
+                CREATE INDEX IF NOT EXISTS vvd_contribution_revisions_submission_idx
+                ON public.vvd_contribution_revisions(submission_id, created_at DESC)
+            """))
+            # The API uses a verified Telegram session; these rows must not
+            # be exposed through the Supabase client/data API.
+            for table in ("vvd_article_contributions", "vvd_contribution_images",
+                          "vvd_contribution_revisions"):
+                db.execute(text(f"ALTER TABLE public.{table} ENABLE ROW LEVEL SECURITY"))
         _schema_ready = True
 
 
@@ -126,6 +146,7 @@ def safe_submission(row, admin: bool = False):
     if admin:
         result["edited"] = row["edited"]
         result["author_uid"] = row["author_uid"]
+        result["history"] = row.get("history", [])
     return result
 
 
@@ -177,15 +198,21 @@ def revise_submission(submission_id: UUID, payload: ContributionContent,
     ensure_contributions()
     with engine.begin() as db:
         row = db.execute(text("""
-            SELECT author_uid,status FROM public.vvd_article_contributions
+            SELECT author_uid,status,edited FROM public.vvd_article_contributions
             WHERE id=CAST(:id AS uuid) FOR UPDATE
         """), {"id": str(submission_id)}).mappings().first()
         if not row or row["author_uid"] != uid:
             raise HTTPException(404, "Материал не найден")
         if row["status"] != "revision":
             raise HTTPException(409, "Материал сейчас не ожидает доработки")
-        # The initial original is immutable; the revised version becomes the
-        # new moderated copy, and cannot go live without fresh approval.
+        # Preserve every previous revision, as well as the immutable first submission.
+        db.execute(text("""
+            INSERT INTO public.vvd_contribution_revisions
+              (submission_id, editor_uid, action, content)
+            VALUES (CAST(:id AS uuid), :uid, 'author_revision', CAST(:body AS jsonb))
+        """), {"id": str(submission_id), "uid": uid,
+               "body": json.dumps(row["edited"], ensure_ascii=False)})
+        # The revised version requires fresh moderation.
         db.execute(text("""
             UPDATE public.vvd_article_contributions
             SET edited=CAST(:body AS jsonb),status='pending',
@@ -221,16 +248,40 @@ async def upload_contribution_image(
 
 
 @router.get("/images/{image_id}")
-def contribution_image(image_id: UUID):
+def contribution_image(
+    image_id: UUID, x_telegram_init_data: str | None = Header(None)
+):
     ensure_contributions()
     with engine.connect() as db:
-        blob = db.execute(text("""
-            SELECT data FROM public.vvd_contribution_images WHERE id=CAST(:id AS uuid)
-        """), {"id": str(image_id)}).scalar_one_or_none()
-    if blob is None:
+        row = db.execute(text("""
+            SELECT data, author_uid FROM public.vvd_contribution_images
+            WHERE id=CAST(:id AS uuid)
+        """), {"id": str(image_id)}).mappings().first()
+    if row is None:
         raise HTTPException(404, "Фото не найдено")
-    return Response(bytes(blob), media_type="image/webp",
-                    headers={"Cache-Control": "public,max-age=3600",
+
+    # Once approved, an image is public only while it appears in a published
+    # article. Unapproved uploads remain accessible solely to owner/admin.
+    image_path = f"/article-contributions/images/{image_id}"
+    published = any(
+        article.get("published") and
+        (article.get("show_on_web", True) or article.get("show_in_mini_app", True)) and
+        (str(article.get("cover_url", "")).endswith(image_path) or any(
+            block.get("type") == "image" and
+            str(block.get("url", "")).endswith(image_path)
+            for block in article.get("blocks", [])))
+        for article in load()["articles"]
+    )
+    if not published:
+        try:
+            uid = require_telegram_id(x_telegram_init_data)
+        except HTTPException:
+            raise HTTPException(404, "Фото не найдено")
+        if uid != row["author_uid"] and not authorized_admin(uid):
+            raise HTTPException(404, "Фото не найдено")
+    return Response(bytes(row["data"]), media_type="image/webp",
+                    headers={"Cache-Control": "public,max-age=3600" if published
+                             else "private,no-store",
                              "X-Content-Type-Options": "nosniff"})
 
 
@@ -240,7 +291,15 @@ def admin_queue(x_telegram_init_data: str | None = Header(None)):
     ensure_contributions()
     with engine.connect() as db:
         rows = db.execute(text("""
-            SELECT * FROM public.vvd_article_contributions
+            SELECT c.*, COALESCE((
+                SELECT jsonb_agg(jsonb_build_object(
+                    'action', r.action, 'editor_uid', r.editor_uid,
+                    'content', r.content, 'created_at', r.created_at)
+                    ORDER BY r.created_at DESC)
+                FROM public.vvd_contribution_revisions r
+                WHERE r.submission_id=c.id
+            ), '[]'::jsonb) AS history
+            FROM public.vvd_article_contributions c
             ORDER BY CASE WHEN status='pending' THEN 0
                           WHEN status='revision' THEN 1 ELSE 2 END,
                      created_at DESC LIMIT 250
@@ -307,6 +366,14 @@ def review_submission(
             article_slug = None
             status = {"save": row["status"], "reject": "rejected",
                       "revision": "revision"}[payload.action]
+        db.execute(text("""
+            INSERT INTO public.vvd_contribution_revisions
+              (submission_id, editor_uid, action, content)
+            VALUES (CAST(:id AS uuid), :uid, :action, CAST(:body AS jsonb))
+        """), {"id": str(submission_id),
+               "uid": require_telegram_id(x_telegram_init_data),
+               "action": payload.action,
+               "body": json.dumps(row["edited"], ensure_ascii=False)})
         db.execute(text("""
             UPDATE public.vvd_article_contributions
             SET edited=CAST(:edited AS jsonb),status=:status,
