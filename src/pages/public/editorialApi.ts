@@ -41,6 +41,7 @@ export const editorialApi={
   contributionsMine:()=>apiRequest<{submissions:CommunitySubmission[]}>('/article-contributions/mine'),
   contributionsAdmin:()=>apiRequest<{submissions:CommunitySubmission[]}>('/article-contributions/admin'),
   contributionSubmit:(body:ContributionContent)=>apiRequest<{id:string;status:string}>('/article-contributions',{method:'POST',body:JSON.stringify(body)}),
+  contributionRevise:(id:string,body:ContributionContent)=>apiRequest<{success:boolean;status:string}>('/article-contributions/'+encodeURIComponent(id)+'/revise',{method:'POST',body:JSON.stringify(body)}),
   contributionReview:(id:string,action:'save'|'approve'|'reject'|'revision',content:ContributionContent,note:string)=>apiRequest<{success:boolean;status:string;article_slug:string|null}>('/article-contributions/admin/'+encodeURIComponent(id)+'/review',{method:'POST',body:JSON.stringify({action,content,note})}),
   contributionUpload:async(file:File):Promise<string>=>{
     const form=new FormData();form.append('image',file);
