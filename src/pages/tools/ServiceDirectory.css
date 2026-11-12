@@ -159,3 +159,16 @@
 .vvd-directory-service-content{gap:12px;padding:16px}
 .vvd-directory-service-copy h2{font-size:18px}
 .vvd-directory-section-meta{font-size:12px;color:var(--vvd-card-muted)}
+
+
+/* Real service logos follow their intrinsic ratio and touch both edges.
+   The placeholder icon keeps its separate compact, fixed-ratio banner. */
+.vvd-directory-service-banner.has-image{
+  display:block;width:100%;height:auto;min-height:0;max-height:none;aspect-ratio:auto;
+  padding:0;margin:0;line-height:0;background:transparent;
+}
+.vvd-directory-service-banner.has-image img{
+  display:block;width:100%;height:auto;max-width:100%;max-height:none;
+  aspect-ratio:auto;object-fit:contain;object-position:center;
+  padding:0;margin:0;border:0;
+}

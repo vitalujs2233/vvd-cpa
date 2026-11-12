@@ -114,7 +114,7 @@ const ServiceCard:React.FC<{service:DirectoryService}>=({service})=>{
   const benefits=service.benefits.split(/\n+/).map(v=>v.trim()).filter(Boolean);
   const ServiceIcon=directoryIcons[service.icon]||Layers;
   return <article className="vvd-directory-service vvd-directory-service-card">
-    <div className="vvd-directory-service-banner">
+    <div className={'vvd-directory-service-banner'+(service.image_url?' has-image':'')}>
       {service.image_url
         ?<img src={service.image_url} loading="lazy" decoding="async" alt={service.name+' — логотип'}/>
         :<ServiceIcon size={46} strokeWidth={1.5} className="text-accentBrightGold" aria-hidden="true"/>}
