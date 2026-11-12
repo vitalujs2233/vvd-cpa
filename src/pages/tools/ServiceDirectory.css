@@ -149,3 +149,13 @@
 .vvd-directory-service-banner{height:auto}
 .vvd-directory-service-banner img{object-position:center;max-width:100%}
 @media(max-width:390px){.vvd-directory-service-banner{min-height:108px}.vvd-directory-service-content{padding:16px}}
+
+
+/* Compact service card: banner no taller than needed for a readable logo. */
+.vvd-directory-service-banner{
+  aspect-ratio:3 / 1;min-height:90px;max-height:145px;
+}
+.vvd-directory-service-banner img{padding:10px 14px}
+.vvd-directory-service-content{gap:12px;padding:16px}
+.vvd-directory-service-copy h2{font-size:18px}
+.vvd-directory-section-meta{font-size:12px;color:var(--vvd-card-muted)}
