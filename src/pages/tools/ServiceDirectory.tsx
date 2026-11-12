@@ -165,12 +165,9 @@ export const ServiceCategoryPage:React.FC=()=>{
   </DirectoryShell>;
   return <DirectoryShell>
     <BackTitle title={category?.name||'Категория каталога'} subtitle={category?conciseDescription(category.description):'Каталог сервисов VVD CPA'}/>
-    {category&&<div className="vvd-directory-feature p-4">
-      <div className="relative z-10 flex items-center gap-3">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-app-xs border border-accentGold/40 bg-accentGold/15 text-accentBrightGold"><Icon size={24}/></div>
-        <div className="min-w-0"><p className="text-xs text-textSecondary">Сервисы категории</p><b className="text-lg text-white">{category.name}</b></div>
-        <span className="ml-auto vvd-directory-label">{data.services.filter(s=>s.category_id===categoryId).length}</span>
-      </div>
+    {category&&<div className="vvd-directory-section-meta">
+      <span>Сервисы в разделе</span>
+      <span className="vvd-directory-label">{data.services.filter(s=>s.category_id===categoryId).length}</span>
     </div>}
     <label className="flex items-center gap-3 rounded-card border border-accentGold/25 bg-bgCard/90 px-4 py-3">
       <Search size={18} className="text-accentBrightGold"/>

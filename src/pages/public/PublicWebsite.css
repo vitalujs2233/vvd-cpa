@@ -907,3 +907,23 @@
 .vvd-community-status{border:1px solid rgba(221,185,112,.4);color:#edc982;border-radius:99px;padding:4px 9px;font-size:11px;white-space:nowrap}
 .vvd-community-entry{margin:0 0 22px}
 @media(max-width:600px){.vvd-community-panel{padding:13px;border-radius:14px}.vvd-community .vvd-web-gold-button{width:100%}}
+
+/* Compact context heading for category details, rather than a large repeated card. */
+.vvd-web-portal .vvd-web-category-hero-compact{
+  display:block;padding:18px 22px;margin-bottom:20px;border-radius:16px;
+}
+.vvd-web-portal .vvd-web-category-hero-compact h1{
+  font-size:clamp(23px,2.4vw,30px);margin:6px 0;
+}
+.vvd-web-portal .vvd-web-category-hero-compact p{font-size:13px;line-height:1.55;margin:0 0 6px}
+/* Keep horizontal service artwork proportional to the card width. */
+.vvd-web-portal .vvd-web-service-banner{
+  height:auto;aspect-ratio:16 / 7;min-height:120px;max-height:250px;
+}
+.vvd-web-portal .vvd-web-service-banner img{
+  max-width:100%;object-position:center;
+}
+@media(max-width:720px){
+  .vvd-web-portal .vvd-web-category-hero-compact{padding:16px 18px}
+  .vvd-web-portal .vvd-web-service-content{padding:18px}
+}

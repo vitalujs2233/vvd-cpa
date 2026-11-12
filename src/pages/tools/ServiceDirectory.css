@@ -114,7 +114,7 @@
   display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden;min-width:0;
 }
 .vvd-directory-service-banner{
-  display:flex;align-items:center;justify-content:center;width:100%;height:190px;
+  display:flex;align-items:center;justify-content:center;width:100%;aspect-ratio:16 / 7;min-height:120px;max-height:250px;
   border-bottom:1px solid rgba(218,167,71,.23);
   background:linear-gradient(135deg,#29231a,#131314 75%);
   color:#edc675;overflow:hidden;
@@ -138,3 +138,14 @@
 .vvd-directory-service-promo svg{flex-shrink:0}
 .vvd-directory-service-promo:focus-visible{outline:2px solid #f9d88c;outline-offset:3px}
 .vvd-directory-service-copy-status{color:#f3ce8b;font-size:12px}
+
+/* Small section label replaces the oversized repeating category panel. */
+.vvd-directory-section-meta{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:0 2px;color:var(--vvd-card-muted);font-size:12px;
+}
+.vvd-directory-section-meta .vvd-directory-label{font-size:12px;min-width:28px;text-align:center}
+/* Banner scales with the service card on narrow and wide Mini App screens. */
+.vvd-directory-service-banner{height:auto}
+.vvd-directory-service-banner img{object-position:center;max-width:100%}
+@media(max-width:390px){.vvd-directory-service-banner{min-height:108px}.vvd-directory-service-content{padding:16px}}
