@@ -197,16 +197,6 @@ export const Home: React.FC = () => {
           <ChevronRight size={17} className="home-quick-link-arrow" aria-hidden="true"/>
         </button>
       </nav>
-      <Card variant="default" padding="sm" className="home-native-card">
-        <button type="button" className="home-native-card-button" onClick={()=>{triggerHaptic.lightImpact();navigate('/why-vvd');}}>
-          <span className="home-native-card-icon" aria-hidden="true"><InfoSparkles size={21} strokeWidth={1.8}/></span>
-          <span className="home-native-card-copy">
-            <strong>Почему VVD CPA?</strong>
-            <span>Преимущества, выплаты и условия сотрудничества</span>
-          </span>
-          <ChevronRight size={18} className="home-native-card-chevron" aria-hidden="true"/>
-        </button>
-      </Card>
       <HomeAdCarousel/>
       {/* Compact informational separator between the two home banners. */}
       <section className="home-feature-section" aria-labelledby="home-feature-heading">
@@ -219,6 +209,16 @@ export const Home: React.FC = () => {
         </div>
       </section>
       <HomeInfoBlocks/>
+      <Card variant="default" padding="sm" className="home-native-card">
+        <button type="button" className="home-native-card-button" onClick={()=>{triggerHaptic.lightImpact();navigate('/why-vvd');}}>
+          <span className="home-native-card-icon" aria-hidden="true"><InfoSparkles size={21} strokeWidth={1.8}/></span>
+          <span className="home-native-card-copy">
+            <strong>Почему VVD CPA?</strong>
+            <span>Преимущества, выплаты и условия сотрудничества</span>
+          </span>
+          <ChevronRight size={18} className="home-native-card-chevron" aria-hidden="true"/>
+        </button>
+      </Card>
 
     </div>
   );
