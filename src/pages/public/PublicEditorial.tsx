@@ -217,12 +217,12 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
           <span><BookOpen size={16}/> {item.author_name||'VVD CPA'}</span>
           <span aria-label={'Просмотров: '+(liveViews[slug]??item.view_count??0)}><Eye size={16}/> {(liveViews[slug]??item.view_count??0).toLocaleString('ru-RU')}</span>
         </div>
-        {item.cover_url&&safeImage(item.cover_url)&&<img className="vvd-article-cover" src={item.cover_url} alt={item.title}/>}
+        {item.cover_url&&safeImage(item.cover_url)&&<img className="vvd-article-cover" src={item.cover_url} alt={item.title} loading="eager" fetchPriority="high" decoding="async"/>}
         <div className="vvd-article-body">
           {item.blocks.map((block,index)=>{
             if(block.type==='heading')return <h2 key={index}>{block.text}</h2>;
             if(block.type==='quote')return <blockquote key={index}>{block.text}</blockquote>;
-            if(block.type==='image')return block.url&&safeImage(block.url)?<figure key={index}><img loading="lazy" src={block.url} alt={block.alt||block.text||item.title}/>{block.text&&<figcaption>{block.text}</figcaption>}</figure>:null;
+            if(block.type==='image')return block.url&&safeImage(block.url)?<figure key={index}><img loading="lazy" decoding="async" src={block.url} alt={block.alt||block.text||item.title}/>{block.text&&<figcaption>{block.text}</figcaption>}</figure>:null;
             if(block.type==='link')return block.url?.startsWith('https://')?<p key={index}><a href={block.url} target="_blank" rel="noopener noreferrer sponsored">{block.text||block.url} <ArrowRight size={15}/></a></p>:null;
             return <p key={index}>{block.text}</p>;
           })}

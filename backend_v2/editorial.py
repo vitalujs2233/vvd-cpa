@@ -9,7 +9,7 @@ from typing import Optional, Literal
 from uuid import UUID
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, File, Header, HTTPException, UploadFile
+from fastapi import APIRouter, File, Header, HTTPException, UploadFile, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import text
@@ -430,7 +430,7 @@ def public_articles(surface: Literal["web", "mini"] = "web"):
 
 
 @router.get("/images/{image_id}")
-def image(image_id: str):
+def image(image_id: str, request: Request):
     if not re.fullmatch(SLUG, image_id) or len(image_id)>64:
         raise HTTPException(404, "Не найдено")
     ensure_schema()
@@ -440,7 +440,7 @@ def image(image_id: str):
     if blob is None:
         raise HTTPException(404, "Фото не найдено")
     return Response(content=bytes(blob),media_type="image/webp",
-                    headers={"Cache-Control":"public, max-age=300","X-Content-Type-Options":"nosniff"})
+                    headers={"Cache-Control":"public, max-age=31536000, immutable" if request.query_params.get("v") else "public, max-age=300","X-Content-Type-Options":"nosniff"})
 
 
 @router.get("/admin")

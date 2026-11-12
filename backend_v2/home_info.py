@@ -1,7 +1,7 @@
 """Editable home information cards; independent of finance and CPA data."""
 import uuid
 from typing import Optional
-from fastapi import APIRouter, UploadFile, File, Header, HTTPException
+from fastapi import APIRouter, UploadFile, File, Header, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import text
@@ -25,11 +25,11 @@ def published():
     return {"items":[serialize(row) for row in rows]}
 
 @router.get("/images/{block_id}")
-def image(block_id:uuid.UUID):
+def image(block_id:uuid.UUID, request: Request):
     with engine.connect() as conn:
         data=conn.execute(text("SELECT image_data FROM home_info_blocks WHERE id=:id"),{"id":str(block_id)}).scalar_one_or_none()
     if data is None:raise HTTPException(404,"Изображение не найдено")
-    return Response(content=bytes(data),media_type="image/webp",headers={"Cache-Control":"public,max-age=300","X-Content-Type-Options":"nosniff"})
+    return Response(content=bytes(data),media_type="image/webp",headers={"Cache-Control":"public, max-age=31536000, immutable" if request.query_params.get("v") else "public, max-age=300","X-Content-Type-Options":"nosniff"})
 
 @router.get("/admin")
 def list_admin(x_telegram_init_data:Optional[str]=Header(None)):

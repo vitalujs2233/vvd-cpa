@@ -3,7 +3,7 @@ import io
 import uuid
 from typing import Optional
 from urllib.parse import urlsplit
-from fastapi import APIRouter, File, UploadFile, Form, Header, HTTPException
+from fastapi import APIRouter, File, UploadFile, Form, Header, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field, field_validator
 from PIL import Image, UnidentifiedImageError, ImageOps
@@ -85,12 +85,12 @@ def published():
     return {"items":[serialize(r) for r in rows],"autoplay":bool(autoplay)}
 
 @router.get("/images/{banner_id}")
-def get_image(banner_id: uuid.UUID):
+def get_image(banner_id: uuid.UUID, request: Request):
     with engine.connect() as conn:
         data=conn.execute(text("SELECT image_data FROM home_ad_banners WHERE id=:id"),{"id":str(banner_id)}).scalar_one_or_none()
     if data is None:
         raise HTTPException(404,"Изображение не найдено")
-    return Response(content=bytes(data),media_type="image/webp",headers={"Cache-Control":"public, max-age=300","X-Content-Type-Options":"nosniff"})
+    return Response(content=bytes(data),media_type="image/webp",headers={"Cache-Control":"public, max-age=31536000, immutable" if request.query_params.get("v") else "public, max-age=300","X-Content-Type-Options":"nosniff"})
 
 @router.get("/admin")
 def list_admin(x_telegram_init_data:Optional[str]=Header(None)):
