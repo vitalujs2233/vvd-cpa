@@ -92,3 +92,11 @@
 .home-quick-link:hover{border-color:rgba(245,197,99,.65)}
 .home-quick-link:focus-visible{outline:2px solid #f6cb78;outline-offset:2px}
 @media(max-width:360px){.home-quick-link{padding:12px 23px 12px 12px;font-size:12px}}
+
+
+/* Mini App / signed-in web: align the world-map banner with neighboring cards.
+   The square source is presented slightly shorter without trimming its copy. */
+.vvd-world-banner{width:100%;margin-inline:0}
+.vvd-world-banner img{
+  display:block;width:100%;height:auto;aspect-ratio:10 / 9;object-fit:fill;
+}
