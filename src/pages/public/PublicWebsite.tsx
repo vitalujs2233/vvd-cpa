@@ -70,7 +70,7 @@ function setMetadata(title:string,description:string,category=''){
   if(ogType)ogType.content=isArticlePage()&&!!readArticle()?'article':'website';
 }
 
-const ServiceTile:React.FC<{service:DirectoryService}>=({service})=>{
+const ServiceTile:React.FC<{service:DirectoryService;priority?:boolean}>=({service,priority=false})=>{
   const Icon=directoryIcons[service.icon]||Layers;
   const dest=allowedLink(service.website_url);
   const benefits=(service.benefits||'').split(/\n/).map(x=>x.trim()).filter(Boolean).slice(0,3);
@@ -89,7 +89,7 @@ const ServiceTile:React.FC<{service:DirectoryService}>=({service})=>{
   return <article className="vvd-web-service-card">
     <div className={'vvd-web-service-banner'+(allowedLink(service.image_url)?' has-image':'')}>
       {allowedLink(service.image_url)
-        ?<img src={service.image_url} alt={service.name+' — логотип'} loading="lazy" decoding="async"/>
+        ?<img src={service.image_url} alt={service.name+' — логотип'} loading={priority?'eager':'lazy'} fetchPriority={priority?'high':'auto'} decoding="async"/>
         :<Icon size={46} strokeWidth={1.5} aria-hidden="true"/>}
     </div>
     <div className="vvd-web-service-content">
@@ -439,7 +439,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
             <p>{category.description}</p>
             <span className="vvd-web-muted">{services.length?services.length+' предложений':'Сервисы пока не добавлены'}</span>
           </header>
-          {services.length>0?<div className="vvd-web-services-grid">{services.map(s=><ServiceTile key={s.id} service={s}/>)}</div>:
+          {services.length>0?<div className="vvd-web-services-grid">{services.map((s,index)=><ServiceTile key={s.id} service={s} priority={index===0}/>)}</div>:
           <div className="vvd-web-empty-service"><Layers size={30}/><h2>Сервисы скоро появятся</h2><p>Мы добавляем предложения по мере подключения партнёрских программ. Сейчас здесь нет опубликованных сервисов.</p><button type="button" onClick={openCatalog}>Смотреть другие категории <ArrowRight size={17}/></button></div>}
         </>:<div className="vvd-web-empty-service"><h1>Раздел не найден</h1><p>Возможно, категория была переименована или скрыта.</p><button onClick={openCatalog}>Вернуться в каталог</button></div>}
       </main> :
