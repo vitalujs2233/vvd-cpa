@@ -87,7 +87,7 @@ const ServiceTile:React.FC<{service:DirectoryService}>=({service})=>{
     }catch{setCopyStatus('error');}
   };
   return <article className="vvd-web-service-card">
-    <div className="vvd-web-service-banner">
+    <div className={'vvd-web-service-banner'+(allowedLink(service.image_url)?' has-image':'')}>
       {allowedLink(service.image_url)
         ?<img src={service.image_url} alt={service.name+' — логотип'} loading="lazy" decoding="async"/>
         :<Icon size={46} strokeWidth={1.5} aria-hidden="true"/>}
