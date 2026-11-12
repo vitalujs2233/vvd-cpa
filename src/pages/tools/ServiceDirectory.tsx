@@ -104,7 +104,7 @@ export const ServiceDirectoryPage:React.FC=()=>{
   </DirectoryShell>;
 };
 
-const ServiceCard:React.FC<{service:DirectoryService}>=({service})=>{
+const ServiceCard:React.FC<{service:DirectoryService;priority?:boolean}>=({service,priority=false})=>{
   const [copyStatus,setCopyStatus]=useState<'idle'|'copied'|'error'>('idle');
   useEffect(()=>{
     if(copyStatus==='idle')return;
@@ -122,7 +122,7 @@ const ServiceCard:React.FC<{service:DirectoryService}>=({service})=>{
   return <article className="vvd-directory-service vvd-directory-service-card">
     <div className={'vvd-directory-service-banner'+(service.image_url?' has-image':'')}>
       {service.image_url
-        ?<img src={service.image_url} loading="lazy" decoding="async" alt={service.name+' — логотип'}/>
+        ?<img src={service.image_url} loading={priority?'eager':'lazy'} fetchPriority={priority?'high':'auto'} decoding="async" alt={service.name+' — логотип'}/>
         :<ServiceIcon size={46} strokeWidth={1.5} className="text-accentBrightGold" aria-hidden="true"/>}
     </div>
     <div className="vvd-directory-service-content">
@@ -182,7 +182,7 @@ export const ServiceCategoryPage:React.FC=()=>{
     </label>
     {error&&<p role="alert" className="text-xs text-textSecondary">{error}</p>}
     {!category?<div className="vvd-directory-category p-5 text-xs text-textSecondary">Категория не найдена или скрыта администратором.</div>:
-      services.length?services.map(s=><ServiceCard key={s.id} service={s}/>):
+      services.length?services.map((s,index)=><ServiceCard key={s.id} service={s} priority={index===0}/>):
       <div className="vvd-directory-service p-5">
         {query?<p className="text-sm text-textSecondary">По вашему запросу сервисов не найдено.</p>:<>
           <span className="vvd-directory-label">Демонстрация оформления</span>
