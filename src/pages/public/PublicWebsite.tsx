@@ -163,7 +163,7 @@ const PublicHomeBanners:React.FC=()=>{
         const src=publicMedia(banner.image_url,'home-ads',banner.updated_at);
         const href=publicTarget(banner.target_url);
         return <div className="vvd-web-banner-slide" key={banner.id}>
-          {src&&<img src={src} alt={banner.title||'VVD CPA'} loading={index===0?'eager':'lazy'} decoding="async"/>}
+          {src&&<img src={src} alt={banner.title||'VVD CPA'} loading={index===0?'eager':'lazy'} fetchPriority={index===0?'high':'low'} decoding="async"/>}
           {href&&<a href={href} target="_blank" rel="noopener noreferrer" aria-label={'Открыть: '+banner.title} className="vvd-web-banner-link"/>}
         </div>;
       })}
@@ -190,13 +190,13 @@ const PublicHomeInfo:React.FC=()=>{
   },[]);
   if(!items.length)return null;
   return <section className="vvd-web-public-info" aria-label="Информация VVD CPA">
-    {items.map(item=>{
+    {items.map((item,index)=>{
       const src=item.image_url?publicMedia(item.image_url,'home-info',item.updated_at):'';
       const href=publicTarget(item.target_url);
       return <article key={item.id} className={'vvd-web-public-info-card'+(src&&!item.title&&!item.subtitle&&!item.description?' is-image-only':'')}>
         {item.subtitle&&<p className="vvd-web-public-info-subtitle">{item.subtitle}</p>}
         {item.title&&<h2>{item.title}</h2>}
-        {src&&<img src={src} alt={item.title||'Информация VVD CPA'} loading="lazy" decoding="async"/>}
+        {src&&<img src={src} alt={item.title||'Информация VVD CPA'} loading={index===0?'eager':'lazy'} decoding="async"/>}
         {item.description&&<p className="vvd-web-public-info-description">{item.description}</p>}
         {href&&<a className="vvd-web-public-info-link" href={href} target="_blank" rel="noopener noreferrer">Подробнее <ArrowUpRight size={16}/></a>}
       </article>;
