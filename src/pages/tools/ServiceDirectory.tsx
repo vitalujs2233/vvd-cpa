@@ -9,19 +9,25 @@ import { UnifiedCategoryCard,serviceCountLabel } from '@/shared/ui/UnifiedCatego
 const initial: DirectoryData = { version:0, categories:[], services:[] };
 
 const useDirectory = () => {
-  // Show the shared last-known catalog on the very first render.
-  const [data,setData] = useState<DirectoryData>(()=>directoryApi.snapshot()??initial);
-  const [loading,setLoading] = useState(()=>!directoryApi.snapshot());
+  // A days-old persisted catalog can omit newly published services. Avoid
+  // showing an empty category that suddenly fills when the API responds.
+  const [data,setData] = useState<DirectoryData>(()=>directoryApi.recentSnapshot()??initial);
+  const [loading,setLoading] = useState(()=>!directoryApi.recentSnapshot());
   const [error,setError] = useState('');
   useEffect(()=>{
     let live=true;
-    const ready=directoryApi.snapshot();
-    if(ready){setData(ready);setLoading(false);}
-    // Refresh without clearing the already-rendered categories or services.
+    const recent=directoryApi.recentSnapshot();
+    if(recent){setData(recent);setLoading(false);}
     void directoryApi.published(true).then(value=>{
       if(live){setData(value);setError('');setLoading(false);}
     }).catch(()=>{
-      if(live){if(!directoryApi.snapshot())setError('Не удалось загрузить каталог. Проверьте соединение.');setLoading(false);}
+      if(!live)return;
+      const fallback=directoryApi.snapshot();
+      if(fallback){
+        setData(fallback);
+        setError('Не удалось обновить каталог. Показана сохранённая версия.');
+      }else setError('Не удалось загрузить каталог. Проверьте соединение.');
+      setLoading(false);
     });
     return()=>{live=false;};
   },[]);
@@ -157,10 +163,12 @@ export const ServiceCategoryPage:React.FC=()=>{
     (s.name+' '+s.description+' '+s.benefits).toLowerCase().includes(query.trim().toLowerCase()));
   const Icon=category ? directoryIcons[category.icon]||Layers : Layers;
   if(loading)return <DirectoryShell>
-    <div className="vvd-directory-category flex min-h-[360px] flex-col items-center justify-center gap-3 p-6 text-center" aria-busy="true">
-      <Layers size={31} className="text-accentBrightGold"/>
-      <strong className="text-base text-white">Открываем раздел каталога</strong>
-      <p className="text-xs text-textSecondary">Подготавливаем предложения…</p>
+    <BackTitle title="Каталог сервисов" subtitle="Загружаем выбранный раздел"/>
+    <div className="vvd-directory-section-meta"><span>Загрузка сервисов…</span></div>
+    <div className="vvd-directory-category h-12 animate-pulse" aria-hidden="true"/>
+    <div className="vvd-directory-service vvd-directory-loading-card" aria-busy="true" aria-label="Загрузка категории и сервисов">
+      <div className="vvd-directory-loading-banner"/>
+      <div className="vvd-directory-loading-lines"><span/><span/><span/></div>
     </div>
   </DirectoryShell>;
   return <DirectoryShell>
