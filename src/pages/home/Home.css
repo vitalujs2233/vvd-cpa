@@ -95,8 +95,8 @@
 
 
 /* Mini App / signed-in web: align the world-map banner with neighboring cards.
-   The square source is presented slightly shorter without trimming its copy. */
+   The square source is presented more compactly without trimming its copy. */
 .vvd-world-banner{width:100%;margin-inline:0}
 .vvd-world-banner img{
-  display:block;width:100%;height:auto;aspect-ratio:10 / 9;object-fit:fill;
+  display:block;width:100%;height:auto;aspect-ratio:5 / 4;object-fit:fill;
 }
