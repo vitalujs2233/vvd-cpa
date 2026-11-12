@@ -17,8 +17,8 @@ const matchesWords=(words:string[],...fields:string[])=>{
   return words.every(word=>text.includes(word));
 };
 // Keep the last successful response available when navigating back from an article.
-// Show the last public catalog immediately, then always refresh it from the API.
-// Keep a bounded persistent cache so reopening Telegram does not show empty cards.
+// Reuse current-session data during navigation; avoid stale bundled categories
+// during cold starts. Retain persistent snapshots only as an offline fallback.
 const PERSISTED_CACHE_TTL=24*60*60*1000;
 type Surface='web'|'mini';
 const categoryIcons:Record<string,React.ElementType>={
@@ -130,7 +130,7 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
       void editorialApi.list(surface).then(v=>{
         if(!mounted)return;
         liveAnswered=true;rememberArticles(surface,v);
-        // No needless re-render if server matches the already visible HTML snapshot.
+        // Avoid an unnecessary re-render if the live feed is already displayed.
         setData(previous=>JSON.stringify(previous)===JSON.stringify(v)?previous:v);
         setError('');setLoading(false);
       }).catch(()=>{
@@ -224,8 +224,10 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
         <label className="vvd-web-search"><Search size={20}/><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Поиск категорий, статей и ключевых слов…"/></label>
         {category==='all'?<>
           <div className="vvd-editorial-category-heading"><h2>{searchTerms.length?'Найденные категории':'Выберите категорию'}</h2></div>
-          <div className="vvd-editorial-category-grid" aria-label="Категории статей">
-            {filteredCategories.map(c=>{
+          <div className="vvd-editorial-category-grid" aria-label="Категории статей" aria-busy={loading&&!data.categories.length}>
+            {loading&&!data.categories.length
+              ? Array.from({length:8},(_,i)=><div key={i} className="vvd-web-placeholder" aria-hidden="true"/>)
+              : filteredCategories.map(c=>{
               const amount=data.articles.filter(a=>a.category_id===c.id).length;
               return <UnifiedCategoryCard key={c.id} onClick={()=>chooseCategory(c.id)}
                 icon={categoryIcons[c.id]||BookOpen}
