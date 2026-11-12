@@ -952,3 +952,16 @@
   .vvd-web-portal .vvd-web-back{margin-bottom:18px}
   .vvd-web-portal .vvd-web-service-content{padding:16px}
 }
+
+
+/* Real service logos fill the card edge-to-edge, keeping their native proportions.
+   Unlike icon placeholders, image banners have no fixed aspect ratio or inner gutter. */
+.vvd-web-portal .vvd-web-service-banner.has-image{
+  display:block;width:100%;height:auto;min-height:0;max-height:none;aspect-ratio:auto;
+  padding:0;margin:0;line-height:0;background:transparent;
+}
+.vvd-web-portal .vvd-web-service-banner.has-image img{
+  display:block;width:100%;height:auto;max-width:100%;max-height:none;
+  aspect-ratio:auto;object-fit:contain;object-position:center;
+  padding:0;margin:0;border:0;
+}
