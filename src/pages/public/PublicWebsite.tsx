@@ -217,7 +217,7 @@ const PublicHomeInfo:React.FC=()=>{
     {items.map((item,index)=>{
       const src=item.image_url?publicMedia(item.image_url,'home-info',item.updated_at):'';
       const href=publicTarget(item.target_url);
-      return <article key={item.id} className={'vvd-web-public-info-card'+(src&&!item.title&&!item.subtitle&&!item.description?' is-image-only':'')}>
+      return <article key={item.id} style={item.id==='e44a0b70-c27b-4419-9249-c8379ac02ea2'?{width:'86%',marginInline:'auto'}:undefined} className={'vvd-web-public-info-card'+(src&&!item.title&&!item.subtitle&&!item.description?' is-image-only':'')}>
         {item.subtitle&&<p className="vvd-web-public-info-subtitle">{item.subtitle}</p>}
         {item.title&&<h2>{item.title}</h2>}
         {src&&<img src={src} alt={item.title||'Информация VVD CPA'} loading={index===0?'eager':'lazy'} decoding="async"/>}
