@@ -100,3 +100,23 @@
 .vvd-world-banner img{
   display:block;width:100%;height:auto;aspect-ratio:5 / 4;object-fit:fill;
 }
+
+
+/* Lightweight informational grid between the home carousel and world banner.
+   Uses the established VVD dark-gold surfaces; no navigation or financial state. */
+.home-feature-section{display:flex;flex-direction:column;gap:10px;min-width:0}
+.home-feature-section h2{margin:0 0 1px;padding-left:2px;font-size:13px;line-height:1.35;font-weight:700;color:#e8c274}
+.home-feature-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.home-feature-item{
+  display:flex;align-items:center;gap:9px;min-width:0;min-height:60px;
+  padding:11px;border:1px solid var(--vvd-card-border);
+  border-radius:12px;background:var(--vvd-card-bg);
+  box-shadow:var(--vvd-card-shadow);color:var(--vvd-card-title);
+  font-size:12px;font-weight:700;line-height:1.35;
+}
+.home-feature-item svg{flex:0 0 19px;color:#e6b866}
+.home-feature-item span{min-width:0;overflow-wrap:normal;word-break:normal;hyphens:none}
+@media(max-width:360px){
+  .home-feature-grid{gap:8px}
+  .home-feature-item{padding:9px;gap:7px;font-size:11px}
+}

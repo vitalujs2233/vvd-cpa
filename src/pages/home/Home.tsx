@@ -6,7 +6,7 @@ import {readSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wallet, History, Sparkles, Flame, Crown, Brain, Sparkles as InfoSparkles, BookOpen, LayoutGrid, ChevronRight } from 'lucide-react';
+import { Wallet, History, Sparkles, Flame, Crown, Brain, Sparkles as InfoSparkles, BookOpen, LayoutGrid, ChevronRight, Link2, BarChart3 } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
@@ -208,6 +208,16 @@ export const Home: React.FC = () => {
         </button>
       </Card>
       <HomeAdCarousel/>
+      {/* Compact informational separator between the two home banners. */}
+      <section className="home-feature-section" aria-labelledby="home-feature-heading">
+        <h2 id="home-feature-heading">Возможности VVD CPA</h2>
+        <div className="home-feature-grid">
+          <div className="home-feature-item"><Link2 size={19} aria-hidden="true"/><span>Партнёрские предложения</span></div>
+          <div className="home-feature-item"><BarChart3 size={19} aria-hidden="true"/><span>Аналитика</span></div>
+          <div className="home-feature-item"><Wallet size={19} aria-hidden="true"/><span>Выплаты</span></div>
+          <div className="home-feature-item"><BookOpen size={19} aria-hidden="true"/><span>Сервисы и знания</span></div>
+        </div>
+      </section>
       <HomeInfoBlocks/>
 
     </div>
