@@ -4,7 +4,7 @@ import re
 from typing import Literal, Optional
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, Header, HTTPException, UploadFile, File
+from fastapi import APIRouter, Header, HTTPException, UploadFile, File, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import text
@@ -130,7 +130,7 @@ def _image_id(service_id: str) -> str:
 
 
 @router.get("/images/{service_id}")
-def service_image(service_id: str):
+def service_image(service_id: str, request: Request):
     service_id = _image_id(service_id)
     with engine.connect() as conn:
         data = conn.execute(text("""
@@ -142,7 +142,7 @@ def service_image(service_id: str):
     return Response(
         content=bytes(data),
         media_type="image/webp",
-        headers={"Cache-Control": "public, max-age=300", "X-Content-Type-Options": "nosniff"},
+        headers={"Cache-Control": "public, max-age=31536000, immutable" if request.query_params.get("v") else "public, max-age=300", "X-Content-Type-Options": "nosniff"},
     )
 
 
