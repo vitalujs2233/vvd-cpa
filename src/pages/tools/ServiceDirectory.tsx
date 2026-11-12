@@ -168,7 +168,7 @@ export const ServiceCategoryPage:React.FC=()=>{
     {category&&<div className="vvd-directory-section-meta">
       <span>Сервисы в разделе</span>
       <span className="vvd-directory-label">{data.services.filter(s=>s.category_id===categoryId).length}</span>
-    </div>}}
+    </div>}
     <label className="flex items-center gap-3 rounded-card border border-accentGold/25 bg-bgCard/90 px-4 py-3">
       <Search size={18} className="text-accentBrightGold"/>
       <input type="search" placeholder="Найти сервис..." value={query} onChange={e=>setQuery(e.target.value)} className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-textSecondary" aria-label="Найти сервис"/>
