@@ -1,4 +1,4 @@
-import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
+import React,{useCallback,useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {ArrowRight,ArrowUpRight,BarChart3,BookOpen,Check,ChevronLeft,ChevronRight,Globe2,Home,Layers,LayoutGrid,Menu,Search,Copy,ShieldCheck,Users,UserRound,Wrench,Target,MousePointerClick,Wallet,Link2,Activity,LayoutDashboard,X,Zap,Headphones} from 'lucide-react';
 import {API_BASE_URL} from '@/shared/lib/api';
 import {directoryIcons,type DirectoryData,type DirectoryService} from '@/pages/tools/serviceDirectoryApi';
@@ -242,6 +242,11 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
   const [mobileMenu,setMobileMenu]=useState(false);
   const [accountView,setAccountView]=useState(()=>new URLSearchParams(window.location.search).has('account'));
   const viewport=useRef<HTMLDivElement>(null);
+  // The public website has its own scrolling viewport. Reset it synchronously
+  // whenever the visitor opens the catalog or switches service categories.
+  useLayoutEffect(()=>{
+    if(catalogView&&viewport.current)viewport.current.scrollTop=0;
+  },[catalogView,categoryId]);
 
   useEffect(()=>{
     let mounted=true;
@@ -261,7 +266,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
   },[catalogAttempt]);
 
   useEffect(()=>{
-    const onHistory=()=>{setCategoryId(readCategory());setCatalogView(isCatalogPage());setArticlesView(isArticlePage());setArticleSlug(readArticle());setPolicyPage(readPolicy());setAccountView(new URLSearchParams(window.location.search).has('account'));setQuery('');viewport.current?.scrollTo({top:0,behavior:'auto'});};
+    const onHistory=()=>{setCategoryId(readCategory());setCatalogView(isCatalogPage());setArticlesView(isArticlePage());setArticleSlug(readArticle());setPolicyPage(readPolicy());setAccountView(new URLSearchParams(window.location.search).has('account'));setQuery('');if(viewport.current)viewport.current.scrollTop=0;};
     window.addEventListener('popstate',onHistory);
     return()=>window.removeEventListener('popstate',onHistory);
   },[]);
@@ -269,17 +274,17 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
   const showCategory=useCallback((id:string)=>{
     window.history.pushState(null,'',getSiteUrl(id));
     setCategoryId(id);setCatalogView(true);setArticlesView(false);setPolicyPage(null);setArticleSlug('');setAccountView(false);setQuery('');setMobileMenu(false);
-    viewport.current?.scrollTo({top:0,behavior:'instant'});
+    if(viewport.current)viewport.current.scrollTop=0;
   },[]);
   const openCatalog=useCallback(()=>{
     if(!catalogView||categoryId||accountView)window.history.pushState(null,'',getSiteUrl());
     setCatalogView(true);setArticlesView(false);setPolicyPage(null);setArticleSlug('');setCategoryId('');setAccountView(false);setQuery('');setMobileMenu(false);
-    viewport.current?.scrollTo({top:0,behavior:'auto'});
+    if(viewport.current)viewport.current.scrollTop=0;
   },[catalogView,articlesView,categoryId,accountView,policyPage]);
   const openArticles=useCallback((slug='')=>{
     window.history.pushState(null,'',articleUrl(slug));
     setArticlesView(true);setArticleSlug(slug);setPolicyPage(null);setCatalogView(false);setCategoryId('');setAccountView(false);setMobileMenu(false);
-    viewport.current?.scrollTo({top:0,behavior:'auto'});
+    if(viewport.current)viewport.current.scrollTop=0;
   },[]);
   const onArticleMetadata=useCallback((title:string,description:string,cover?:string,date?:string)=>{
     setMetadata(title+' — VVD CPA',description);
@@ -303,19 +308,19 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
   const openMain=useCallback(()=>{
     if(catalogView||articlesView||categoryId||accountView||policyPage)window.history.pushState(null,'',BASE_URL);
     setCatalogView(false);setArticlesView(false);setPolicyPage(null);setArticleSlug('');setCategoryId('');setAccountView(false);setQuery('');setMobileMenu(false);
-    viewport.current?.scrollTo({top:0,behavior:'auto'});
+    if(viewport.current)viewport.current.scrollTop=0;
   },[catalogView,articlesView,categoryId,accountView,policyPage]);
   const openPolicy=(page:PolicyPage)=>{
     if(policyPage!==page)window.history.pushState(null,'',policyUrl(page));
     setPolicyPage(page);setCategoryId('');setCatalogView(false);setArticlesView(false);
     setArticleSlug('');setAccountView(false);setMobileMenu(false);
-    viewport.current?.scrollTo({top:0,behavior:'auto'});
+    if(viewport.current)viewport.current.scrollTop=0;
   };
   const openAccount=()=>{
     if(auth.isLoggedIn){onOpenApp();return;}
     window.history.pushState(null,'',BASE_URL+'?account=1');
     setCategoryId('');setCatalogView(false);setArticlesView(false);setPolicyPage(null);setArticleSlug('');setAccountView(true);setMobileMenu(false);
-    viewport.current?.scrollTo({top:0,behavior:'auto'});
+    if(viewport.current)viewport.current.scrollTop=0;
   };
   const category=data.categories.find(c=>c.id===categoryId);
   const filtered=useMemo(()=>{
