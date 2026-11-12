@@ -1031,3 +1031,8 @@
  .vvd-web-home-shortcuts button>svg:first-child{width:18px}
  .vvd-web-home-shortcuts button>svg:last-child{width:15px}
 }
+
+/* Four guest-home feature tiles always form a balanced two-by-two grid. */
+.vvd-web-portal .vvd-web-workspace-intro-compact .vvd-web-hero-points{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+}

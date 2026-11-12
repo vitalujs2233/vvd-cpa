@@ -452,6 +452,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
             <div className="vvd-web-hero-points" aria-label="Возможности VVD CPA">
               <span><Link2 size={18} aria-hidden="true"/> Партнёрские предложения</span>
               <span><BarChart3 size={18} aria-hidden="true"/> Аналитика</span>
+              <span><Wallet size={18} aria-hidden="true"/> Выплаты</span>
               <span><BookOpen size={18} aria-hidden="true"/> Сервисы и знания</span>
             </div>
             <div className="vvd-web-workspace-actions">
