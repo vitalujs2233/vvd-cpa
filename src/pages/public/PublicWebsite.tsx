@@ -73,7 +73,7 @@ function setMetadata(title:string,description:string,category=''){
 const ServiceTile:React.FC<{service:DirectoryService}>=({service})=>{
   const Icon=directoryIcons[service.icon]||Layers;
   const dest=allowedLink(service.website_url);
-  const benefits=(service.benefits||'').split(/\\n/).map(x=>x.trim()).filter(Boolean).slice(0,3);
+  const benefits=(service.benefits||'').split(/\n/).map(x=>x.trim()).filter(Boolean).slice(0,3);
   const [copyStatus,setCopyStatus]=useState<'idle'|'copied'|'error'>('idle');
   useEffect(()=>{
     if(copyStatus==='idle')return;
