@@ -166,8 +166,7 @@ export const ServiceCategoryPage:React.FC=()=>{
   return <DirectoryShell>
     <BackTitle title={category?.name||'Категория каталога'} subtitle={category?conciseDescription(category.description):'Каталог сервисов VVD CPA'}/>
     {category&&<div className="vvd-directory-section-meta">
-      <span>Сервисы в разделе</span>
-      <span className="vvd-directory-label">{data.services.filter(s=>s.category_id===categoryId).length}</span>
+      <span>Сервисов в разделе: {data.services.filter(s=>s.category_id===categoryId).length}</span>
     </div>}
     <label className="flex items-center gap-3 rounded-card border border-accentGold/25 bg-bgCard/90 px-4 py-3">
       <Search size={18} className="text-accentBrightGold"/>
