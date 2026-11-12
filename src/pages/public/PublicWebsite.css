@@ -3,7 +3,7 @@
   position:fixed;inset:0;z-index:30;overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;
   background:#080808;color:#f7f5f0;font-family:Inter,system-ui,-apple-system,sans-serif;
   user-select:text;-webkit-user-select:text;-webkit-overflow-scrolling:touch;
-  scroll-behavior:smooth;isolation:isolate;
+  scroll-behavior:auto;isolation:isolate;
 }
 .vvd-web-portal *{box-sizing:border-box}
 .vvd-web-portal button,.vvd-web-portal a{cursor:pointer}

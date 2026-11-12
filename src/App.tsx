@@ -1,6 +1,6 @@
 import {saveSnapshot} from '@/shared/lib/viewSnapshot';
 import {preloadStartupData, StartupDataError} from '@/shared/lib/startupData';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { MemoryRouter, Routes, Route, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Home as HomeIcon, Grid, BarChart3, Wrench, User, Globe2, LogOut, ShieldCheck } from 'lucide-react';
 import { triggerHaptic } from '@/shared/lib/telegram';
@@ -74,6 +74,15 @@ const AppBackdrop = () => {
 // Главный Лейаут приложения, фиксирующий Bottom Menu
 const AppLayout = ({webMode=false}:{webMode?:boolean}) => {
   const location = useLocation();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  // The shared scrolling viewport survives route changes. A directory opened
+  // after another screen must start at its heading, never at the old offset.
+  useLayoutEffect(()=>{
+    if(location.pathname==='/tools'||location.pathname==='/tools/directory'||location.pathname.startsWith('/tools/directory/')){
+      const scroller=scrollContainerRef.current;
+      if(scroller)scroller.scrollTop=0;
+    }
+  },[location.pathname]);
   const tabPaths = ['/', '/offers', '/stats', '/tools', '/profile'] as const;
   const activeTab = tabPaths.includes(location.pathname as typeof tabPaths[number]) ? location.pathname : null;
   // Keep visited tab screens mounted: switching tabs no longer destroys their data or UI.
@@ -100,7 +109,7 @@ const AppLayout = ({webMode=false}:{webMode?:boolean}) => {
 >
       
       {/* Контейнер контента со скроллом */}
-      <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden scrollable-container relative z-10 w-full max-w-[1200px] mx-auto pb-[80px]">
+      <div ref={scrollContainerRef} className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden scrollable-container relative z-10 w-full max-w-[1200px] mx-auto pb-[80px]">
         {tabPaths.map(path=>(visitedTabs.includes(path)||activeTab===path)&&(
           <div key={path} style={{display:activeTab===path?'block':'none'}} aria-hidden={activeTab!==path}>
             {tabScreens[path]}
