@@ -1036,3 +1036,11 @@
 .vvd-web-portal .vvd-web-workspace-intro-compact .vvd-web-hero-points{
   grid-template-columns:repeat(2,minmax(0,1fr));
 }
+
+
+/* Only the 1000x1000 "Работаем по всему миру" visual: keep its card
+   edge-to-edge, reduce its displayed height by 10% without cropping. */
+.vvd-web-public-info-card.vvd-world-banner{width:100%;margin-inline:0}
+.vvd-web-public-info-card.vvd-world-banner img{
+  display:block;width:100%;height:auto;max-height:none;aspect-ratio:10 / 9;object-fit:fill;
+}
