@@ -172,3 +172,19 @@
   aspect-ratio:auto;object-fit:contain;object-position:center;
   padding:0;margin:0;border:0;
 }
+
+
+/* Mini App detail loading skeleton holds the layout instead of briefly
+   rendering the previous (possibly empty) category. */
+.vvd-directory-loading-card{padding:0;overflow:hidden;min-height:255px}
+.vvd-directory-loading-banner{height:130px;background:#221d16}
+.vvd-directory-loading-lines{display:flex;flex-direction:column;gap:12px;padding:16px}
+.vvd-directory-loading-lines span{
+  display:block;height:14px;width:75%;border-radius:10px;
+  background:linear-gradient(100deg,#252018,#342b1d,#252018)
+}
+.vvd-directory-loading-lines span:first-child{height:22px;width:44%}
+.vvd-directory-loading-lines span:last-child{width:57%}
+.vvd-directory-service-banner.has-image img{
+  aspect-ratio:auto 3.4 / 1;
+}

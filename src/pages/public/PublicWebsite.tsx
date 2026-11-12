@@ -13,7 +13,7 @@ const BASE_URL='https://vitalujs2233.github.io/vvd-cpa/';
 const INITIAL:DirectoryData={version:0,categories:[],services:[]};
 // Public directory only: keep a short-lived copy to avoid blank cards when switching views.
 const DIRECTORY_CACHE_KEY='vvd_public_directory_v1';
-const DIRECTORY_CACHE_TTL=5*60*1000;
+const DIRECTORY_CACHE_TTL=60*1000;
 let directoryMemory:{data:DirectoryData;time:number}|null=null;
 function validDirectory(data:DirectoryData):boolean{
   return Boolean(data&&Array.isArray(data.categories)&&Array.isArray(data.services));
@@ -70,7 +70,7 @@ function setMetadata(title:string,description:string,category=''){
   if(ogType)ogType.content=isArticlePage()&&!!readArticle()?'article':'website';
 }
 
-const ServiceTile:React.FC<{service:DirectoryService}>=({service})=>{
+const ServiceTile:React.FC<{service:DirectoryService;priority?:boolean}>=({service,priority=false})=>{
   const Icon=directoryIcons[service.icon]||Layers;
   const dest=allowedLink(service.website_url);
   const benefits=(service.benefits||'').split(/\n/).map(x=>x.trim()).filter(Boolean).slice(0,3);
@@ -89,7 +89,7 @@ const ServiceTile:React.FC<{service:DirectoryService}>=({service})=>{
   return <article className="vvd-web-service-card">
     <div className={'vvd-web-service-banner'+(allowedLink(service.image_url)?' has-image':'')}>
       {allowedLink(service.image_url)
-        ?<img src={service.image_url} alt={service.name+' — логотип'} loading="lazy" decoding="async"/>
+        ?<img src={service.image_url} alt={service.name+' — логотип'} loading={priority?'eager':'lazy'} fetchPriority={priority?'high':'auto'} decoding="async"/>
         :<Icon size={46} strokeWidth={1.5} aria-hidden="true"/>}
     </div>
     <div className="vvd-web-service-content">
@@ -423,14 +423,23 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
       </main>
       : categoryId ? <main className="vvd-web-category-view">
         <button type="button" className="vvd-web-back" onClick={openCatalog}><ChevronLeft size={18}/> Все категории</button>
-        {category?<>
+        {loading&&!data.categories.length
+          ?<div className="vvd-web-directory-loading" aria-busy="true" aria-label="Загрузка категории и сервисов">
+            <div className="vvd-web-directory-loading-heading"/>
+            <div className="vvd-web-directory-loading-summary"/>
+            <div className="vvd-web-directory-loading-card">
+              <div className="vvd-web-directory-loading-banner"/>
+              <div className="vvd-web-directory-loading-lines"><span/><span/><span/></div>
+            </div>
+          </div>
+          :category?<>
           <header className="vvd-web-directory-intro">
             <span className="vvd-web-eyebrow">КАТАЛОГ СЕРВИСОВ</span>
             <h1>{category.name}</h1>
             <p>{category.description}</p>
             <span className="vvd-web-muted">{services.length?services.length+' предложений':'Сервисы пока не добавлены'}</span>
           </header>
-          {services.length>0?<div className="vvd-web-services-grid">{services.map(s=><ServiceTile key={s.id} service={s}/>)}</div>:
+          {services.length>0?<div className="vvd-web-services-grid">{services.map((s,index)=><ServiceTile key={s.id} service={s} priority={index===0}/>)}</div>:
           <div className="vvd-web-empty-service"><Layers size={30}/><h2>Сервисы скоро появятся</h2><p>Мы добавляем предложения по мере подключения партнёрских программ. Сейчас здесь нет опубликованных сервисов.</p><button type="button" onClick={openCatalog}>Смотреть другие категории <ArrowRight size={17}/></button></div>}
         </>:<div className="vvd-web-empty-service"><h1>Раздел не найден</h1><p>Возможно, категория была переименована или скрыта.</p><button onClick={openCatalog}>Вернуться в каталог</button></div>}
       </main> :

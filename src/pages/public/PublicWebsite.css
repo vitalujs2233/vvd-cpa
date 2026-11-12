@@ -965,3 +965,29 @@
   aspect-ratio:auto;object-fit:contain;object-position:center;
   padding:0;margin:0;border:0;
 }
+
+
+/* Reserve directory detail space until the first live response.
+   This avoids briefly showing "not found" and jumping when cards arrive. */
+.vvd-web-directory-loading{display:flex;flex-direction:column;gap:13px;max-width:100%}
+.vvd-web-directory-loading-heading,.vvd-web-directory-loading-summary,
+.vvd-web-directory-loading-lines span{
+  display:block;border-radius:10px;background:linear-gradient(100deg,#252018,#342b1d,#252018);
+}
+.vvd-web-directory-loading-heading{height:29px;width:min(220px,65%)}
+.vvd-web-directory-loading-summary{height:18px;width:min(370px,85%)}
+.vvd-web-directory-loading-card{
+  margin-top:10px;overflow:hidden;border:1px solid var(--vvd-card-border);
+  border-radius:var(--vvd-card-radius);background:var(--vvd-card-bg);
+  max-width:100%;width:100%;min-height:255px;
+}
+.vvd-web-directory-loading-banner{width:100%;height:clamp(100px,26vw,180px);background:#221d16}
+.vvd-web-directory-loading-lines{display:flex;flex-direction:column;gap:12px;padding:17px}
+.vvd-web-directory-loading-lines span{height:14px;width:75%}
+.vvd-web-directory-loading-lines span:first-child{height:22px;width:44%}
+.vvd-web-directory-loading-lines span:last-child{width:57%}
+/* Before image bytes arrive, reserve a wide image ratio. The intrinsic
+   dimensions take over after decode, without letterboxing or cropped logos. */
+.vvd-web-portal .vvd-web-service-banner.has-image img{
+  aspect-ratio:auto 3.4 / 1;
+}
