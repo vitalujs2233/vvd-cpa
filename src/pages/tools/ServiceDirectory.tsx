@@ -99,40 +99,52 @@ export const ServiceDirectoryPage:React.FC=()=>{
 };
 
 const ServiceCard:React.FC<{service:DirectoryService}>=({service})=>{
-  const [copied,setCopied]=useState(false);
+  const [copyStatus,setCopyStatus]=useState<'idle'|'copied'|'error'>('idle');
+  useEffect(()=>{
+    if(copyStatus==='idle')return;
+    const timeout=window.setTimeout(()=>setCopyStatus('idle'),2200);
+    return()=>window.clearTimeout(timeout);
+  },[copyStatus]);
+  const copyPromo=async()=>{
+    try{
+      await navigator.clipboard.writeText(service.promo_code);
+      setCopyStatus('copied');
+    }catch{setCopyStatus('error');}
+  };
   const benefits=service.benefits.split(/\n+/).map(v=>v.trim()).filter(Boolean);
   const ServiceIcon=directoryIcons[service.icon]||Layers;
-  return <article className="vvd-directory-service flex flex-col gap-4 p-4">
-    <div className="flex items-start gap-3">
-      <div className="flex h-[76px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-card border border-accentGold/25 bg-accentGold/10">
-        {service.image_url ? <img src={service.image_url} loading="lazy" alt={service.name} className="h-full w-full object-contain p-1"/> :
-          <ServiceIcon size={30} strokeWidth={1.8} className="text-accentBrightGold"/>}
-      </div>
-      <div className="min-w-0 flex-1">
-        <h2 className="text-base font-bold text-white">{service.name}</h2>
-        <p className="mt-1 text-xs leading-5 text-textSecondary whitespace-pre-wrap">{service.description}</p>
-      </div>
+  return <article className="vvd-directory-service vvd-directory-service-card">
+    <div className="vvd-directory-service-banner">
+      {service.image_url
+        ?<img src={service.image_url} loading="lazy" decoding="async" alt={service.name+' — логотип'}/>
+        :<ServiceIcon size={46} strokeWidth={1.5} className="text-accentBrightGold" aria-hidden="true"/>}
     </div>
-    {benefits.length>0&&<div className="flex flex-col gap-2 border-t border-white/[0.06] pt-3">
-      <b className="text-xs text-white">Преимущества</b>
-      {benefits.map((v,i)=><p key={i} className="flex gap-2 text-xs leading-5 text-textSecondary"><Check size={14} className="mt-0.5 shrink-0 text-accentBrightGold"/><span>{v}</span></p>)}
-    </div>}
-    {(service.discount_text||service.promo_code)&&<div className="flex flex-wrap items-center gap-2 rounded-card border border-accentGold/20 bg-accentGold/[0.06] p-3">
-      <Gift size={17} className="text-accentBrightGold"/>
-      {service.discount_text&&<span className="flex-1 text-xs font-semibold text-accentBrightGold">{service.discount_text}</span>}
-      {service.promo_code&&<button type="button" onClick={async()=>{
-        try {await navigator.clipboard.writeText(service.promo_code);setCopied(true);}
-        catch {setCopied(false);}
-      }} className="flex items-center gap-1 rounded-app-xs border border-accentGold/35 px-2 py-1.5 text-xs font-bold text-accentBrightGold" title="Скопировать промокод">
-        {copied?<Check size={13}/>:<Copy size={13}/>} {service.promo_code}
-      </button>}
-    </div>}
-{service.website_url&&<>
-      <a href={service.website_url} target="_blank" rel={service.partner_link?'noopener noreferrer sponsored nofollow':'noopener noreferrer'} className="flex min-h-11 items-center justify-center gap-2 rounded-app-xs bg-gold-gradient px-4 py-3 text-sm font-bold text-bgMain">
-        Перейти на сайт <ExternalLink size={16}/>
-      </a>
-      <p className="text-[10px] leading-4 text-textSecondary">{service.partner_link?'Партнёрская ссылка. ':''}Переход на сторонний сайт; его условия и цены действуют отдельно от VVD CPA.</p>
-    </>}
+    <div className="vvd-directory-service-content">
+      <div className="vvd-directory-service-copy">
+        <h2 className="text-lg font-bold text-white">{service.name}</h2>
+        <p className="mt-2 text-sm leading-6 text-textSecondary whitespace-pre-wrap">{service.description}</p>
+      </div>
+      {benefits.length>0&&<div className="flex flex-col gap-2 border-t border-white/[0.06] pt-3">
+        <b className="text-xs text-white">Преимущества</b>
+        {benefits.map((v,i)=><p key={i} className="flex gap-2 text-xs leading-5 text-textSecondary"><Check size={14} className="mt-0.5 shrink-0 text-accentBrightGold"/><span>{v}</span></p>)}
+      </div>}
+      {(service.discount_text||service.promo_code)&&<div className="vvd-directory-service-deal">
+        {service.discount_text&&<span className="text-xs font-semibold text-accentBrightGold">{service.discount_text}</span>}
+        {service.promo_code&&<button type="button" onClick={()=>void copyPromo()}
+          className="vvd-directory-service-promo" title="Скопировать промокод"
+          aria-label={'Скопировать промокод '+service.promo_code}>
+          <span>Промокод: <b>{service.promo_code}</b></span>
+          {copyStatus==='copied'?<Check size={18} aria-hidden="true"/>:<Copy size={18} aria-hidden="true"/>}
+        </button>}
+        {copyStatus!=='idle'&&<span className="vvd-directory-service-copy-status" role="status">{copyStatus==='copied'?'Скопировано':'Не удалось скопировать'}</span>}
+      </div>}
+      {service.website_url&&<>
+        <a href={service.website_url} target="_blank" rel={service.partner_link?'noopener noreferrer sponsored nofollow':'noopener noreferrer'} className="flex min-h-11 items-center justify-center gap-2 rounded-app-xs bg-gold-gradient px-4 py-3 text-sm font-bold text-bgMain">
+          Перейти на сайт <ExternalLink size={16}/>
+        </a>
+        <p className="text-[10px] leading-4 text-textSecondary">{service.partner_link?'Партнёрская ссылка. ':''}Переход на сторонний сайт; его условия и цены действуют отдельно от VVD CPA.</p>
+      </>}
+    </div>
   </article>;
 };
 

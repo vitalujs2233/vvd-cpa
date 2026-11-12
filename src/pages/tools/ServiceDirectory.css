@@ -107,3 +107,34 @@
 .vvd-directory-service .text-accentBrightGold{color:#e6be70}
 .vvd-directory-service h2{color:var(--vvd-card-title)}
 .vvd-directory-service p{line-height:1.65}
+
+
+/* Full-width service identity, readable copy and a tappable promotion control. */
+.vvd-directory-service-card{
+  display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden;min-width:0;
+}
+.vvd-directory-service-banner{
+  display:flex;align-items:center;justify-content:center;width:100%;height:190px;
+  border-bottom:1px solid rgba(218,167,71,.23);
+  background:linear-gradient(135deg,#29231a,#131314 75%);
+  color:#edc675;overflow:hidden;
+}
+.vvd-directory-service-banner img{
+  display:block;width:100%;height:100%;object-fit:contain;padding:16px;box-sizing:border-box;
+}
+.vvd-directory-service-content{display:flex;flex-direction:column;gap:16px;padding:18px;min-width:0}
+.vvd-directory-service-copy{min-width:0;overflow-wrap:anywhere}
+.vvd-directory-service-copy h2{line-height:1.35;margin:0}
+.vvd-directory-service-deal{
+  display:flex;align-items:center;flex-wrap:wrap;gap:10px;
+  border:1px solid rgba(235,184,77,.20);background:#241e12;border-radius:12px;padding:12px;
+}
+.vvd-directory-service-promo{
+  display:inline-flex;align-items:center;justify-content:space-between;gap:12px;
+  min-height:42px;max-width:100%;background:#312718;color:#f3cc80;
+  border:1px solid rgba(235,184,77,.32);border-radius:10px;padding:10px 12px;
+  font-size:13px;font-weight:600;overflow-wrap:anywhere;text-align:left;
+}
+.vvd-directory-service-promo svg{flex-shrink:0}
+.vvd-directory-service-promo:focus-visible{outline:2px solid #f9d88c;outline-offset:3px}
+.vvd-directory-service-copy-status{color:#f3ce8b;font-size:12px}

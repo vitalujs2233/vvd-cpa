@@ -1,5 +1,5 @@
 import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import {ArrowRight,ArrowUpRight,BarChart3,BookOpen,Check,ChevronLeft,ChevronRight,Globe2,Home,Layers,LayoutGrid,Menu,Search,ShieldCheck,Users,UserRound,Wrench,Target,MousePointerClick,Wallet,Link2,Activity,LayoutDashboard,X,Zap,Headphones} from 'lucide-react';
+import {ArrowRight,ArrowUpRight,BarChart3,BookOpen,Check,ChevronLeft,ChevronRight,Globe2,Home,Layers,LayoutGrid,Menu,Search,Copy,ShieldCheck,Users,UserRound,Wrench,Target,MousePointerClick,Wallet,Link2,Activity,LayoutDashboard,X,Zap,Headphones} from 'lucide-react';
 import {API_BASE_URL} from '@/shared/lib/api';
 import {directoryIcons,type DirectoryData,type DirectoryService} from '@/pages/tools/serviceDirectoryApi';
 import {BrowserAccount, TelegramBrowserLogin, type useBrowserSession} from './WebAuth';
@@ -74,22 +74,46 @@ const ServiceTile:React.FC<{service:DirectoryService}>=({service})=>{
   const Icon=directoryIcons[service.icon]||Layers;
   const dest=allowedLink(service.website_url);
   const benefits=(service.benefits||'').split(/\n/).map(x=>x.trim()).filter(Boolean).slice(0,3);
+  const [copyStatus,setCopyStatus]=useState<'idle'|'copied'|'error'>('idle');
+  useEffect(()=>{
+    if(copyStatus==='idle')return;
+    const timeout=window.setTimeout(()=>setCopyStatus('idle'),2200);
+    return()=>window.clearTimeout(timeout);
+  },[copyStatus]);
+  const copyPromo=async()=>{
+    try{
+      await navigator.clipboard.writeText(service.promo_code);
+      setCopyStatus('copied');
+    }catch{setCopyStatus('error');}
+  };
   return <article className="vvd-web-service-card">
-    <div className="vvd-web-service-top">
-      <div className="vvd-web-service-graphic">
-        {allowedLink(service.image_url)?<img src={service.image_url} alt={service.name} loading="lazy"/>:<Icon size={33} strokeWidth={1.7}/>}
-      </div>
-      <div><h3>{service.name}</h3><p>{service.description}</p></div>
+    <div className="vvd-web-service-banner">
+      {allowedLink(service.image_url)
+        ?<img src={service.image_url} alt={service.name+' — логотип'} loading="lazy" decoding="async"/>
+        :<Icon size={46} strokeWidth={1.5} aria-hidden="true"/>}
     </div>
-    {benefits.length>0&&<ul className="vvd-web-benefit-list">{benefits.map((text,index)=><li key={index}><Check size={14}/>{text}</li>)}</ul>}
-    {(service.discount_text||service.promo_code)&&<div className="vvd-web-deal">
-      {service.discount_text&&<span>{service.discount_text}</span>}
-      {service.promo_code&&<strong>Промокод: {service.promo_code}</strong>}
-    </div>}
-    {dest&&<a className="vvd-web-service-action" href={dest} target="_blank" rel={service.partner_link?'noopener noreferrer sponsored nofollow':'noopener noreferrer'}>
-      Перейти на сайт <ArrowUpRight size={17}/>
-    </a>}
-    {service.partner_link&&<span className="vvd-web-disclosure">Партнёрская ссылка</span>}
+    <div className="vvd-web-service-content">
+      <div className="vvd-web-service-info">
+        <h3>{service.name}</h3>
+        <p>{service.description}</p>
+      </div>
+      {benefits.length>0&&<ul className="vvd-web-benefit-list">{benefits.map((text,index)=><li key={index}><Check size={14}/>{text}</li>)}</ul>}
+      {(service.discount_text||service.promo_code)&&<div className="vvd-web-deal">
+        {service.discount_text&&<span>{service.discount_text}</span>}
+        {service.promo_code&&<button type="button" className="vvd-web-promo-copy" onClick={()=>void copyPromo()}
+          aria-label={'Скопировать промокод '+service.promo_code} title="Скопировать промокод">
+          <span>Промокод: <strong>{service.promo_code}</strong></span>
+          {copyStatus==='copied'?<Check size={18} aria-hidden="true"/>:<Copy size={18} aria-hidden="true"/>}
+        </button>}
+        {copyStatus!=='idle'&&<span className="vvd-web-promo-status" role="status">
+          {copyStatus==='copied'?'Скопировано':'Не удалось скопировать'}
+        </span>}
+      </div>}
+      {dest&&<a className="vvd-web-service-action" href={dest} target="_blank" rel={service.partner_link?'noopener noreferrer sponsored nofollow':'noopener noreferrer'}>
+        Перейти на сайт <ArrowUpRight size={17}/>
+      </a>}
+      {dest&&service.partner_link&&<span className="vvd-web-disclosure">Партнёрская ссылка</span>}
+    </div>
   </article>;
 };
 
