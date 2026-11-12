@@ -13,7 +13,7 @@ const BASE_URL='https://vitalujs2233.github.io/vvd-cpa/';
 const INITIAL:DirectoryData={version:0,categories:[],services:[]};
 // Public directory only: keep a short-lived copy to avoid blank cards when switching views.
 const DIRECTORY_CACHE_KEY='vvd_public_directory_v1';
-const DIRECTORY_CACHE_TTL=5*60*1000;
+const DIRECTORY_CACHE_TTL=60*1000;
 let directoryMemory:{data:DirectoryData;time:number}|null=null;
 function validDirectory(data:DirectoryData):boolean{
   return Boolean(data&&Array.isArray(data.categories)&&Array.isArray(data.services));
@@ -423,7 +423,16 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
       </main>
       : categoryId ? <main className="vvd-web-category-view">
         <button type="button" className="vvd-web-back" onClick={openCatalog}><ChevronLeft size={18}/> Все категории</button>
-        {category?<>
+        {loading&&!data.categories.length
+          ?<div className="vvd-web-directory-loading" aria-busy="true" aria-label="Загрузка категории и сервисов">
+            <div className="vvd-web-directory-loading-heading"/>
+            <div className="vvd-web-directory-loading-summary"/>
+            <div className="vvd-web-directory-loading-card">
+              <div className="vvd-web-directory-loading-banner"/>
+              <div className="vvd-web-directory-loading-lines"><span/><span/><span/></div>
+            </div>
+          </div>
+          :category?<>
           <header className="vvd-web-directory-intro">
             <span className="vvd-web-eyebrow">КАТАЛОГ СЕРВИСОВ</span>
             <h1>{category.name}</h1>
