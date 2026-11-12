@@ -419,9 +419,12 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
       : categoryId ? <main className="vvd-web-category-view">
         <button type="button" className="vvd-web-back" onClick={openCatalog}><ChevronLeft size={18}/> Все категории</button>
         {category?<>
-          <div className="vvd-web-category-hero vvd-web-category-hero-compact">
-            <div><span className="vvd-web-eyebrow">КАТАЛОГ СЕРВИСОВ / РАЗДЕЛ</span><h1>{category.name}</h1><p>{category.description}</p><span className="vvd-web-muted">{services.length?services.length+' предложений':'Сервисы пока не добавлены'}</span></div>
-          </div>
+          <header className="vvd-web-directory-intro">
+            <span className="vvd-web-eyebrow">КАТАЛОГ СЕРВИСОВ</span>
+            <h1>{category.name}</h1>
+            <p>{category.description}</p>
+            <span className="vvd-web-muted">{services.length?services.length+' предложений':'Сервисы пока не добавлены'}</span>
+          </header>
           {services.length>0?<div className="vvd-web-services-grid">{services.map(s=><ServiceTile key={s.id} service={s}/>)}</div>:
           <div className="vvd-web-empty-service"><Layers size={30}/><h2>Сервисы скоро появятся</h2><p>Мы добавляем предложения по мере подключения партнёрских программ. Сейчас здесь нет опубликованных сервисов.</p><button type="button" onClick={openCatalog}>Смотреть другие категории <ArrowRight size={17}/></button></div>}
         </>:<div className="vvd-web-empty-service"><h1>Раздел не найден</h1><p>Возможно, категория была переименована или скрыта.</p><button onClick={openCatalog}>Вернуться в каталог</button></div>}

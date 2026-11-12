@@ -927,3 +927,28 @@
   .vvd-web-portal .vvd-web-category-hero-compact{padding:16px 18px}
   .vvd-web-portal .vvd-web-service-content{padding:18px}
 }
+
+
+/* Service category: plain compact heading instead of an oversized category panel. */
+.vvd-web-portal .vvd-web-directory-intro{
+  margin:0 0 18px;padding:0;border:0;background:none;box-shadow:none;
+}
+.vvd-web-portal .vvd-web-directory-intro h1{
+  margin:5px 0 5px;font-size:clamp(23px,2.8vw,32px);line-height:1.2;color:#fff;
+}
+.vvd-web-portal .vvd-web-directory-intro p{
+  margin:0 0 6px;font-size:13px;line-height:1.5;color:#c3b9aa;
+}
+/* Compact, proportional banners on phone and desktop. */
+.vvd-web-portal .vvd-web-service-banner{
+  aspect-ratio:3 / 1;min-height:90px;max-height:145px;
+}
+.vvd-web-portal .vvd-web-service-banner img{padding:10px 14px}
+.vvd-web-portal .vvd-web-service-content{gap:12px;padding:18px}
+.vvd-web-portal .vvd-web-service-card h3{font-size:18px;margin-bottom:6px}
+.vvd-web-portal .vvd-web-service-card p{font-size:12px}
+@media(max-width:720px){
+  .vvd-web-portal .vvd-web-category-view{padding-top:24px}
+  .vvd-web-portal .vvd-web-back{margin-bottom:18px}
+  .vvd-web-portal .vvd-web-service-content{padding:16px}
+}
