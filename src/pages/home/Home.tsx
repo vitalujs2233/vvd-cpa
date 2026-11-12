@@ -6,7 +6,7 @@ import {readSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wallet, History, Sparkles, Flame, Crown, Brain, Sparkles as InfoSparkles, BookOpen, ChevronRight } from 'lucide-react';
+import { Wallet, History, Sparkles, Flame, Crown, Brain, Sparkles as InfoSparkles, BookOpen, LayoutGrid, ChevronRight } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
@@ -184,6 +184,19 @@ export const Home: React.FC = () => {
           </Button>
         </div>
       </Card>
+      {/* The same signed-in home is rendered in the browser and Telegram Mini App. */}
+      <nav className="home-quick-links" aria-label="Быстрые переходы">
+        <button type="button" className="home-quick-link" onClick={()=>{triggerHaptic.lightImpact();navigate('/tools/directory');}}>
+          <span className="home-quick-link-icon"><LayoutGrid size={21} strokeWidth={1.8}/></span>
+          <span>Каталог сервисов</span>
+          <ChevronRight size={17} className="home-quick-link-arrow" aria-hidden="true"/>
+        </button>
+        <button type="button" className="home-quick-link" onClick={()=>{triggerHaptic.lightImpact();navigate('/tools/articles');}}>
+          <span className="home-quick-link-icon"><BookOpen size={21} strokeWidth={1.8}/></span>
+          <span>Статьи и кейсы</span>
+          <ChevronRight size={17} className="home-quick-link-arrow" aria-hidden="true"/>
+        </button>
+      </nav>
       <Card variant="default" padding="sm" className="home-native-card">
         <button type="button" className="home-native-card-button" onClick={()=>{triggerHaptic.lightImpact();navigate('/why-vvd');}}>
           <span className="home-native-card-icon" aria-hidden="true"><InfoSparkles size={21} strokeWidth={1.8}/></span>
@@ -195,17 +208,6 @@ export const Home: React.FC = () => {
         </button>
       </Card>
       <HomeAdCarousel/>
-      {/* Existing dark VVD CPA card design separates the two banner formats. */}
-      <Card variant="default" padding="sm" className="home-native-card">
-        <button type="button" className="home-native-card-button" onClick={()=>{triggerHaptic.lightImpact();navigate('/tools/articles');}}>
-          <span className="home-native-card-icon" aria-hidden="true"><BookOpen size={21} strokeWidth={1.8}/></span>
-          <span className="home-native-card-copy">
-            <strong>Статьи и кейсы</strong>
-            <span>Обучение, полезные разборы и советы для вебмастеров</span>
-          </span>
-          <ChevronRight size={18} className="home-native-card-chevron" aria-hidden="true"/>
-        </button>
-      </Card>
       <HomeInfoBlocks/>
 
     </div>
