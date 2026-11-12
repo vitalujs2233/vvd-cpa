@@ -28,15 +28,6 @@ const categoryIcons:Record<string,React.ElementType>={
   'ai-automation':Bot,'cases-reviews':ClipboardList
 };
 const articleCache=new Map<Surface,{data:PublicArticles;at:number}>();
-const staticArticles=(surface:Surface):PublicArticles|null=>{
-  const initial=bootstrappedEditorial();
-  if(!initial)return null;
-  const key:'show_on_web'|'show_in_mini_app'=surface==='web'?'show_on_web':'show_in_mini_app';
-  const categories=initial.categories.filter(c=>c.active!==false&&c[key]!==false);
-  const ids=new Set(categories.map(c=>c.id));
-  const articles=initial.articles.filter(a=>a.published&&a[key]!==false&&ids.has(a.category_id));
-  return categories.length||articles.length?{categories,articles}:null;
-};
 const cachedValue=(raw:string|null,ttl:number):{data:PublicArticles;at:number}|null=>{
   if(!raw)return null;
   try{
@@ -54,17 +45,18 @@ const readCachedArticles=(surface:Surface):PublicArticles|null=>{
     rememberArticles(surface,warmed);
     return warmed;
   }
-  // The HTML snapshot is available synchronously on a cold start, including
-  // inside Telegram. Respect each surface's publication visibility flags.
-  const initial=staticArticles(surface);
-  if(initial)return initial;
+  // The bundled HTML snapshot and persistent storage may be older than the
+  // live categories. On a cold opening, show stable loading cards instead of
+  // briefly flashing categories that no longer exist.
+  return null;
+};
+const readOfflineArticles=(surface:Surface):PublicArticles|null=>{
   try{
     const session=cachedValue(sessionStorage.getItem('vvd_public_articles_'+surface+'_v2'),PERSISTED_CACHE_TTL);
     const persisted=cachedValue(localStorage.getItem('vvd_public_articles_'+surface+'_v3'),PERSISTED_CACHE_TTL);
     const saved=(!session||persisted&&persisted.at>session.at)?persisted:session;
-    if(saved){articleCache.set(surface,saved);return saved.data;}
-  }catch{/* Optional cache: continue to network loading. */}
-  return null;
+    return saved?.data||null;
+  }catch{return null;}
 };
 const rememberArticles=(surface:Surface,data:PublicArticles)=>{
   const value={data,at:Date.now()};
@@ -135,16 +127,6 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
       const cached=readCachedArticles(surface);
       if(cached)setData(cached);
       setLoading(!cached);
-      if(!bootstrappedEditorial())void editorialApi.snapshot().then(v=>{
-        if(!mounted||liveAnswered)return;
-        const key:'show_on_web'|'show_in_mini_app'=surface==='web'?'show_on_web':'show_in_mini_app';
-        const categories=v.categories.filter(c=>c.active!==false&&c[key]!==false);
-        const ids=new Set(categories.map(c=>c.id));
-        const feed={categories,articles:v.articles.filter(a=>a.published&&a[key]!==false&&ids.has(a.category_id))};
-        if(feed.categories.length||feed.articles.length){
-          rememberArticles(surface,feed);setData(feed);setLoading(false);
-        }
-      }).catch(()=>{});
       void editorialApi.list(surface).then(v=>{
         if(!mounted)return;
         liveAnswered=true;rememberArticles(surface,v);
@@ -152,7 +134,11 @@ export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBa
         setData(previous=>JSON.stringify(previous)===JSON.stringify(v)?previous:v);
         setError('');setLoading(false);
       }).catch(()=>{
-        if(mounted&&!readCachedArticles(surface)){setError('Не удалось загрузить статьи.');setLoading(false);}
+        if(!mounted)return;
+        const fallback=readCachedArticles(surface)||readOfflineArticles(surface);
+        if(fallback){setData(fallback);setError('Не удалось обновить каталог. Показана сохранённая версия.');}
+        else setError('Не удалось загрузить статьи.');
+        setLoading(false);
       });
     }
     return()=>{mounted=false};
