@@ -991,3 +991,43 @@
 .vvd-web-portal .vvd-web-service-banner.has-image img{
   aspect-ratio:auto 3.4 / 1;
 }
+
+
+/* Guest homepage: one concise introduction, no repeated large capability panel. */
+.vvd-web-portal .vvd-web-public-main > .vvd-web-workspace-intro-compact{
+  display:block;grid-template-columns:none;max-width:100%;
+}
+.vvd-web-portal .vvd-web-workspace-intro-compact .vvd-web-workspace-copy{
+  width:100%;box-sizing:border-box;
+}
+.vvd-web-portal .vvd-web-workspace-intro-compact .vvd-web-hero-points{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+}
+.vvd-web-home-shortcuts{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;
+}
+.vvd-web-home-shortcuts button{
+  display:flex;align-items:center;gap:11px;width:100%;min-width:0;
+  min-height:76px;text-align:left;padding:15px;border:1px solid var(--vvd-card-border);
+  border-radius:var(--vvd-card-radius);background:var(--vvd-card-bg);
+  box-shadow:var(--vvd-card-shadow);color:#ecc16e;cursor:pointer;
+}
+.vvd-web-home-shortcuts button>svg:first-child{flex:none}
+.vvd-web-home-shortcuts button>svg:last-child{flex:none;margin-left:auto}
+.vvd-web-home-shortcuts button span{display:flex;min-width:0;flex:1;flex-direction:column;gap:4px}
+.vvd-web-home-shortcuts button strong{font-size:14px;line-height:1.3;color:var(--vvd-card-title)}
+.vvd-web-home-shortcuts button small{font-size:11px;line-height:1.4;color:var(--vvd-card-muted)}
+.vvd-web-home-shortcuts button:hover{border-color:rgba(245,197,99,.65)}
+.vvd-web-home-shortcuts button:focus-visible{outline:2px solid #f6cb78;outline-offset:2px}
+@media(max-width:720px){
+ .vvd-web-portal .vvd-web-workspace-intro-compact .vvd-web-hero-points{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .vvd-web-home-shortcuts{gap:10px}
+ .vvd-web-home-shortcuts button{padding:12px 10px;gap:8px;min-height:84px}
+ .vvd-web-home-shortcuts button strong{font-size:12px}
+ .vvd-web-home-shortcuts button small{font-size:10px}
+}
+@media(max-width:370px){
+ .vvd-web-home-shortcuts button{gap:6px;padding:10px 8px}
+ .vvd-web-home-shortcuts button>svg:first-child{width:18px}
+ .vvd-web-home-shortcuts button>svg:last-child{width:15px}
+}
