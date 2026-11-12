@@ -219,8 +219,16 @@ const publishedDirectory = (refresh=false):Promise<DirectoryData> => {
   return task;
 };
 
+// A persisted catalog can be days old. Only render a recent snapshot immediately;
+// otherwise let the UI show its loading state until the live catalog arrives.
+const recentDirectory = ():DirectoryData|null => {
+  const saved=cachedDirectory();
+  return saved && memory && Date.now()-memory.at<REFRESH_INTERVAL ? saved : null;
+};
+
 export const directoryApi = {
   snapshot:cachedDirectory,
+  recentSnapshot:recentDirectory,
   published:publishedDirectory,
   admin: () => apiRequest<DirectoryData>('/service-directory/admin'),
   uploadImage: async (id:string,image:File) => {
