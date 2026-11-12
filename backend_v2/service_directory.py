@@ -62,13 +62,6 @@ class DirectoryService(BaseModel):
                 raise ValueError("Укажите обычную HTTPS-ссылку")
         return value
 
-    @model_validator(mode="after")
-    def active_must_have_url(self):
-        if self.active and not self.website_url:
-            raise ValueError("Для публикации сервиса необходимо указать HTTPS-ссылку")
-        return self
-
-
 class DirectoryContent(BaseModel):
     categories: list[DirectoryCategory] = Field(default_factory=list, max_length=60)
     services: list[DirectoryService] = Field(default_factory=list, max_length=300)
@@ -113,7 +106,7 @@ def published_directory(surface: Literal["web", "mini"] = "web"):
     visible_ids = {c["id"] for c in categories}
     services = sorted(
         [s for s in data["services"]
-         if s.get("active") and s.get("website_url")
+         if s.get("active")
          and s.get(visibility_key, True) and s.get("category_id") in visible_ids],
         key=lambda item: (item.get("sort_order", 100), item["name"].lower())
     )

@@ -127,10 +127,12 @@ const ServiceCard:React.FC<{service:DirectoryService}>=({service})=>{
         {copied?<Check size={13}/>:<Copy size={13}/>} {service.promo_code}
       </button>}
     </div>}
-    <a href={service.website_url} target="_blank" rel={service.partner_link?'noopener noreferrer sponsored nofollow':'noopener noreferrer'} className="flex min-h-11 items-center justify-center gap-2 rounded-app-xs bg-gold-gradient px-4 py-3 text-sm font-bold text-bgMain">
-      Перейти на сайт <ExternalLink size={16}/>
-    </a>
-    <p className="text-[10px] leading-4 text-textSecondary">{service.partner_link?'Партнёрская ссылка. ':''}Переход на сторонний сайт; его условия и цены действуют отдельно от VVD CPA.</p>
+{service.website_url&&<>
+      <a href={service.website_url} target="_blank" rel={service.partner_link?'noopener noreferrer sponsored nofollow':'noopener noreferrer'} className="flex min-h-11 items-center justify-center gap-2 rounded-app-xs bg-gold-gradient px-4 py-3 text-sm font-bold text-bgMain">
+        Перейти на сайт <ExternalLink size={16}/>
+      </a>
+      <p className="text-[10px] leading-4 text-textSecondary">{service.partner_link?'Партнёрская ссылка. ':''}Переход на сторонний сайт; его условия и цены действуют отдельно от VVD CPA.</p>
+    </>}
   </article>;
 };
 
