@@ -555,7 +555,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
                 <span aria-hidden="true">👨‍🚀</span><span>{t('Поддержка','Support')}</span>
               </a>
             </div>
-            <h1 id="vvd-web-intro-title">{t('Зарабатывай на своём трафике.','Monetize your traffic.')}<br/><em>{t('VVD CPA — партнёрка.','VVD CPA — affiliate network.')}</em></h1>
+            <h1 id="vvd-web-intro-title">{t('Зарабатывай на своём трафике.','Monetize your traffic.')}<br/><em>{t('VVD CPA партнёрка','VVD CPA — affiliate network.')}</em></h1>
             <p>{t('Монетизируй свой трафик через смартлинки разных вертикалей.','Monetize traffic with smartlinks across different verticals.')} <strong>{t('Выплаты, аналитика и поддержка','Payouts, analytics and support')}</strong> {t('— в одной платформе.','— in one platform.')}</p>
             <div className="vvd-web-hero-points" aria-label="Возможности VVD CPA">
               <span><Link2 size={18} aria-hidden="true"/> {t('Партнёрские предложения','Affiliate offers')}</span>
