@@ -121,6 +121,20 @@ const ServiceTile:React.FC<{service:DirectoryService;priority?:boolean}>=({servi
 /** Public read-only feeds, managed by the existing Mini App administration. */
 type PublicBanner={id:string;title:string;image_url:string;target_url:string;updated_at:string};
 type PublicInfo={id:string;title:string;subtitle:string;description:string;image_url:string|null;target_url:string;updated_at:string};
+// Only public, admin-managed homepage media metadata is cached here, never account data.
+// Render it on repeat visits while refreshing the live feed in the background.
+const readPublicHomeFeed=<T,>(key:string):T|null=>{
+  try {
+    const raw=window.localStorage.getItem('vvd:public-home:'+key);
+    if(!raw)return null;
+    const saved=JSON.parse(raw) as {at:number;data:T};
+    if(!saved||typeof saved.at!=='number'||Date.now()-saved.at>24*60*60*1000||!saved.data)return null;
+    return saved.data;
+  }catch{return null;}
+};
+const savePublicHomeFeed=<T,>(key:string,data:T)=>{
+  try{window.localStorage.setItem('vvd:public-home:'+key,JSON.stringify({at:Date.now(),data}));}catch{/* Storage can be disabled. */}
+};
 const publicMedia=(path:string,kind:'home-ads'|'home-info',version:string)=>{
   if(!path.startsWith('/'+kind+'/images/'))return '';
   return API_BASE_URL+path+'?v='+encodeURIComponent(version);
@@ -129,8 +143,9 @@ const publicMedia=(path:string,kind:'home-ads'|'home-info',version:string)=>{
 const publicTarget=(url:string)=>allowedLink(url);
 
 const PublicHomeBanners:React.FC=()=>{
-  const [items,setItems]=useState<PublicBanner[]>([]);
-  const [autoplay,setAutoplay]=useState(false);
+  const [items,setItems]=useState<PublicBanner[]>(()=>readPublicHomeFeed<{items:PublicBanner[];autoplay:boolean}>('ads')?.items||[]);
+  const [autoplay,setAutoplay]=useState(()=>readPublicHomeFeed<{items:PublicBanner[];autoplay:boolean}>('ads')?.autoplay||false);
+  const [loading,setLoading]=useState(()=>!readPublicHomeFeed('ads'));
   const [active,setActive]=useState(0);
   const rail=useRef<HTMLDivElement>(null);
   const paused=useRef(false);
@@ -142,9 +157,11 @@ const PublicHomeBanners:React.FC=()=>{
       .then(response=>{if(!response.ok)throw new Error('banners');return response.json();})
       .then((feed:{items:PublicBanner[];autoplay:boolean})=>{
         if(!mounted||!Array.isArray(feed.items))return;
-        setItems(feed.items.slice(0,4));
-        setAutoplay(Boolean(feed.autoplay));
-      }).catch(()=>{}).finally(()=>window.clearTimeout(timeout));
+        const next={items:feed.items.slice(0,4),autoplay:Boolean(feed.autoplay)};
+        savePublicHomeFeed('ads',next);
+        setItems(next.items);
+        setAutoplay(next.autoplay);
+      }).catch(()=>{}).finally(()=>{if(mounted)setLoading(false);window.clearTimeout(timeout)});
     return()=>{mounted=false;controller.abort();window.clearTimeout(timeout)};
   },[]);
   const select=(index:number)=>{
@@ -169,7 +186,11 @@ const PublicHomeBanners:React.FC=()=>{
     },6500);
     return()=>window.clearInterval(interval);
   },[autoplay,items.length]);
-  if(!items.length)return null;
+  if(!items.length)return loading
+    ?<section className="vvd-web-public-banners vvd-web-home-media-loading" aria-label="Загрузка баннеров" aria-busy="true">
+      <div className="vvd-web-banner-slide vvd-web-media-skeleton"/>
+    </section>
+    :null;
   return <section className="vvd-web-public-banners" aria-label="Баннеры VVD CPA">
     <div ref={rail} className="vvd-web-banner-rail" onTouchStart={()=>{paused.current=true}} onPointerDown={()=>{paused.current=true}}
       onScroll={event=>{
@@ -201,18 +222,27 @@ const PublicHomeBanners:React.FC=()=>{
 };
 
 const PublicHomeInfo:React.FC=()=>{
-  const [items,setItems]=useState<PublicInfo[]>([]);
+  const [items,setItems]=useState<PublicInfo[]>(()=>readPublicHomeFeed<PublicInfo[]>('info')||[]);
+  const [loading,setLoading]=useState(()=>!readPublicHomeFeed('info'));
   useEffect(()=>{
     let mounted=true;
     const controller=new AbortController();
     const timeout=window.setTimeout(()=>controller.abort(),90000);
     void fetch(API_BASE_URL+'/home-info/published',{signal:controller.signal})
       .then(response=>{if(!response.ok)throw new Error('info');return response.json();})
-      .then((feed:{items:PublicInfo[]})=>{if(mounted&&Array.isArray(feed.items))setItems(feed.items);})
-      .catch(()=>{}).finally(()=>window.clearTimeout(timeout));
+      .then((feed:{items:PublicInfo[]})=>{
+        if(!mounted||!Array.isArray(feed.items))return;
+        savePublicHomeFeed('info',feed.items);
+        setItems(feed.items);
+      })
+      .catch(()=>{}).finally(()=>{if(mounted)setLoading(false);window.clearTimeout(timeout)});
     return()=>{mounted=false;controller.abort();window.clearTimeout(timeout)};
   },[]);
-  if(!items.length)return null;
+  if(!items.length)return loading
+    ?<section className="vvd-web-public-info vvd-web-home-media-loading" aria-label="Загрузка информационного баннера" aria-busy="true">
+      <div className="vvd-web-public-info-card vvd-world-banner vvd-web-media-skeleton"/>
+    </section>
+    :null;
   return <section className="vvd-web-public-info" aria-label="Информация VVD CPA">
     {items.map((item,index)=>{
       const src=item.image_url?publicMedia(item.image_url,'home-info',item.updated_at):'';
