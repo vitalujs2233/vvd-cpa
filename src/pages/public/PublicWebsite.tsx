@@ -7,6 +7,7 @@ import './PublicWebsite.css';
 import {PublicEditorial} from './PublicEditorial';
 import {UnifiedCategoryCard,serviceCountLabel} from '@/shared/ui/UnifiedCategoryCard';
 import {PublicPolicy} from './PublicPolicy';
+import {iconFor,type InfoItem} from '@/pages/info/InfoPage';
 
 const BOT_URL='https://t.me/vvd_cpa_bot';
 const BASE_URL='https://vitalujs2233.github.io/vvd-cpa/';
@@ -121,7 +122,7 @@ const ServiceTile:React.FC<{service:DirectoryService;priority?:boolean}>=({servi
 /** Public read-only feeds, managed by the existing Mini App administration. */
 type PublicBanner={id:string;title:string;image_url:string;target_url:string;updated_at:string};
 type PublicInfo={id:string;title:string;subtitle:string;description:string;image_url:string|null;target_url:string;updated_at:string};
-type PublicWhyInfo={id:string;kind:'section'|'banner';title:string;description:string;body:string;visible:boolean};
+type PublicWhyInfo=InfoItem;
 // Only public, admin-managed homepage media metadata is cached here, never account data.
 // Render it on repeat visits while refreshing the live feed in the background.
 const readPublicHomeFeed=<T,>(key:string):T|null=>{
@@ -273,7 +274,7 @@ const PublicWhyVvd:React.FC=()=>{
       .then(response=>{if(!response.ok)throw new Error('why-info');return response.json()})
       .then((feed:{items:PublicWhyInfo[]})=>{
         if(!mounted||!Array.isArray(feed.items))return;
-        const visible=feed.items.filter(item=>item&&item.visible!==false&&item.kind==='section'&&typeof item.title==='string'&&typeof item.body==='string');
+        const visible=feed.items.filter(item=>item&&item.visible!==false&&(item.kind==='section'||item.kind==='banner')&&typeof item.title==='string'&&typeof item.body==='string');
         savePublicHomeFeed('why',visible);
         setItems(visible);
       })
@@ -289,13 +290,31 @@ const PublicWhyVvd:React.FC=()=>{
       <p>Офферы, аналитика, условия работы и поддержка — короткие ответы для вебмастеров.</p>
     </div>
     <div className="vvd-web-why-items" aria-busy={loading&&!items.length}>
-      {items.length?items.map(item=><details key={item.id} className="vvd-web-why-item">
-        <summary><span>{item.title}</span><ChevronRight size={17} aria-hidden="true"/></summary>
-        <div className="vvd-web-why-detail">
-          {item.description&&<strong>{item.description}</strong>}
-          <p>{item.body}</p>
-        </div>
-      </details>):Array.from({length:7},(_,index)=><div key={index} className="vvd-web-why-placeholder" aria-hidden="true"/>)}
+      {items.length?items.map(item=>{
+        const Icon=iconFor(item);
+        const link=allowedLink(item.button_url||'');
+        const image=allowedLink(item.image_url||'');
+        return item.kind==='section'
+          ?<details key={item.id} className="vvd-web-why-item">
+            <summary>
+              <span className="vvd-web-why-icon"><Icon size={22} strokeWidth={1.7} aria-hidden="true"/></span>
+              <span className="vvd-web-why-summary-copy"><strong>{item.title}</strong>{item.description&&<small>{item.description}</small>}</span>
+              <ChevronRight size={17} aria-hidden="true"/>
+            </summary>
+            <div className="vvd-web-why-detail">
+              {item.body&&<p>{item.body}</p>}
+              {image&&<img src={image} alt={item.title} loading="lazy" decoding="async"/>}
+              {link&&<a href={link} target="_blank" rel="noopener noreferrer">{item.button_text||'Подробнее'}</a>}
+            </div>
+          </details>
+          :<article key={item.id} className="vvd-web-why-item vvd-web-why-banner">
+            {image&&<img src={image} alt={item.title} loading="lazy" decoding="async"/>}
+            <strong>{item.title}</strong>
+            {item.description&&<p>{item.description}</p>}
+            {item.quote&&<p className="vvd-web-why-quote">{item.quote}</p>}
+            {link&&<a href={link} target="_blank" rel="noopener noreferrer">{item.button_text||'Подробнее'}</a>}
+          </article>;
+      }):Array.from({length:7},(_,index)=><div key={index} className="vvd-web-why-placeholder" aria-hidden="true"/>)}
     </div>
   </section>;
 };
