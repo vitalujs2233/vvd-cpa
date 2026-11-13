@@ -1063,3 +1063,31 @@
 @media(prefers-reduced-motion:reduce){
   .vvd-web-home-media-loading .vvd-web-media-skeleton{animation:none}
 }
+
+
+/* Public "Почему VVD CPA?" uses the same published content as the Mini App.
+   Compact accordions keep the guest landing page readable on mobile. */
+.vvd-web-why{display:flex;flex-direction:column;gap:13px;min-width:0}
+.vvd-web-why-heading h2{margin:7px 0 8px;font-size:clamp(23px,3.3vw,34px);line-height:1.2;color:#f6d58e}
+.vvd-web-why-heading p{margin:0;color:#b9b0a5;font-size:13px;line-height:1.6}
+.vvd-web-why-items{display:flex;flex-direction:column;gap:9px}
+.vvd-web-why-item{border:1px solid rgba(220,175,83,.3);background:linear-gradient(135deg,#1b1813,#0f0f0e);border-radius:14px;overflow:hidden}
+.vvd-web-why-item summary{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  min-height:55px;padding:12px 16px;cursor:pointer;list-style:none;
+  font-size:14px;font-weight:700;line-height:1.35;color:#f1d18e;
+}
+.vvd-web-why-item summary::-webkit-details-marker{display:none}
+.vvd-web-why-item summary svg{flex-shrink:0;transition:transform .2s ease;color:#dfb765}
+.vvd-web-why-item[open] summary svg{transform:rotate(90deg)}
+.vvd-web-why-item summary:focus-visible{outline:2px solid #f6cb78;outline-offset:-3px}
+.vvd-web-why-detail{padding:0 16px 16px;color:#c6bdb2;font-size:13px;line-height:1.65;border-top:1px solid rgba(220,175,83,.12)}
+.vvd-web-why-detail strong{display:block;margin-top:12px;color:#edcf8b}
+.vvd-web-why-detail p{margin:10px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.vvd-web-why-placeholder{height:56px;border:1px solid rgba(220,175,83,.22);border-radius:14px;background:linear-gradient(100deg,#181511,#252016,#181511)}
+@media(max-width:720px){
+  .vvd-web-why-item summary{min-height:51px;padding:11px 13px;font-size:13px}
+  .vvd-web-why-detail{padding:0 13px 14px;font-size:12px}
+  .vvd-web-why-heading p{font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){.vvd-web-why-item summary svg{transition:none}}
