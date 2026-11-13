@@ -1188,9 +1188,9 @@
   .vvd-web-locale-switch{margin-right:6px}
   .vvd-web-locale-switch button{min-width:26px;min-height:29px;padding:4px;font-size:9px}
   .vvd-web-brand{gap:7px}
-  .vvd-web-brand-copy strong{font-size:14px}
-  .vvd-web-brand-copy small{font-size:6px;letter-spacing:1.1px}
-  .vvd-web-monogram{width:34px;height:34px;font-size:21px}
+  .vvd-web-brand-copy strong{font-size:16px}
+  .vvd-web-brand-copy small{font-size:7px;letter-spacing:1.1px}
+  .vvd-web-monogram{width:40px;height:40px;font-size:24px}
 }
 
 @media(max-width:375px){.vvd-web-brand-copy small{display:none}}
