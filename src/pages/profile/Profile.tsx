@@ -5,7 +5,7 @@ import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
 import { LogOut, Lock, Shield, User, Coins, Sparkles, Crown, MessageSquare, Globe } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
-import {useLocale,setLocale,localize} from '@/shared/lib/locale';
+import {LOCALE_SWITCH_ENABLED,useLocale,setLocale,localize} from '@/shared/lib/locale';
 
 export const Profile: React.FC = () => {
   const navigate = useNavigate();
@@ -130,8 +130,8 @@ export const Profile: React.FC = () => {
                 <Lock size={17} className="text-textSecondary" aria-label="Заблокировано" />
               </div>
 
-              {/* Single saved language choice for website and Telegram Mini App. */}
-              <div className="flex items-center justify-between gap-3 p-4">
+              {/* Paused until all user-facing pages/media are translated. Keep this selector ready. */}
+              {LOCALE_SWITCH_ENABLED&&<div className="flex items-center justify-between gap-3 p-4">
                 <div className="flex min-w-0 items-center gap-3">
                   <Globe size={16} className="shrink-0 text-accentGold"/>
                   <span className="text-xs font-semibold text-white">{t('Язык интерфейса','Interface language')}</span>
@@ -141,7 +141,7 @@ export const Profile: React.FC = () => {
                     onClick={()=>setLocale(code)}
                     className={`min-w-[37px] rounded-lg px-2 py-1.5 text-xs font-bold ${lang===code?'bg-accentGold text-black':'text-accentGoldBright'}`}>{code.toUpperCase()}</button>)}
                 </div>
-              </div>
+              </div>}
 
               {/* Личный чат поддержки (Новое расположение по гайдлайну v2.0) */}
               <div 

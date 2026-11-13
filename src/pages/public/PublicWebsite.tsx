@@ -8,7 +8,7 @@ import {PublicEditorial} from './PublicEditorial';
 import {UnifiedCategoryCard,serviceCountLabel} from '@/shared/ui/UnifiedCategoryCard';
 import {PublicPolicy} from './PublicPolicy';
 import {iconFor,type InfoItem} from '@/pages/info/InfoPage';
-import {useLocale,setLocale,localize} from '@/shared/lib/locale';
+import {LOCALE_SWITCH_ENABLED,useLocale,setLocale,localize} from '@/shared/lib/locale';
 import {guestInfoEnglish} from './GuestInfoEnglish';
 
 const BOT_URL='https://t.me/vvd_cpa_bot';
@@ -477,10 +477,11 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
           <button type="button" onClick={()=>openArticles()}><span className="vvd-web-nav-icon"><BookOpen size={17}/></span><span>{t('Статьи и кейсы','Articles & cases')}</span></button>
           <button type="button" onClick={openAccount}><span className="vvd-web-nav-icon"><UserRound size={17}/></span><span>{t('Личный кабинет','Account')}</span></button>
         </nav>
-        <div className="vvd-web-locale-switch" role="group" aria-label={t('Язык сайта','Website language')}>
+        {/* Localization paused: keep the prepared control ready for reactivation. */}
+        {LOCALE_SWITCH_ENABLED&&<div className="vvd-web-locale-switch" role="group" aria-label={t('Язык сайта','Website language')}>
           <button type="button" aria-label="Русский" aria-pressed={lang==='ru'} className={lang==='ru'?'is-active':''} onClick={()=>setLocale('ru')}>RU</button>
           <button type="button" aria-label="English" aria-pressed={lang==='en'} className={lang==='en'?'is-active':''} onClick={()=>setLocale('en')}>EN</button>
-        </div>
+        </div>}
         {auth.isLoggedIn
           ?<button type="button" className="vvd-web-header-action" onClick={openAccount}><ShieldCheck size={17}/> {t('Кабинет','Account')} <ArrowRight size={15}/></button>
           :<button type="button" className="vvd-web-header-action" onClick={()=>auth.setLoginOpen(true)}><span className="vvd-web-login-long">{t('Войти / Регистрация','Sign in / Register')}</span><span className="vvd-web-login-short">{t('Войти','Sign in')}</span><ArrowRight size={15}/></button>}
