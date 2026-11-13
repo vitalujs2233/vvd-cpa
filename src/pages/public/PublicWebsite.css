@@ -1113,3 +1113,33 @@
   .vvd-web-why-summary-copy strong{font-size:13px}
   .vvd-web-why-summary-copy small{font-size:11px}
 }
+
+
+/* Two editorial UBT entry points on the guest homepage. Side by side on mobile. */
+.vvd-web-featured-articles{display:flex;flex-direction:column;gap:15px;min-width:0}
+.vvd-web-featured-heading h2{margin:6px 0 7px;font-size:clamp(22px,3vw,32px);line-height:1.24;color:#f6d58e}
+.vvd-web-featured-heading p{margin:0;color:#b9b0a5;font-size:13px;line-height:1.55}
+.vvd-web-featured-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;align-items:stretch}
+.vvd-web-featured-card{display:flex;flex-direction:column;min-width:0;overflow:hidden;border:1px solid rgba(224,174,80,.38);border-radius:17px;background:linear-gradient(140deg,#211c15,#0e0d0c);color:#f4e8ce;text-decoration:none;transition:border-color .2s ease}
+.vvd-web-featured-card:hover{border-color:#f1c66f}
+.vvd-web-featured-card:focus-visible{outline:2px solid #f1c66f;outline-offset:3px}
+.vvd-web-featured-card>img{width:100%;aspect-ratio:1.9/1;display:block;object-fit:cover;background:#1b1711}
+.vvd-web-featured-body{display:flex;flex-direction:column;gap:8px;flex:1;min-width:0;padding:15px}
+.vvd-web-featured-tag{color:#efc571;font-size:10px;font-weight:800;letter-spacing:.07em}
+.vvd-web-featured-body>strong{color:#fff1d4;line-height:1.35;font-size:16px;font-weight:750;overflow-wrap:normal;word-break:normal;hyphens:none}
+.vvd-web-featured-description{color:#bcb3a7;font-size:12px;line-height:1.5}
+.vvd-web-featured-action{display:flex;gap:7px;align-items:center;margin-top:auto;padding-top:7px;color:#f1c66f;font-size:12px;font-weight:750}
+@media(max-width:600px){
+  .vvd-web-featured-grid{gap:10px}
+  .vvd-web-featured-card{border-radius:14px}
+  .vvd-web-featured-body{padding:11px;gap:7px}
+  .vvd-web-featured-body>strong{font-size:12px;line-height:1.4}
+  .vvd-web-featured-description{font-size:10px;line-height:1.45}
+  .vvd-web-featured-tag{font-size:9px}
+  .vvd-web-featured-action{font-size:11px}
+}
+@media(max-width:370px){
+  .vvd-web-featured-body{padding:9px}
+  .vvd-web-featured-body>strong{font-size:11px}
+}
+@media(prefers-reduced-motion:reduce){.vvd-web-featured-card{transition:none}}

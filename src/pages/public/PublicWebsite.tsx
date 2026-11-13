@@ -576,6 +576,37 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
           </div>
         </section>
 
+        {/* Two published UBT guides, intentionally curated for first-time visitors. */}
+        <section className="vvd-web-featured-articles" aria-labelledby="vvd-featured-ubt-heading">
+          <div className="vvd-web-featured-heading">
+            <span className="vvd-web-eyebrow">ПОЛЕЗНО ВЕБМАСТЕРАМ</span>
+            <h2 id="vvd-featured-ubt-heading">С чего начать с УБТ</h2>
+            <p>Два практических материала об органическом привлечении аудитории.</p>
+          </div>
+          <div className="vvd-web-featured-grid">
+            <a href={articleUrl('ubt-organicheskiy-trafik-polnoe-rukovodstvo')} className="vvd-web-featured-card"
+              onClick={event=>{event.preventDefault();openArticles('ubt-organicheskiy-trafik-polnoe-rukovodstvo');}}>
+              <img src={BASE_URL+'articles/ubt-organic-traffic-guide.svg'} alt="Обложка статьи об УБТ-трафике" loading="lazy" decoding="async"/>
+              <span className="vvd-web-featured-body">
+                <span className="vvd-web-featured-tag">УБТ · Основы</span>
+                <strong>УБТ-трафик: как привлекать аудиторию без рекламного бюджета</strong>
+                <span className="vvd-web-featured-description">Где находить органическую аудиторию и как выстроить полезный контент.</span>
+                <span className="vvd-web-featured-action">Читать статью <ArrowRight size={16} aria-hidden="true"/></span>
+              </span>
+            </a>
+            <a href={articleUrl('short-video-organic')} className="vvd-web-featured-card"
+              onClick={event=>{event.preventDefault();openArticles('short-video-organic');}}>
+              <img src={BASE_URL+'articles/library-2026/short-video-organic.svg'} alt="Обложка статьи про YouTube Shorts" loading="lazy" decoding="async"/>
+              <span className="vvd-web-featured-body">
+                <span className="vvd-web-featured-tag">УБТ · Короткие видео</span>
+                <strong>УБТ через YouTube Shorts: как создавать полезные короткие видео</strong>
+                <span className="vvd-web-featured-description">Темы, структура роликов и способы оценивать органический интерес.</span>
+                <span className="vvd-web-featured-action">Читать статью <ArrowRight size={16} aria-hidden="true"/></span>
+              </span>
+            </a>
+          </div>
+        </section>
+
         {/* Editorial information blocks follow the explanation, before the final signup CTA. */}
         <PublicHomeInfo/>
         <PublicWhyVvd/>
