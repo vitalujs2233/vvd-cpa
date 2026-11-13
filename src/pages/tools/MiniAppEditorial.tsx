@@ -19,8 +19,8 @@ export const MiniAppEditorial:React.FC=()=>{
   const openList=useCallback(()=>navigate('/tools/articles'),[navigate]);
   return <main className="vvd-miniapp-editorial min-h-full p-4 pb-28 text-textPrimary">
     <div className="mb-2 flex items-center gap-3">
-      <button type="button" aria-label="Вернуться к инструментам"
-        onClick={()=>{triggerHaptic.lightImpact();navigate('/tools');}}
+      <button type="button" aria-label="Назад"
+        onClick={()=>{triggerHaptic.lightImpact();navigate(-1);}}
         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-app-xs border border-white/10 bg-bgCard/80 text-accentBrightGold">
         <ArrowLeft size={19}/>
       </button>
