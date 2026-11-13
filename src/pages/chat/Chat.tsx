@@ -21,11 +21,12 @@ async function request(path: string, init?: RequestInit) {
 export const Chat: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const openedFromHome = new URLSearchParams(location.search).get('new') === '1';
   const [tickets, setTickets] = useState<Ticket[]>(()=>readSnapshot<Ticket[]>('support:tickets')||[]);
   const [selected, setSelected] = useState<Ticket | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [tab, setTab] = useState<'support' | 'tickets'>('support');
-  const [creating, setCreating] = useState(() => new URLSearchParams(location.search).get('new') === '1');
+  const [creating, setCreating] = useState(openedFromHome);
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
@@ -69,7 +70,7 @@ export const Chat: React.FC = () => {
 
   return <div className="flex flex-col h-full min-h-0 bg-bgMain text-white">
     <div className="flex items-center gap-3 p-4 border-b border-white/10">
-      <button aria-label="Назад" onClick={() => { if (selected || creating) { setSelected(null); setCreating(false); setBody(''); } else navigate('/profile'); }} className="rounded-full border border-white/10 p-3"><ArrowLeft size={18}/></button>
+      <button aria-label="Назад" onClick={() => { if (openedFromHome) { navigate('/'); return; } if (selected || creating) { setSelected(null); setCreating(false); setBody(''); } else navigate('/profile'); }} className="rounded-full border border-white/10 p-3"><ArrowLeft size={18}/></button>
       <div><div className="text-xs text-accentGold font-bold uppercase">Приватная поддержка</div><h1 className="text-xl font-bold">{selected ? selected.subject : creating ? 'Новый тикет' : 'Чат саппортов'}</h1></div>
     </div>
     {error && <div role="alert" className="mx-4 mt-3 text-sm text-red-400">{error}</div>}
