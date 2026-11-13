@@ -117,10 +117,11 @@ export const Home: React.FC = () => {
 </span>
           </div>
           
-          <div className="bg-white/[0.02] border border-white/10 rounded-app-xs px-2.5 py-1 flex items-center gap-1.5 shadow-glass-inner">
-            <Sparkles size={10} className="text-accentGoldBright animate-spin" style={{ animationDuration: '6s' }} />
-            <span className="text-[9px] font-bold text-accentGoldBright uppercase tracking-widest">Premium Partner</span>
-          </div>
+          <button type="button" aria-label="Поддержка — создать тикет"
+            onClick={()=>{triggerHaptic.lightImpact();navigate('/support?new=1');}}
+            className="relative shrink-0 inline-flex items-center gap-1.5 rounded-app-xs border border-accentGold/40 bg-accentGold/10 px-2.5 py-2 text-accentGoldBright text-[11px] font-bold transition-colors hover:bg-accentGold/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accentGoldBright">
+            <span aria-hidden="true">👨‍🚀</span><span>Поддержка</span>
+          </button>
         </div>
 
         <div className="h-[1px] bg-white/[0.04] w-full z-10" />
