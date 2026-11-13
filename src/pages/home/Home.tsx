@@ -10,9 +10,12 @@ import { Wallet, History, Flame, Crown, Brain, Sparkles as InfoSparkles, BookOpe
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
+import {useLocale,localize} from '@/shared/lib/locale';
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
+  const lang=useLocale();
+  const t=(ru:string,en:string)=>localize(lang,ru,en);
   const user = getTelegramUser();
   type Balance = {available:number;hold:number;paid:number};
   const key = `balance:${user.id}`;
@@ -26,12 +29,12 @@ export const Home: React.FC = () => {
     void (async()=>{
       try {
         const res=await authorizedFetch(`https://vvd-cpa-v2.onrender.com/balance/${user.id}`);
-        if(!res.ok)throw new Error('Баланс временно недоступен');
+        if(!res.ok)throw new Error(t('Баланс временно недоступен','Balance temporarily unavailable'));
         const data=await res.json();
         if(!['available','hold','paid'].every(k=>typeof data[k]==='number'&&Number.isFinite(data[k])))
-          throw new Error('Не удалось получить баланс');
+          throw new Error(t('Не удалось получить баланс','Could not fetch balance'));
         if(active){saveSnapshot(key,data);setBalance(data);}
-      } catch {if(active)setError('Не удалось обновить баланс.');}
+      } catch {if(active)setError(t('Не удалось обновить баланс.','Could not update balance.'));}
       finally {if(active)setLoading(false);}
     })();
     return()=>{active=false;};
@@ -87,16 +90,16 @@ export const Home: React.FC = () => {
         <button type="button" aria-label="Открыть Движ" onClick={handleDvizhClick}
           className="home-dvizh-button relative ml-auto shrink-0 overflow-hidden flex h-10 items-center gap-1 rounded-full border border-accentGold/20 bg-accentGold/10 px-2.5 text-accentBrightGold transition-transform">
           <Flame size={16} className="home-dvizh-flame relative z-10" />
-          <span className="relative z-10 text-[11px] font-bold">Движ</span>
+          <span className="relative z-10 text-[11px] font-bold">{t('Движ','Dvizh')}</span>
         </button>
         <button type="button" aria-label="Открыть IQ Play" onClick={()=>{triggerHaptic.lightImpact();navigate("/iq-play");}} className="flex h-10 items-center gap-1 rounded-full border border-amber-400/50 bg-amber-400/10 px-2 text-amber-300 text-[11px] font-bold"><Brain size={16}/>IQ Play</button>
         </div>
       </Card>
 
       {((loading&&!balance)||error)&&<p role="status" className="text-xs text-textSecondary">
-        {error || (balance?'Обновляем баланс…':'Загружаем баланс…')}
-        {error&&<button className="ml-2 underline" onClick={()=>setRetry(n=>n+1)}>Повторить</button>}
-        {error&&balance&&' Показаны последние полученные данные.'}
+        {error || (balance?t('Обновляем баланс…','Updating balance…'):t('Загружаем баланс…','Loading balance…'))}
+        {error&&<button className="ml-2 underline" onClick={()=>setRetry(n=>n+1)}>{t('Повторить','Retry')}</button>}
+        {error&&balance&&t(' Показаны последние полученные данные.',' Showing the last available data.')}
       </p>}
       <HomeTicker/>
       {/* Парящая градиентная карта Баланса с золотой фоновой короной и золотым свечением */}
@@ -111,7 +114,7 @@ export const Home: React.FC = () => {
 
         <div className="flex justify-between items-start z-10">
           <div className="flex flex-col text-left">
-            <span className="text-[10px] text-textSecondary font-bold uppercase tracking-wider">Ваш баланс</span>
+            <span className="text-[10px] text-textSecondary font-bold uppercase tracking-wider">{t('Ваш баланс','Your balance')}</span>
             <span className="text-[36px] font-bold text-white leading-none mt-1.5 font-sans tracking-tight">
   {amount(balance?.available)}
 </span>
@@ -120,7 +123,7 @@ export const Home: React.FC = () => {
           <button type="button" aria-label="Поддержка — создать тикет"
             onClick={()=>{triggerHaptic.lightImpact();navigate('/support?new=1');}}
             className="relative shrink-0 inline-flex items-center gap-1.5 rounded-app-xs border border-accentGold/40 bg-accentGold/10 px-2.5 py-2 text-accentGoldBright text-[11px] font-bold transition-colors hover:bg-accentGold/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accentGoldBright">
-            <span aria-hidden="true">👨‍🚀</span><span>Поддержка</span>
+            <span aria-hidden="true">👨‍🚀</span><span>{t('Поддержка','Support')}</span>
           </button>
         </div>
 
@@ -131,7 +134,7 @@ export const Home: React.FC = () => {
 
   <div className="flex flex-col">
     <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">
-      Доступно
+      {t('Доступно','Available')}
     </span>
 
     <span className="text-sm font-bold text-success mt-1">
@@ -139,13 +142,13 @@ export const Home: React.FC = () => {
 </span>
 
     <span className="text-[9px] text-textSecondary mt-1">
-      Средства подтверждены
+      {t('Средства подтверждены','Confirmed funds')}
     </span>
   </div>
 
   <div className="flex flex-col">
     <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">
-      В холде
+      {t('В холде','On hold')}
     </span>
 
    <span className="text-sm font-bold text-warning mt-1">
@@ -153,13 +156,13 @@ export const Home: React.FC = () => {
 </span>
 
     <span className="text-[9px] text-textSecondary mt-1">
-      Ожидают подтверждения
+      {t('Ожидают подтверждения','Pending approval')}
     </span>
   </div>
 
   <div className="flex flex-col">
     <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">
-      Выплачено
+      {t('Выплачено','Paid out')}
     </span>
 
    <span className="text-sm font-bold text-white mt-1">
@@ -167,7 +170,7 @@ export const Home: React.FC = () => {
 </span>
 
     <span className="text-[9px] text-textSecondary mt-1">
-      Получено партнёром
+      {t('Получено партнёром','Received by partner')}
     </span>
   </div>
 
@@ -177,11 +180,11 @@ export const Home: React.FC = () => {
         <div className="grid grid-cols-2 gap-3 mt-2 shrink-0 z-10">
           <Button variant="primary" size="lg" onClick={handleWithdrawClick} className="w-full">
             <Wallet size={16} className="mr-2" />
-            Вывести
+            {t('Вывести','Withdraw')}
           </Button>
           <Button variant="secondary" size="lg" onClick={handleHistoryClick} className="w-full">
             <History size={16} className="mr-2" />
-            История
+            {t('История','History')}
           </Button>
         </div>
       </Card>
@@ -189,24 +192,24 @@ export const Home: React.FC = () => {
       <nav className="home-quick-links" aria-label="Быстрые переходы">
         <button type="button" className="home-quick-link" onClick={()=>{triggerHaptic.lightImpact();navigate('/tools/directory');}}>
           <span className="home-quick-link-icon"><LayoutGrid size={21} strokeWidth={1.8}/></span>
-          <span>Каталог сервисов</span>
+          <span>{t('Каталог сервисов','Service directory')}</span>
           <ChevronRight size={17} className="home-quick-link-arrow" aria-hidden="true"/>
         </button>
         <button type="button" className="home-quick-link" onClick={()=>{triggerHaptic.lightImpact();navigate('/tools/articles');}}>
           <span className="home-quick-link-icon"><BookOpen size={21} strokeWidth={1.8}/></span>
-          <span>Статьи и кейсы</span>
+          <span>{t('Статьи и кейсы','Articles & cases')}</span>
           <ChevronRight size={17} className="home-quick-link-arrow" aria-hidden="true"/>
         </button>
       </nav>
       <HomeAdCarousel/>
       {/* Compact informational separator between the two home banners. */}
       <section className="home-feature-section" aria-labelledby="home-feature-heading">
-        <h2 id="home-feature-heading">Возможности VVD CPA</h2>
+        <h2 id="home-feature-heading">{t('Возможности VVD CPA','VVD CPA features')}</h2>
         <div className="home-feature-grid">
-          <div className="home-feature-item"><Link2 size={19} aria-hidden="true"/><span>Партнёрские предложения</span></div>
-          <div className="home-feature-item"><BarChart3 size={19} aria-hidden="true"/><span>Аналитика</span></div>
-          <div className="home-feature-item"><Wallet size={19} aria-hidden="true"/><span>Выплаты</span></div>
-          <div className="home-feature-item"><BookOpen size={19} aria-hidden="true"/><span>Сервисы и знания</span></div>
+          <div className="home-feature-item"><Link2 size={19} aria-hidden="true"/><span>{t('Партнёрские предложения','Affiliate offers')}</span></div>
+          <div className="home-feature-item"><BarChart3 size={19} aria-hidden="true"/><span>{t('Аналитика','Analytics')}</span></div>
+          <div className="home-feature-item"><Wallet size={19} aria-hidden="true"/><span>{t('Выплаты','Payouts')}</span></div>
+          <div className="home-feature-item"><BookOpen size={19} aria-hidden="true"/><span>{t('Сервисы и знания','Tools & guides')}</span></div>
         </div>
       </section>
       <HomeInfoBlocks/>
@@ -214,8 +217,8 @@ export const Home: React.FC = () => {
         <button type="button" className="home-native-card-button" onClick={()=>{triggerHaptic.lightImpact();navigate('/why-vvd');}}>
           <span className="home-native-card-icon" aria-hidden="true"><InfoSparkles size={21} strokeWidth={1.8}/></span>
           <span className="home-native-card-copy">
-            <strong>Почему VVD CPA?</strong>
-            <span>Преимущества, выплаты и условия сотрудничества</span>
+            <strong>{t('Почему VVD CPA?','Why VVD CPA?')}</strong>
+            <span>{t('Преимущества, выплаты и условия сотрудничества','Benefits, payouts and partnership terms')}</span>
           </span>
           <ChevronRight size={18} className="home-native-card-chevron" aria-hidden="true"/>
         </button>

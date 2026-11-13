@@ -4,6 +4,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { MemoryRouter, Routes, Route, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Home as HomeIcon, Grid, BarChart3, Wrench, User, Globe2, LogOut, ShieldCheck } from 'lucide-react';
 import { triggerHaptic } from '@/shared/lib/telegram';
+import {useLocale,localize} from '@/shared/lib/locale';
 import { Home } from '@/pages/home/Home';
 import { InfoPage } from '@/pages/info/InfoPage';
 import { Offers } from '@/pages/offers/Offers';
@@ -73,6 +74,8 @@ const AppBackdrop = () => {
 
 // Главный Лейаут приложения, фиксирующий Bottom Menu
 const AppLayout = ({webMode=false}:{webMode?:boolean}) => {
+  const lang=useLocale();
+  const t=(ru:string,en:string)=>localize(lang,ru,en);
   const location = useLocation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   // The shared scrolling viewport survives route changes. A directory opened
@@ -134,7 +137,7 @@ const AppLayout = ({webMode=false}:{webMode?:boolean}) => {
           }
         >
           <HomeIcon size={20} />
-          <span className="text-[10px] mt-1.5 font-bold uppercase tracking-wider scale-90">Главная</span>
+          <span className="text-[10px] mt-1.5 font-bold uppercase tracking-wider scale-90">{t('Главная','Home')}</span>
         </NavLink>
 
         <NavLink
@@ -149,7 +152,7 @@ const AppLayout = ({webMode=false}:{webMode?:boolean}) => {
           }
         >
           <Grid size={20} />
-          <span className="text-[10px] mt-1.5 font-bold uppercase tracking-wider scale-90">Офферы</span>
+          <span className="text-[10px] mt-1.5 font-bold uppercase tracking-wider scale-90">{t('Офферы','Offers')}</span>
         </NavLink>
 
         <NavLink
@@ -164,7 +167,7 @@ const AppLayout = ({webMode=false}:{webMode?:boolean}) => {
           }
         >
           <BarChart3 size={20} />
-          <span className="text-[10px] mt-1.5 font-bold uppercase tracking-wider scale-90">Анализ</span>
+          <span className="text-[10px] mt-1.5 font-bold uppercase tracking-wider scale-90">{t('Анализ','Analytics')}</span>
         </NavLink>
 
         {/* Инструменты; «Движ» открывается из шапки главной */}
@@ -180,7 +183,7 @@ const AppLayout = ({webMode=false}:{webMode?:boolean}) => {
           }
         >
           <Wrench size={20} />
-          <span className="text-[9px] mt-1.5 font-bold uppercase tracking-normal">Инструменты</span>
+          <span className="text-[9px] mt-1.5 font-bold uppercase tracking-normal">{t('Инструменты','Tools')}</span>
         </NavLink>
 
         <NavLink
@@ -195,7 +198,7 @@ const AppLayout = ({webMode=false}:{webMode?:boolean}) => {
           }
         >
           <User size={20} />
-          <span className="text-[10px] mt-1.5 font-bold uppercase tracking-wider scale-90">Кабинет</span>
+          <span className="text-[10px] mt-1.5 font-bold uppercase tracking-wider scale-90">{t('Кабинет','Account')}</span>
         </NavLink>
       </nav>
     </div>

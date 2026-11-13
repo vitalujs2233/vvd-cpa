@@ -8,6 +8,7 @@ import {PublicEditorial} from './PublicEditorial';
 import {UnifiedCategoryCard,serviceCountLabel} from '@/shared/ui/UnifiedCategoryCard';
 import {PublicPolicy} from './PublicPolicy';
 import {iconFor,type InfoItem} from '@/pages/info/InfoPage';
+import {useLocale,setLocale,localize} from '@/shared/lib/locale';
 
 const BOT_URL='https://t.me/vvd_cpa_bot';
 const BASE_URL='https://vitalujs2233.github.io/vvd-cpa/';
@@ -320,6 +321,8 @@ const PublicWhyVvd:React.FC=()=>{
 };
 
 export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;onOpenApp:()=>void}>=({auth,onOpenApp})=>{
+  const lang=useLocale();
+  const t=(ru:string,en:string)=>localize(lang,ru,en);
   const [data,setData]=useState<DirectoryData>(()=>readPublicDirectoryCache()||INITIAL);
   const [loading,setLoading]=useState(()=>!readPublicDirectoryCache());
   const [error,setError]=useState(false);
@@ -465,14 +468,18 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
           <span className="vvd-web-brand-copy"><strong>VVD CPA</strong><small>PREMIUM NETWORK</small></span>
         </button>
         <nav className={'vvd-web-nav '+(mobileMenu?'is-open':'')} aria-label="Основная навигация">
-          <button type="button" onClick={openMain}><span className="vvd-web-nav-icon"><Home size={17}/></span><span>Главная</span></button>
-          <button type="button" onClick={openCatalog}><span className="vvd-web-nav-icon"><LayoutGrid size={17}/></span><span>Каталог сервисов</span></button>
-          <button type="button" onClick={()=>openArticles()}><span className="vvd-web-nav-icon"><BookOpen size={17}/></span><span>Статьи и кейсы</span></button>
-          <button type="button" onClick={openAccount}><span className="vvd-web-nav-icon"><UserRound size={17}/></span><span>Личный кабинет</span></button>
+          <button type="button" onClick={openMain}><span className="vvd-web-nav-icon"><Home size={17}/></span><span>{t('Главная','Home')}</span></button>
+          <button type="button" onClick={openCatalog}><span className="vvd-web-nav-icon"><LayoutGrid size={17}/></span><span>{t('Каталог сервисов','Service directory')}</span></button>
+          <button type="button" onClick={()=>openArticles()}><span className="vvd-web-nav-icon"><BookOpen size={17}/></span><span>{t('Статьи и кейсы','Articles & cases')}</span></button>
+          <button type="button" onClick={openAccount}><span className="vvd-web-nav-icon"><UserRound size={17}/></span><span>{t('Личный кабинет','Account')}</span></button>
         </nav>
+        <div className="vvd-web-locale-switch" role="group" aria-label={t('Язык сайта','Website language')}>
+          <button type="button" aria-label="Русский" aria-pressed={lang==='ru'} className={lang==='ru'?'is-active':''} onClick={()=>setLocale('ru')}>RU</button>
+          <button type="button" aria-label="English" aria-pressed={lang==='en'} className={lang==='en'?'is-active':''} onClick={()=>setLocale('en')}>EN</button>
+        </div>
         {auth.isLoggedIn
-          ?<button type="button" className="vvd-web-header-action" onClick={openAccount}><ShieldCheck size={17}/> Кабинет <ArrowRight size={15}/></button>
-          :<button type="button" className="vvd-web-header-action" onClick={()=>auth.setLoginOpen(true)}><span className="vvd-web-login-long">Войти / Регистрация</span><span className="vvd-web-login-short">Войти</span><ArrowRight size={15}/></button>}
+          ?<button type="button" className="vvd-web-header-action" onClick={openAccount}><ShieldCheck size={17}/> {t('Кабинет','Account')} <ArrowRight size={15}/></button>
+          :<button type="button" className="vvd-web-header-action" onClick={()=>auth.setLoginOpen(true)}><span className="vvd-web-login-long">{t('Войти / Регистрация','Sign in / Register')}</span><span className="vvd-web-login-short">{t('Войти','Sign in')}</span><ArrowRight size={15}/></button>}
         <button type="button" onClick={()=>setMobileMenu(v=>!v)} className="vvd-web-mobile-menu" aria-label={mobileMenu?'Закрыть меню':'Открыть меню'} aria-expanded={mobileMenu}>{mobileMenu?<X size={23}/>:<Menu size={23}/>}</button>
       </header>
 
@@ -538,21 +545,21 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
         <section className="vvd-web-workspace-intro vvd-web-workspace-intro-compact" id="top" aria-labelledby="vvd-web-intro-title">
           <div className="vvd-web-workspace-copy">
             <div className="vvd-web-hero-support-row">
-              <span className="vvd-web-eyebrow"><span className="vvd-web-dot"/> CPA-ПАРТНЁРСКАЯ СЕТЬ · VVD CPA</span>
+              <span className="vvd-web-eyebrow"><span className="vvd-web-dot"/> {t('CPA-ПАРТНЁРСКАЯ СЕТЬ · VVD CPA','CPA AFFILIATE NETWORK · VVD CPA')}</span>
               <a className="vvd-web-hero-support" href="https://t.me/vilitolu" target="_blank" rel="noopener noreferrer" aria-label="Поддержка VVD CPA — открыть чат Telegram">
-                <span aria-hidden="true">👨‍🚀</span><span>Поддержка</span>
+                <span aria-hidden="true">👨‍🚀</span><span>{t('Поддержка','Support')}</span>
               </a>
             </div>
-            <h1 id="vvd-web-intro-title">Зарабатывай на своём трафике.<br/><em>VVD CPA — партнёрка.</em></h1>
-            <p>Монетизируй свой трафик через смартлинки разных вертикалей. <strong>Выплаты, аналитика и поддержка</strong> — в одной платформе.</p>
+            <h1 id="vvd-web-intro-title">{t('Зарабатывай на своём трафике.','Monetize your traffic.')}<br/><em>{t('VVD CPA — партнёрка.','VVD CPA — affiliate network.')}</em></h1>
+            <p>{t('Монетизируй свой трафик через смартлинки разных вертикалей.','Monetize traffic with smartlinks across different verticals.')} <strong>{t('Выплаты, аналитика и поддержка','Payouts, analytics and support')}</strong> {t('— в одной платформе.','— in one platform.')}</p>
             <div className="vvd-web-hero-points" aria-label="Возможности VVD CPA">
-              <span><Link2 size={18} aria-hidden="true"/> Партнёрские предложения</span>
-              <span><BarChart3 size={18} aria-hidden="true"/> Аналитика</span>
-              <span><Wallet size={18} aria-hidden="true"/> Выплаты</span>
-              <span><BookOpen size={18} aria-hidden="true"/> Сервисы и знания</span>
+              <span><Link2 size={18} aria-hidden="true"/> {t('Партнёрские предложения','Affiliate offers')}</span>
+              <span><BarChart3 size={18} aria-hidden="true"/> {t('Аналитика','Analytics')}</span>
+              <span><Wallet size={18} aria-hidden="true"/> {t('Выплаты','Payouts')}</span>
+              <span><BookOpen size={18} aria-hidden="true"/> {t('Сервисы и знания','Tools & knowledge')}</span>
             </div>
             <div className="vvd-web-workspace-actions">
-              <button type="button" className={auth.isLoggedIn?'vvd-web-gold-button':'vvd-web-gold-button vvd-web-telegram-pulse'} onClick={()=>auth.isLoggedIn?openAccount():auth.setLoginOpen(true)}>{auth.isLoggedIn?'Открыть кабинет':'Начать через Telegram'} <ArrowRight size={16}/></button>
+              <button type="button" className={auth.isLoggedIn?'vvd-web-gold-button':'vvd-web-gold-button vvd-web-telegram-pulse'} onClick={()=>auth.isLoggedIn?openAccount():auth.setLoginOpen(true)}>{auth.isLoggedIn?t('Открыть кабинет','Open account'):t('Начать через Telegram','Get started with Telegram')} <ArrowRight size={16}/></button>
             </div>
           </div>
         </section>
@@ -560,12 +567,12 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
         <nav className="vvd-web-home-shortcuts" aria-label="Полезные разделы VVD CPA">
           <button type="button" onClick={openCatalog}>
             <LayoutGrid size={21} aria-hidden="true"/>
-            <span><strong>Каталог сервисов</strong><small>Инструменты для работы</small></span>
+            <span><strong>{t('Каталог сервисов','Service directory')}</strong><small>{t('Инструменты для работы','Tools for publishers')}</small></span>
             <ArrowRight size={17} aria-hidden="true"/>
           </button>
           <button type="button" onClick={()=>openArticles()}>
             <BookOpen size={21} aria-hidden="true"/>
-            <span><strong>Статьи и кейсы</strong><small>Обучение и разборы</small></span>
+            <span><strong>{t('Статьи и кейсы','Articles & cases')}</strong><small>{t('Обучение и разборы','Guides and insights')}</small></span>
             <ArrowRight size={17} aria-hidden="true"/>
           </button>
         </nav>
@@ -573,40 +580,40 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
         <PublicHomeBanners/>
 
         <section className="vvd-web-section vvd-web-feature-section" id="features" aria-labelledby="vvd-how-heading">
-          <div className="vvd-web-section-heading"><div><span className="vvd-web-eyebrow">КОРОТКО О ПЛАТФОРМЕ</span><h2 id="vvd-how-heading">Как работает VVD CPA</h2><p>Три шага: выбрать подходящее предложение, ознакомиться с условиями и отслеживать результат в кабинете.</p></div></div>
+          <div className="vvd-web-section-heading"><div><span className="vvd-web-eyebrow">{t('КОРОТКО О ПЛАТФОРМЕ','ABOUT THE PLATFORM')}</span><h2 id="vvd-how-heading">{t('Как работает VVD CPA','How VVD CPA works')}</h2><p>{t('Три шага: выбрать подходящее предложение, ознакомиться с условиями и отслеживать результат в кабинете.','Three steps: choose an offer, review its conditions, and track results in your account.')}</p></div></div>
           <div className="vvd-web-steps">
-            <article><span>01</span><div><h3>Выбери смартлинк</h3><p>Подбери вертикаль и изучи условия оффера и источники трафика.</p></div></article>
-            <article><span>02</span><div><h3>Направляй трафик</h3><p>Привлекай подходящую аудиторию по партнёрской ссылке.</p></div></article>
-            <article><span>03</span><div><h3>Отслеживай доход</h3><p>Смотри конверсии, начисления и выплаты в кабинете.</p></div></article>
+            <article><span>01</span><div><h3>{t('Выбери смартлинк','Choose a smartlink')}</h3><p>{t('Подбери вертикаль и изучи условия оффера и источники трафика.','Pick a vertical and review the offer rules and traffic sources.')}</p></div></article>
+            <article><span>02</span><div><h3>{t('Направляй трафик','Send traffic')}</h3><p>{t('Привлекай подходящую аудиторию по партнёрской ссылке.','Direct relevant audiences through your affiliate link.')}</p></div></article>
+            <article><span>03</span><div><h3>{t('Отслеживай доход','Track results')}</h3><p>{t('Смотри конверсии, начисления и выплаты в кабинете.','Check conversions, earnings and payouts in your account.')}</p></div></article>
           </div>
         </section>
 
         {/* Two published UBT guides, intentionally curated for first-time visitors. */}
         <section className="vvd-web-featured-articles" aria-labelledby="vvd-featured-ubt-heading">
           <div className="vvd-web-featured-heading">
-            <span className="vvd-web-eyebrow">ПОЛЕЗНО ВЕБМАСТЕРАМ</span>
-            <h2 id="vvd-featured-ubt-heading">С чего начать с УБТ</h2>
-            <p>Два практических материала об органическом привлечении аудитории.</p>
+            <span className="vvd-web-eyebrow">{t('ПОЛЕЗНО ВЕБМАСТЕРАМ','FOR PUBLISHERS')}</span>
+            <h2 id="vvd-featured-ubt-heading">{t('С чего начать с УБТ','Getting started with organic traffic')}</h2>
+            <p>{t('Два практических материала об органическом привлечении аудитории.','Two practical guides to reaching audiences organically.')}</p>
           </div>
           <div className="vvd-web-featured-grid">
             <a href={articleUrl('ubt-organicheskiy-trafik-polnoe-rukovodstvo')} className="vvd-web-featured-card"
               onClick={event=>{event.preventDefault();openArticles('ubt-organicheskiy-trafik-polnoe-rukovodstvo');}}>
               <img src={BASE_URL+'articles/ubt-organic-traffic-guide.svg'} alt="Обложка статьи об УБТ-трафике" loading="lazy" decoding="async"/>
               <span className="vvd-web-featured-body">
-                <span className="vvd-web-featured-tag">УБТ · Основы</span>
-                <strong>УБТ-трафик: как привлекать аудиторию без рекламного бюджета</strong>
-                <span className="vvd-web-featured-description">Где находить органическую аудиторию и как выстроить полезный контент.</span>
-                <span className="vvd-web-featured-action">Читать статью <ArrowRight size={16} aria-hidden="true"/></span>
+                <span className="vvd-web-featured-tag">{t('УБТ · Основы','ORGANIC · BASICS')}</span>
+                <strong>{t('УБТ-трафик: как привлекать аудиторию без рекламного бюджета','Organic traffic: reaching audiences without an ad budget')}</strong>
+                <span className="vvd-web-featured-description">{t('Где находить органическую аудиторию и как выстроить полезный контент.','Where to find organic audiences and how to plan useful content.')}</span>
+                <span className="vvd-web-featured-action">{t('Читать статью','Read article')} <ArrowRight size={16} aria-hidden="true"/></span>
               </span>
             </a>
             <a href={articleUrl('short-video-organic')} className="vvd-web-featured-card"
               onClick={event=>{event.preventDefault();openArticles('short-video-organic');}}>
               <img src={BASE_URL+'articles/library-2026/short-video-organic.svg'} alt="Обложка статьи про YouTube Shorts" loading="lazy" decoding="async"/>
               <span className="vvd-web-featured-body">
-                <span className="vvd-web-featured-tag">УБТ · Короткие видео</span>
-                <strong>УБТ через YouTube Shorts: как создавать полезные короткие видео</strong>
-                <span className="vvd-web-featured-description">Темы, структура роликов и способы оценивать органический интерес.</span>
-                <span className="vvd-web-featured-action">Читать статью <ArrowRight size={16} aria-hidden="true"/></span>
+                <span className="vvd-web-featured-tag">{t('УБТ · Короткие видео','ORGANIC · SHORT VIDEOS')}</span>
+                <strong>{t('УБТ через YouTube Shorts: как создавать полезные короткие видео','Organic traffic with YouTube Shorts: creating useful short videos')}</strong>
+                <span className="vvd-web-featured-description">{t('Темы, структура роликов и способы оценивать органический интерес.','Topics, video structure and ways to evaluate organic interest.')}</span>
+                <span className="vvd-web-featured-action">{t('Читать статью','Read article')} <ArrowRight size={16} aria-hidden="true"/></span>
               </span>
             </a>
           </div>
@@ -617,23 +624,23 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
         <PublicWhyVvd/>
 
         <section className="vvd-web-cta">
-          <div><span className="vvd-web-eyebrow">ОДИН АККАУНТ · ДВА СПОСОБА ВХОДА</span><h2>Начни работу с VVD CPA</h2><p>Войди через Telegram, чтобы открыть партнёрский кабинет прямо в браузере. Те же разделы доступны и в Mini App.</p></div>
+          <div><span className="vvd-web-eyebrow">{t('ОДИН АККАУНТ · ДВА СПОСОБА ВХОДА','ONE ACCOUNT · TWO WAYS TO ACCESS')}</span><h2>{t('Начни работу с VVD CPA','Get started with VVD CPA')}</h2><p>{t('Войди через Telegram, чтобы открыть партнёрский кабинет прямо в браузере. Те же разделы доступны и в Mini App.','Sign in with Telegram to access your affiliate dashboard in the browser. The same sections are available in the Mini App.')}</p></div>
           <div className="vvd-web-cta-actions">
-            <button type="button" className="vvd-web-gold-button" onClick={()=>auth.isLoggedIn?openAccount():auth.setLoginOpen(true)}>{auth.isLoggedIn?'Перейти в кабинет':'Войти / Зарегистрироваться'} <ArrowRight size={17}/></button>
+            <button type="button" className="vvd-web-gold-button" onClick={()=>auth.isLoggedIn?openAccount():auth.setLoginOpen(true)}>{auth.isLoggedIn?t('Перейти в кабинет','Go to account'):t('Войти / Зарегистрироваться','Sign in / Register')} <ArrowRight size={17}/></button>
             <a className="vvd-web-outline-button" href={BOT_URL} target="_blank" rel="noopener noreferrer">Telegram Mini App <ArrowUpRight size={17}/></a>
           </div>
         </section>
       </main>}
       <footer className="vvd-web-footer">
-        <div className="vvd-web-footer-brand"><div className="vvd-web-monogram">V</div><div><b>VVD CPA</b><small>ПЛАТФОРМА ДЛЯ ВЕБМАСТЕРОВ</small></div></div>
+        <div className="vvd-web-footer-brand"><div className="vvd-web-monogram">V</div><div><b>VVD CPA</b><small>{t('ПЛАТФОРМА ДЛЯ ВЕБМАСТЕРОВ','PLATFORM FOR PUBLISHERS')}</small></div></div>
         <div className="vvd-web-footer-legal">
            <nav aria-label="Правовая информация">
-             <a href={policyUrl('privacy')} onClick={event=>{event.preventDefault();openPolicy('privacy');}}>Политика конфиденциальности</a>
-             <a href={policyUrl('cookies')} onClick={event=>{event.preventDefault();openPolicy('cookies');}}>Политика файлов cookie</a>
+             <a href={policyUrl('privacy')} onClick={event=>{event.preventDefault();openPolicy('privacy');}}>{t('Политика конфиденциальности','Privacy policy')}</a>
+             <a href={policyUrl('cookies')} onClick={event=>{event.preventDefault();openPolicy('cookies');}}>{t('Политика файлов cookie','Cookie policy')}</a>
            </nav>
            <p>© {new Date().getFullYear()} VVD CPA. Условия сторонних сервисов действуют на их сайтах. Некоторые ссылки могут быть партнёрскими.</p>
          </div>
-        <a href={BOT_URL} target="_blank" rel="noopener noreferrer">Наш Telegram <ArrowUpRight size={14}/></a>
+        <a href={BOT_URL} target="_blank" rel="noopener noreferrer">{t('Наш Telegram','Our Telegram')} <ArrowUpRight size={14}/></a>
       </footer>
     </div>
     {auth.loginOpen&&<TelegramBrowserLogin

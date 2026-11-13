@@ -2,12 +2,15 @@ import { useNavigate } from 'react-router-dom';
 import React,{useEffect,useState} from 'react';
 import {apiRequest} from '@/shared/lib/api';
 import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
-import { LogOut, Lock, Shield, User, Coins, Sparkles, Crown, MessageSquare } from 'lucide-react';
+import { LogOut, Lock, Shield, User, Coins, Sparkles, Crown, MessageSquare, Globe } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
+import {useLocale,setLocale,localize} from '@/shared/lib/locale';
 
 export const Profile: React.FC = () => {
   const navigate = useNavigate();
+  const lang=useLocale();
+  const t=(ru:string,en:string)=>localize(lang,ru,en);
   const telegramUser = getTelegramUser();
   const referralPath='/referral/'+telegramUser.id;
   const [referralBalance,setReferralBalance]=useState<number|null>(()=>{
@@ -50,8 +53,8 @@ export const Profile: React.FC = () => {
         <div className="flex flex-col gap-4 animate-fade-in">
           {/* Шапка Профиля */}
           <div className="flex flex-col text-left">
-            <span className="text-[10px] text-textSecondary font-bold uppercase tracking-wider">Ваш аккаунт</span>
-            <h1 className="text-2xl font-bold text-white mt-1">Кабинет</h1>
+            <span className="text-[10px] text-textSecondary font-bold uppercase tracking-wider">{t('Ваш аккаунт','Your account')}</span>
+            <h1 className="text-2xl font-bold text-white mt-1">{t('Кабинет','Account')}</h1>
           </div>
 
           {/* Карточка пользователя */}
@@ -122,9 +125,22 @@ export const Profile: React.FC = () => {
               <div className="flex items-center justify-between p-4" aria-disabled="true">
                 <div className="flex items-center gap-3">
                   <User size={16} className="text-accentPurple" />
-                  <span className="text-xs font-semibold text-white">Изменить профиль</span>
+                  <span className="text-xs font-semibold text-white">{t('Изменить профиль','Edit profile')}</span>
                 </div>
                 <Lock size={17} className="text-textSecondary" aria-label="Заблокировано" />
+              </div>
+
+              {/* Single saved language choice for website and Telegram Mini App. */}
+              <div className="flex items-center justify-between gap-3 p-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <Globe size={16} className="shrink-0 text-accentGold"/>
+                  <span className="text-xs font-semibold text-white">{t('Язык интерфейса','Interface language')}</span>
+                </div>
+                <div className="inline-flex shrink-0 rounded-xl border border-accentGold/30 bg-accentGold/5 p-1" role="group" aria-label={t('Выбор языка','Language selection')}>
+                  {(['ru','en'] as const).map(code=><button key={code} type="button" aria-pressed={lang===code}
+                    onClick={()=>setLocale(code)}
+                    className={`min-w-[37px] rounded-lg px-2 py-1.5 text-xs font-bold ${lang===code?'bg-accentGold text-black':'text-accentGoldBright'}`}>{code.toUpperCase()}</button>)}
+                </div>
               </div>
 
               {/* Личный чат поддержки (Новое расположение по гайдлайну v2.0) */}
@@ -134,9 +150,9 @@ export const Profile: React.FC = () => {
               >
                 <div className="flex items-center gap-3">
                   <MessageSquare size={16} className="text-accentGold" />
-                  <span className="text-xs font-semibold text-white">Связаться с поддержкой</span>
+                  <span className="text-xs font-semibold text-white">{t('Связаться с поддержкой','Contact support')}</span>
                 </div>
-                <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">Написать</span>
+                <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">{t('Написать','Message')}</span>
               </div>
 
               {/* Админ-панель (Привязана строго к вашему Telegram ID: 232682307) */}
