@@ -121,6 +121,7 @@ const ServiceTile:React.FC<{service:DirectoryService;priority?:boolean}>=({servi
 /** Public read-only feeds, managed by the existing Mini App administration. */
 type PublicBanner={id:string;title:string;image_url:string;target_url:string;updated_at:string};
 type PublicInfo={id:string;title:string;subtitle:string;description:string;image_url:string|null;target_url:string;updated_at:string};
+type PublicWhyInfo={id:string;kind:'section'|'banner';title:string;description:string;body:string;visible:boolean};
 // Only public, admin-managed homepage media metadata is cached here, never account data.
 // Render it on repeat visits while refreshing the live feed in the background.
 const readPublicHomeFeed=<T,>(key:string):T|null=>{
@@ -255,6 +256,47 @@ const PublicHomeInfo:React.FC=()=>{
         {href&&<a className="vvd-web-public-info-link" href={href} target="_blank" rel="noopener noreferrer">Подробнее <ArrowUpRight size={16}/></a>}
       </article>;
     })}
+  </section>;
+};
+
+
+/** Read the same published /info content as Mini App and the information admin.
+    Guest visitors only see published, visible sections; no account or admin data. */
+const PublicWhyVvd:React.FC=()=>{
+  const [items,setItems]=useState<PublicWhyInfo[]>(()=>readPublicHomeFeed<PublicWhyInfo[]>('why')||[]);
+  const [loading,setLoading]=useState(()=>!readPublicHomeFeed('why'));
+  useEffect(()=>{
+    let mounted=true;
+    const controller=new AbortController();
+    const timeout=window.setTimeout(()=>controller.abort(),30000);
+    void fetch(API_BASE_URL+'/info/published',{signal:controller.signal})
+      .then(response=>{if(!response.ok)throw new Error('why-info');return response.json()})
+      .then((feed:{items:PublicWhyInfo[]})=>{
+        if(!mounted||!Array.isArray(feed.items))return;
+        const visible=feed.items.filter(item=>item&&item.visible!==false&&item.kind==='section'&&typeof item.title==='string'&&typeof item.body==='string');
+        savePublicHomeFeed('why',visible);
+        setItems(visible);
+      })
+      .catch(()=>{})
+      .finally(()=>{window.clearTimeout(timeout);if(mounted)setLoading(false)});
+    return()=>{mounted=false;controller.abort();window.clearTimeout(timeout)};
+  },[]);
+  if(!items.length&&!loading)return null;
+  return <section className="vvd-web-why" aria-labelledby="vvd-web-why-title">
+    <div className="vvd-web-why-heading">
+      <span className="vvd-web-eyebrow">О ПЛАТФОРМЕ И СОТРУДНИЧЕСТВЕ</span>
+      <h2 id="vvd-web-why-title">Почему VVD CPA?</h2>
+      <p>Офферы, аналитика, условия работы и поддержка — короткие ответы для вебмастеров.</p>
+    </div>
+    <div className="vvd-web-why-items" aria-busy={loading&&!items.length}>
+      {items.length?items.map(item=><details key={item.id} className="vvd-web-why-item">
+        <summary><span>{item.title}</span><ChevronRight size={17} aria-hidden="true"/></summary>
+        <div className="vvd-web-why-detail">
+          {item.description&&<strong>{item.description}</strong>}
+          <p>{item.body}</p>
+        </div>
+      </details>):Array.from({length:7},(_,index)=><div key={index} className="vvd-web-why-placeholder" aria-hidden="true"/>)}
+    </div>
   </section>;
 };
 
@@ -517,6 +559,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
 
         {/* Editorial information blocks follow the explanation, before the final signup CTA. */}
         <PublicHomeInfo/>
+        <PublicWhyVvd/>
 
         <section className="vvd-web-cta">
           <div><span className="vvd-web-eyebrow">ОДИН АККАУНТ · ДВА СПОСОБА ВХОДА</span><h2>Начни работу с VVD CPA</h2><p>Войди через Telegram, чтобы открыть партнёрский кабинет прямо в браузере. Те же разделы доступны и в Mini App.</p></div>
