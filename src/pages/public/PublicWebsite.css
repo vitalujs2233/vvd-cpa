@@ -1180,7 +1180,8 @@
 @media(max-width:720px){
   .vvd-web-header{gap:8px}
   .vvd-web-locale-switch{margin-left:auto;margin-right:9px}
-  .vvd-web-header-action{margin-left:0}
+  /* When the RU/EN feature is paused, sign-in still hugs the menu on mobile. */
+  .vvd-web-header-action{margin-left:auto}
 }
 @media(max-width:420px){
   .vvd-web-header{gap:5px}
