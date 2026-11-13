@@ -79,7 +79,8 @@ export const Profile: React.FC = () => {
                 <Crown size={14} className="text-accentPink" />
               </span>
               <span className="text-xs text-textSecondary mt-0.5">{profileUsername ? `@${profileUsername}` : "Telegram username не указан"}</span>
-              <span className="text-[9px] text-accentPurple font-bold mt-1">ID: {telegramUser.id} • Рег. 25.05.2024</span>
+              {/* Do not display a hard-coded registration date: show it only once verified from user.created_at via an authenticated API. */}
+              <span className="text-[9px] text-accentPurple font-bold mt-1">ID: {telegramUser.id}</span>
             </div>
           </Card>
 
