@@ -98,7 +98,7 @@ export const Home: React.FC = () => {
 
       {((loading&&!balance)||error)&&<p role="status" className="text-xs text-textSecondary">
         {error || (balance?t('Обновляем баланс…','Updating balance…'):t('Загружаем баланс…','Loading balance…'))}
-        {error&&<button className="ml-2 underline" onClick={()=>setRetry(n=>n+1)}>Повторить</button>}
+        {error&&<button className="ml-2 underline" onClick={()=>setRetry(n=>n+1)}>{t('Повторить','Retry')}</button>}
         {error&&balance&&t(' Показаны последние полученные данные.',' Showing the last available data.')}
       </p>}
       <HomeTicker/>
@@ -134,7 +134,7 @@ export const Home: React.FC = () => {
 
   <div className="flex flex-col">
     <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">
-      Доступно
+      {t('Доступно','Available')}
     </span>
 
     <span className="text-sm font-bold text-success mt-1">
@@ -142,13 +142,13 @@ export const Home: React.FC = () => {
 </span>
 
     <span className="text-[9px] text-textSecondary mt-1">
-      Средства подтверждены
+      {t('Средства подтверждены','Confirmed funds')}
     </span>
   </div>
 
   <div className="flex flex-col">
     <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">
-      В холде
+      {t('В холде','On hold')}
     </span>
 
    <span className="text-sm font-bold text-warning mt-1">
@@ -156,13 +156,13 @@ export const Home: React.FC = () => {
 </span>
 
     <span className="text-[9px] text-textSecondary mt-1">
-      Ожидают подтверждения
+      {t('Ожидают подтверждения','Pending approval')}
     </span>
   </div>
 
   <div className="flex flex-col">
     <span className="text-[9px] text-textSecondary font-bold uppercase tracking-wider">
-      Выплачено
+      {t('Выплачено','Paid out')}
     </span>
 
    <span className="text-sm font-bold text-white mt-1">
@@ -170,7 +170,7 @@ export const Home: React.FC = () => {
 </span>
 
     <span className="text-[9px] text-textSecondary mt-1">
-      Получено партнёром
+      {t('Получено партнёром','Received by partner')}
     </span>
   </div>
 
