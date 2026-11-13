@@ -1044,3 +1044,22 @@
 .vvd-web-public-info-card.vvd-world-banner img{
   display:block;width:100%;height:auto;max-height:none;aspect-ratio:5 / 4;object-fit:fill;
 }
+
+
+/* Homepage media should occupy its final place even during a cold API request.
+   Only the guest-home media sections use these placeholders. */
+.vvd-web-public-banners.vvd-web-home-media-loading{display:block}
+.vvd-web-home-media-loading .vvd-web-media-skeleton{
+  display:block;width:100%;min-width:0;box-sizing:border-box;
+  background:linear-gradient(120deg,#18140f 20%,#292218 50%,#18140f 80%);
+  background-size:200% 100%;animation:vvd-home-media-warmup 2s ease-in-out infinite;
+}
+.vvd-web-public-info-card.vvd-world-banner.vvd-web-media-skeleton{
+  width:100%;aspect-ratio:5 / 4;padding:0;
+}
+@keyframes vvd-home-media-warmup{
+  from{background-position:100% 0}to{background-position:-100% 0}
+}
+@media(prefers-reduced-motion:reduce){
+  .vvd-web-home-media-loading .vvd-web-media-skeleton{animation:none}
+}
