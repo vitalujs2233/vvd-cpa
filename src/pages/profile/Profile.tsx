@@ -140,8 +140,8 @@ export const Profile: React.FC = () => {
                   {(['ru','en'] as const).map(code=><button key={code} type="button" aria-pressed={lang===code}
                     onClick={()=>setLocale(code)}
                     className={`min-w-[37px] rounded-lg px-2 py-1.5 text-xs font-bold ${lang===code?'bg-accentGold text-black':'text-accentGoldBright'}`}>{code.toUpperCase()}</button>)}
-                </div>}
-              </div>
+                </div>
+              </div>}
 
               {/* Личный чат поддержки (Новое расположение по гайдлайну v2.0) */}
               <div 
