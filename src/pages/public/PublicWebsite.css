@@ -1183,9 +1183,12 @@
   .vvd-web-header-action{margin-left:0}
 }
 @media(max-width:420px){
+  .vvd-web-header{gap:5px}
   .vvd-web-locale-switch button{min-width:26px;min-height:29px;padding:4px;font-size:9px}
   .vvd-web-brand{gap:7px}
   .vvd-web-brand-copy strong{font-size:14px}
   .vvd-web-brand-copy small{font-size:6px;letter-spacing:1.1px}
   .vvd-web-monogram{width:34px;height:34px;font-size:21px}
 }
+
+@media(max-width:375px){.vvd-web-brand-copy small{display:none}}
