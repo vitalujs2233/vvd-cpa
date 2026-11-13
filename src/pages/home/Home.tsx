@@ -6,7 +6,7 @@ import {readSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wallet, History, Sparkles, Flame, Crown, Brain, Sparkles as InfoSparkles, BookOpen, LayoutGrid, ChevronRight, Link2, BarChart3 } from 'lucide-react';
+import { Wallet, History, Flame, Crown, Brain, Sparkles as InfoSparkles, BookOpen, LayoutGrid, ChevronRight, Link2, BarChart3 } from 'lucide-react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { getTelegramUser, triggerHaptic } from '@/shared/lib/telegram';
