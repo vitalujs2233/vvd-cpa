@@ -1091,3 +1091,25 @@
   .vvd-web-why-heading p{font-size:12px}
 }
 @media(prefers-reduced-motion:reduce){.vvd-web-why-item summary svg{transition:none}}
+
+
+/* Match the existing Mini App information cards: icon + title + subtitle
+   visible before expansion; full body and optional media on expansion. */
+.vvd-web-why-item summary{justify-content:initial;gap:12px;min-height:62px}
+.vvd-web-why-icon{display:flex;align-items:center;justify-content:center;flex:0 0 30px;color:#e8bc66}
+.vvd-web-why-summary-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:3px}
+.vvd-web-why-summary-copy strong{font-size:14px;line-height:1.35;font-weight:700;color:#f7f1e5}
+.vvd-web-why-summary-copy small{font-size:12px;line-height:1.4;color:#b8b0a5;font-weight:400}
+.vvd-web-why-item summary>svg:last-child{margin-left:auto}
+.vvd-web-why-detail p{margin:12px 0 0;white-space:pre-wrap}
+.vvd-web-why-detail img,.vvd-web-why-banner img{display:block;width:100%;height:auto;margin-top:12px;border-radius:10px}
+.vvd-web-why-detail a,.vvd-web-why-banner a{display:inline-flex;margin-top:12px;color:#e8bc66;text-decoration:underline;font-weight:600}
+.vvd-web-why-banner{padding:15px;color:#b8b0a5;font-size:13px;line-height:1.6}
+.vvd-web-why-banner>strong{display:block;margin-top:9px;color:#f7f1e5;font-size:14px}
+.vvd-web-why-banner p{margin:6px 0 0;white-space:pre-wrap}
+.vvd-web-why-banner .vvd-web-why-quote{color:#e8bc66;font-style:italic}
+@media(max-width:720px){
+  .vvd-web-why-item summary{min-height:60px}
+  .vvd-web-why-summary-copy strong{font-size:13px}
+  .vvd-web-why-summary-copy small{font-size:11px}
+}
