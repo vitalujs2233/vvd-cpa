@@ -1163,3 +1163,29 @@
   .vvd-web-hero-support{font-size:clamp(9px,2.5vw,11px);padding:6px 7px;gap:4px;min-height:32px}
 }
 @media(prefers-reduced-motion:reduce){.vvd-web-hero-support{transition:none}}
+
+
+/* Guest language control: compact VVD gold segmented pill, always left of sign-in. */
+.vvd-web-locale-switch{
+  display:inline-flex;align-items:center;flex-shrink:0;gap:2px;
+  border:1px solid rgba(235,186,85,.38);border-radius:12px;
+  padding:3px;background:rgba(22,19,15,.88);
+}
+.vvd-web-locale-switch button{
+  min-height:32px;min-width:31px;border:0;background:transparent;color:#ab9976;
+  border-radius:8px;padding:5px 6px;font-size:10px;font-weight:800;letter-spacing:.02em;
+}
+.vvd-web-locale-switch button.is-active{background:#e9bc62;color:#18130a}
+.vvd-web-locale-switch button:focus-visible{outline:2px solid #f4d18c;outline-offset:2px}
+@media(max-width:720px){
+  .vvd-web-header{gap:8px}
+  .vvd-web-locale-switch{margin-left:auto}
+  .vvd-web-header-action{margin-left:0}
+}
+@media(max-width:420px){
+  .vvd-web-locale-switch button{min-width:26px;min-height:29px;padding:4px;font-size:9px}
+  .vvd-web-brand{gap:7px}
+  .vvd-web-brand-copy strong{font-size:14px}
+  .vvd-web-brand-copy small{font-size:6px;letter-spacing:1.1px}
+  .vvd-web-monogram{width:34px;height:34px;font-size:21px}
+}
