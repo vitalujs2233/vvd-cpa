@@ -539,7 +539,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
           <div className="vvd-web-workspace-copy">
             <div className="vvd-web-hero-support-row">
               <span className="vvd-web-eyebrow"><span className="vvd-web-dot"/> CPA-ПАРТНЁРСКАЯ СЕТЬ · VVD CPA</span>
-              <a className="vvd-web-hero-support" href={BOT_URL} target="_blank" rel="noopener noreferrer" aria-label="Поддержка VVD CPA — открыть Telegram">
+              <a className="vvd-web-hero-support" href="https://t.me/vilitolu" target="_blank" rel="noopener noreferrer" aria-label="Поддержка VVD CPA — открыть чат Telegram">
                 <span aria-hidden="true">👨‍🚀</span><span>Поддержка</span>
               </a>
             </div>
