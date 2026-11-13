@@ -29,6 +29,7 @@ let cachedAds:Feed|undefined;
 export const HomeAdCarousel:React.FC=()=>{
  const navigate=useNavigate();
  const [feed,setFeed]=useState<Feed>(()=>cachedHomeFeed<Feed>('home:ads')||cachedAds||{items:[],autoplay:false});
+ const [loading,setLoading]=useState(()=>!cachedHomeFeed<Feed>('home:ads')&&!cachedAds);
  const [active,setActive]=useState(0);
  const [failed,setFailed]=useState<string[]>([]);
  const rail=useRef<HTMLDivElement>(null);
@@ -38,7 +39,7 @@ export const HomeAdCarousel:React.FC=()=>{
  useEffect(()=>{
   let live=true;
   // Startup already fetched this feed. Avoid an immediate duplicate request and layout shift.
-  const refresh=()=>apiRequest<Feed>('/home-ads/published').then(data=>{if(live){cachedAds={items:data.items.slice(0,4),autoplay:data.autoplay};setFeed(cachedAds)}}).catch(()=>{});
+  const refresh=()=>apiRequest<Feed>('/home-ads/published').then(data=>{if(live){cachedAds={items:data.items.slice(0,4),autoplay:data.autoplay};setFeed(cachedAds)}}).catch(()=>{}).finally(()=>{if(live)setLoading(false)});
   if(!cachedHomeFeed<Feed>('home:ads'))void refresh();
   const onVisible=()=>{if(!document.hidden)void refresh()};
   document.addEventListener('visibilitychange',onVisible);
@@ -71,7 +72,11 @@ export const HomeAdCarousel:React.FC=()=>{
   });
   setActive(best);
  };
- if(!count)return null;
+ if(!count)return loading
+   ?<section aria-label="Загрузка баннеров" aria-busy="true" className="min-w-0 w-full">
+     <div className="w-full aspect-[3/1] rounded-card bg-bgCard border border-[#b18a38]/30 animate-pulse"/>
+   </section>
+   :null;
  return <section aria-label="Рекламные баннеры" className="min-w-0 w-full">
   <div ref={rail} onScroll={updateActive} onTouchStart={()=>{interacting.current=true;if(timer.current)clearTimeout(timer.current)}} onPointerDown={()=>{interacting.current=true;if(timer.current)clearTimeout(timer.current)}} className="flex gap-3 overflow-x-auto snap-x snap-mandatory overscroll-x-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{touchAction:'pan-x pan-y'}}>
    {feed.items.map(b=><div key={b.id} className={"relative shrink-0 "+(count===1?"w-full":"w-[91%]")+" aspect-[3/1] snap-start overflow-hidden rounded-card bg-bgCard"}>
