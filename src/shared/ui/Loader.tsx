@@ -55,14 +55,14 @@ export const Loader: React.FC<LoaderProps> = ({ onComplete }) => {
       {/* Высокопроизводительные аппаратные анимации для 60 FPS на iOS и Android */}
       <style>{`
         @keyframes scaleLogo {
-          0% { transform: scale(0) rotate(-15deg); opacity: 0; filter: blur(10px); }
-          60% { transform: scale(1.08) rotate(2deg); opacity: 0.9; filter: blur(0px); }
+          0% { transform: scale(0.98) rotate(-2deg); opacity: 1; }
+          60% { transform: scale(1.025) rotate(1deg); opacity: 1; }
           100% { transform: scale(1) rotate(0deg); opacity: 1; }
         }
 
         @keyframes slideUpText {
-          0% { transform: translateY(16px); opacity: 0; filter: blur(4px); }
-          100% { transform: translateY(0); opacity: 1; filter: blur(0); }
+          0% { transform: translateY(16px); opacity: 0; }
+          100% { transform: translateY(0); opacity: 1; }
         }
 
         @keyframes portalPulse {
@@ -205,7 +205,7 @@ export const Loader: React.FC<LoaderProps> = ({ onComplete }) => {
                 <stop offset="100%" stopColor="#FFE08A" />
               </linearGradient>
               <filter id="goldGlow" x="-30%" y="-30%" width="160%" height="160%">
-                <feGaussianBlur stdDeviation="8" result="blur" />
+                <feGaussianBlur stdDeviation="2.5" result="blur" />
                 <feMerge>
                   <feMergeNode in="blur" />
                   <feMergeNode in="SourceGraphic" />
