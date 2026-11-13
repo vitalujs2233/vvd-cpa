@@ -9,6 +9,7 @@ import {UnifiedCategoryCard,serviceCountLabel} from '@/shared/ui/UnifiedCategory
 import {PublicPolicy} from './PublicPolicy';
 import {iconFor,type InfoItem} from '@/pages/info/InfoPage';
 import {useLocale,setLocale,localize} from '@/shared/lib/locale';
+import {guestInfoEnglish} from './GuestInfoEnglish';
 
 const BOT_URL='https://t.me/vvd_cpa_bot';
 const BASE_URL='https://vitalujs2233.github.io/vvd-cpa/';
@@ -265,6 +266,8 @@ const PublicHomeInfo:React.FC=()=>{
 /** Read the same published /info content as Mini App and the information admin.
     Guest visitors only see published, visible sections; no account or admin data. */
 const PublicWhyVvd:React.FC=()=>{
+  const lang=useLocale();
+  const t=(ru:string,en:string)=>localize(lang,ru,en);
   const [items,setItems]=useState<PublicWhyInfo[]>(()=>readPublicHomeFeed<PublicWhyInfo[]>('why')||[]);
   const [loading,setLoading]=useState(()=>!readPublicHomeFeed('why'));
   useEffect(()=>{
@@ -286,12 +289,13 @@ const PublicWhyVvd:React.FC=()=>{
   if(!items.length&&!loading)return null;
   return <section className="vvd-web-why" aria-labelledby="vvd-web-why-title">
     <div className="vvd-web-why-heading">
-      <span className="vvd-web-eyebrow">О ПЛАТФОРМЕ И СОТРУДНИЧЕСТВЕ</span>
-      <h2 id="vvd-web-why-title">Почему VVD CPA?</h2>
-      <p>Офферы, аналитика, условия работы и поддержка — короткие ответы для вебмастеров.</p>
+      <span className="vvd-web-eyebrow">{t('О ПЛАТФОРМЕ И СОТРУДНИЧЕСТВЕ','ABOUT THE PLATFORM & PARTNERSHIP')}</span>
+      <h2 id="vvd-web-why-title">{t('Почему VVD CPA?','Why VVD CPA?')}</h2>
+      <p>{t('Офферы, аналитика, условия работы и поддержка — короткие ответы для вебмастеров.','Offers, analytics, partnership terms and support — clear answers for publishers.')}</p>
     </div>
     <div className="vvd-web-why-items" aria-busy={loading&&!items.length}>
-      {items.length?items.map(item=>{
+      {items.length?items.map(original=>{
+        const item=guestInfoEnglish(original,lang);
         const Icon=iconFor(item);
         const link=allowedLink(item.button_url||'');
         const image=allowedLink(item.image_url||'');
@@ -638,7 +642,7 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
              <a href={policyUrl('privacy')} onClick={event=>{event.preventDefault();openPolicy('privacy');}}>{t('Политика конфиденциальности','Privacy policy')}</a>
              <a href={policyUrl('cookies')} onClick={event=>{event.preventDefault();openPolicy('cookies');}}>{t('Политика файлов cookie','Cookie policy')}</a>
            </nav>
-           <p>© {new Date().getFullYear()} VVD CPA. Условия сторонних сервисов действуют на их сайтах. Некоторые ссылки могут быть партнёрскими.</p>
+           <p>© {new Date().getFullYear()} VVD CPA. {t('Условия сторонних сервисов действуют на их сайтах. Некоторые ссылки могут быть партнёрскими.','Third-party services have their own terms. Some links may be affiliate links.')}</p>
          </div>
         <a href={BOT_URL} target="_blank" rel="noopener noreferrer">{t('Наш Telegram','Our Telegram')} <ArrowUpRight size={14}/></a>
       </footer>
