@@ -1146,17 +1146,20 @@
 
 
 /* A small guest support entry next to the CPA network label; keep hero layout intact. */
-.vvd-web-hero-support-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:9px}
-.vvd-web-hero-support-row .vvd-web-eyebrow{display:inline-flex;align-items:center;min-width:0;max-width:100%;margin:0}
+.vvd-web-hero-support-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;gap:6px;min-width:0}
+.vvd-web-hero-support-row .vvd-web-eyebrow{display:inline-flex;align-items:center;min-width:0;max-width:none;white-space:nowrap;margin:0;letter-spacing:.35px}
+.vvd-web-hero-support-row .vvd-web-dot{flex-shrink:0}
 .vvd-web-hero-support{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;
   padding:6px 11px;border:1px solid rgba(241,194,95,.48);border-radius:11px;
   background:rgba(241,194,95,.08);color:#f4ce7c;font-size:12px;line-height:1.2;font-weight:750;
   white-space:nowrap;text-decoration:none;transition:background-color .2s ease}
+.vvd-web-hero-support{flex-shrink:0;margin-left:auto}
 .vvd-web-hero-support:hover{background:rgba(241,194,95,.18)}
 .vvd-web-hero-support:focus-visible{outline:2px solid #f6cb78;outline-offset:2px}
 @media(max-width:480px){
-  .vvd-web-hero-support-row{gap:9px}
-  .vvd-web-hero-support-row .vvd-web-eyebrow{font-size:9px;letter-spacing:1px}
-  .vvd-web-hero-support{font-size:11px;padding:6px 9px;min-height:32px}
+  .vvd-web-hero-support-row{gap:5px}
+  .vvd-web-hero-support-row .vvd-web-eyebrow{font-size:clamp(7px,2.1vw,9px);letter-spacing:0}
+  .vvd-web-hero-support-row .vvd-web-dot{width:6px;height:6px;margin-right:5px}
+  .vvd-web-hero-support{font-size:clamp(9px,2.5vw,11px);padding:6px 7px;gap:4px;min-height:32px}
 }
 @media(prefers-reduced-motion:reduce){.vvd-web-hero-support{transition:none}}
