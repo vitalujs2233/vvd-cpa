@@ -537,7 +537,12 @@ export const PublicWebsite:React.FC<{auth:ReturnType<typeof useBrowserSession>;o
       <main className="vvd-web-public-main">
         <section className="vvd-web-workspace-intro vvd-web-workspace-intro-compact" id="top" aria-labelledby="vvd-web-intro-title">
           <div className="vvd-web-workspace-copy">
-            <span className="vvd-web-eyebrow"><span className="vvd-web-dot"/> CPA-ПАРТНЁРСКАЯ СЕТЬ · VVD CPA</span>
+            <div className="vvd-web-hero-support-row">
+              <span className="vvd-web-eyebrow"><span className="vvd-web-dot"/> CPA-ПАРТНЁРСКАЯ СЕТЬ · VVD CPA</span>
+              <a className="vvd-web-hero-support" href={BOT_URL} target="_blank" rel="noopener noreferrer" aria-label="Поддержка VVD CPA — открыть Telegram">
+                <span aria-hidden="true">👨‍🚀</span><span>Поддержка</span>
+              </a>
+            </div>
             <h1 id="vvd-web-intro-title">Зарабатывай на своём трафике.<br/><em>VVD CPA — партнёрка.</em></h1>
             <p>Монетизируй свой трафик через смартлинки разных вертикалей. <strong>Выплаты, аналитика и поддержка</strong> — в одной платформе.</p>
             <div className="vvd-web-hero-points" aria-label="Возможности VVD CPA">

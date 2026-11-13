@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, PlusCircle, Send } from 'lucide-react';
 import { authorizedFetch } from '@/shared/lib/api';
 import {readSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
@@ -20,11 +20,12 @@ async function request(path: string, init?: RequestInit) {
 
 export const Chat: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [tickets, setTickets] = useState<Ticket[]>(()=>readSnapshot<Ticket[]>('support:tickets')||[]);
   const [selected, setSelected] = useState<Ticket | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [tab, setTab] = useState<'support' | 'tickets'>('support');
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState(() => new URLSearchParams(location.search).get('new') === '1');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
