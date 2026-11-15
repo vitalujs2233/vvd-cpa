@@ -38,14 +38,38 @@ def protected(path:str,method:str)->bool:
 
 async def access_guard(request,call_next):
     path=request.url.path
+    # Signed account traffic is checked centrally, including tools and CPA APIs.
+    # Keep the private support-ticket endpoints accessible during an account block.
+    # Login and account/access must remain reachable so the app can show the notice.
+    signed = request.headers.get("X-Telegram-Init-Data", "")
+    exempt = (path == "/auth" or path == "/account/access"
+              or path.startswith("/support/") or path.startswith("/web-auth/"))
+    uid = None
+    if signed and not exempt:
+        try:
+            uid = authenticated_user_id(signed)
+        except TelegramAuthError as exc:
+            if protected(path, request.method):
+                logger.warning("telegram_access_rejected code=%s", exc.code)
+                status = 503 if exc.code == "auth_config_error" else 401
+                return JSONResponse({"detail":{"code":exc.code}},status_code=status)
+        if uid is not None:
+            with engine.connect() as conn:
+                state = conn.execute(text(
+                    "SELECT status FROM public.users WHERE telegram_id=:uid"
+                ), {"uid": uid}).scalar_one_or_none()
+            if state == "blocked":
+                return JSONResponse({"detail": {"code": "account_blocked"}},
+                                    status_code=403)
     if not protected(path,request.method):
         return await call_next(request)
-    try:
-        uid=authenticated_user_id(request.headers.get("X-Telegram-Init-Data",""))
-    except TelegramAuthError as exc:
-        logger.warning("telegram_access_rejected code=%s", exc.code)
-        status = 503 if exc.code == "auth_config_error" else 401
-        return JSONResponse({"detail":{"code":exc.code}},status_code=status)
+    if uid is None:
+        try:
+            uid=authenticated_user_id(signed)
+        except TelegramAuthError as exc:
+            logger.warning("telegram_access_rejected code=%s", exc.code)
+            status = 503 if exc.code == "auth_config_error" else 401
+            return JSONResponse({"detail":{"code":exc.code}},status_code=status)
     parts=path.strip("/").split("/")
     admin=authorized_admin(uid) if path.startswith("/admin/") else False
     if path.startswith("/admin/") and not admin:
