@@ -22,7 +22,7 @@ const Notice:React.FC<{notice:BlockNotice;onRefresh:()=>void;checking:boolean}>=
       <div className="mb-3 text-[11px] font-semibold tracking-[.22em] text-[#cba76c]">VVD CPA · PREMIUM NETWORK</div>
       <h1 className="mb-4 text-2xl font-bold text-white">{notice.title}</h1>
       <p className="whitespace-pre-line break-words text-sm leading-7 text-[#ddcbc4]">{notice.message}</p>
-      <button type="button" onClick={()=>navigate('/support?new=1')}
+      <button type="button" onClick={()=>navigate('/support?latest=1')}
         className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-[#e9bd65] px-5 py-3.5 font-bold text-[#251b12]">
         <MessageSquare size={18}/> Связаться с поддержкой
       </button>
