@@ -87,7 +87,7 @@ def post_user_message(ticket_id: int, data: NewMessage, request: Request):
 def admin_tickets(request: Request):
     require_admin(request)
     with engine.connect() as conn:
-        rows = conn.execute(text("SELECT t.id,t.user_telegram_id,t.subject,t.status,t.created_at,t.updated_at,u.first_name,u.username FROM support_tickets t LEFT JOIN users u ON u.telegram_id=t.user_telegram_id ORDER BY (t.status='open') DESC,t.updated_at DESC LIMIT 200")).mappings().all()
+        rows = conn.execute(text("SELECT t.id,t.user_telegram_id,t.subject,t.status,t.created_at,t.updated_at,u.first_name,u.last_name,u.username,u.partner_code FROM support_tickets t LEFT JOIN users u ON u.telegram_id=t.user_telegram_id ORDER BY (t.status='open') DESC,t.updated_at DESC LIMIT 200")).mappings().all()
     return {"success":True,"tickets":[dict(r) for r in rows]}
 
 @router.get("/admin/support/tickets/{ticket_id}")
@@ -95,6 +95,10 @@ def admin_ticket(ticket_id: int,request: Request):
     uid=require_admin(request)
     with engine.connect() as conn:
         ticket=check_ticket(conn,ticket_id,uid,True)
+        identity=conn.execute(text("""SELECT first_name,last_name,username,partner_code
+            FROM public.users WHERE telegram_id=:uid"""),{"uid":ticket["user_telegram_id"]}).mappings().first()
+        if identity:
+            ticket.update(dict(identity))
         messages=ticket_messages(conn,ticket_id)
     return {"success":True,"ticket":ticket,"messages":messages}
 
