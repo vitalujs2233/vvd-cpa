@@ -298,7 +298,7 @@ async def track_click(partner_code: str, vertical: str, request: Request):
             text("""
                 SELECT telegram_id, partner_code
                 FROM users
-                WHERE partner_code = :partner_code
+                WHERE partner_code = :partner_code AND status='active'
             """),
             {"partner_code": partner_code}
         ).fetchone()
