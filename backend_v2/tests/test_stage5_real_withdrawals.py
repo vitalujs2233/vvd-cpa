@@ -63,6 +63,7 @@ class Stage5RealWithdrawalsTests(unittest.TestCase):
                 username TEXT,
                 partner_code TEXT UNIQUE,
                 role TEXT NOT NULL DEFAULT 'user',
+                status TEXT NOT NULL DEFAULT 'active',
                 balance NUMERIC(12,2) NOT NULL DEFAULT 0,
                 hold NUMERIC(12,2) NOT NULL DEFAULT 0,
                 withdrawn NUMERIC(12,2) NOT NULL DEFAULT 0
