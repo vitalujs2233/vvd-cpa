@@ -234,7 +234,7 @@ const MiniApp = ({webUser}:{webUser?:AuthResponse['user']}) => {
         if (webUser && !getWebSession()) {
           throw new Error('Веб-сессия завершилась. Войдите ещё раз.');
         }
-        const response = webUser ? {user:webUser} : await loginViaTelegramApi();
+        const response = webUser ? {user:webUser} : await loginViaTelegramApi(startupAttempt>0);
         if (active) {
           if(response.user.status==='blocked'){
             try{
