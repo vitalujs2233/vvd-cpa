@@ -21,7 +21,9 @@ async function request(path: string, init?: RequestInit) {
 export const Chat: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const openedFromHome = new URLSearchParams(location.search).get('new') === '1';
+  const params = new URLSearchParams(location.search);
+  const openedFromHome = params.get('new') === '1';
+  const reopenLatestTicket = params.get('latest') === '1';
   const [tickets, setTickets] = useState<Ticket[]>(()=>readSnapshot<Ticket[]>('support:tickets')||[]);
   const [selected, setSelected] = useState<Ticket | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -33,9 +35,21 @@ export const Chat: React.FC = () => {
   const [error, setError] = useState('');
 
   const refreshTickets = useCallback(async () => {
-    try { const data = await request('/support/tickets'); setTickets(data.tickets); saveSnapshot('support:tickets',data.tickets); setError(''); }
-    catch { setError('Не удалось загрузить тикеты. Проверьте соединение.'); }
-  }, []);
+    try {
+      const data = await request('/support/tickets');
+      setTickets(data.tickets);
+      saveSnapshot('support:tickets',data.tickets);
+      setError('');
+      // For a blocked account, reopen the latest existing conversation on entry.
+      // The server remains the source of truth; never select a cached ticket.
+      if (reopenLatestTicket && data.tickets.length > 0) {
+        const detail = await request('/support/tickets/' + data.tickets[0].id);
+        setSelected(detail.ticket);
+        setMessages(detail.messages);
+      }
+    }
+    catch { setError('Не удалось загрузить переписку. Проверьте соединение.'); }
+  }, [reopenLatestTicket]);
   const refreshMessages = useCallback(async (id: number) => {
     try {
       const data = await request('/support/tickets/' + id);
