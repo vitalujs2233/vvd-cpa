@@ -12,6 +12,7 @@ import { HomeInfoAdmin } from './HomeInfoAdmin';
 import { CPAUserHold } from './CPAUserHold';
 import { ToolsBalanceAdmin } from './ToolsBalanceAdmin';
 import { SupportTicketsAdmin } from './SupportTicketsAdmin';
+import { AccountBlocksAdmin } from './AccountBlocksAdmin';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -99,6 +100,7 @@ export const Admin: React.FC = () => {
   'chatBans' |
   'toolsBalance' |
   'supportTickets' |
+  'accountBlocks' |
   'cpa' | 'information' | 'homeAds' | 'homeTicker' | 'homeInfo' | 'directory' | 'editorial' | 'aiEditor' | 'maintenance'
 >('menu');
   const [searchQuery, setSearchQuery] = useState('');
@@ -375,6 +377,7 @@ const saveChatBanner = async () => {
     | 'chatBans'
     | 'toolsBalance'
     | 'supportTickets'
+    | 'accountBlocks'
     | 'cpa'
     | 'information'
     | 'homeAds'
@@ -491,6 +494,9 @@ const saveChatBanner = async () => {
 
           <button type="button" onClick={() => handleSubViewChange('cpa')} className="flex items-center justify-between rounded-card border border-accentPurple/30 bg-accentPurple/10 px-4 py-4 text-left text-sm font-bold text-white">
             <span>CPA → Сети · Вертикали · Офферы</span><Layers size={18} className="text-accentPurple"/>
+          </button>
+          <button type="button" onClick={() => handleSubViewChange('accountBlocks')} className="flex items-center justify-between rounded-card border border-red-500/30 bg-bgCard px-4 py-4 text-left text-sm font-bold text-white">
+            <span>Блокировка пользователей → Управление · Текст</span><ShieldAlert size={18} className="text-red-400"/>
           </button>
           <button type="button" onClick={() => handleSubViewChange('supportTickets')} className="flex items-center justify-between rounded-card border border-accentGold/30 bg-bgCard px-4 py-4 text-left text-sm font-bold text-white">
             <span>Обращения поддержки</span><Newspaper size={18} className="text-accentGold"/>
@@ -1105,6 +1111,7 @@ const saveChatBanner = async () => {
         </div>
       )}
       {subView === 'toolsBalance' && <ToolsBalanceAdmin onBack={() => handleSubViewChange('menu')}/>}
+      {subView === 'accountBlocks' && <AccountBlocksAdmin onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'supportTickets' && <SupportTicketsAdmin onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'homeInfo' && <HomeInfoAdmin onBack={() => handleSubViewChange('menu')}/>}
       {subView === 'homeTicker' && <HomeTickerAdmin onBack={() => handleSubViewChange('menu')}/>}
