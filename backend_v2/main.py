@@ -16,6 +16,7 @@ import asyncio
 import os
 from bot import start_bot, dp, bot
 from support_tickets import router as support_tickets_router
+from account_blocks import router as account_blocks_router
 from stars_payments import router as stars_router
 from tools_marketplace import router as tools_market_router
 from proxy_ipv4_preview import router as proxy_ipv4_preview_router
@@ -50,6 +51,7 @@ from iq_play import router as iq_play_router
 app.include_router(iq_play_router)
 app.include_router(stars_router)
 app.include_router(support_tickets_router)
+app.include_router(account_blocks_router)
 app.include_router(tools_market_router)
 app.include_router(proxy_ipv4_preview_router)
 app.include_router(noir_sms_catalog_router)
@@ -296,7 +298,7 @@ async def track_click(partner_code: str, vertical: str, request: Request):
             text("""
                 SELECT telegram_id, partner_code
                 FROM users
-                WHERE partner_code = :partner_code
+                WHERE partner_code = :partner_code AND status='active'
             """),
             {"partner_code": partner_code}
         ).fetchone()

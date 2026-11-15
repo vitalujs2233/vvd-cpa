@@ -2,6 +2,7 @@
 import concurrent.futures
 import asyncio
 from types import SimpleNamespace
+from pathlib import Path
 import uuid
 import unittest
 from unittest.mock import AsyncMock, patch
@@ -22,6 +23,10 @@ class ReferralTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         base.ManualWorkflowTests.setUpClass()
+        # Add only new block tables to disposable CI database, never production.
+        schema=(Path(__file__).resolve().parents[1]/'migrations/20261115_account_blocks.sql').read_text()
+        with engine.begin() as conn:
+            conn.connection.cursor().execute(schema)
 
     def test_referral_lifecycle(self):
         from bot import cmd_start
@@ -97,5 +102,66 @@ class ReferralTests(unittest.TestCase):
                 self.assertFalse(c.execute(text("SELECT has_table_privilege('anon',:t,'SELECT')"),{'t':table}).scalar_one())
         with patch('access_guard.authenticated_user_id',return_value=None):
             self.assertIn(client.get(f'/referral/{INVITER}').status_code,(401,403))
+
+
+    def test_zz_account_block_and_restore(self):
+        """Block one synthetic account without touching its balance/referral history."""
+        import account_blocks
+        client=TestClient(app)
+        headers={'X-Telegram-Init-Data':'synthetic-ci-session'}
+        with engine.connect() as conn:
+            original=conn.execute(text(
+                'SELECT balance,hold,withdrawn FROM users WHERE telegram_id=:uid'
+            ),{'uid':INVITER}).one()
+        with patch('access_guard.authenticated_user_id',return_value=ADMIN), \
+             patch('access_guard.authorized_admin',side_effect=lambda uid: uid==ADMIN), \
+             patch('account_blocks.actor',return_value=ADMIN), \
+             patch('account_blocks.authorized_admin',side_effect=lambda uid: uid==ADMIN):
+            found=client.get('/admin/account-blocks/users',headers=headers)
+            self.assertEqual(found.status_code,200,found.text)
+            self.assertTrue(any(p['telegram_id']==INVITER for p in found.json()['users']))
+            setting=client.get('/admin/account-blocks/settings',headers=headers).json()
+            self.assertEqual(setting['title'],'Ваш аккаунт заблокирован')
+            changed=client.put('/admin/account-blocks/settings',headers=headers,json={
+                **setting,'title':'Временная блокировка','message':'Обратитесь в поддержку.'
+            })
+            self.assertEqual(changed.status_code,200,changed.text)
+            action=client.post(f'/admin/account-blocks/{INVITER}',headers=headers,json={
+                'action':'block','reason':'isolated test'
+            })
+            self.assertEqual(action.status_code,200,action.text)
+            self.assertEqual(action.json()['status'],'blocked')
+            self.assertEqual(client.post(f'/admin/account-blocks/{INVITER}',headers=headers,json={
+                'action':'block','reason':'repeat'
+            }).status_code,409)
+            self.assertEqual(client.post(f'/admin/account-blocks/{ADMIN}',headers=headers,json={
+                'action':'block','reason':'self'
+            }).status_code,403)
+        with patch('account_blocks.actor',return_value=INVITER):
+            notice=client.get('/account/access',headers=headers)
+            self.assertEqual(notice.status_code,200)
+            self.assertTrue(notice.json()['blocked'])
+            self.assertEqual(notice.json()['title'],'Временная блокировка')
+        with patch('access_guard.authenticated_user_id',return_value=INVITER):
+            denied=client.get(f'/balance/{INVITER}',headers=headers)
+            self.assertEqual(denied.status_code,403,denied.text)
+            self.assertEqual(denied.json()['detail']['code'],'account_blocked')
+        with patch('access_guard.authenticated_user_id',return_value=ADMIN), \
+             patch('access_guard.authorized_admin',side_effect=lambda uid: uid==ADMIN), \
+             patch('account_blocks.actor',return_value=ADMIN), \
+             patch('account_blocks.authorized_admin',side_effect=lambda uid: uid==ADMIN):
+            restored=client.post(f'/admin/account-blocks/{INVITER}',headers=headers,json={
+                'action':'unblock','reason':'isolated test completed'
+            })
+            self.assertEqual(restored.status_code,200,restored.text)
+            self.assertEqual(restored.json()['status'],'active')
+        with engine.connect() as conn:
+            current=conn.execute(text(
+                'SELECT balance,hold,withdrawn FROM users WHERE telegram_id=:uid'
+            ),{'uid':INVITER}).one()
+            self.assertEqual(current,original)
+            self.assertEqual(conn.execute(text(
+                "SELECT count(*) FROM vvd_account_block_audit WHERE user_id=:uid"
+            ),{'uid':INVITER}).scalar_one(),2)
 
 if __name__=='__main__':unittest.main()

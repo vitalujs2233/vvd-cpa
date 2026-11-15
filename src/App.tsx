@@ -23,6 +23,7 @@ import { useBrowserSession } from '@/pages/public/WebAuth';
 import {getWebSession} from '@/shared/lib/browserSession';
 import type {AuthResponse} from '@/shared/lib/api';
 import { Profile } from '@/pages/profile/Profile';
+import {BlockedAccount,DEFAULT_BLOCK_NOTICE,type BlockNotice} from '@/pages/profile/BlockedAccount';
 import { Referral } from '@/pages/Referral';
 import { Admin } from '@/pages/admin/Admin';
 import {MaintenanceScreen,useMiniAppMaintenance} from '@/pages/maintenance/Maintenance';
@@ -31,7 +32,7 @@ import { Chat as SupportChat } from '@/pages/chat/Chat';
 import { Loader } from '@/shared/ui/Loader';
 
 // Импортируем методы сетевого API и хелперы токенов
-import { loginViaTelegramApi, ApiError, isTemporarySignInError } from '@/shared/lib/api';
+import { loginViaTelegramApi, apiRequest, ApiError, isTemporarySignInError } from '@/shared/lib/api';
 
 // Единый фон всех обычных экранов, кроме театральной сцены IQ Play.
 const AppBackdrop = () => {
@@ -208,8 +209,10 @@ const AppLayout = ({webMode=false}:{webMode?:boolean}) => {
 // Tools use the existing app shell and bottom navigation.
 
 const MiniApp = ({webUser}:{webUser?:AuthResponse['user']}) => {
-  const [authState, setAuthState] = useState<'loading'|'ready'|'error'|'data-error'|'connection-error'>('loading');
+  const [authState, setAuthState] = useState<'loading'|'ready'|'blocked'|'error'|'data-error'|'connection-error'>('loading');
   const [authMessage, setAuthMessage] = useState('');
+  const [blockNotice,setBlockNotice]=useState<BlockNotice>(DEFAULT_BLOCK_NOTICE);
+  const [checkingAccess,setCheckingAccess]=useState(false);
   const [verifiedAdmin,setVerifiedAdmin]=useState(false);
   const {status:maintenance,checked:maintenanceChecked,refresh:refreshMaintenance}=useMiniAppMaintenance();
   const [startupAttempt,setStartupAttempt]=useState(0);
@@ -231,8 +234,16 @@ const MiniApp = ({webUser}:{webUser?:AuthResponse['user']}) => {
         if (webUser && !getWebSession()) {
           throw new Error('Веб-сессия завершилась. Войдите ещё раз.');
         }
-        const response = webUser ? {user:webUser} : await loginViaTelegramApi();
+        const response = webUser ? {user:webUser} : await loginViaTelegramApi(startupAttempt>0);
         if (active) {
+          if(response.user.status==='blocked'){
+            try{
+              const gate=await apiRequest<{title:string;message:string}>('/account/access',{cache:'no-store'});
+              if(active)setBlockNotice({title:gate.title,message:gate.message});
+            }catch{/* Keep a clear local notice if the settings service is unavailable. */}
+            if(active)setAuthState('blocked');
+            return;
+          }
           // Server-verified authentication is required before administrator bypass.
           setVerifiedAdmin(response.user.role==='admin'||response.user.telegram_id===232682307);
           localStorage.setItem('vvd_cpa_user_data', JSON.stringify(response.user));
@@ -269,10 +280,37 @@ const MiniApp = ({webUser}:{webUser?:AuthResponse['user']}) => {
     return () => { active = false; };
   }, [startupAttempt, webUser?.telegram_id]);
 
+  // Check for a new block while an already signed-in account is open.
+  useEffect(()=>{
+    if(authState!=='ready')return;
+    let active=true;
+    const check=async()=>{
+      try{
+        const gate=await apiRequest<{status:string;blocked:boolean;title:string;message:string}>('/account/access',{cache:'no-store'});
+        if(active&&gate.blocked){setBlockNotice({title:gate.title,message:gate.message});setAuthState('blocked');}
+      }catch{/* Existing signed API guards deny blocked requests even before refresh. */}
+    };
+    const timer=window.setInterval(()=>void check(),15000);
+    const onFocus=()=>{void check();};
+    window.addEventListener('focus',onFocus);
+    return()=>{active=false;window.clearInterval(timer);window.removeEventListener('focus',onFocus);};
+  },[authState]);
+  const refreshBlocked=async()=>{
+    if(checkingAccess)return;
+    setCheckingAccess(true);
+    try{
+      const gate=await apiRequest<{status:string;blocked:boolean;title:string;message:string}>('/account/access',{cache:'no-store'});
+      if(gate.blocked)setBlockNotice({title:gate.title,message:gate.message});
+      else if(gate.status==='active')setStartupAttempt(value=>value+1);
+    }catch{/* Retain the blocked screen; never fall through to private tabs. */}
+    finally{setCheckingAccess(false);}
+  };
+
   // The notice takes precedence over normal authentication and Mini App pages.
   // Verified administrators retain the dashboard to turn this mode off.
   if(maintenance?.enabled && !verifiedAdmin)return <MaintenanceScreen settings={maintenance} onRefresh={refreshMaintenance}/>;
   if(!maintenanceChecked || authState === 'loading') return <Loader />;
+  if(authState==='blocked')return <BlockedAccount notice={blockNotice} onRefresh={()=>void refreshBlocked()} checking={checkingAccess}/>;
   if (authState === 'error' || authState === 'data-error' || authState === 'connection-error') {
     return <div role="alert" className="min-h-[100dvh] flex items-center justify-center bg-bgMain p-6 text-center text-sm text-textSecondary">
       <div className="max-w-xs rounded-card border border-accentGold/25 bg-bgCard p-5">
