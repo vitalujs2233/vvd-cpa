@@ -52,6 +52,9 @@ export function preloadStartupData(id:number,partnerCode='',role='user'):Promise
     };
     // Warm every main tab before the app is displayed, in bounded batches.
     // Chat and deeper screens remain background-only to avoid API overload.
+    // Start the community feed alongside main-tab requests, rather than after
+    // the home screen is released. This remains optional for login.
+    void fetchOne(requests[6]).catch(()=>{});
     const primary=requests.slice(0,6);
     const primaryResults=await Promise.allSettled(primary.map(fetchOne));
     if(primaryResults.slice(0,4).some(result=>result.status==='rejected'))
@@ -64,11 +67,11 @@ export function preloadStartupData(id:number,partnerCode='',role='user'):Promise
     // already support snapshots and retry; a slow stats endpoint must not keep
     // the entire Mini App behind the startup loader.
     void Promise.allSettled(requests.slice(7).map(fetchOne));
-    void Promise.allSettled(requests.slice(6,7).map(fetchOne));
-    // Defer the broader warmup so the initial screen gets the browser's attention.
+    // Begin deeper-route prefetch soon after the first paint instead of
+    // withholding it for 700 ms on every login.
     window.setTimeout(()=>{
       if(currentSignedSession()===session)void preloadPages(id,partnerCode,role).catch(()=>{});
-    },700);
+    },80);
   })().finally(()=>{if(pending?.promise===promise)pending=undefined;});
   pending={session,id,promise};
   return promise;
