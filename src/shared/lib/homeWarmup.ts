@@ -42,14 +42,10 @@ export async function warmHomeContent():Promise<void>{
   // All published home blocks are immediately available. Refresh in the
   // background instead of gating every later launch on three API calls.
   warmImages(cached);
-  void refresh.then(results=>warmImages(results.filter(
-   (r):r is PromiseFulfilledResult<{key:string;data:Feed}>=>r.status==='fulfilled'
-  ).map(r=>r.value)));
+  void refresh.then(results=>warmImages(results.flatMap(r=>r.status==='fulfilled'?[r.value]:[])));
   return;
  }
  const results=await refresh;
- warmImages(results.filter(
-  (r):r is PromiseFulfilledResult<{key:string;data:Feed}>=>r.status==='fulfilled'
- ).map(r=>r.value));
+ warmImages(results.flatMap(r=>r.status==='fulfilled'?[r.value]:[]));
 }
 export const cachedHomeFeed=<T>(key:string):T|undefined=>readSnapshot<T>(key);
