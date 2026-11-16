@@ -5,7 +5,7 @@ import {currentSignedSession} from './browserSession';
 // Limit parallel reads: warming pages must not flood the database connection pool.
 async function parallel<T>(items:T[],fn:(item:T)=>Promise<void>) {
   let next=0;
-  await Promise.all(Array.from({length:Math.min(4,items.length)},async()=>{
+  await Promise.all(Array.from({length:Math.min(2,items.length)},async()=>{
     while(next<items.length)await fn(items[next++]);
   }));
 }
@@ -43,15 +43,14 @@ export async function preloadPages(id:number,partnerCode:string,role:string) {
   const models=readSnapshot<any>('api:/tools-market/ai')?.models||[];
   const modelPaths=models.flatMap((m:any)=>['/tools-market/ai/'+m.id,...['settings','photos','stats'].map(s=>'/ai-studio/models/'+m.id+'/'+s)]);
   await parallel(modelPaths,async(p:string)=>{await read(p);});
+  // Do not preload every customer's sensitive admin detail on every login.
+  // Those views fetch the signed, current record when the administrator opens
+  // them. Warming all users overwhelms the small API worker unnecessarily.
   if(admin){
-    const users=readSnapshot<any>('api:/admin/users')?.users||[];
-    const details=users.flatMap((u:any)=>[
-      '/statistics/'+u.telegram_id+'/countries',
-      ...(u.partner_code?['/admin/cpa/partners/'+encodeURIComponent(u.partner_code)+'/hold']:[])
-    ]);
     const networks=readSnapshot<any>('api:/cpa/admin/networks')?.items||[];
-    details.push(...networks.map((n:any)=>'/cpa/admin/networks/'+n.id+'/postback'));
-    await parallel(details,async(p:string)=>{await read(p);});
+    await parallel(networks.slice(0,4),async(n:any)=>{
+      await read('/cpa/admin/networks/'+n.id+'/postback');
+    });
   }
   await linksWarmup;
   if(failures.length)throw new Error('Не удалось подготовить историю выплат или каталог офферов. Повторите загрузку.');
