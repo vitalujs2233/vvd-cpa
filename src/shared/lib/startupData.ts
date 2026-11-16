@@ -50,32 +50,45 @@ export function preloadStartupData(id:number,partnerCode='',role='user'):Promise
       if(!request.valid(data)||currentSignedSession()!==session)throw new StartupDataError();
       saveSnapshot(request.key,request.select(data));
     };
-    // Only the data displayed on the first screen is on the critical path.
-    // Keep the signed balance request and published home feeds in parallel.
-    // A slow optional feed must never hold the entire Mini App on its loader.
-    const initial=Promise.allSettled([
-      fetchOne(requests[0]),
-      warmHomeContent()
-    ]);
+    // Begin the main tabs immediately, while showing the startup screen.
+    // Balance is mandatory: never render a fictitious zero or an empty dash.
+    // Other tabs can use their validated public snapshots if Render is slow.
+    const primary=requests.slice(0,6);
+    const mainTasks=primary.map(fetchOne);
+    const homeTask=warmHomeContent();
+    try {
+      await mainTasks[0];
+    } catch {
+      throw new StartupDataError('Не удалось загрузить настоящий баланс. Проверьте соединение и нажмите «Повторить».');
+    }
+    if(currentSignedSession()!==session)
+      throw new StartupDataError('Сессия изменилась. Откройте приложение заново.');
+
+    // Allow the main tab catalogues a short preparation window, but do not
+    // let optional feeds block launch indefinitely. Requests keep running
+    // and populate snapshots for the first navigation.
     await Promise.race([
-      initial,
-      new Promise<void>(resolve=>window.setTimeout(resolve,3500))
+      Promise.allSettled([...mainTasks.slice(1),homeTask]),
+      new Promise<void>(resolve=>window.setTimeout(resolve,1800))
     ]);
     if(currentSignedSession()!==session)
       throw new StartupDataError('Сессия изменилась. Откройте приложение заново.');
 
-    // Prepare everything else after the home is visible. The warmup remains
-    // session-scoped; financial figures still come from the server, not disk.
+    // Start analysis and community feeds in limited batches. Avoid sending
+    // all statistics and deep admin queries to the free Render worker at once.
+    const secondary=requests.slice(6);
+    const runSecondary=async()=>{
+      for(let i=0;i<secondary.length;i+=2) {
+        if(currentSignedSession()!==session)return;
+        await Promise.allSettled(secondary.slice(i,i+2).map(fetchOne));
+      }
+    };
+    void runSecondary();
+    // Deeper, less common routes are a separate lower-priority warmup.
     window.setTimeout(()=>{
-      if(currentSignedSession()!==session)return;
-      void Promise.allSettled(requests.slice(1).map(fetchOne));
-      // Deep routes are useful on the next tap, but should not compete with
-      // the initial signed-in page for Render's limited request capacity.
-      window.setTimeout(()=>{
-        if(currentSignedSession()===session)
-          void preloadPages(id,partnerCode,role).catch(()=>{});
-      },700);
-    },200);
+      if(currentSignedSession()===session)
+        void preloadPages(id,partnerCode,role).catch(()=>{});
+    },2000);
   })().finally(()=>{if(pending?.promise===promise)pending=undefined;});
   pending={session,id,promise};
   return promise;
