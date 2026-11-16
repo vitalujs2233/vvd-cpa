@@ -50,28 +50,32 @@ export function preloadStartupData(id:number,partnerCode='',role='user'):Promise
       if(!request.valid(data)||currentSignedSession()!==session)throw new StartupDataError();
       saveSnapshot(request.key,request.select(data));
     };
-    // Warm every main tab before the app is displayed, in bounded batches.
-    // Chat and deeper screens remain background-only to avoid API overload.
-    // Start the community feed alongside main-tab requests, rather than after
-    // the home screen is released. This remains optional for login.
-    void fetchOne(requests[6]).catch(()=>{});
-    const primary=requests.slice(0,6);
-    const primaryResults=await Promise.allSettled(primary.map(fetchOne));
-    if(primaryResults.slice(0,4).some(result=>result.status==='rejected'))
-      throw new StartupDataError('Не удалось загрузить основные данные. Проверьте соединение и нажмите «Повторить».');
-    if(currentSignedSession()!==session)throw new StartupDataError('Сессия изменилась. Откройте приложение заново.');
-    // Keep the visible home complete, but never block it on optional image decoding.
-    await warmHomeContent();
-    if(currentSignedSession()!==session)throw new StartupDataError('Сессия изменилась. Откройте приложение заново.');
-    // Statistics and deeper screens are refreshed after launch. Their own screens
-    // already support snapshots and retry; a slow stats endpoint must not keep
-    // the entire Mini App behind the startup loader.
-    void Promise.allSettled(requests.slice(7).map(fetchOne));
-    // Begin deeper-route prefetch soon after the first paint instead of
-    // withholding it for 700 ms on every login.
+    // Only the data displayed on the first screen is on the critical path.
+    // Keep the signed balance request and published home feeds in parallel.
+    // A slow optional feed must never hold the entire Mini App on its loader.
+    const initial=Promise.allSettled([
+      fetchOne(requests[0]),
+      warmHomeContent()
+    ]);
+    await Promise.race([
+      initial,
+      new Promise<void>(resolve=>window.setTimeout(resolve,3500))
+    ]);
+    if(currentSignedSession()!==session)
+      throw new StartupDataError('Сессия изменилась. Откройте приложение заново.');
+
+    // Prepare everything else after the home is visible. The warmup remains
+    // session-scoped; financial figures still come from the server, not disk.
     window.setTimeout(()=>{
-      if(currentSignedSession()===session)void preloadPages(id,partnerCode,role).catch(()=>{});
-    },80);
+      if(currentSignedSession()!==session)return;
+      void Promise.allSettled(requests.slice(1).map(fetchOne));
+      // Deep routes are useful on the next tap, but should not compete with
+      // the initial signed-in page for Render's limited request capacity.
+      window.setTimeout(()=>{
+        if(currentSignedSession()===session)
+          void preloadPages(id,partnerCode,role).catch(()=>{});
+      },700);
+    },200);
   })().finally(()=>{if(pending?.promise===promise)pending=undefined;});
   pending={session,id,promise};
   return promise;
