@@ -205,7 +205,8 @@ body::before {
 }
 
 .animate-fade-in {
-  animation: premiumFadeIn 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  /* Navigation content should be visible on the very first painted frame. */
+  animation: none;
 }
 
 .animate-slide-up {
