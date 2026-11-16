@@ -307,7 +307,7 @@ useEffect(() => {
   let active=true;
   let loading=false;
   const loadMessages = async () => {
-    if(loading || sendingRef.current) return;
+    if(document.hidden || loading || sendingRef.current) return;
     loading=true;
     const generation=sendGeneration.current;
     try {
@@ -321,7 +321,8 @@ useEffect(() => {
 
       const loadedMessages = normalizeChatMessages(data);
 
-      setMessages(loadedMessages);
+      // Avoid rebuilding the full chat tree when polling returns identical data.
+      setMessages(previous=>JSON.stringify(previous)===JSON.stringify(loadedMessages)?previous:loadedMessages);
     } catch (error) {
       console.error('Ошибка загрузки сообщений:', error);
     } finally { loading=false; }
@@ -331,9 +332,10 @@ useEffect(() => {
 
   const interval = setInterval(() => {
     void loadMessages();
-  }, 1000);
-
-  return () => {active=false;clearInterval(interval);};
+  }, 4000);
+  const onVisible=()=>{if(!document.hidden)void loadMessages();};
+  document.addEventListener('visibilitychange',onVisible);
+  return () => {active=false;clearInterval(interval);document.removeEventListener('visibilitychange',onVisible);};
 }, []);
 
 useLayoutEffect(() => {
