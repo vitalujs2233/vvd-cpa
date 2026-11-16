@@ -62,6 +62,11 @@ jobs:
         with:
           path: './dist'
 
+      # GitHub's artifact listing may lag the successful upload on new runs.
+      # Give Pages a short consistency window before it resolves the artifact.
+      - name: Wait for uploaded Pages artifact metadata
+        run: sleep 15
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
