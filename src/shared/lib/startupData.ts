@@ -54,13 +54,12 @@ export function preloadStartupData(id:number,partnerCode='',role='user'):Promise
     // Balance is mandatory: never render a fictitious zero or an empty dash.
     // Other tabs can use their validated public snapshots if Render is slow.
     const primary=requests.slice(0,6);
-    const mainTasks=primary.map(fetchOne);
-    const homeTask=warmHomeContent();
-    try {
-      await mainTasks[0];
-    } catch {
+    // Handle every promise from creation to avoid unhandled errors when
+    // optional requests finish before the balance response.
+    const mainTasks=primary.map(request=>fetchOne(request).then(()=>true,()=>false));
+    const homeTask=warmHomeContent().then(()=>true,()=>false);
+    if(!await mainTasks[0])
       throw new StartupDataError('Не удалось загрузить настоящий баланс. Проверьте соединение и нажмите «Повторить».');
-    }
     if(currentSignedSession()!==session)
       throw new StartupDataError('Сессия изменилась. Откройте приложение заново.');
 
