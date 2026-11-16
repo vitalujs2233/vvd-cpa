@@ -66,8 +66,9 @@ export function preloadStartupData(id:number,partnerCode='',role='user'):Promise
     // Allow the main tab catalogues a short preparation window, but do not
     // let optional feeds block launch indefinitely. Requests keep running
     // and populate snapshots for the first navigation.
+    const mainSettled=Promise.allSettled([...mainTasks.slice(1),homeTask]);
     await Promise.race([
-      Promise.allSettled([...mainTasks.slice(1),homeTask]),
+      mainSettled,
       new Promise<void>(resolve=>window.setTimeout(resolve,1800))
     ]);
     if(currentSignedSession()!==session)
@@ -82,12 +83,18 @@ export function preloadStartupData(id:number,partnerCode='',role='user'):Promise
         await Promise.allSettled(secondary.slice(i,i+2).map(fetchOne));
       }
     };
-    void runSecondary();
-    // Deeper, less common routes are a separate lower-priority warmup.
-    window.setTimeout(()=>{
-      if(currentSignedSession()===session)
-        void preloadPages(id,partnerCode,role).catch(()=>{});
-    },2000);
+    // Wait for the first batch to finish before spending server capacity on
+    // statistics or individual cards. Otherwise the first navigation competes
+    // with a flood of speculative network requests.
+    void mainSettled.then(async()=>{
+      if(currentSignedSession()!==session)return;
+      await runSecondary();
+      if(currentSignedSession()!==session)return;
+      window.setTimeout(()=>{
+        if(currentSignedSession()===session)
+          void preloadPages(id,partnerCode,role).catch(()=>{});
+      },500);
+    });
   })().finally(()=>{if(pending?.promise===promise)pending=undefined;});
   pending={session,id,promise};
   return promise;
