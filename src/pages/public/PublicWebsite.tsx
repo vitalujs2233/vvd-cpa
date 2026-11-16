@@ -16,7 +16,7 @@ const BASE_URL='https://vitalujs2233.github.io/vvd-cpa/';
 const INITIAL:DirectoryData={version:0,categories:[],services:[]};
 // Public directory only: keep a short-lived copy to avoid blank cards when switching views.
 const DIRECTORY_CACHE_KEY='vvd_public_directory_v1';
-const DIRECTORY_CACHE_TTL=60*1000;
+const DIRECTORY_CACHE_TTL=24*60*60*1000;
 let directoryMemory:{data:DirectoryData;time:number}|null=null;
 function validDirectory(data:DirectoryData):boolean{
   return Boolean(data&&Array.isArray(data.categories)&&Array.isArray(data.services));
@@ -24,7 +24,7 @@ function validDirectory(data:DirectoryData):boolean{
 function readPublicDirectoryCache():DirectoryData|null{
   if(directoryMemory&&Date.now()-directoryMemory.time<DIRECTORY_CACHE_TTL)return directoryMemory.data;
   try{
-    const raw=sessionStorage.getItem(DIRECTORY_CACHE_KEY);
+    const raw=localStorage.getItem(DIRECTORY_CACHE_KEY);
     if(!raw)return null;
     const stored=JSON.parse(raw) as {data:DirectoryData;time:number};
     if(typeof stored.time!=='number'||Date.now()-stored.time>=DIRECTORY_CACHE_TTL||!validDirectory(stored.data))return null;
@@ -34,7 +34,7 @@ function readPublicDirectoryCache():DirectoryData|null{
 }
 function savePublicDirectoryCache(data:DirectoryData):void{
   directoryMemory={data,time:Date.now()};
-  try{sessionStorage.setItem(DIRECTORY_CACHE_KEY,JSON.stringify(directoryMemory))}catch{/* Private browsing may disable storage. */}
+  try{localStorage.setItem(DIRECTORY_CACHE_KEY,JSON.stringify(directoryMemory))}catch{/* Private browsing may disable storage. */}
 }
 const allowedLink=(url:string)=>{
   try {return new URL(url).protocol==='https:'?url:'';} catch {return '';}
