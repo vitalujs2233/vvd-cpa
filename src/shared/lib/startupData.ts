@@ -83,12 +83,10 @@ export function preloadStartupData(id:number,partnerCode='',role='user'):Promise
         await Promise.allSettled(secondary.slice(i,i+2).map(fetchOne));
       }
     };
-    // Wait for the first batch to finish before spending server capacity on
-    // statistics or individual cards. Otherwise the first navigation competes
-    // with a flood of speculative network requests.
-    void mainSettled.then(async()=>{
-      if(currentSignedSession()!==session)return;
-      await runSecondary();
+    // Give analytics and Dvizh a head start as soon as the app is usable.
+    // Keep concurrency at two and defer deeper card prefetch until this
+    // batch finishes, preventing a simultaneous request flood.
+    void runSecondary().then(()=>{
       if(currentSignedSession()!==session)return;
       window.setTimeout(()=>{
         if(currentSignedSession()===session)
