@@ -219,12 +219,10 @@ const publishedDirectory = (refresh=false):Promise<DirectoryData> => {
   return task;
 };
 
-// A persisted catalog can be days old. Only render a recent snapshot immediately;
-// otherwise let the UI show its loading state until the live catalog arrives.
-const recentDirectory = ():DirectoryData|null => {
-  const saved=cachedDirectory();
-  return saved && memory && Date.now()-memory.at<REFRESH_INTERVAL ? saved : null;
-};
+// Show the last published directory immediately instead of a blank page.
+// The screens always request the latest version in the background; the cache
+// is bounded by MAX_CACHE_AGE and never contains private user information.
+const recentDirectory = ():DirectoryData|null => cachedDirectory();
 
 export const directoryApi = {
   snapshot:cachedDirectory,
