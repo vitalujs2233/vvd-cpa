@@ -22,7 +22,7 @@ const fetchRead = async (input:string, init:RequestInit):Promise<Response> => {
   // request-identical GETs without custom abort signals can be coalesced.
   const coalesce=!init.signal&&!init.body;
   const signature=coalesce?JSON.stringify([
-    currentSignedSession(),input,init.credentials||'',init.cache||'',
+    currentSignedSession(),input,init.credentials||'',
     [...headers.entries()].sort(([a],[b])=>a.localeCompare(b))
   ]):'';
   if(coalesce){
@@ -35,7 +35,7 @@ const fetchRead = async (input:string, init:RequestInit):Promise<Response> => {
     if(init.signal?.aborted)cancel();
     init.signal?.addEventListener('abort',cancel,{once:true});
     const timer=setTimeout(cancel,30000);
-    try{return await fetch(input,{...init,signal:controller.signal});}
+    try{return await fetch(input,{...init,cache:'no-store',signal:controller.signal});}
     finally {clearTimeout(timer);init.signal?.removeEventListener('abort',cancel);}
   })();
   if(!coalesce)return task;
@@ -75,7 +75,7 @@ export const apiRequest = <T>(endpoint: string, options: RequestInit = {}): Prom
 };
 const performApiRequest = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
   const headers = new Headers(options.headers);
-  if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
+  if (!headers.has('Content-Type') && options.body!==undefined && !(options.body instanceof FormData)) {
     headers.set('Content-Type','application/json');
   }
   // Auth request carries initData in its body. Other owner endpoints get the signed header.
