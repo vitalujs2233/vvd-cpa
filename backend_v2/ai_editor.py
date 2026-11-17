@@ -6,6 +6,9 @@ human action, and the shared AI provider key is kept on the server.
 import asyncio
 import html
 import json
+import ipaddress
+import socket
+from html.parser import HTMLParser
 import threading
 import logging
 import re
@@ -13,6 +16,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Literal, Optional
 from urllib.parse import urlsplit
+
+import aiohttp
 
 from fastapi import APIRouter, Header, HTTPException, Query
 from fastapi.responses import Response
@@ -29,6 +34,131 @@ BASE = "https://vvd-cpa-v2.onrender.com"
 RUN_INTERVAL_HOURS = 56  # Approximately three proposals per week.
 RETRY_HOURS = 8
 MAX_QUEUE = 50
+
+
+# This is a server-side reader for a single explicitly supplied PUBLIC article.
+# Never allow Telegram users or AI prompts to access local or private services.
+class _PublicOnlyResolver(aiohttp.abc.AbstractResolver):
+    async def resolve(self,host,port=0,family=socket.AF_INET):
+        loop=asyncio.get_running_loop()
+        try:
+            addresses=await asyncio.wait_for(
+                loop.getaddrinfo(host,port,type=socket.SOCK_STREAM),timeout=4)
+        except (OSError,asyncio.TimeoutError):
+            raise HTTPException(422,"Не удалось определить адрес сайта")
+        result=[]
+        for af,_,_,_,sockaddr in addresses:
+            ip=sockaddr[0]
+            if not ipaddress.ip_address(ip).is_global:
+                raise HTTPException(422,"Доступ к закрытому адресу запрещён")
+            result.append({"hostname":host,"host":ip,"port":port,
+                           "family":af,"proto":socket.IPPROTO_TCP,"flags":0})
+        if not result:
+            raise HTTPException(422,"Не удалось определить публичный IP сайта")
+        return result
+
+    async def close(self):
+        pass
+
+
+class _ArticleText(HTMLParser):
+    SKIP={"script","style","noscript","svg","nav","footer","header","form","aside"}
+    STRUCTURE={"p","h1","h2","h3","h4","li","blockquote","figcaption"}
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.skip=0
+        self.parts=[]
+        self.current=[]
+        self.title=""
+        self.in_title=False
+
+    def handle_starttag(self,tag,attrs):
+        if tag in self.SKIP:
+            self.skip+=1
+        elif tag=="title":
+            self.in_title=True
+        elif tag in self.STRUCTURE and not self.skip:
+            self.flush()
+
+    def handle_endtag(self,tag):
+        if tag in self.SKIP and self.skip:
+            self.skip-=1
+        elif tag=="title":
+            self.in_title=False
+        elif tag in self.STRUCTURE and not self.skip:
+            self.flush()
+
+    def handle_data(self,data):
+        if self.in_title:
+            self.title+=data
+        if not self.skip and not self.in_title:
+            self.current.append(data)
+
+    def flush(self):
+        content=" ".join(" ".join(self.current).split())
+        if len(content)>30:
+            self.parts.append(content)
+        self.current=[]
+
+
+def _validate_source_url(url:str):
+    from urllib.parse import urlsplit
+    value=url.strip()
+    try:
+        parts=urlsplit(value)
+        if (parts.scheme!="https" or not parts.hostname or parts.username or
+                parts.password or parts.port not in (None,443) or
+                len(value)>2048 or len(parts.hostname)>253 or
+                not parts.hostname.isascii() or not "." in parts.hostname):
+            raise ValueError("invalid url")
+    except ValueError:
+        raise HTTPException(422,"Укажите публичную HTTPS-ссылку на статью")
+    return value
+
+
+async def _source_article(url:str):
+    url=_validate_source_url(url)
+    resolver=_PublicOnlyResolver()
+    connector=aiohttp.TCPConnector(resolver=resolver,use_dns_cache=False,
+                                   limit=1,ssl=True)
+    timeout=aiohttp.ClientTimeout(total=14,connect=6,sock_read=8)
+    try:
+        async with aiohttp.ClientSession(connector=connector,timeout=timeout,
+                                         trust_env=False) as client:
+            async with client.get(url,allow_redirects=False,
+                                  headers={"User-Agent":"VVD-CPA-Editorial/1.0",
+                                           "Accept":"text/html"}) as response:
+                if response.status in (301,302,303,307,308):
+                    raise HTTPException(422,"Сайт перенаправляет запрос. Вставьте конечную HTTPS-ссылку")
+                if response.status!=200:
+                    raise HTTPException(422,"Сайт не разрешил прочитать статью")
+                content_type=response.headers.get("Content-Type","").lower()
+                if "text/html" not in content_type:
+                    raise HTTPException(422,"По ссылке должен быть доступен HTML-текст статьи")
+                chunks=[]
+                total=0
+                async for chunk in response.content.iter_chunked(16384):
+                    total+=len(chunk)
+                    if total>500_000:
+                        raise HTTPException(422,"Страница слишком большая для автоматического чтения")
+                    chunks.append(chunk)
+                charset=response.charset or "utf-8"
+                try:
+                    page=b"".join(chunks).decode(charset,errors="replace")
+                except (LookupError,ValueError):
+                    page=b"".join(chunks).decode("utf-8",errors="replace")
+    except HTTPException:
+        raise
+    except (aiohttp.ClientError,asyncio.TimeoutError,OSError):
+        raise HTTPException(422,"Не удалось открыть страницу. Проверьте адрес и доступность сайта")
+    parser=_ArticleText()
+    parser.feed(page)
+    parser.flush()
+    extracted="\n".join(parser.parts)
+    if len(extracted)<450:
+        raise HTTPException(422,"Не удалось извлечь достаточно текста. Возможно, статья закрыта или загружается скриптами")
+    return {"url":url,"title":" ".join(parser.title.split())[:180],
+            "text":extracted[:10500]}
 
 
 def admin_auth(raw: Optional[str]):
@@ -221,6 +351,7 @@ class RunInput(BaseModel):
     source_service_id: str = Field(default="", max_length=64)
     category_id: str = Field(default="", max_length=64)
     topic: str = Field(default="", max_length=300)
+    source_url: str = Field(default="", max_length=2048)
 
 
 def _claim(*, automated:bool):
@@ -305,7 +436,7 @@ def _normalize(raw,kind,source=None):
             "tags":tags,"blocks":blocks}
 
 
-def _prompt(kind,source,catalog,category=None,existing_categories=None,topic=""):
+def _prompt(kind,source,catalog,category=None,existing_categories=None,topic="",source_article=None):
     categories={c["id"]:c["name"] for c in catalog["categories"]}
     if kind=="category":
         factual={"existing_categories":[{"name":c["name"],"description":c.get("description","")}
@@ -332,6 +463,17 @@ def _prompt(kind,source,catalog,category=None,existing_categories=None,topic="")
                     for s in catalog["services"][:12]]}
         if topic:
             factual["requested_topic"]=topic
+        if source_article:
+            factual["linked_article"]={"title":source_article["title"],"text":source_article["text"]}
+            task_source=(" Use the linked article only as reference material for its "
+                         "verifiable facts and main ideas. Create an independently written "
+                         "Russian article with a new structure, original explanations and "
+                         "wording; do not closely paraphrase its text or copy its distinctive "
+                         "examples, quotes or phrasing. Do not invent facts absent from it. "
+                         "The source link will be attached by the server; never fabricate "
+                         "source citations or imply independent verification.")
+        else:
+            task_source=""
         if category:
             factual["target_category"]={"name":category["name"],
                                         "description":category.get("description","")}
@@ -350,7 +492,8 @@ def _prompt(kind,source,catalog,category=None,existing_categories=None,topic="")
               "Return JSON title,excerpt,seo_title,seo_description,tags,blocks "
               "where each block has type and text. No imaginary earning results, "
               "unverified discounts, dates, claims of research or invented case studies. "
-              "Do not add URLs. No plagiarism. No gambling, adult, tobacco or illicit offers.")
+              "Do not add URLs. No plagiarism. No gambling, adult, tobacco or illicit offers."
+              +task_source)
     return [
         {"role":"system","content":
          "You are a careful content editor for VVD CPA. Return a single JSON object. "
@@ -359,11 +502,11 @@ def _prompt(kind,source,catalog,category=None,existing_categories=None,topic="")
          "Only use explicitly supplied facts. Do not claim to have browsed websites. "
          +task},
         {"role":"user","content":"Reference catalog data (facts only): "+
-         json.dumps(factual,ensure_ascii=False)[:8500]}
+         json.dumps(factual,ensure_ascii=False)[:15500]}
     ]
 
 
-async def _generate(kind:str,source_id:str="",category_id:str="",topic:str=""):
+async def _generate(kind:str,source_id:str="",category_id:str="",topic:str="",source_url:str=""):
     from editorial import ensure_schema as ensure_editorial
     catalog = _catalog()
     category = _selected_category(category_id) if kind=="article" else None
@@ -383,12 +526,17 @@ async def _generate(kind:str,source_id:str="",category_id:str="",topic:str=""):
             raise HTTPException(422,"В каталоге нет сервисов без ожидающего AI-черновика")
     if kind=="article" and not category and not source and sources:
         source = sources[datetime.now(timezone.utc).timetuple().tm_yday % len(sources)]
+    source_article=await _source_article(source_url) if source_url else None
     prompt = _prompt(kind,source,catalog,category,
-                     _editorial_categories() if kind=="category" else None,topic)
+                     _editorial_categories() if kind=="category" else None,topic,source_article)
     generated,usage = await completion(prompt,max_tokens=2800,structured=True)
     payload = _normalize(generated,kind,source)
     if kind=="article":
         ensure_editorial()
+        if source_article:
+            payload["blocks"].append({"type":"link","text":"Источник информации",
+                                      "url":source_article["url"],"alt":""})
+            payload["source_url"]=source_article["url"]
     ident="ai-"+uuid.uuid4().hex[:20]
     if kind=="article":
         payload["category_id"]=category_id
@@ -408,13 +556,13 @@ async def _generate(kind:str,source_id:str="",category_id:str="",topic:str=""):
     return {"id":ident,"kind":kind,"usage":usage}
 
 
-async def _run(kind:str,source_id:str="",category_id:str="",topic:str="",automated:bool=False):
+async def _run(kind:str,source_id:str="",category_id:str="",topic:str="",automated:bool=False,source_url:str=""):
     if not _claim(automated=automated):
         return None
     success=False
     error=""
     try:
-        result=await _generate(kind,source_id,category_id,topic)
+        result=await _generate(kind,source_id,category_id,topic,source_url)
         success=True
         return result
     except HTTPException as exc:
@@ -437,7 +585,12 @@ async def run_manually(payload:RunInput,x_telegram_init_data:Optional[str]=Heade
         raise HTTPException(422,"Задание по теме доступно только для статей")
     if payload.kind=="article" and not payload.category_id:
         raise HTTPException(422,"Выберите категорию перед созданием статьи")
-    return await _run(payload.kind,payload.source_service_id,payload.category_id,payload.topic.strip())
+    if payload.source_url and payload.kind!="article":
+        raise HTTPException(422,"Ссылка на источник доступна только для статей")
+    if payload.source_url:
+        _validate_source_url(payload.source_url)
+    return await _run(payload.kind,payload.source_service_id,payload.category_id,
+                      payload.topic.strip(),source_url=payload.source_url.strip())
 
 
 def _automatic_due_kind():
