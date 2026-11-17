@@ -50,23 +50,22 @@ export function preloadStartupData(id:number,partnerCode='',role='user'):Promise
       if(!request.valid(data)||currentSignedSession()!==session)throw new StartupDataError();
       saveSnapshot(request.key,request.select(data));
     };
-    // Begin the main tabs immediately, while showing the startup screen.
-    // Balance is mandatory: never render a fictitious zero or an empty dash.
-    // Other tabs can use their validated public snapshots if Render is slow.
+    // Prepare the summary as soon as the user signs in. Previously the
+    // statistics requests were queued after chat, so the first visit showed
+    // empty cards even when the other tabs were already warm.
+    // All values still come from authenticated, uncached API responses.
     const primary=requests.slice(0,6);
-    // Handle every promise from creation to avoid unhandled errors when
-    // optional requests finish before the balance response.
     const mainTasks=primary.map(request=>fetchOne(request).then(()=>true,()=>false));
+    const summaryTask=fetchOne(requests[7]).then(()=>true,()=>false);
     const homeTask=warmHomeContent().then(()=>true,()=>false);
     if(!await mainTasks[0])
       throw new StartupDataError('Не удалось загрузить настоящий баланс. Проверьте соединение и нажмите «Повторить».');
     if(currentSignedSession()!==session)
       throw new StartupDataError('Сессия изменилась. Откройте приложение заново.');
 
-    // Allow the main tab catalogues a short preparation window, but do not
-    // let optional feeds block launch indefinitely. Requests keep running
-    // and populate snapshots for the first navigation.
-    const mainSettled=Promise.allSettled([...mainTasks.slice(1),homeTask]);
+    // Use a short preparation window for today's summary and main tabs.
+    // Do not turn an optional statistics outage into a blocked login.
+    const mainSettled=Promise.allSettled([...mainTasks.slice(1),homeTask,summaryTask]);
     await Promise.race([
       mainSettled,
       new Promise<void>(resolve=>window.setTimeout(resolve,1800))
@@ -74,18 +73,15 @@ export function preloadStartupData(id:number,partnerCode='',role='user'):Promise
     if(currentSignedSession()!==session)
       throw new StartupDataError('Сессия изменилась. Откройте приложение заново.');
 
-    // Start analysis and community feeds in limited batches. Avoid sending
-    // all statistics and deep admin queries to the free Render worker at once.
-    const secondary=requests.slice(6);
+    // The other analysis cards are next in line, with bounded concurrency.
+    // Avoid duplicate summary fetch; never flood Render with deep routes.
+    const secondary=[...requests.slice(8),requests[6]];
     const runSecondary=async()=>{
-      for(let i=0;i<secondary.length;i+=2) {
+      for(let i=0;i<secondary.length;i+=2){
         if(currentSignedSession()!==session)return;
         await Promise.allSettled(secondary.slice(i,i+2).map(fetchOne));
       }
     };
-    // Give analytics and Dvizh a head start as soon as the app is usable.
-    // Keep concurrency at two and defer deeper card prefetch until this
-    // batch finishes, preventing a simultaneous request flood.
     void runSecondary().then(()=>{
       if(currentSignedSession()!==session)return;
       window.setTimeout(()=>{
