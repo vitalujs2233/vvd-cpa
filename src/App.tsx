@@ -98,6 +98,26 @@ const RouteLoading=()=>(
   </div>
 );
 
+class RouteErrorBoundary extends React.Component<
+  {children:React.ReactNode},
+  {failed:boolean}
+>{
+  state={failed:false};
+  static getDerivedStateFromError(){return {failed:true};}
+  componentDidCatch(error:unknown){
+    console.error('VVD CPA: error opening screen',error);
+  }
+  render(){
+    if(!this.state.failed)return this.props.children;
+    return <div role="alert" className="mx-4 my-6 rounded-xl border border-accentGold/30 bg-bgCard p-5 space-y-3">
+      <h2 className="font-bold text-accentBrightGold">Раздел не удалось открыть</h2>
+      <p className="text-sm text-textSecondary">Проверь соединение и попробуй загрузить текущую версию приложения.</p>
+      <button type="button" className="rounded-lg bg-accentGold px-4 py-2 font-semibold text-black"
+        onClick={()=>window.location.reload()}>Перезагрузить раздел</button>
+    </div>;
+  }
+}
+
 // Единый фон всех обычных экранов, кроме театральной сцены IQ Play.
 const AppBackdrop = () => {
   const location = useLocation();
@@ -184,7 +204,7 @@ const AppLayout = ({webMode=false}:{webMode?:boolean}) => {
             {tabScreens[path]}
           </div>
         ))}
-        {!activeTab&&<React.Suspense fallback={<RouteLoading/>}><Outlet /></React.Suspense>}
+        {!activeTab&&<RouteErrorBoundary key={location.pathname}><React.Suspense fallback={<RouteLoading/>}><Outlet /></React.Suspense></RouteErrorBoundary>}
       </div>
 
       {/* Нижняя навигация: «Инструменты» вместо «Движ» */}
@@ -400,6 +420,7 @@ const MiniApp = ({webUser}:{webUser?:AuthResponse['user']}) => {
 >
       <MemoryRouter>
         <AppBackdrop />
+        <RouteErrorBoundary>
         <React.Suspense fallback={<Loader />}>
         <Routes>
           {/* Обертка Лейаута */}
@@ -445,6 +466,7 @@ const MiniApp = ({webUser}:{webUser?:AuthResponse['user']}) => {
           <Route path="/iq-play" element={<IQPlay />} />
         </Routes>
         </React.Suspense>
+        </RouteErrorBoundary>
       </MemoryRouter>
     </div>
   );
