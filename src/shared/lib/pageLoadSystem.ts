@@ -72,5 +72,10 @@ export function warmTask<T>(key:string,task:()=>Promise<T>,priority=10):Promise<
 export function warmApiPage<T=unknown>(path:string,priority=10):Promise<T|undefined>{
   const cached=readApiSnapshot<T>(path);
   if(cached!==undefined)return Promise.resolve(cached);
-  return warmTask('api:'+path,()=>apiRequest<T>(path),priority);
+  return warmTask('api:'+path,()=>{
+    // A visible page may finish the same read while this low-priority job
+    // is still queued. Re-check at execution time instead of fetching twice.
+    const ready=readApiSnapshot<T>(path);
+    return ready!==undefined?Promise.resolve(ready):apiRequest<T>(path);
+  },priority);
 }
