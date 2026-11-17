@@ -1,4 +1,4 @@
-import {apiRequest} from './api';
+import {warmApiPage} from './pageLoadSystem';
 import {readApiSnapshot,readSnapshot,saveSnapshot} from './viewSnapshot';
 import {currentSignedSession} from './browserSession';
 
@@ -13,8 +13,14 @@ export async function preloadPages(id:number,partnerCode:string,role:string) {
   const session=currentSignedSession();
   const failures:string[]=[];
   const read=async(path:string,required=false)=>{
-    try{const data=await apiRequest<any>(path);if(session!==currentSignedSession())throw new Error('Session changed');return data;}
-    catch {if(required)failures.push(path);return undefined;}
+    const priority=path.startsWith('/referral/')||path==='/info/published'?42:
+      path.startsWith('/tools-market/')||path.startsWith('/withdrawals/')?36:
+      path.startsWith('/admin/')?22:18;
+    try{
+      const data=await warmApiPage<any>(path,priority);
+      if(session!==currentSignedSession())throw new Error('Session changed');
+      return data;
+    }catch{if(required)failures.push(path);return undefined;}
   };
   const paths=[`/referral/${id}`,'/tools-market/wallet','/tools-market/catalog',
     '/tools-market/transactions','/tools-market/orders','/tools-market/ai','/ai-studio/my-smartlinks','/chat/banner','/info/published','/service-directory'];
