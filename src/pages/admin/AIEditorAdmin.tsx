@@ -127,10 +127,15 @@ export const AIEditorAdmin:React.FC<{
     }catch(e){setError('Не удалось загрузить фото: '+errText(e));}
     finally{setUploading(false);}
   };
-  const saveArticle=(draft:Draft)=>{
+  const saveArticle=async(draft:Draft)=>{
     if(!articleEdit||busy||uploading)return;
-    void action(()=>api.editArticle(draft.id,articleEdit),'Правки сохранены в AI-черновике без публикации.');
-    setEditing(null);setArticleEdit(null);
+    setBusy(true);setError('');setNotice('');
+    try{
+      await api.editArticle(draft.id,articleEdit);
+      setNotice('Правки сохранены в AI-черновике без публикации.');
+      setEditing(null);setArticleEdit(null);update();
+    }catch(e){setError('Не удалось сохранить черновик: '+errText(e));}
+    finally{setBusy(false);}
   };
   const openService=(draft:Draft)=>{
     if(editing===draft.id){setEditing(null);return;}
