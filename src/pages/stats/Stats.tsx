@@ -62,6 +62,10 @@ export const Stats:React.FC=()=>{
     return p;
   },[period,dateFrom,dateTo,offerId]);
 
+  const filterKey=params.toString();
+  const [displayedFilter,setDisplayedFilter]=useState(
+    new URLSearchParams({period:'today',tz:userTimezone}).toString()
+  );
   const requestVersion=useRef(0);
   const load=useCallback(async (refresh=false)=>{
     const version=++requestVersion.current;
@@ -72,31 +76,49 @@ export const Stats:React.FC=()=>{
     const endpoints=statisticsSources(id,params);
     const keys=endpoints.map(statisticsSnapshotKey);
     const apply=[
-      (a:any)=>{setSummary(a?.summary||null);setDaily(a?.statistics||[]);},
-      (g:any)=>setCountries(g?.countries||[]),
-      (b:any)=>setOffers(b?.offers||[]),
-      (c:any)=>{setClicks(c?.clicks||[]);setOffset(c?.clicks?.length||0);setHasMore(c?.clicks?.length===10);}
+      (a:any)=>{setSummary(a.summary);setDaily(a.statistics);},
+      (g:any)=>setCountries(g.countries),
+      (b:any)=>setOffers(b.offers),
+      (c:any)=>{setClicks(c.clicks);setOffset(c.clicks.length);setHasMore(c.clicks.length===10);}
     ];
-    if(!refresh)keys.forEach((key,i)=>apply[i](readSnapshot(key)));
-    let failed=false;
-    await Promise.all(endpoints.map(async(url,i)=>{
-      try {
-        const response=await authorizedFetch(url,{cache:'no-store'});
-        if(!response.ok)throw new Error();
-        const data=await response.json();
-        if(!data.success)throw new Error();
-        if(requestVersion.current!==version)return;
-        saveSnapshot(keys[i],data);apply[i](data);
-      }catch {
-        failed=true;
-        if(requestVersion.current===version)setError('Часть данных не обновилась. Нажмите кнопку обновления.');
+    // Use a complete same-filter snapshot immediately if it exists. Never
+    // replace the previous period with null while awaiting a different one.
+    if(!refresh){
+      const cached=keys.map(key=>readSnapshot<any>(key));
+      if(cached.every(Boolean)){
+        cached.forEach((value,i)=>apply[i](value));
+        setDisplayedFilter(filterKey);
       }
-    }));
-    if(requestVersion.current===version){
-      setLoading(false);setRefreshing(false);
-      if(refresh&&!failed)triggerHaptic.success();
     }
-  },[params]);
+    const results=await Promise.allSettled(endpoints.map(async(url)=>{
+      const response=await authorizedFetch(url,{cache:'no-store'});
+      if(!response.ok)throw new Error('Ошибка ответа сервера');
+      const data=await response.json();
+      if(!data.success)throw new Error('Статистика недоступна');
+      return data;
+    }));
+    if(requestVersion.current!==version)return;
+    const successful=results.every(r=>r.status==='fulfilled');
+    if(successful){
+      const next=results.map(r=>(r as PromiseFulfilledResult<any>).value);
+      // Swap the whole filtered view together so cards, chart and geography
+      // never silently mix metrics from different selected periods.
+      next.forEach((value,i)=>{
+        saveSnapshot(keys[i],value);
+        apply[i](value);
+      });
+      setDisplayedFilter(filterKey);
+    } else {
+      // Still retain successful answers for subsequent visits, but avoid
+      // displaying a partially mixed date range.
+      results.forEach((r,i)=>{
+        if(r.status==='fulfilled')saveSnapshot(keys[i],r.value);
+      });
+      setError('Не все данные выбранного периода загрузились. Нажмите кнопку обновления.');
+    }
+    setLoading(false);setRefreshing(false);
+    if(refresh&&successful)triggerHaptic.success();
+  },[params,filterKey]);
 
   useEffect(()=>{void load();return()=>{requestVersion.current++;};},[load]);
 
@@ -166,6 +188,7 @@ export const Stats:React.FC=()=>{
       <option value="">Все офферы</option>
       {offers.filter(o=>o.id).map(o=><option key={o.id!} value={o.id!}>{o.label}</option>)}
     </select>
+    {displayedFilter!==filterKey&&<p role="status" className="text-xs text-accentBrightGold">Загружаем выбранный фильтр… Пока показаны данные предыдущего периода, не текущего выбора.</p>}
     {loading&&!summary&&<p role="status" className="text-xs text-textSecondary">Обновляем данные…</p>}
     {error&&<p role="alert" className="text-xs text-error">{error}</p>}
     <div className="grid grid-cols-2 gap-2" aria-label="Показатели">
