@@ -66,7 +66,8 @@ def ensure_schema():
                     lease_until TIMESTAMPTZ,
                     last_error VARCHAR(250) NOT NULL DEFAULT '',
                     article_category_id VARCHAR(64) NOT NULL DEFAULT '',
-                    suggest_categories BOOLEAN NOT NULL DEFAULT FALSE
+                    suggest_categories BOOLEAN NOT NULL DEFAULT FALSE,
+                    automatic_topics JSONB NOT NULL DEFAULT '[]'::jsonb
                 )
             """))
             db.execute(text("""
@@ -76,6 +77,10 @@ def ensure_schema():
             db.execute(text("""
                 ALTER TABLE public.vvd_ai_editor_settings
                   ADD COLUMN IF NOT EXISTS suggest_categories BOOLEAN NOT NULL DEFAULT FALSE
+            """))
+            db.execute(text("""
+                ALTER TABLE public.vvd_ai_editor_settings
+                  ADD COLUMN IF NOT EXISTS automatic_topics JSONB NOT NULL DEFAULT '[]'::jsonb
             """))
             db.execute(text("""
                 INSERT INTO public.vvd_ai_editor_settings(id,enabled)
@@ -115,7 +120,7 @@ def _setting():
     ensure_schema()
     with engine.connect() as db:
         row = db.execute(text("""
-            SELECT enabled,version,last_attempt,last_success,last_kind,lease_until,last_error,article_category_id,suggest_categories
+            SELECT enabled,version,last_attempt,last_success,last_kind,lease_until,last_error,article_category_id,suggest_categories,automatic_topics
             FROM public.vvd_ai_editor_settings WHERE id=1
         """)).mappings().one()
     return {k: v.isoformat() if isinstance(v, datetime) else v for k, v in row.items()}
@@ -175,6 +180,17 @@ class SettingsInput(BaseModel):
     version: int = Field(ge=1)
     article_category_id: str = Field(default="", max_length=64)
     suggest_categories: bool = False
+    automatic_topics: list[str] = Field(default_factory=list, max_length=25)
+
+    @field_validator('automatic_topics')
+    @classmethod
+    def valid_topics(cls, topics):
+        cleaned=[str(topic).strip() for topic in topics]
+        if any(not topic or len(topic)>180 for topic in cleaned):
+            raise ValueError('Каждая тема должна содержать от 1 до 180 символов')
+        if len(set(t.casefold() for t in cleaned))!=len(cleaned):
+            raise ValueError('Не повторяйте темы')
+        return cleaned
 
 
 @router.put("/admin")
@@ -186,16 +202,18 @@ def save_settings(payload:SettingsInput, x_telegram_init_data:Optional[str]=Head
         version = db.execute(text("""
             UPDATE public.vvd_ai_editor_settings
             SET enabled=:enabled,article_category_id=:category_id,
-                suggest_categories=:suggest_categories,version=version+1
+                suggest_categories=:suggest_categories,automatic_topics=CAST(:topics AS jsonb),version=version+1
             WHERE id=1 AND version=:version RETURNING version
         """), {"enabled":payload.enabled,"version":payload.version,
                 "category_id":payload.article_category_id,
-                "suggest_categories":payload.suggest_categories}).scalar_one_or_none()
+                "suggest_categories":payload.suggest_categories,
+                "topics":json.dumps(payload.automatic_topics,ensure_ascii=False)}).scalar_one_or_none()
     if version is None:
         raise HTTPException(409,"Настройки уже изменены, обновите панель")
     return {"enabled":payload.enabled,"version":version,
             "article_category_id":payload.article_category_id,
-            "suggest_categories":payload.suggest_categories}
+            "suggest_categories":payload.suggest_categories,
+            "automatic_topics":payload.automatic_topics}
 
 
 class RunInput(BaseModel):
@@ -469,7 +487,17 @@ async def auto_tick():
                         """)).scalar_one()
                     if suggestions<count//5:
                         kind="category"
-        await _run(kind,category_id=category_id if kind=="article" else "",automated=True)
+        selected_topic=""
+        if kind=="article" and current.get("automatic_topics"):
+            topics=current["automatic_topics"]
+            with engine.connect() as db:
+                count=db.execute(text("""
+                    SELECT count(*) FROM public.vvd_ai_editor_drafts
+                    WHERE kind='article' AND status IN ('pending','applied')
+                """)).scalar_one()
+            selected_topic=topics[count % len(topics)]
+        await _run(kind,category_id=category_id if kind=="article" else "",
+                   topic=selected_topic,automated=True)
     except HTTPException as exc:
         if exc.status_code not in (409,422):
             log.warning("AI editor scheduled draft failed (%s)",exc.status_code)
@@ -523,6 +551,53 @@ def discard_draft(identifier:str,x_telegram_init_data:Optional[str]=Header(None)
     return {"success":True}
 
 
+class ArticleDraftEdit(BaseModel):
+    title: str = Field(min_length=1,max_length=180)
+    excerpt: str = Field(min_length=1,max_length=500)
+    seo_title: str = Field(default="",max_length=180)
+    seo_description: str = Field(default="",max_length=300)
+    tags: list[str] = Field(default_factory=list,max_length=20)
+    category_id: str = Field(min_length=1,max_length=64)
+    cover_url: str = Field(default="",max_length=2048)
+    blocks: list[dict] = Field(min_length=1,max_length=100)
+
+    @field_validator("tags")
+    @classmethod
+    def valid_tags(cls, value):
+        if any(not isinstance(t,str) or not t.strip() or len(t)>40 for t in value):
+            raise ValueError("Недопустимые теги")
+        return value
+
+
+@router.put("/admin/drafts/{identifier}/article-edit")
+def edit_article_draft(identifier:str,payload:ArticleDraftEdit,
+                       x_telegram_init_data:Optional[str]=Header(None)):
+    admin_auth(x_telegram_init_data)
+    from editorial import ArticleBlock, Article
+    _selected_category(payload.category_id)
+    blocks=[ArticleBlock.model_validate(b).model_dump() for b in payload.blocks]
+    if not any(b["type"] in ("paragraph","heading","quote") and b["text"].strip() for b in blocks):
+        raise HTTPException(422,"Добавьте текст статьи")
+    cover=payload.cover_url
+    Article.model_validate({
+        "slug":"ai-preview","category_id":payload.category_id,
+        "title":payload.title,"excerpt":payload.excerpt,
+        "seo_title":payload.seo_title,"seo_description":payload.seo_description,
+        "tags":payload.tags,"blocks":blocks,"cover_url":cover
+    })
+    with engine.begin() as db:
+        draft=_lock_pending(db,identifier,"article")
+        updated={**draft["payload"],**payload.model_dump(),"blocks":blocks}
+        result=db.execute(text("""
+            UPDATE public.vvd_ai_editor_drafts
+            SET payload=CAST(:body AS jsonb), updated_at=now()
+            WHERE id=:id AND status='pending' RETURNING id
+        """),{"id":identifier,"body":json.dumps(updated,ensure_ascii=False)}).scalar_one_or_none()
+        if not result:
+            raise HTTPException(409,"Черновик уже обработан")
+    return {"success":True}
+
+
 @router.post("/admin/drafts/{identifier}/article")
 def move_article_to_drafts(identifier:str,x_telegram_init_data:Optional[str]=Header(None)):
     admin_auth(x_telegram_init_data)
@@ -569,7 +644,7 @@ def move_article_to_drafts(identifier:str,x_telegram_init_data:Optional[str]=Hea
         now=datetime.now(timezone.utc).isoformat()
         article=Article.model_validate({
             "slug":slug,"category_id":category["id"],"title":p["title"],
-            "excerpt":p["excerpt"],"cover_url":p["image_urls"][0],
+            "excerpt":p["excerpt"],"cover_url":p.get("cover_url") or p["image_urls"][0],
             "seo_title":p["seo_title"],"seo_description":p["seo_description"],
             "tags":p["tags"],"blocks":blocks,"published":False,
             "show_on_web":True,"show_in_mini_app":True,
