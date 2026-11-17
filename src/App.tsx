@@ -50,23 +50,45 @@ const SupportChat=React.lazy(()=>import('@/pages/chat/Chat').then(mod=>({default
 const AIEditor=React.lazy(()=>import('@/pages/tools/AIStudio').then(mod=>({default:mod.AIEditor})));
 const ServiceCategoryPage=React.lazy(()=>import('@/pages/tools/ServiceDirectory').then(mod=>({default:mod.ServiceCategoryPage})));
 
-// Warm screen code after first paint. This is only Javascript from GitHub
-// Pages, not personal data or a background API request.
+// Prepare navigation chunks without downloading the entire application
+// during login. Large admin, payment and IQ Play screens load on demand.
 function warmScreenModules(){
-  const groups:Array<Array<()=>Promise<unknown>>>=[
-    [()=>import('@/pages/dvizh/Dvizh'),()=>import('@/pages/offers/OfferDetail')],
-    [()=>import('@/pages/tools/ServiceDirectory'),()=>import('@/pages/tools/MiniAppEditorial')],
-    [()=>import('@/pages/Referral'),()=>import('@/pages/chat/Chat')],
-    [()=>import('@/pages/admin/Admin'),()=>import('@/pages/tools/AIStudio')],
-    [()=>import('@/pages/withdrawal/Withdrawal'),()=>import('@/pages/iq-play/IQPlay')],
-    [()=>import('@/pages/info/InfoPage')]
+  const modules:Array<()=>Promise<unknown>>=[
+    ()=>import('@/pages/offers/OfferDetail'),
+    ()=>import('@/pages/tools/ServiceDirectory'),
+    ()=>import('@/pages/dvizh/Dvizh'),
+    ()=>import('@/pages/tools/MiniAppEditorial'),
+    ()=>import('@/pages/Referral'),
+    ()=>import('@/pages/chat/Chat')
   ];
-  const timers=groups.map((group,index)=>window.setTimeout(()=>{
-    if(document.visibilityState==='visible')
-      void Promise.allSettled(group.map(load=>load()));
-  },1300+index*650));
-  return ()=>timers.forEach(timer=>window.clearTimeout(timer));
+  let next=0;
+  let stopped=false;
+  let timer:number|undefined;
+  const warmNext=()=>{
+    if(stopped||document.visibilityState!=='visible')return;
+    if(next>=modules.length)return;
+    void modules[next++]().catch(()=>{}).finally(()=>{
+      if(!stopped)timer=window.setTimeout(warmNext,450);
+    });
+  };
+  const resume=()=>{if(!stopped&&document.visibilityState==='visible'&&timer===undefined)warmNext();};
+  timer=window.setTimeout(()=>{timer=undefined;warmNext();},1300);
+  document.addEventListener('visibilitychange',resume);
+  return ()=>{
+    stopped=true;
+    if(timer!==undefined)window.clearTimeout(timer);
+    document.removeEventListener('visibilitychange',resume);
+  };
 }
+
+const RouteLoading=()=>(
+  <div role="status" aria-live="polite" className="min-h-[45vh] px-4 py-6 space-y-3 animate-pulse">
+    <div className="h-6 w-40 rounded-lg bg-white/10"/>
+    <div className="h-20 rounded-xl border border-white/10 bg-bgCard/50"/>
+    <div className="h-20 rounded-xl border border-white/10 bg-bgCard/50"/>
+    <span className="sr-only">Открываем раздел…</span>
+  </div>
+);
 
 // Единый фон всех обычных экранов, кроме театральной сцены IQ Play.
 const AppBackdrop = () => {
@@ -153,7 +175,7 @@ const AppLayout = ({webMode=false}:{webMode?:boolean}) => {
             {tabScreens[path]}
           </div>
         ))}
-        {!activeTab&&<Outlet />}
+        {!activeTab&&<React.Suspense fallback={<RouteLoading/>}><Outlet /></React.Suspense>}
       </div>
 
       {/* Нижняя навигация: «Инструменты» вместо «Движ» */}
