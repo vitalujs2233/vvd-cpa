@@ -1,5 +1,6 @@
 import {saveSnapshot} from '@/shared/lib/viewSnapshot';
 import {preloadStartupData, StartupDataError} from '@/shared/lib/startupData';
+import {prioritizeVisiblePage} from '@/shared/lib/pageLoadSystem';
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { MemoryRouter, Routes, Route, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Home as HomeIcon, Grid, BarChart3, Wrench, User, Globe2, LogOut, ShieldCheck } from 'lucide-react';
@@ -142,6 +143,7 @@ const AppLayout = ({webMode=false}:{webMode?:boolean}) => {
   const t=(ru:string,en:string)=>localize(lang,ru,en);
   const location = useLocation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  useEffect(()=>{prioritizeVisiblePage(1200);},[location.pathname]);
   // The shared scrolling viewport survives route changes. A directory opened
   // after another screen must start at its heading, never at the old offset.
   useLayoutEffect(()=>{
