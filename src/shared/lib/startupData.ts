@@ -1,4 +1,5 @@
 import {preloadPages} from './preloadPages';
+import {warmTask} from './pageLoadSystem';
 import {warmHomeContent} from './homeWarmup';
 import {API_BASE_URL, authorizedFetch} from './api';
 import {CHAT_SNAPSHOT_KEY,normalizeChatMessages} from './chatSnapshot';
@@ -50,45 +51,44 @@ export function preloadStartupData(id:number,partnerCode='',role='user'):Promise
       if(!request.valid(data)||currentSignedSession()!==session)throw new StartupDataError();
       saveSnapshot(request.key,request.select(data));
     };
-    // Prepare the summary as soon as the user signs in. Previously the
-    // statistics requests were queued after chat, so the first visit showed
-    // empty cards even when the other tabs were already warm.
-    // All values still come from authenticated, uncached API responses.
-    const primary=requests.slice(0,6);
-    const mainTasks=primary.map(request=>fetchOne(request).then(()=>true,()=>false));
-    const summaryTask=fetchOne(requests[7]).then(()=>true,()=>false);
+    // All signed page prefetches share the same small priority queue.
+    // The first rendered screen gets the balance and published home feeds,
+    // while top-level pages warm before the less frequently opened routes.
+    const main=requests.slice(0,6);
+    const mainTasks=main.map((request,i)=>
+      warmTask(request.key,()=>fetchOne(request),i===0?110:i===1?78:68)
+        .then(()=>true,()=>false)
+    );
+    const summaryTask=warmTask(requests[7].key,()=>fetchOne(requests[7]),82)
+      .then(()=>true,()=>false);
     const homeTask=warmHomeContent().then(()=>true,()=>false);
     if(!await mainTasks[0])
       throw new StartupDataError('Не удалось загрузить настоящий баланс. Проверьте соединение и нажмите «Повторить».');
     if(currentSignedSession()!==session)
       throw new StartupDataError('Сессия изменилась. Откройте приложение заново.');
 
-    // Use a short preparation window for today's summary and main tabs.
-    // Do not turn an optional statistics outage into a blocked login.
-    const mainSettled=Promise.allSettled([...mainTasks.slice(1),homeTask,summaryTask]);
+    // No extra, unconditional 1.8 second loading screen. Give first-screen
+    // decorations and menu data a short opportunity, never hold up sign-in
+    // for secondary articles, ads or reports.
     await Promise.race([
-      mainSettled,
-      new Promise<void>(resolve=>window.setTimeout(resolve,1800))
+      Promise.allSettled([homeTask,summaryTask,...mainTasks.slice(1)]),
+      new Promise<void>(resolve=>window.setTimeout(resolve,650))
     ]);
     if(currentSignedSession()!==session)
       throw new StartupDataError('Сессия изменилась. Откройте приложение заново.');
 
-    // The other analysis cards are next in line, with bounded concurrency.
-    // Avoid duplicate summary fetch; never flood Render with deep routes.
+    // Remaining analysis, country/offer filters and Dvizh warm up ahead of
+    // nested routes; only three signed reads run at once globally.
     const secondary=[...requests.slice(8),requests[6]];
-    const runSecondary=async()=>{
-      for(let i=0;i<secondary.length;i+=2){
-        if(currentSignedSession()!==session)return;
-        await Promise.allSettled(secondary.slice(i,i+2).map(fetchOne));
-      }
-    };
-    void runSecondary().then(()=>{
-      if(currentSignedSession()!==session)return;
-      window.setTimeout(()=>{
-        if(currentSignedSession()===session)
-          void preloadPages(id,partnerCode,role).catch(()=>{});
-      },500);
-    });
+    void Promise.allSettled(secondary.map((request,i)=>
+      warmTask(request.key,()=>fetchOne(request),i<3?58:45)
+    ));
+    // Every deeper route uses the same queue and session memory. This is
+    // independent of the initial UI and never blocks first paint.
+    window.setTimeout(()=>{
+      if(currentSignedSession()===session)
+        void preloadPages(id,partnerCode,role).catch(()=>{});
+    },450);
   })().finally(()=>{if(pending?.promise===promise)pending=undefined;});
   pending={session,id,promise};
   return promise;
