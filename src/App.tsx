@@ -6,33 +6,67 @@ import { Home as HomeIcon, Grid, BarChart3, Wrench, User, Globe2, LogOut, Shield
 import { triggerHaptic } from '@/shared/lib/telegram';
 import {useLocale,localize} from '@/shared/lib/locale';
 import { Home } from '@/pages/home/Home';
-import { InfoPage } from '@/pages/info/InfoPage';
+
 import { Offers } from '@/pages/offers/Offers';
-import { OfferDetail } from '@/pages/offers/OfferDetail';
-import { Withdrawal } from '@/pages/withdrawal/Withdrawal';
+
+
 import { Stats } from '@/pages/stats/Stats';
-import { Dvizh } from '@/pages/dvizh/Dvizh';
-import { IQPlay } from '@/pages/iq-play/IQPlay';
+
+
 import { Tools,ToolsTopupPage,ToolsHistory,ToolsPurchases,ToolsNumbers,MyNumbers,ToolsProxy,MyProxies } from '@/pages/tools/MarketplacePages';
-import { AIModelsPage,AIEditor } from '@/pages/tools/AIStudio';
-import {ServiceDirectoryPage,ServiceCategoryPage} from '@/pages/tools/ServiceDirectory';
-import {MiniAppEditorial} from '@/pages/tools/MiniAppEditorial';
-import { PublicAIPage } from '@/pages/tools/PublicAIChat';
-import { PublicWebsite } from '@/pages/public/PublicWebsite';
+
+
+
+
+
 import { useBrowserSession } from '@/pages/public/WebAuth';
 import {getWebSession} from '@/shared/lib/browserSession';
 import type {AuthResponse} from '@/shared/lib/api';
 import { Profile } from '@/pages/profile/Profile';
 import {BlockedAccount,DEFAULT_BLOCK_NOTICE,type BlockNotice} from '@/pages/profile/BlockedAccount';
-import { Referral } from '@/pages/Referral';
-import { Admin } from '@/pages/admin/Admin';
+
+
 import {MaintenanceScreen,useMiniAppMaintenance} from '@/pages/maintenance/Maintenance';
 // Импортируем наш личный тикет-чат как SupportChat
-import { Chat as SupportChat } from '@/pages/chat/Chat';
+
 import { Loader } from '@/shared/ui/Loader';
 
 // Импортируем методы сетевого API и хелперы токенов
 import { loginViaTelegramApi, apiRequest, ApiError, isTemporarySignInError } from '@/shared/lib/api';
+
+const InfoPage=React.lazy(()=>import('@/pages/info/InfoPage').then(mod=>({default:mod.InfoPage})));
+const OfferDetail=React.lazy(()=>import('@/pages/offers/OfferDetail').then(mod=>({default:mod.OfferDetail})));
+const Withdrawal=React.lazy(()=>import('@/pages/withdrawal/Withdrawal').then(mod=>({default:mod.Withdrawal})));
+const Dvizh=React.lazy(()=>import('@/pages/dvizh/Dvizh').then(mod=>({default:mod.Dvizh})));
+const IQPlay=React.lazy(()=>import('@/pages/iq-play/IQPlay').then(mod=>({default:mod.IQPlay})));
+const AIModelsPage=React.lazy(()=>import('@/pages/tools/AIStudio').then(mod=>({default:mod.AIModelsPage})));
+const ServiceDirectoryPage=React.lazy(()=>import('@/pages/tools/ServiceDirectory').then(mod=>({default:mod.ServiceDirectoryPage})));
+const MiniAppEditorial=React.lazy(()=>import('@/pages/tools/MiniAppEditorial').then(mod=>({default:mod.MiniAppEditorial})));
+const PublicAIPage=React.lazy(()=>import('@/pages/tools/PublicAIChat').then(mod=>({default:mod.PublicAIPage})));
+const PublicWebsite=React.lazy(()=>import('@/pages/public/PublicWebsite').then(mod=>({default:mod.PublicWebsite})));
+const Referral=React.lazy(()=>import('@/pages/Referral').then(mod=>({default:mod.Referral})));
+const Admin=React.lazy(()=>import('@/pages/admin/Admin').then(mod=>({default:mod.Admin})));
+const SupportChat=React.lazy(()=>import('@/pages/chat/Chat').then(mod=>({default:mod.Chat})));
+const AIEditor=React.lazy(()=>import('@/pages/tools/AIStudio').then(mod=>({default:mod.AIEditor})));
+const ServiceCategoryPage=React.lazy(()=>import('@/pages/tools/ServiceDirectory').then(mod=>({default:mod.ServiceCategoryPage})));
+
+// Warm screen code after first paint. This is only Javascript from GitHub
+// Pages, not personal data or a background API request.
+function warmScreenModules(){
+  const groups:Array<Array<()=>Promise<unknown>>>=[
+    [()=>import('@/pages/dvizh/Dvizh'),()=>import('@/pages/offers/OfferDetail')],
+    [()=>import('@/pages/tools/ServiceDirectory'),()=>import('@/pages/tools/MiniAppEditorial')],
+    [()=>import('@/pages/Referral'),()=>import('@/pages/chat/Chat')],
+    [()=>import('@/pages/admin/Admin'),()=>import('@/pages/tools/AIStudio')],
+    [()=>import('@/pages/withdrawal/Withdrawal'),()=>import('@/pages/iq-play/IQPlay')],
+    [()=>import('@/pages/info/InfoPage')]
+  ];
+  const timers=groups.map((group,index)=>window.setTimeout(()=>{
+    if(document.visibilityState==='visible')
+      void Promise.allSettled(group.map(load=>load()));
+  },1300+index*650));
+  return ()=>timers.forEach(timer=>window.clearTimeout(timer));
+}
 
 // Единый фон всех обычных экранов, кроме театральной сцены IQ Play.
 const AppBackdrop = () => {
@@ -280,6 +314,11 @@ const MiniApp = ({webUser}:{webUser?:AuthResponse['user']}) => {
     return () => { active = false; };
   }, [startupAttempt, webUser?.telegram_id]);
 
+  useEffect(()=>{
+    if(authState!=='ready')return;
+    return warmScreenModules();
+  },[authState]);
+
   // Check for a new block while an already signed-in account is open.
   useEffect(()=>{
     if(authState!=='ready')return;
@@ -330,6 +369,7 @@ const MiniApp = ({webUser}:{webUser?:AuthResponse['user']}) => {
 >
       <MemoryRouter>
         <AppBackdrop />
+        <React.Suspense fallback={<Loader />}>
         <Routes>
           {/* Обертка Лейаута */}
           <Route path="/" element={<AppLayout webMode={Boolean(webUser)}/>}>
@@ -373,6 +413,7 @@ const MiniApp = ({webUser}:{webUser?:AuthResponse['user']}) => {
           <Route path="/admin" element={<Admin />} />
           <Route path="/iq-play" element={<IQPlay />} />
         </Routes>
+        </React.Suspense>
       </MemoryRouter>
     </div>
   );
@@ -424,12 +465,12 @@ const BrowserPortal = () => {
       <MiniApp key={user.telegram_id} webUser={user}/>
     </div>;
   }
-  return <PublicWebsite auth={auth} onOpenApp={openApp}/>;
+  return <React.Suspense fallback={<Loader />}><PublicWebsite auth={auth} onOpenApp={openApp}/></React.Suspense>;
 };
 
 const App = () => {
   const slug = new URLSearchParams(window.location.search).get('model');
-  if (slug) return <PublicAIPage slug={slug} />;
+  if (slug) return <React.Suspense fallback={<Loader />}><PublicAIPage slug={slug} /></React.Suspense>;
   return window.Telegram?.WebApp?.initData ? <MiniApp /> : <BrowserPortal />;
 };
 export default App;
