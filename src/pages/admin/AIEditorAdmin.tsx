@@ -20,8 +20,8 @@ const api={
      article_category_id:settings.article_category_id,suggest_categories:settings.suggest_categories,
      automatic_topics:settings.automatic_topics||[]})
  }),
- run:(kind:Kind,source_service_id:string,category_id:string,topic:string)=>apiRequest<{id:string;kind:Kind}>('/ai-editor/admin/run',{
-   method:'POST',body:JSON.stringify({kind,source_service_id,category_id,topic})
+ run:(kind:Kind,source_service_id:string,category_id:string,topic:string,source_url:string)=>apiRequest<{id:string;kind:Kind}>('/ai-editor/admin/run',{
+   method:'POST',body:JSON.stringify({kind,source_service_id,category_id,topic,source_url})
  }),
  discard:(id:string)=>apiRequest<{success:boolean}>('/ai-editor/admin/drafts/'+encodeURIComponent(id)+'/discard',{method:'POST'}),
  editArticle:(id:string,payload:ArticleDraft)=>apiRequest<{success:boolean}>('/ai-editor/admin/drafts/'+encodeURIComponent(id)+'/article-edit',{
@@ -62,6 +62,7 @@ export const AIEditorAdmin:React.FC<{
   const [source,setSource]=useState('');
   const [categoryId,setCategoryId]=useState('');
   const [topic,setTopic]=useState('');
+  const [sourceUrl,setSourceUrl]=useState('');
   const [editing,setEditing]=useState<string|null>(null);
   const [serviceEdit,setServiceEdit]=useState<ServiceEdit|null>(null);
   const [articleEdit,setArticleEdit]=useState<ArticleDraft|null>(null);
@@ -92,7 +93,7 @@ export const AIEditorAdmin:React.FC<{
     const enabled=!data.settings.enabled;
     changeSettings({enabled},enabled?'Авторедактор включён. Черновики готовятся без публикации.':'Авторедактор выключен. Черновики сохранены.');
   };
-  const startRun=()=>{void action(()=>api.run(kind,kind==='category'?'':source,kind==='article'?categoryId:'',kind==='article'?topic.trim():''),
+  const startRun=()=>{void action(()=>api.run(kind,kind==='category'?'':source,kind==='article'?categoryId:'',kind==='article'?topic.trim():'',kind==='article'?sourceUrl.trim():''),
     'Gemini подготовил предложение. Проверь его ниже.')};
   const saveTopics=()=>{
     if(!data)return;
@@ -219,6 +220,16 @@ export const AIEditorAdmin:React.FC<{
             onChange={e=>setTopic(e.target.value)}/>
           <span className="mt-1 block text-[11px] text-textSecondary">AI будет писать по этой теме внутри выбранной категории. Факты и кейсы нужно проверить перед публикацией.</span>
         </label>}
+        {kind==='article'&&<label className="block text-xs text-textSecondary">Статья по ссылке (необязательно)
+          <input className={input} type="url" inputMode="url" maxLength={2048}
+            placeholder="https://example.com/article" value={sourceUrl}
+            onChange={e=>setSourceUrl(e.target.value)}/>
+          <span className="mt-1 block text-[11px] text-textSecondary">
+            Gemini прочитает доступную публичную страницу и создаст новую оригинальную статью по её фактам и идеям.
+            Ссылка на источник будет добавлена в черновик. Авторские фото и текст автоматически не копируются.
+            Некоторые сайты закрывают доступ автоматическому чтению.
+          </span>
+        </label>}
         {kind!=='category'&&<label className="block text-xs text-textSecondary">Исходный сервис из каталога
           <select className={input} value={source} onChange={e=>setSource(e.target.value)}>
             <option value="">Автоматически выбрать</option>
@@ -227,7 +238,7 @@ export const AIEditorAdmin:React.FC<{
         </label>}
         {kind==='category'&&<p className="text-xs text-textSecondary">Gemini предложит название и описание категории. Ты решаешь, добавлять ли её.</p>}
         {kind==='service'&&<p className="text-xs leading-5 text-textSecondary">Gemini улучшит описание выбранного существующего сервиса. Скидка переносится только из каталога, ссылки и промокоды не генерируются.</p>}
-        <button type="button" disabled={busy||(kind==='service'&&!data.services.length)||(kind==='article'&&!categoryId)} onClick={startRun}
+        <button type="button" disabled={busy||(kind==='service'&&!data.services.length)||(kind==='article'&&!categoryId)||(kind==='article'&&!!sourceUrl.trim()&&!/^https:\/\/[^\s/]+\.[^\s/]+(?:\/[^\s]*)?$/.test(sourceUrl.trim()))} onClick={startRun}
           className="flex w-full items-center justify-center gap-2 rounded-app-xs border border-accentGold/35 bg-accentGold/10 px-4 py-3 text-sm font-bold text-accentBrightGold disabled:opacity-50">
           <Sparkles size={18}/>{busy?'Выполняем действие…':'Подготовить черновик'}
         </button>
