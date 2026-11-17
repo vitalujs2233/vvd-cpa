@@ -55,14 +55,16 @@ export function preloadStartupData(id:number,partnerCode='',role='user'):Promise
     // The first rendered screen gets the balance and published home feeds,
     // while top-level pages warm before the less frequently opened routes.
     const main=requests.slice(0,6);
-    const mainTasks=main.map((request,i)=>
-      warmTask(request.key,()=>fetchOne(request),i===0?110:i===1?78:68)
-        .then(()=>true,()=>false)
-    );
+    const balanceTask=warmTask(main[0].key,()=>fetchOne(main[0]),110)
+      .then(()=>true,()=>false);
     const summaryTask=warmTask(requests[7].key,()=>fetchOne(requests[7]),82)
       .then(()=>true,()=>false);
+    const mainTasks=main.slice(1).map((request,i)=>
+      warmTask(request.key,()=>fetchOne(request),i===0?78:68)
+        .then(()=>true,()=>false)
+    );
     const homeTask=warmHomeContent().then(()=>true,()=>false);
-    if(!await mainTasks[0])
+    if(!await balanceTask)
       throw new StartupDataError('Не удалось загрузить настоящий баланс. Проверьте соединение и нажмите «Повторить».');
     if(currentSignedSession()!==session)
       throw new StartupDataError('Сессия изменилась. Откройте приложение заново.');
@@ -71,7 +73,7 @@ export function preloadStartupData(id:number,partnerCode='',role='user'):Promise
     // decorations and menu data a short opportunity, never hold up sign-in
     // for secondary articles, ads or reports.
     await Promise.race([
-      Promise.allSettled([homeTask,summaryTask,...mainTasks.slice(1)]),
+      Promise.allSettled([homeTask,summaryTask,...mainTasks]),
       new Promise<void>(resolve=>window.setTimeout(resolve,650))
     ]);
     if(currentSignedSession()!==session)
