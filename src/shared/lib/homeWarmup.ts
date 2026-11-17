@@ -1,5 +1,6 @@
 import {apiRequest,API_BASE_URL} from './api';
 import {readSnapshot,saveSnapshot} from './viewSnapshot';
+import {warmTask} from './pageLoadSystem';
 
 type ImageItem={image_url?:string|null;updated_at?:string};
 type Feed={items:ImageItem[]};
@@ -24,11 +25,13 @@ const preloadImage=(url:string)=>new Promise<void>(resolve=>{
 export async function warmHomeContent():Promise<void>{
  const cached=feeds.map(feed=>({key:feed.key,data:readSnapshot<Feed>(feed.key)}));
  const hasCachedHome=cached.every(feed=>feed.data!==undefined);
- const refresh=Promise.allSettled(feeds.map(async feed=>{
-  const data=await apiRequest<Feed>(feed.path);
-  saveSnapshot(feed.key,data);
-  return {key:feed.key,data};
- }));
+ const refresh=Promise.allSettled(feeds.map(async(feed,index)=>
+  warmTask(feed.key,async()=>{
+    const data=await apiRequest<Feed>(feed.path);
+    saveSnapshot(feed.key,data);
+    return {key:feed.key,data};
+  },96-index*2)
+ ));
  const warmImages=(entries:Array<{key:string;data:Feed|undefined}>)=>{
   const urls:string[]=[];
   for(const {key,data} of entries){
