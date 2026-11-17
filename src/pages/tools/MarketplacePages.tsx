@@ -51,17 +51,14 @@ export const Tools:React.FC=()=>{
   const w=useRemote(readWallet,emptyWallet);
   const c=useRemote(readCatalog,{services:[] as ServiceInfo[],payment_provider:{status:'unavailable',assets:[] as string[]}});
   const navigate=useNavigate();
-  const [openingDirectory,setOpeningDirectory]=useState(false);
-  // Warm the shared catalog before the user taps the directory card.
+  // Fetch published catalogs without blocking navigation. The destination
+  // uses the shared published snapshot while requesting a current version.
   useEffect(()=>{void directoryApi.published().catch(()=>{});void editorialApi.snapshot().catch(()=>{});},[]);
-  const openDirectory=async(event:React.MouseEvent<HTMLAnchorElement>)=>{
+  const openDirectory=(event:React.MouseEvent<HTMLAnchorElement>)=>{
     if(directoryApi.snapshot())return;
     event.preventDefault();
-    if(openingDirectory)return;
-    setOpeningDirectory(true);
-    try {await directoryApi.published();}
-    catch {/* the directory page shows a clear error if the server is unavailable */}
-    finally {setOpeningDirectory(false);navigate('/tools/directory');}
+    void directoryApi.published().catch(()=>{});
+    navigate('/tools/directory');
   };
   return <Shell>
     <div><h1 className="text-2xl font-bold">Инструменты</h1><p className="mt-1 text-xs text-textSecondary">Все сервисы для работы в одном месте</p></div>
@@ -86,7 +83,6 @@ export const Tools:React.FC=()=>{
       })}
       <ServiceNavigationCard to="/tools/directory" icon={Layers} title="Каталог сервисов"
         description="Реклама, аналитика и другие сервисы"
-        status={openingDirectory?'Загрузка…':undefined} aria-busy={openingDirectory}
         onClick={openDirectory} onPointerEnter={()=>{void directoryApi.published().catch(()=>{});}}/>
       <ServiceNavigationCard to="/tools/articles" icon={Newspaper} title="Статьи и кейсы"
         description="Обучение, разборы и полезные материалы"
