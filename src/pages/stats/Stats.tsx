@@ -100,6 +100,20 @@ export const Stats:React.FC=()=>{
 
   useEffect(()=>{void load();return()=>{requestVersion.current++;};},[load]);
 
+  // Keep the current statistics on screen and refresh them automatically.
+  // Avoid polling when the Mini App is hidden to spare Render and mobile data.
+  useEffect(()=>{
+    const refreshIfVisible=()=>{
+      if(document.visibilityState==='visible')void load(true);
+    };
+    const interval=window.setInterval(refreshIfVisible,45000);
+    document.addEventListener('visibilitychange',refreshIfVisible);
+    return()=>{
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange',refreshIfVisible);
+    };
+  },[load]);
+
   const loadMore=async()=>{
     const id=Number(getTelegramUser().id);
     if(!id||refreshing||loading)return;
