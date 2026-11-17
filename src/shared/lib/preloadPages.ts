@@ -23,16 +23,19 @@ export async function preloadPages(id:number,partnerCode:string,role:string) {
     }catch{if(required)failures.push(path);return undefined;}
   };
   const paths=[`/referral/${id}`,'/tools-market/wallet','/tools-market/catalog',
-    '/tools-market/transactions','/tools-market/orders','/tools-market/ai','/ai-studio/my-smartlinks','/chat/banner','/info/published','/service-directory'];
+    '/tools-market/transactions','/tools-market/orders','/tools-market/ai','/ai-studio/my-smartlinks','/chat/banner','/info/published','/service-directory','/support/tickets'];
   if(partnerCode)paths.unshift('/withdrawals/'+encodeURIComponent(partnerCode));
   const admin=role==='admin'||id===232682307;
   if(admin)paths.push('/admin/chat/banner','/admin/users','/admin/finance','/admin/withdrawals','/admin/chat/bans',
-    '/cpa/admin/networks','/cpa/admin/verticals','/cpa/admin/offers');
+    '/cpa/admin/networks','/cpa/admin/verticals','/cpa/admin/offers',
+    '/ai-editor/admin','/admin/support/tickets');
   // Startup already fetched some of these within this signed session.
   // Reuse them instead of fetching the same wallet/catalog again immediately.
   const primaryWarmup=parallel(paths,async p=>{
     if(readApiSnapshot(p)!==undefined)return;
-    await read(p,p.startsWith('/withdrawals/'));
+    const loaded=await read(p,p.startsWith('/withdrawals/'));
+    if(p==='/support/tickets'&&loaded?.success===true&&Array.isArray(loaded.tickets))
+      saveSnapshot('support:tickets',loaded.tickets);
   });
   const catalog=readSnapshot<any[]>('catalog')||[];
   const linkPaths:string[]=[];
