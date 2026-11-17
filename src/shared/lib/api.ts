@@ -9,17 +9,39 @@ export const signedHeaders = (): Record<string,string> => {
   return {'X-Telegram-Init-Data': data};
 };
 
-// Bound read requests so a lost connection cannot leave a screen loading forever.
-// No retries: mutation requests retain their existing behavior.
+// One transport for every signed GET, including authorizedFetch and apiRequest.
+// Concurrent consumers of the same URL share one network transfer. Each gets
+// its own Response clone, so parsing in one screen never consumes another's body.
+// A settled result is NOT cached here: authenticated financial / live data must
+// continue to be retrieved from the server whenever the caller asks for it.
+const pendingGetTransfers=new Map<string,Promise<Response>>();
 const fetchRead = async (input:string, init:RequestInit):Promise<Response> => {
   if ((init.method||'GET').toUpperCase()!=='GET') return fetch(input,init);
-  const controller=new AbortController();
-  const cancel=()=>controller.abort();
-  if(init.signal?.aborted)cancel();
-  init.signal?.addEventListener('abort',cancel,{once:true});
-  const timer=setTimeout(cancel,30000);
-  try {return await fetch(input,{...init,signal:controller.signal});}
-  finally {clearTimeout(timer);init.signal?.removeEventListener('abort',cancel);}
+  const headers=new Headers(init.headers);
+  // Signal-bearing requests keep independent cancellation semantics. Only
+  // request-identical GETs without custom abort signals can be coalesced.
+  const coalesce=!init.signal&&!init.body;
+  const signature=coalesce?JSON.stringify([
+    currentSignedSession(),input,init.credentials||'',init.cache||'',
+    [...headers.entries()].sort(([a],[b])=>a.localeCompare(b))
+  ]):'';
+  if(coalesce){
+    const existing=pendingGetTransfers.get(signature);
+    if(existing)return (await existing).clone();
+  }
+  const task=(async()=>{
+    const controller=new AbortController();
+    const cancel=()=>controller.abort();
+    if(init.signal?.aborted)cancel();
+    init.signal?.addEventListener('abort',cancel,{once:true});
+    const timer=setTimeout(cancel,30000);
+    try{return await fetch(input,{...init,signal:controller.signal});}
+    finally {clearTimeout(timer);init.signal?.removeEventListener('abort',cancel);}
+  })();
+  if(!coalesce)return task;
+  pendingGetTransfers.set(signature,task);
+  try{return (await task).clone();}
+  finally{if(pendingGetTransfers.get(signature)===task)pendingGetTransfers.delete(signature);}
 };
 
 export const authorizedFetch = (input: string, init: RequestInit = {}): Promise<Response> => {
