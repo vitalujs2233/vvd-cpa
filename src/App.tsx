@@ -64,15 +64,22 @@ function warmScreenModules(){
   let next=0;
   let stopped=false;
   let timer:number|undefined;
+  let warming=false;
   const warmNext=()=>{
-    if(stopped||document.visibilityState!=='visible')return;
-    if(next>=modules.length)return;
+    timer=undefined;
+    if(stopped||warming||document.visibilityState!=='visible'||next>=modules.length)return;
+    warming=true;
     void modules[next++]().catch(()=>{}).finally(()=>{
-      if(!stopped)timer=window.setTimeout(warmNext,450);
+      warming=false;
+      if(!stopped&&document.visibilityState==='visible')
+        timer=window.setTimeout(warmNext,450);
     });
   };
-  const resume=()=>{if(!stopped&&document.visibilityState==='visible'&&timer===undefined)warmNext();};
-  timer=window.setTimeout(()=>{timer=undefined;warmNext();},1300);
+  const resume=()=>{
+    if(!stopped&&document.visibilityState==='visible'&&!warming&&timer===undefined)
+      timer=window.setTimeout(warmNext,200);
+  };
+  timer=window.setTimeout(warmNext,1300);
   document.addEventListener('visibilitychange',resume);
   return ()=>{
     stopped=true;
