@@ -12,6 +12,19 @@ let running=0;
 let queue:Job[]=[];
 const pending=new Map<string,Promise<unknown>>();
 const MAX_PARALLEL=3;
+let pauseUntil=0;
+let resumeTimer:number|undefined;
+
+/** Briefly yield network capacity to the page the user actually opened. */
+export function prioritizeVisiblePage(durationMs=1200){
+  pauseUntil=Date.now()+durationMs;
+  if(resumeTimer!==undefined)window.clearTimeout(resumeTimer);
+  resumeTimer=window.setTimeout(()=>{
+    resumeTimer=undefined;
+    pauseUntil=0;
+    runQueue();
+  },durationMs+20);
+}
 
 function signedSession(){
   const current=currentSignedSession();
@@ -26,6 +39,9 @@ function signedSession(){
 function runQueue(){
   while(running<MAX_PARALLEL&&queue.length){
     queue.sort((a,b)=>b.priority-a.priority);
+    // Background details yield briefly after every visible navigation.
+    // Login's critical balance and first-screen reads remain unblocked.
+    if(Date.now()<pauseUntil&&queue[0].priority<60)break;
     const job=queue.shift()!;
     if(job.session!==signedSession()){job.reject(new Error('Сессия изменилась'));continue;}
     running++;
