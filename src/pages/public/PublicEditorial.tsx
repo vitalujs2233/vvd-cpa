@@ -45,9 +45,13 @@ const readCachedArticles=(surface:Surface):PublicArticles|null=>{
     rememberArticles(surface,warmed);
     return warmed;
   }
-  // The bundled HTML snapshot and persistent storage may be older than the
-  // live categories. On a cold opening, show stable loading cards instead of
-  // briefly flashing categories that no longer exist.
+  // Published articles may be shown from a bounded local snapshot while
+  // live data refreshes. Unlike admin drafts, this feed is public.
+  const offline=readOfflineArticles(surface);
+  if(offline&&Array.isArray(offline.categories)&&Array.isArray(offline.articles)){
+    articleCache.set(surface,{data:offline,at:Date.now()});
+    return offline;
+  }
   return null;
 };
 const readOfflineArticles=(surface:Surface):PublicArticles|null=>{
@@ -81,7 +85,9 @@ const readCachedDetail=(slug:string,surface:Surface):Article|null=>{
   const existing=detailMemory.get(surface+':'+slug);
   if(existing)return existing;
   const article=bootstrappedEditorial()?.details?.[slug];
-  return article?.published&&article[surface==='web'?'show_on_web':'show_in_mini_app']!==false?article:null;
+  if(article?.published&&article[surface==='web'?'show_on_web':'show_in_mini_app']!==false)return article;
+  const remembered=readApiSnapshot<{article:Article}>('/articles/'+encodeURIComponent(slug)+'?surface='+surface)?.article;
+  return remembered?.published&&remembered[surface==='web'?'show_on_web':'show_in_mini_app']!==false?remembered:null;
 };
 type Props={slug:string;surface?:Surface;onArticle:(slug:string)=>void;onBack:()=>void;onMetadata:(title:string,description:string,cover?:string,date?:string)=>void;contributionAuthenticated?:boolean;onContributionLogin?:()=>void};
 export const PublicEditorial:React.FC<Props>=({slug,surface='web',onArticle,onBack,onMetadata,contributionAuthenticated,onContributionLogin})=>{
