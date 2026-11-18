@@ -23,7 +23,11 @@ let publicCache:Record<string,Entry>|null=null;
 function persisted():Record<string,Entry>{
   if(publicCache)return publicCache;
   try{
-    const parsed=JSON.parse(localStorage.getItem(PUBLIC_CACHE_KEY)||'{}');
+    // Reuse existing published snapshots when upgrading from the original
+    // cache format, so the first launch after this release stays populated.
+    const raw=localStorage.getItem(PUBLIC_CACHE_KEY)||
+      localStorage.getItem('vvd_public_snapshots_v1')||'{}';
+    const parsed=JSON.parse(raw);
     publicCache=parsed&&typeof parsed==='object'&&!Array.isArray(parsed)?parsed:{};
   }catch{publicCache={};}
   return publicCache!;
