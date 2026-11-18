@@ -2,7 +2,7 @@ import {preloadPages} from './preloadPages';
 import {warmTask} from './pageLoadSystem';
 import {warmHomeContent} from './homeWarmup';
 import {API_BASE_URL, authorizedFetch} from './api';
-import {CHAT_SNAPSHOT_KEY,normalizeChatMessages} from './chatSnapshot';
+import {CHAT_SNAPSHOT_KEY,normalizeChatMessages,saveRecentDvizhMessages} from './chatSnapshot';
 import {saveSnapshot} from './viewSnapshot';
 import {currentSignedSession} from './browserSession';
 
@@ -49,13 +49,18 @@ export function preloadStartupData(id:number,partnerCode='',role='user'):Promise
       if(!response.ok)throw new StartupDataError();
       const data=await response.json();
       if(!request.valid(data)||currentSignedSession()!==session)throw new StartupDataError();
-      saveSnapshot(request.key,request.select(data));
+      const selected=request.select(data);
+      saveSnapshot(request.key,selected);
+      if(request.key===CHAT_SNAPSHOT_KEY)
+        saveRecentDvizhMessages(id,selected as import('./chatSnapshot').ChatMessage[]);
     };
     // All signed page prefetches share the same small priority queue.
     // The first rendered screen gets the balance and published home feeds,
     // while top-level pages warm before the less frequently opened routes.
     const main=requests.slice(0,6);
     const balanceTask=warmTask(main[0].key,()=>fetchOne(main[0]),110)
+      .then(()=>true,()=>false);
+    const chatTask=warmTask(requests[6].key,()=>fetchOne(requests[6]),86)
       .then(()=>true,()=>false);
     const summaryTask=warmTask(requests[7].key,()=>fetchOne(requests[7]),82)
       .then(()=>true,()=>false);
@@ -73,7 +78,7 @@ export function preloadStartupData(id:number,partnerCode='',role='user'):Promise
     // decorations and menu data a short opportunity, never hold up sign-in
     // for secondary articles, ads or reports.
     await Promise.race([
-      Promise.allSettled([homeTask,summaryTask,...mainTasks]),
+      Promise.allSettled([homeTask,chatTask,summaryTask,...mainTasks]),
       new Promise<void>(resolve=>window.setTimeout(resolve,650))
     ]);
     if(currentSignedSession()!==session)
@@ -81,7 +86,7 @@ export function preloadStartupData(id:number,partnerCode='',role='user'):Promise
 
     // Remaining analysis, country/offer filters and Dvizh warm up ahead of
     // nested routes; only three signed reads run at once globally.
-    const secondary=[...requests.slice(8),requests[6]];
+    const secondary=requests.slice(8);
     void Promise.allSettled(secondary.map((request,i)=>
       warmTask(request.key,()=>fetchOne(request),i<3?58:45)
     ));
