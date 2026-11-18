@@ -101,8 +101,8 @@ export const Dvizh: React.FC = () => {
     initialMessages.current=readSnapshot<ChatMessage[]>(CHAT_SNAPSHOT_KEY)
       ??readRecentDvizhMessages(currentUser.id)??[];
   }
-  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages.current);
-  const [historyReady,setHistoryReady]=useState(initialMessages.current.length>0);
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages.current??[]);
+  const [historyReady,setHistoryReady]=useState((initialMessages.current?.length??0)>0);
   const [historyError,setHistoryError]=useState(false);
   // Do not overwrite preloaded messages with [] before the first server reply.
   // Keep the short-lived, account-scoped history usable on the next launch.
