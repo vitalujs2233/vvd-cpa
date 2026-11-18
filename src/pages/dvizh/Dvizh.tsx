@@ -1,6 +1,6 @@
 import './Dvizh.css';
 import {readSnapshot,readApiSnapshot,saveSnapshot} from '@/shared/lib/viewSnapshot';
-import {CHAT_SNAPSHOT_KEY,normalizeChatMessages,type ChatMessage} from '@/shared/lib/chatSnapshot';
+import {CHAT_SNAPSHOT_KEY,normalizeChatMessages,readRecentDvizhMessages,saveRecentDvizhMessages,type ChatMessage} from '@/shared/lib/chatSnapshot';
 import { authorizedFetch } from '@/shared/lib/api';
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { 
@@ -96,8 +96,21 @@ const ChatPhoto: React.FC<{id:string; onOpen:(id:string)=>void; compact?:boolean
 
 export const Dvizh: React.FC = () => {
   const currentUser = getTelegramUser();
-  const [messages, setMessages] = useState<ChatMessage[]>(()=>readSnapshot<ChatMessage[]>(CHAT_SNAPSHOT_KEY)||[]);
-  useLayoutEffect(()=>{saveSnapshot(CHAT_SNAPSHOT_KEY,messages);},[messages]);
+  const initialMessages=useRef<ChatMessage[]|undefined>(undefined);
+  if(initialMessages.current===undefined){
+    initialMessages.current=readSnapshot<ChatMessage[]>(CHAT_SNAPSHOT_KEY)
+      ??readRecentDvizhMessages(currentUser.id)??[];
+  }
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages.current);
+  const [historyReady,setHistoryReady]=useState(initialMessages.current.length>0);
+  const [historyError,setHistoryError]=useState(false);
+  // Do not overwrite preloaded messages with [] before the first server reply.
+  // Keep the short-lived, account-scoped history usable on the next launch.
+  useEffect(()=>{
+    if(!historyReady)return;
+    saveSnapshot(CHAT_SNAPSHOT_KEY,messages);
+    saveRecentDvizhMessages(currentUser.id,messages);
+  },[messages,historyReady,currentUser.id]);
   const [inputValue, setInputValue] = useState('');
   const [photos,setPhotos] = useState<Array<{file:File;url:string}>>([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -320,11 +333,13 @@ useEffect(() => {
       if (!active || !data.success || generation!==sendGeneration.current || sendingRef.current) return;
 
       const loadedMessages = normalizeChatMessages(data);
-
+      setHistoryReady(true);
+      setHistoryError(false);
       // Avoid rebuilding the full chat tree when polling returns identical data.
       setMessages(previous=>JSON.stringify(previous)===JSON.stringify(loadedMessages)?previous:loadedMessages);
     } catch (error) {
       console.error('Ошибка загрузки сообщений:', error);
+      if(active)setHistoryError(true);
     } finally { loading=false; }
   };
 
@@ -911,6 +926,12 @@ if (!response.ok || !data.success) {
   }}
   className="flex-1 min-h-0 overflow-y-auto p-4 scrollable-container flex flex-col gap-4 z-0"
 >
+        {messages.length===0&&!historyReady&&
+          <p role="status" className="text-center text-sm text-textSecondary py-8">
+            {historyError?'Не удалось загрузить сообщения. Повторяем подключение…':'Подключаем историю сообщений…'}
+          </p>}
+        {messages.length===0&&historyReady&&
+          <p className="text-center text-sm text-textSecondary py-8">Сообщений пока нет</p>}
         {filteredMessages.map((msg) => {
           const isMe = msg.senderId === currentUser.id.toString();
           const hasReactions = Object.keys(msg.reactions).length > 0;
