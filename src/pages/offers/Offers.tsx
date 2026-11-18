@@ -10,14 +10,20 @@ import {cpaApi,type Vertical} from './cpaApi';
 import {readApiSnapshot} from '@/shared/lib/viewSnapshot';
 export const Offers:React.FC=()=>{
  const nav=useNavigate();const [items,setItems]=useState<Vertical[]>(()=>readSnapshot<Vertical[]>('catalog')||[]),[search,setSearch]=useState('');
- const [loading,setLoading]=useState(true),[error,setError]=useState('');
+ const [loading,setLoading]=useState(()=>!(readSnapshot<Vertical[]>('catalog')?.length)),[error,setError]=useState('');
  useEffect(()=>{let live=true;cpaApi.catalog().then(r=>{if(live){saveSnapshot('catalog',r.verticals);setItems(r.verticals)}}).catch(e=>{if(live)setError(e instanceof Error?e.message:'Ошибка загрузки')}).finally(()=>{if(live)setLoading(false)});return()=>{live=false}},[]);
  useEffect(()=>{
    if(!items.length)return;
-   // Warm offer lists before the user opens their cards, without blocking the catalog.
+   // Hydrate the first vertical cards in small parallel batches. A single
+   // slow category must not hold all other cards. Background requests are
+   // deprioritized when a user navigates to a visible card.
    let cancelled=false;
-   const queue=items.filter(v=>!readApiSnapshot('/cpa/catalog/'+encodeURIComponent(v.slug))).slice(0,12);
-   const warm=async()=>{for(const v of queue){if(cancelled)break;try{await cpaApi.vertical(v.slug)}catch{/* Keep navigation available offline. */}}};
+   const queue=items.filter(v=>v.is_active&&!readApiSnapshot('/cpa/catalog/'+encodeURIComponent(v.slug))).slice(0,10);
+   const warm=async()=>{
+     for(let i=0;i<queue.length&&!cancelled;i+=2){
+       await Promise.allSettled(queue.slice(i,i+2).map(v=>cpaApi.vertical(v.slug)));
+     }
+   };
    void warm();
    return()=>{cancelled=true};
  },[items]);
@@ -28,7 +34,7 @@ export const Offers:React.FC=()=>{
    {loading&&!items.length&&<p role="status" className="text-xs text-textSecondary">Загружаем вертикали…</p>}
    {error&&<p role="alert" className="rounded-app-xs border border-white/10 p-3 text-sm text-textSecondary">{error}</p>}
    {(items.length>0||(!loading&&!error))&&<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 w-full">
-     {filtered.length?filtered.map(v=>{const Icon=getCpaIcon(v.icon_name);return <Card key={v.slug} clickable padding="sm" onClick={()=>{triggerHaptic.lightImpact();nav('/offers/'+encodeURIComponent(v.slug))}} className="flex items-center justify-between shadow-premium">
+     {filtered.length?filtered.map(v=>{const Icon=getCpaIcon(v.icon_name);return <Card key={v.slug} clickable padding="sm" onPointerDown={()=>{void cpaApi.vertical(v.slug).catch(()=>{});}} onClick={()=>{triggerHaptic.lightImpact();nav('/offers/'+encodeURIComponent(v.slug))}} className="flex items-center justify-between shadow-premium">
        <div className="flex items-center gap-3"><div className="w-11 h-11 rounded-app-xs border border-accentPurple/20 bg-accentPurple/10 flex items-center justify-center text-accentPurple"><Icon size={20}/></div><div className="flex flex-col text-left"><b className="text-sm text-white">{v.title}</b><span className="text-[10px] text-textSecondary mt-1">{v.offers_count} офферов доступно</span></div></div>
        <ChevronRight size={16} className="text-gray-600 mr-1"/>
      </Card>}):<div className="col-span-full py-20 text-center rounded-card bg-bgCard/35 border border-white/[0.04] text-xs text-textSecondary">Нет опубликованных вертикалей или совпадений по поиску</div>}
