@@ -7,6 +7,8 @@ let session='';
 const snapshots=new Map<string,unknown>();
 const PUBLIC_CACHE_KEY='vvd_public_snapshots_v2';
 const FRESH_MS=24*60*60*1000;
+const OFFER_FRESH_MS=60*60*1000;
+const ageLimit=(key:string)=>key.startsWith('api:/cpa/catalog/')?OFFER_FRESH_MS:FRESH_MS;
 const MAX_ITEMS=85;
 const MAX_BYTES=850_000;
 const publicKeys=new Set([
@@ -17,7 +19,10 @@ const publicKeys=new Set([
   'api:/articles?surface=mini','api:/articles?surface=web'
 ]);
 const isPublic=(key:string)=>publicKeys.has(key)||
-  /^api:\/articles\/[a-z0-9][a-z0-9-]{0,130}\?surface=(mini|web)$/.test(key);
+  /^api:\/articles\/[a-z0-9][a-z0-9-]{0,130}\?surface=(mini|web)$/.test(key)||
+  // Only published, non-personal catalogue descriptions. Tracking links and
+  // user-specific state are never written to persistent storage.
+  /^api:\/cpa\/catalog\/[a-z0-9][a-z0-9_-]{0,100}(?:\/[a-zA-Z0-9_-]{1,100})?$/.test(key);
 type Entry={at:number;value:unknown};
 let publicCache:Record<string,Entry>|null=null;
 function persisted():Record<string,Entry>{
@@ -46,7 +51,7 @@ export function readSnapshot<T>(key:string):T|undefined{
   if(!isPublic(key))return undefined;
   const entry=persisted()[key];
   if(!entry||typeof entry.at!=='number'||entry.at>Date.now()||
-     Date.now()-entry.at>FRESH_MS)return undefined;
+     Date.now()-entry.at>ageLimit(key))return undefined;
   snapshots.set(key,entry.value);
   return entry.value as T;
 }
