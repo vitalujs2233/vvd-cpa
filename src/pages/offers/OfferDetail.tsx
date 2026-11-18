@@ -10,7 +10,19 @@ import {cpaApi,type PublicOffer,type Vertical} from './cpaApi';
 export const OfferDetail:React.FC=()=>{
  const {id,offerId}=useParams();const nav=useNavigate();
  const path='/cpa/catalog/'+encodeURIComponent(id||'')+(offerId?'/'+encodeURIComponent(offerId):'');
- const cached=()=>readApiSnapshot(path);
+ const cached=()=>{
+   const detail=readApiSnapshot<{vertical:Vertical;offers?:PublicOffer[];offer?:PublicOffer}>(path);
+   if(detail)return detail;
+   const parent=readApiSnapshot<{vertical:Vertical;offers:PublicOffer[]}>('/cpa/catalog/'+encodeURIComponent(id||''));
+   if(!parent)return undefined;
+   // An offer's published summary already contains its visible card text.
+   // Show this real preview immediately, then refresh the full detail from API.
+   if(offerId){
+     const preview=parent.offers.find(item=>item.id===offerId);
+     return preview?{vertical:parent.vertical,offers:[],offer:preview}:undefined;
+   }
+   return parent;
+ };
  const [vertical,setVertical]=useState<Vertical|null>(()=>cached()?.vertical||null),[offers,setOffers]=useState<PublicOffer[]>(()=>cached()?.offers||[]),[offer,setOffer]=useState<PublicOffer|null>(()=>cached()?.offer||null);
  const [loading,setLoading]=useState(!cached()),[error,setError]=useState('');
  const [link,setLink]=useState<string|null>(()=>readApiSnapshot('/cpa/links/'+encodeURIComponent(offerId||''))?.url||null),[linkError,setLinkError]=useState(''),[linkBusy,setLinkBusy]=useState(false);
