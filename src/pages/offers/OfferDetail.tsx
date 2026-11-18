@@ -21,7 +21,7 @@ export const OfferDetail:React.FC=()=>{
      const preview=parent.offers.find(item=>item.id===offerId);
      return preview?{vertical:parent.vertical,offers:[],offer:preview}:undefined;
    }
-   return parent;
+   return {...parent,offer:null};
  };
  const [vertical,setVertical]=useState<Vertical|null>(()=>cached()?.vertical||null),[offers,setOffers]=useState<PublicOffer[]>(()=>cached()?.offers||[]),[offer,setOffer]=useState<PublicOffer|null>(()=>cached()?.offer||null);
  const [loading,setLoading]=useState(!cached()),[error,setError]=useState('');
